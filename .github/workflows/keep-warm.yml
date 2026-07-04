@@ -1,0 +1,222 @@
+################################################################################
+# Campus Plug — GitHub Actions: Keep-Alive + Auto-Release + CI
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   SUPABASE_URL              — e.g. https://abc123.supabase.co
+#   SUPABASE_ANON_KEY         — public anon key
+#   SUPABASE_SERVICE_ROLE_KEY — service role key (for auto-release cron)
+################################################################################
+
+name: Campus Plug Operations
+
+on:
+  schedule:
+    # Warm all Edge Functions every 5 minutes (keeps Deno isolates hot)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to run'
+        required: false
+        default: 'warm'
+        type: choice
+        options: [warm, auto-release, all]
+
+# Cancel redundant runs to avoid congestion
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+
+  # ── Job 1: Warm all Edge Functions ────────────────────────────────────────
+  warm-functions:
+    name: Warm Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: github.event_name == 'schedule' || github.event.inputs.action == 'warm' || github.event.inputs.action == 'all'
+
+    steps:
+      - name: Ping release-escrow
+        run: |
+          echo "→ Pinging release-escrow..."
+          START=$(date +%s%3N)
+          STATUS=$(curl -sf -o /tmp/ping.json -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            --max-time 8 \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/release-escrow/ping" || echo "000")
+          END=$(date +%s%3N)
+          MS=$((END - START))
+          echo "  release-escrow → HTTP $STATUS  (${MS}ms)"
+          cat /tmp/ping.json 2>/dev/null || true
+
+      - name: Ping join-pool
+        run: |
+          echo "→ Pinging join-pool..."
+          START=$(date +%s%3N)
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            --max-time 8 \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/join-pool/ping" || echo "000")
+          END=$(date +%s%3N)
+          MS=$((END - START))
+          echo "  join-pool → HTTP $STATUS  (${MS}ms)"
+
+      - name: Ping paystack-webhook
+        run: |
+          echo "→ Pinging paystack-webhook..."
+          START=$(date +%s%3N)
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            --max-time 8 \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/paystack-webhook/ping" || echo "000")
+          END=$(date +%s%3N)
+          MS=$((END - START))
+          echo "  paystack-webhook → HTTP $STATUS  (${MS}ms)"
+
+      - name: Ping passkey-auth
+        run: |
+          echo "→ Pinging passkey-auth..."
+          START=$(date +%s%3N)
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            --max-time 8 \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/passkey-auth/ping" || echo "000")
+          END=$(date +%s%3N)
+          MS=$((END - START))
+          echo "  passkey-auth → HTTP $STATUS  (${MS}ms)"
+
+      - name: Ping process-growth-events
+        run: |
+          START=$(date +%s%3N)
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            --max-time 8 \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/process-growth-events/ping" || echo "000")
+          echo "  process-growth-events → HTTP $STATUS  ($(($(date +%s%3N) - START))ms)"
+
+      - name: Ping process-dispute
+        run: |
+          START=$(date +%s%3N)
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            --max-time 8 \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/process-dispute/ping" || echo "000")
+          echo "  process-dispute → HTTP $STATUS  ($(($(date +%s%3N) - START))ms)"
+
+      - name: Ping calculate-trending
+        run: |
+          START=$(date +%s%3N)
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            --max-time 8 \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/calculate-trending/ping" || echo "000")
+          echo "  calculate-trending → HTTP $STATUS  ($(($(date +%s%3N) - START))ms)"
+
+  # ── Job 2.5: Calculate trending (every 15 min) ─────────────────────────────
+  calculate-trending:
+    name: Calculate Trending Scores
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Run weighted gravity + anti-collusion + rookie boost
+        run: |
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            --max-time 30 \
+            -d '{}' \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/calculate-trending" | jq .
+
+      - name: Rotate stale jury cases
+        run: |
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            --max-time 20 \
+            -d '{"action":"rotate_jurors"}' \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/process-dispute" | jq .
+
+  # ── Job 2: Auto-release timed-out escrow transactions ─────────────────────
+  auto-release:
+    name: Process Auto-Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # Run every 3rd 5-minute cycle (effectively every 15 min)
+    # Using schedule minute to approximate: 0,15,30,45
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.action == 'auto-release' || github.event.inputs.action == 'all')
+
+    steps:
+      - name: Trigger auto-release for expired transactions
+        run: |
+          echo "→ Triggering auto-release..."
+          RESPONSE=$(curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            --max-time 30 \
+            -d '{"action":"auto_release"}' \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/release-escrow")
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" | python3 -c "
+          import sys, json
+          try:
+              d = json.load(sys.stdin)
+              released  = d.get('released', 0)
+              processed = d.get('processed', 0)
+              print(f'  ✅ Released: {released} / Processed: {processed}')
+          except:
+              print('  ⚠️  Could not parse response')
+          "
+
+  # ── Job 3: Scheduled auto-release (every 15 minutes via cron) ─────────────
+  scheduled-auto-release:
+    name: Scheduled Auto-Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    # Run at minutes 0, 15, 30, 45 of every hour
+    if: |
+      github.event_name == 'schedule' &&
+      (
+        startsWith(github.event.schedule, '0 *')  ||
+        startsWith(github.event.schedule, '15 *') ||
+        startsWith(github.event.schedule, '30 *') ||
+        startsWith(github.event.schedule, '45 *')
+      )
+
+    steps:
+      - name: Auto-release timed-out escrow transactions
+        run: |
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            --max-time 30 \
+            -d '{"action":"auto_release"}' \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/release-escrow" | jq .
+
+# ── Separate workflow for CI on PRs ─────────────────────────────────────────
+# (Add to .github/workflows/ci.yml separately if needed)
+#
+# on: [pull_request]
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/setup-node@v4
+#         with: { node-version: '20', cache: 'npm' }
+#       - run: npm ci
+#       - run: npm run build

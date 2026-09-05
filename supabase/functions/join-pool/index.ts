@@ -6,6 +6,22 @@ const CORS={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"au
 const ok=(d:unknown)=>new Response(JSON.stringify(d),{status:200,headers:CORS});
 const bad=(m:string,s=400)=>new Response(JSON.stringify({error:m}),{status:s,headers:CORS});
 const admin=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,{auth:{persistSession:false}});
+
+function isTransientConcurrencyError(message:string){
+ const m=message.toLowerCase();
+ return m.includes('deadlock') || m.includes('serialization') || m.includes('statement timeout') || m.includes('could not serialize');
+}
+
+async function atomicJoin(poolId:string,userId:string,paystackRef:string|null){
+ for(let attempt=0;attempt<3;attempt++){
+  const {data,error}=await admin.rpc("atomic_pool_join",{p_pool_id:poolId,p_user_id:userId,p_ref:paystackRef});
+  if(!error) return {data,error:null};
+  if(!isTransientConcurrencyError(error.message)||attempt===2) return {data:null,error};
+  await new Promise(resolve=>setTimeout(resolve,50*(attempt+1)));
+ }
+ return {data:null,error:new Error('Pool join contention')};
+}
+
 serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:CORS});
  if(req.method==="GET"&&new URL(req.url).pathname.endsWith("/ping"))return ok({status:"warm",ts:Date.now(),fn:"join-pool"});
@@ -15,8 +31,8 @@ serve(async(req:Request)=>{
  try{const limit=await enforceRateLimitWithToken(token,"study-pool-joins",20,60);if(!limit.allowed)return bad("Rate limit exceeded",429);}catch{return bad("Rate limit service unavailable",503);}
  let body:Record<string,any>;try{body=await req.json();}catch{return bad("Invalid JSON");}
  const poolId=typeof body.pool_id==="string"?body.pool_id:"";const paystackRef=typeof body.paystack_ref==="string"?body.paystack_ref:null;if(!poolId)return bad("Missing pool_id");
- const {data,error:resultError}=await admin.rpc("atomic_pool_join",{p_pool_id:poolId,p_user_id:user.id,p_ref:paystackRef});
- if(resultError)return bad(resultError.message,500);if(!data?.success){const status=data?.reason==="pool_not_found"?404:400;return bad(data?.reason??"Unable to join pool",status);}
+ const {data,error:resultError}=await atomicJoin(poolId,user.id,paystackRef);
+ if(resultError)return bad("Pool is busy; please retry",503);if(!data?.success){const reason=data?.reason;const status=reason==="pool_not_found"?404:reason==="pool_full"||reason==="already_joined"||reason==="join_conflict"?409:400;return bad(reason??"Unable to join pool",status);}
  const pool=data.pool;const {data:profile}=await admin.from("profiles").select("full_name").eq("id",user.id).single();
  await admin.from("activity_feed").insert({actor_name:profile?.full_name??"A student",actor_id:user.id,action:"joined a study pool",subject:pool.title,amount:pool.unit_price,emoji:"🛒",university:pool.university});
  await admin.from("notifications").insert({user_id:pool.organizer_id,type:"pool_joined",title:"👋 New Pool Member!",body:`${profile?.full_name??"Someone"} joined "${pool.title}". ${pool.max_capacity-pool.current_count} spots remaining.`,data:{pool_id:poolId,current_count:pool.current_count,max_capacity:pool.max_capacity}});

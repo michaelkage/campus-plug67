@@ -1,150 +1,78 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
+import { getAuthenticatedUser, isServiceRoleRequest } from "../_shared/auth.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Content-Type": "application/json",
+};
+const ok = (d: unknown) => new Response(JSON.stringify(d), { status: 200, headers: CORS });
+const bad = (m: string, s = 400) => new Response(JSON.stringify({ error: m }), { status: s, headers: CORS });
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+const admin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  { auth: { persistSession: false } }
+);
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method === "GET" && new URL(req.url).pathname.endsWith("/ping")) {
+    return ok({ status: "warm", ts: Date.now(), fn: "release-escrow" });
+  }
+  if (req.method !== "POST") return bad("Method not allowed", 405);
+
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return bad("Invalid JSON"); }
+  const action = String(body.action ?? "");
+
+  // Auto-release is a scheduler operation and must be authenticated with the
+  // service-role credential. All user actions require a real Supabase JWT.
+  if (action === "auto_release") {
+    if (!isServiceRoleRequest(req)) return bad("Forbidden", 403);
+
+    const { data: due, error } = await admin
+      .from("transactions")
+      .select("id")
+      .eq("status", "release_requested")
+      .lte("auto_release_at", new Date().toISOString())
+      .limit(100);
+    if (error) return bad(error.message, 500);
+
+    let released = 0;
+    for (const tx of due ?? []) {
+      const { error: rpcError } = await admin.rpc("process_escrow_action", {
+        p_transaction_id: tx.id,
+        p_action: "auto_release",
+        p_qr_secret: null,
+        p_reason: null,
+      });
+      if (!rpcError) released++;
+      else console.error("auto_release failed", tx.id, rpcError.message);
+    }
+    return ok({ success: true, processed: due?.length ?? 0, released });
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+  const user = await getAuthenticatedUser(req);
+  if (!user) return bad("Unauthorized", 401);
 
-    const { transaction_id, release_code, action } = await req.json()
+  const transactionId = typeof body.transaction_id === "string" ? body.transaction_id : "";
+  if (!transactionId) return bad("Missing transaction_id");
 
-    if (!transaction_id || !action) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+  const rpcArgs = {
+    p_transaction_id: transactionId,
+    p_action: action,
+    p_qr_secret: typeof body.qr_secret === "string" ? body.qr_secret :
+      (typeof body.release_code === "string" ? body.release_code : null),
+    p_reason: typeof body.reason === "string" ? body.reason : null,
+  };
 
-    // Verify transaction exists and get details
-    const { data: transaction, error: txError } = await supabaseClient
-      .from('transactions')
-      .select('*')
-      .eq('id', transaction_id)
-      .single()
-
-    if (txError || !transaction) {
-      return new Response(
-        JSON.stringify({ error: 'Transaction not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Verify escrow status
-    if (transaction.escrow_status !== 'held') {
-      return new Response(
-        JSON.stringify({ error: 'Escrow not in held status' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    let newStatus, userId, amount
-
-    if (action === 'release') {
-      // Release to seller
-      if (transaction.release_code !== release_code) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid release code' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-
-      newStatus = 'completed'
-      userId = transaction.seller_id
-      amount = transaction.amount
-
-      // Update transaction
-      const { error: updateError } = await supabaseClient
-        .from('transactions')
-        .update({
-          status: newStatus,
-          escrow_status: 'released',
-          released_at: new Date().toISOString()
-        })
-        .eq('id', transaction_id)
-
-      if (updateError) throw updateError
-
-      // Create ledger entry (trigger will handle balance update)
-      const { error: ledgerError } = await supabaseClient
-        .from('plug_credit_ledger')
-        .insert({
-          user_id: userId,
-          amount: amount,
-          reason: 'Escrow release for transaction #' + transaction_id,
-          reference_id: transaction_id
-        })
-
-      if (ledgerError) throw ledgerError
-
-    } else if (action === 'refund') {
-      // Refund to buyer
-      newStatus = 'cancelled'
-      userId = transaction.buyer_id
-      amount = transaction.amount
-
-      const { error: updateError } = await supabaseClient
-        .from('transactions')
-        .update({
-          status: newStatus,
-          escrow_status: 'refunded',
-          cancelled_at: new Date().toISOString()
-        })
-        .eq('id', transaction_id)
-
-      if (updateError) throw updateError
-
-      const { error: ledgerError } = await supabaseClient
-        .from('plug_credit_ledger')
-        .insert({
-          user_id: userId,
-          amount: amount,
-          reason: 'Refund for cancelled transaction #' + transaction_id,
-          reference_id: transaction_id
-        })
-
-      if (ledgerError) throw ledgerError
-
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Invalid action' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // Log the action
-    await supabaseClient.from('audit_logs').insert({
-      user_id: userId,
-      action: `escrow_${action}`,
-      entity_type: 'transaction',
-      entity_id: transaction_id,
-      metadata: { previous_status: transaction.status, new_status: newStatus }
-    })
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Escrow ${action} successful`,
-        transaction_id,
-        new_status: newStatus
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+  const { data, error } = await admin.rpc("process_escrow_action", rpcArgs);
+  if (error) {
+    const message = error.message || "Escrow action failed";
+    const status = /not authorized|only the|invalid release credential|authentication/i.test(message) ? 403 : 400;
+    return bad(message, status);
   }
-})
+  return ok(data);
+});

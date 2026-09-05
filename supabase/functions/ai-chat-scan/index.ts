@@ -1,147 +1,50 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { getAuthenticatedUser } from "../_shared/auth.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const CORS={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Content-Type":"application/json"};
+const ok=(d:unknown)=>new Response(JSON.stringify(d),{status:200,headers:CORS});
+const bad=(m:string,s=400)=>new Response(JSON.stringify({error:m}),{status:s,headers:CORS});
+const admin=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,{auth:{persistSession:false}});
 
-// Payment diversion patterns (Nigeria-specific)
-const PAYMENT_PATTERNS = [
-  /bank\s*transfer/i,
-  /account\s*number/i,
-  /sort\s*code/i,
-  /send\s*money/i,
-  /wire\s*transfer/i,
-  /western\s*union/i,
-  /moneygram/i,
-  /070\d{8}|080\d{8}|081\d{8}|090\d{8}/, // Nigerian phone numbers
-  /\b\d{10,12}\b/, // Potential account numbers
-  /pay\s*directly/i,
-  /outside\s*campus\s*plug/i,
-  /off\s*platform/i,
-  /avoid\s*fees/i,
-  /cash\s*payment/i,
-  /bank\s*deposit/i,
-  /transfer\s*to/i,
-]
+const PAYMENT_PATTERNS=[/bank\s*transfer/i,/account\s*number/i,/sort\s*code/i,/send\s*money/i,/wire\s*transfer/i,/western\s*union/i,/moneygram/i,/070\d{8}|080\d{8}|081\d{8}|090\d{8}/,/\b\d{10,12}\b/,/pay\s*directly/i,/outside\s*campus\s*plug/i,/off\s*platform/i,/avoid\s*fees/i,/cash\s*payment/i,/bank\s*deposit/i,/transfer\s*to/i];
+const CONTENT_MODERATION_PATTERNS=[/\b(nude|naked|sex|porn|xxx|adult)\b/i,/\b(drugs|weed|cocaine|heroin)\b/i,/\b(weapon|gun|knife|bomb)\b/i,/\b(scam|fraud|rip\s*off)\b/i,/\b(kill|murder|death|die)\b/i];
 
-// Inappropriate content patterns
-const CONTENT_MODERATION_PATTERNS = [
-  /\b(nude|naked|sex|porn|xxx|adult)\b/i,
-  /\b(drugs|weed|cocaine|heroin)\b/i,
-  /\b(weapon|gun|knife|bomb)\b/i,
-  /\b(scam|fraud|rip\s*off)\b/i,
-  /\b(kill|murder|death|die)\b/i,
-]
+async function sha256(text:string){const bytes=new TextEncoder().encode(text);const hash=await crypto.subtle.digest("SHA-256",bytes);return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join("");}
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+serve(async(req:Request)=>{
+  if(req.method==="OPTIONS") return new Response("ok",{headers:CORS});
+  if(req.method!=="POST") return bad("Method not allowed",405);
+  const user=await getAuthenticatedUser(req);
+  if(!user) return bad("Unauthorized",401);
+  let body:Record<string,any>;
+  try{body=await req.json();}catch{return bad("Invalid JSON");}
+  const {message_id}=body;
+  if(!message_id) return bad("Missing message_id");
+
+  // Never trust sender/receiver/content supplied by the client. Read the message
+  // from the database and authorize the caller against the actual participants.
+  const {data:message,error:messageErr}=await admin.from("messages").select("id,sender_id,receiver_id,listing_id,body,content").eq("id",message_id).maybeSingle();
+  if(messageErr) return bad(messageErr.message,500);
+  if(!message) return bad("Message not found",404);
+  if(message.sender_id!==user.id && message.receiver_id!==user.id) return bad("Not authorized for this message",403);
+
+  const content=String(message.body ?? message.content ?? "");
+  if(!content) return bad("Message has no text content");
+  const chatType=typeof body.chat_type==="string"?body.chat_type:null;
+  let flagged=false;let flag_type:string|null=null;let confidence=0;const matched_patterns:string[]=[];
+  for(const pattern of PAYMENT_PATTERNS){if(pattern.test(content)){flagged=true;flag_type="payment_diversion";confidence=Math.max(confidence,.8);matched_patterns.push(pattern.toString());}}
+  for(const pattern of CONTENT_MODERATION_PATTERNS){if(pattern.test(content)){flagged=true;flag_type=flag_type||"inappropriate_content";confidence=Math.max(confidence,.7);matched_patterns.push(pattern.toString());}}
+
+  const contentHash=await sha256(content);
+  const {error:scanErr}=await admin.from("chat_scan_logs").insert({message_id:message.id,sender_id:message.sender_id,receiver_id:message.receiver_id,chat_type:chatType,flagged,flag_type,confidence,matched_patterns:matched_patterns.join(", "),content_hash:contentHash});
+  if(scanErr) console.error("chat scan log failed",scanErr.message);
+
+  if(flagged){
+    const {error:flagErr}=await admin.from("chat_flag_log").insert({sender_id:message.sender_id,listing_id:message.listing_id??null,message_hash:contentHash,flag_type:flag_type!,severity:confidence>=.8?"critical":"warning",action_taken:confidence>=.8?"blocked":"warned"});
+    if(flagErr) console.error("chat flag log failed",flagErr.message);
+    await admin.from("messages").update({flagged:true,flag_type}).eq("id",message.id);
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    const { message_id, sender_id, receiver_id, content, chat_type } = await req.json()
-
-    if (!message_id || !content) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    let flagged = false
-    let flag_type = null
-    let confidence = 0
-    let matched_patterns = []
-
-    // Check for payment diversion
-    for (const pattern of PAYMENT_PATTERNS) {
-      if (pattern.test(content)) {
-        flagged = true
-        flag_type = 'payment_diversion'
-        confidence = Math.max(confidence, 0.8)
-        matched_patterns.push(pattern.toString())
-      }
-    }
-
-    // Check for inappropriate content
-    for (const pattern of CONTENT_MODERATION_PATTERNS) {
-      if (pattern.test(content)) {
-        flagged = true
-        flag_type = flag_type || 'inappropriate_content'
-        confidence = Math.max(confidence, 0.7)
-        matched_patterns.push(pattern.toString())
-      }
-    }
-
-    // Log the scan result
-    const { error: logError } = await supabaseClient.from('chat_scan_logs').insert({
-      message_id,
-      sender_id,
-      receiver_id,
-      content,
-      chat_type,
-      flagged,
-      flag_type,
-      confidence,
-      matched_patterns: matched_patterns.join(', '),
-      scanned_at: new Date().toISOString()
-    })
-
-    if (logError) {
-      console.error('Error logging chat scan:', logError)
-    }
-
-    // If flagged, create chat flag entry
-    if (flagged) {
-      const { error: flagError } = await supabaseClient.from('chat_flag_log').insert({
-        message_id,
-        sender_id,
-        receiver_id,
-        flag_type,
-        confidence,
-        severity: confidence > 0.8 ? 'high' : 'medium',
-        status: 'pending_review',
-        metadata: { matched_patterns }
-      })
-
-      if (flagError) {
-        console.error('Error creating chat flag:', flagError)
-      }
-
-      // Auto-flag user for high-severity violations
-      if (confidence > 0.9) {
-        await supabaseClient.from('user_security').insert({
-          user_id: sender_id,
-          flag_type: 'chat_violation',
-          severity: 'critical',
-          description: `High-confidence ${flag_type} detected in chat`,
-          metadata: { message_id, patterns: matched_patterns }
-        })
-      }
-    }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        flagged,
-        flag_type,
-        confidence,
-        message: flagged ? 'Message flagged for review' : 'Message passed safety check'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
-  }
-})
+  return ok({success:true,flagged,flag_type,confidence,message:flagged?"Message flagged for review":"Message passed safety check"});
+});

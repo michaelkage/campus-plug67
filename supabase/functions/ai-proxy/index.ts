@@ -1,77 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { GoogleGenAI } from "npm:@google/genai";
+import { getAuthenticatedUser } from "../_shared/auth.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const CORS={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Content-Type":"application/json"};
+const response=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:CORS});
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing Authorization header');
-    }
-
-    const { message } = await req.json();
-    if (!message) {
-      throw new Error('Message is required');
-    }
-
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not set');
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-
-    // System instruction to detect obfuscated payment requests and personal info sharing
-    const prompt = `
-      You are a security scanner for a university marketplace app.
-      Analyze the following chat message and determine if the user is trying to:
-      1. Request payment outside the platform (e.g. OPay, Kuda, direct transfer, "send to this account") - critical severity.
-      2. Share personal phone numbers or move chat to WhatsApp/Snapchat - warning severity.
-      3. Share student ID/matric numbers - warning severity.
-
-      Respond ONLY in JSON format with this structure:
-      {
-        "hasCritical": boolean,
-        "primaryMessage": string | null (a human readable warning if flagged),
-        "flags": [
-          { "id": "external_payment" | "phone_number" | "whatsapp" | "matric_sharing", "severity": "critical" | "warning", "message": "warning message" }
-        ]
-      }
-
-      Message: "${message}"
-    `;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-
-    let result = { hasCritical: false, primaryMessage: null, flags: [] };
-    const text = response.text;
-    
-    if (text) {
-        // Strip markdown code blocks if present
-        const jsonStr = text.replace(/```json\n?|\n?```/g, '').trim();
-        result = JSON.parse(jsonStr);
-    }
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
-
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
-  }
+serve(async(req:Request)=>{
+  if(req.method==="OPTIONS") return new Response("ok",{headers:CORS});
+  if(req.method!=="POST") return response({error:"Method not allowed"},405);
+  const user=await getAuthenticatedUser(req);
+  if(!user) return response({error:"Unauthorized"},401);
+  try{
+    const {message}=await req.json();
+    if(typeof message!=="string"||!message.trim()) return response({error:"Message is required"},400);
+    if(message.length>5000) return response({error:"Message is too long"},400);
+    const apiKey=Deno.env.get("GEMINI_API_KEY");
+    if(!apiKey) return response({error:"GEMINI_API_KEY is not set"},500);
+    const ai=new GoogleGenAI({apiKey});
+    const prompt=`You are a security scanner for a university marketplace app. Analyze the following chat message and determine if the user is trying to: 1. Request payment outside the platform (critical). 2. Share personal phone numbers or move chat to WhatsApp/Snapchat (warning). 3. Share student ID/matric numbers (warning). Respond ONLY as JSON with hasCritical, primaryMessage, and flags. Message: ${JSON.stringify(message)}`;
+    const result=await ai.models.generateContent({model:"gemini-2.5-flash",contents:prompt});
+    const text=result.text?.trim();
+    if(!text) return response({hasCritical:false,primaryMessage:null,flags:[]});
+    const jsonStr=text.replace(/^```json\s*/i,"").replace(/\s*```$/i,"").trim();
+    return response(JSON.parse(jsonStr));
+  }catch(error){return response({error:error instanceof Error?error.message:"AI scan failed"},500);}
 });

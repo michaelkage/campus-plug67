@@ -192,7 +192,11 @@ export async function releaseEscrow(transactionId: string, releaseCode: string, 
 }
 
 export async function scanChatMessage(messageId: string, senderId: string, receiverId: string, content: string, chatType?: string): Promise<any> {
-  const { data, error } = await callEdgeFunction('ai-chat-scan', { message_id: messageId, chat_type: chatType })
+  const isPreFlight = !messageId || messageId.startsWith('temp-')
+  const payload = isPreFlight
+    ? { raw_content: content, receiver_id: receiverId, chat_type: chatType }
+    : { message_id: messageId, chat_type: chatType }
+  const { data, error } = await callEdgeFunction('ai-chat-scan', payload)
   if (error) throw new Error(error)
   return data
 }

@@ -269,14 +269,17 @@ export default function ListingDetail() {
     setBuying(true)
     try {
       const ref = `CP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`
+      const rawPrice = Number(listing.price)
+      const amountInKobo = rawPrice < 100000 ? Math.round(rawPrice * 100) : Math.round(rawPrice)
+
       const { data: tx, error } = await supabase.from('transactions').insert({
         listing_id: listing.id, buyer_id: user.id, seller_id: listing.seller_id,
-        amount: listing.price, status: 'pending', paystack_ref: ref,
+        amount: amountInKobo, status: 'pending', paystack_ref: ref,
       }).select().single()
       if (error) throw error
 
       await initPaystack({
-        email: user.email, amount: listing.price, ref,
+        email: user.email, amount: amountInKobo, ref,
         publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
         metadata: { type: 'marketplace_escrow', transaction_id: tx.id, listing_id: listing.id },
       })

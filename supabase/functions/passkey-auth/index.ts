@@ -15,15 +15,27 @@ const cache=new Map<string,ChallengeEntry>();
 
 async function saveChallenge(userId:string,type:"reg"|"auth",challenge:string){
   const key=`challenge:${userId}:${type}`;
-  const expiresAt=Date.now()+CHALLENGE_TTL_MS;
-  cache.set(key,{challenge,expiresAt});
-  await admin.from("user_security").upsert({
+  const expiresAtMs=Date.now()+CHALLENGE_TTL_MS;
+  cache.set(key,{challenge,expiresAt:expiresAtMs});
+  const expiresAtIso=new Date(expiresAtMs).toISOString();
+
+  const {error}=await admin.from("auth_challenges").upsert({
     user_id:userId,
-    device_hash:key,
-    device_label:`__challenge__${challenge}`,
-    flag_type:"webauthn_challenge",
-    created_at:new Date().toISOString(),
-  },{onConflict:"user_id,device_hash"});
+    challenge_type:type,
+    challenge,
+    expires_at:expiresAtIso,
+  },{onConflict:"user_id,challenge_type"});
+
+  if(error){
+    // Backward-compatibility fallback if migration 036 not yet migrated
+    await admin.from("user_security").upsert({
+      user_id:userId,
+      device_hash:key,
+      device_label:`__challenge__${challenge}`,
+      flag_type:"webauthn_challenge",
+      created_at:new Date().toISOString(),
+    },{onConflict:"user_id,device_hash"}).catch(()=>{});
+  }
 }
 
 async function loadChallenge(userId:string,type:"reg"|"auth"){
@@ -33,6 +45,23 @@ async function loadChallenge(userId:string,type:"reg"|"auth"){
     if(Date.now()>cached.expiresAt){await clearChallenge(userId,type);return null;}
     return cached.challenge;
   }
+
+  const {data:challengeRow}=await admin.from("auth_challenges")
+    .select("challenge,expires_at")
+    .eq("user_id",userId)
+    .eq("challenge_type",type)
+    .maybeSingle();
+
+  if(challengeRow?.challenge){
+    if(new Date(challengeRow.expires_at).getTime()<Date.now()){
+      await clearChallenge(userId,type);
+      return null;
+    }
+    cache.set(key,{challenge:challengeRow.challenge,expiresAt:new Date(challengeRow.expires_at).getTime()});
+    return challengeRow.challenge;
+  }
+
+  // Fallback to legacy user_security lookup
   const {data}=await admin.from("user_security").select("device_label,created_at").eq("user_id",userId).eq("device_hash",key).maybeSingle();
   if(!data?.device_label)return null;
   if(Date.now()-new Date(data.created_at).getTime()>CHALLENGE_TTL_MS){await clearChallenge(userId,type);return null;}
@@ -44,7 +73,8 @@ async function loadChallenge(userId:string,type:"reg"|"auth"){
 async function clearChallenge(userId:string,type:"reg"|"auth"){
   const key=`challenge:${userId}:${type}`;
   cache.delete(key);
-  await admin.from("user_security").delete().eq("user_id",userId).eq("device_hash",key);
+  await admin.from("auth_challenges").delete().eq("user_id",userId).eq("challenge_type",type);
+  await admin.from("user_security").delete().eq("user_id",userId).eq("device_hash",key).catch(()=>{});
 }
 
 serve(async(req:Request)=>{

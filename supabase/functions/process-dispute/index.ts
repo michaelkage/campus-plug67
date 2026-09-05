@@ -543,21 +543,19 @@ serve(async (req: Request) => {
   return bad(`Unknown action: ${action}`);
 });
 
-// ── Execute verdict on transaction ────────────────────────────────────────────
 async function executeVerdict(juryCase: any, verdict: string) {
-  if (verdict === "claimant") {
-    await admin.from("transactions")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("id", juryCase.transaction_id);
-    await admin.rpc("apply_dispute_penalty", {
-      p_transaction_id: juryCase.transaction_id,
-      p_penalize_seller: true,
-    }).catch(() => {});
-  } else if (verdict === "respondent") {
-    await admin.from("transactions")
-      .update({ status: "released", released_at: new Date().toISOString() })
-      .eq("id", juryCase.transaction_id);
+  const { data, error } = await admin.rpc("resolve_dispute_verdict", {
+    p_case_id: juryCase.id,
+    p_verdict: verdict,
+    p_admin_override: false,
+  });
+
+  if (error) {
+    console.error(`Failed to execute dispute verdict for case ${juryCase.id}:`, error);
+    throw error;
   }
+  return data;
+}
 
   const msgMap: Record<string, string> = {
     claimant:   "⚖️ The cross-campus jury found in your favour. Your escrow protection is restored.",

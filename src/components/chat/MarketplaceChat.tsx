@@ -378,13 +378,13 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
       message_type: 'text',
       created_at: new Date().toISOString(),
       isOptimistic: true,
-      scanStatus: 'pending'
+      scanStatus: 'pending',
     }
 
-    setMessages(prev => [...prev, optimisticMessage])
+    setMessages((prev) => [...prev, optimisticMessage])
 
     try {
-      // 1. Scan message using Edge Function
+      // 1. Pre-flight scan sending raw_content
       const scanResultData = await scanChatMessage(
         tempId,
         currentUserId,
@@ -393,18 +393,18 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
         'marketplace'
       )
 
-      if (scanResultData?.flagged) {
+      if (scanResultData?.flagged && (scanResultData.confidence ?? 1) >= 0.8) {
         setSecurityWarning({
           show: true,
-          message: `Message blocked: ${scanResultData.flag_type || 'leakage warning'}. Sharing phone numbers or off-platform payment info is prohibited.`,
-          severity: 'high'
+          message: 'Message blocked: Off-platform payment or phone number sharing is restricted for safety.',
+          severity: 'high',
         })
-        setMessages(prev => prev.filter(m => m.id !== tempId))
+        setMessages((prev) => prev.filter((m) => m.id !== tempId))
         setSending(false)
         return
       }
 
-      // 2. Insert message to DB if safe
+      // 2. Insert into Supabase messages table
       const { data, error } = await supabase
         .from('messages')
         .insert({
@@ -419,20 +419,21 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
 
       if (error) throw error
 
-      setMessages(prev => prev.map(m =>
-        m.id === tempId ? { ...data, isOptimistic: false, scanStatus: 'safe' } : m
-      ))
+      // 3. Swap optimistic entry with persisted record
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...data, isOptimistic: false, scanStatus: 'safe' } : m))
+      )
 
       markMessagesAsRead()
     } catch (err: any) {
-      console.error('Error sending message:', err)
-      setMessages(prev => prev.map(m =>
-        m.id === tempId ? { ...m, scanStatus: 'error' } : m
-      ))
+      console.error('Failed to dispatch message:', err)
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, scanStatus: 'error' } : m))
+      )
       setSecurityWarning({
         show: true,
-        message: 'Failed to send message. Please check connection and try again.',
-        severity: 'low'
+        message: 'Network transmission error. Tap to retry.',
+        severity: 'low',
       })
     } finally {
       setSending(false)

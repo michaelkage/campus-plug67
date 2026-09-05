@@ -29,7 +29,10 @@ mustContain('supabase/functions/join-pool/index.ts', 'api.paystack.co/transactio
 mustContain('supabase/functions/paystack-webhook/index.ts', 'process_paystack_success');
 mustContain('supabase/migrations/031_security_hardening.sql', 'processed_webhooks');
 mustContain('supabase/functions/ai-chat-scan/index.ts', 'getAuthenticatedUser');
+mustContain('supabase/functions/ai-chat-scan/index.ts', 'raw_content');
 mustContain('supabase/functions/beacon-matcher/index.ts', 'getAuthenticatedUser');
+mustContain('supabase/migrations/036_authoritative_dispute_and_escrow_fixes.sql', 'resolve_dispute_verdict');
+mustContain('supabase/functions/process-dispute/index.ts', 'resolve_dispute_verdict');
 
 // Guard against the two most dangerous regressions: permissive client wallet writes
 // and blanket EDU-domain acceptance in the client.

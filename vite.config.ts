@@ -33,7 +33,55 @@ export default defineConfig({
             type: 'image/png'
           }
         ]
-      }
+      },
+      workbox: {
+        // Campus networks often stall; fail over to cache quickly instead of freezing the UI.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) =>
+              url.hostname.includes('supabase.co') ||
+              url.pathname.startsWith('/functions/v1/') ||
+              url.pathname.startsWith('/rest/v1/') ||
+              url.pathname.startsWith('/auth/v1/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-network-first',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 64,
+                maxAgeSeconds: 60 * 5,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'image-swr',
+              expiration: {
+                maxEntries: 120,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: ({ request }) =>
+              request.destination === 'style' ||
+              request.destination === 'script' ||
+              request.destination === 'worker',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'static-swr',
+              expiration: {
+                maxEntries: 80,
+                maxAgeSeconds: 60 * 60 * 24,
+              },
+            },
+          },
+        ],
+      },
     })
   ],
   server: {

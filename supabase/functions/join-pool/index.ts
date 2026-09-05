@@ -12,6 +12,24 @@ function isTransientConcurrencyError(message:string){
  return m.includes('deadlock') || m.includes('serialization') || m.includes('statement timeout') || m.includes('could not serialize');
 }
 
+async function verifyPaystackPayment(reference:string, expectedAmountKobo:number, poolId:string, userId:string){
+ const secret=Deno.env.get("PAYSTACK_SECRET_KEY");
+ if(!secret) return {ok:false as const, reason:"payment_config_missing"};
+ const res=await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,{
+  headers:{Authorization:`Bearer ${secret}`,Accept:"application/json"},
+ });
+ if(!res.ok) return {ok:false as const, reason:"payment_verify_failed"};
+ const json=await res.json();
+ const data=json?.data;
+ if(!json?.status || data?.status!=="success") return {ok:false as const, reason:"payment_not_successful"};
+ if(Number(data.amount)!==Number(expectedAmountKobo)) return {ok:false as const, reason:"payment_amount_mismatch"};
+ const meta=data.metadata??{};
+ if(meta.type && meta.type!=="pool_join") return {ok:false as const, reason:"payment_type_mismatch"};
+ if(meta.pool_id && meta.pool_id!==poolId) return {ok:false as const, reason:"payment_pool_mismatch"};
+ if(meta.user_id && meta.user_id!==userId) return {ok:false as const, reason:"payment_user_mismatch"};
+ return {ok:true as const};
+}
+
 async function atomicJoin(poolId:string,userId:string,paystackRef:string|null){
  for(let attempt=0;attempt<3;attempt++){
   const {data,error}=await admin.rpc("atomic_pool_join",{p_pool_id:poolId,p_user_id:userId,p_ref:paystackRef});
@@ -31,6 +49,21 @@ serve(async(req:Request)=>{
  try{const limit=await enforceRateLimitWithToken(token,"study-pool-joins",20,60);if(!limit.allowed)return bad("Rate limit exceeded",429);}catch{return bad("Rate limit service unavailable",503);}
  let body:Record<string,any>;try{body=await req.json();}catch{return bad("Invalid JSON");}
  const poolId=typeof body.pool_id==="string"?body.pool_id:"";const paystackRef=typeof body.paystack_ref==="string"?body.paystack_ref:null;if(!poolId)return bad("Missing pool_id");
+
+ const {data:poolRow,error:poolErr}=await admin.from("study_pools").select("id,unit_price,payment_refs,status").eq("id",poolId).maybeSingle();
+ if(poolErr) return bad("Unable to load pool",503);
+ if(!poolRow) return bad("pool_not_found",404);
+ if(poolRow.status!=="open") return bad("pool_closed",400);
+
+ const price=Number(poolRow.unit_price??0);
+ if(price>0){
+  if(!paystackRef) return bad("Missing paystack_ref",400);
+  const refs=poolRow.payment_refs??[];
+  if(Array.isArray(refs) && refs.includes(paystackRef)) return bad("payment_already_used",409);
+  const verified=await verifyPaystackPayment(paystackRef, price, poolId, user.id);
+  if(!verified.ok) return bad(verified.reason,402);
+ }
+
  const {data,error:resultError}=await atomicJoin(poolId,user.id,paystackRef);
  if(resultError)return bad("Pool is busy; please retry",503);if(!data?.success){const reason=data?.reason;const status=reason==="pool_not_found"?404:reason==="pool_full"||reason==="already_joined"||reason==="join_conflict"?409:400;return bad(reason??"Unable to join pool",status);}
  const pool=data.pool;const {data:profile}=await admin.from("profiles").select("full_name").eq("id",user.id).single();

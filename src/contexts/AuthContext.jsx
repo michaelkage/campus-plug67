@@ -59,7 +59,11 @@ export function AuthProvider({ children }) {
   // Device bans are checked by the server security gate. The client never reads
   // banned_devices directly and therefore cannot replace the authoritative signal.
   const checkDeviceBan = async () => {
-    const { data, error } = await supabase.functions.invoke('security-gate', { body: { action: 'check' } })
+    const { getDeviceHash } = await import('@/lib/security')
+    const clientFingerprint = await getDeviceHash().catch(() => null)
+    const { data, error } = await supabase.functions.invoke('security-gate', {
+      body: { action: 'check', client_fingerprint: clientFingerprint },
+    })
     if (error) throw new Error(error.message || 'Security service unavailable')
     if (data?.error?.startsWith?.('DEVICE_BANNED')) return true
     if (!data?.success) throw new Error('Security service unavailable')
@@ -69,7 +73,7 @@ export function AuthProvider({ children }) {
   const signUp = async ({ email, password, fullName, university, matric }) => {
     const { valid, university: detectedUni } = await validateEduEmail(email)
     if (!valid) {
-      toast.error('Please use your university email address (.edu.ng or .edu)')
+      toast.error('Please use an approved university email from the allowlist')
       return { error: 'Invalid email domain' }
     }
 

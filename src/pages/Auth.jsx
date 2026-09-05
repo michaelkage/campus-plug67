@@ -123,7 +123,7 @@ export default function Auth() {
               {mode === 'signup' && (
                 <p className="text-xs text-white/30 mt-1.5 flex items-center gap-1">
                   <Shield size={10} className="text-cyan" />
-                  Must be a valid .edu.ng or .edu address — verified on sign up
+                  Must be an approved university email — verified against the campus allowlist
                 </p>
               )}
             </div>

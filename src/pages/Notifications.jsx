@@ -33,10 +33,24 @@ export default function Notifications() {
     enabled: !!user,
   })
 
-  // Real-time: prepend new notifications
-  useNotifications(user?.id, (newNotif) => {
-    qc.setQueryData(['notifications', user?.id], old => [newNotif, ...(old || [])])
-    toast(newNotif.title, { icon: TYPE_ICON[newNotif.type] || '🔔' })
+  // Real-time: batch-prepend to avoid re-render storms on busy accounts
+  useNotifications(user?.id, (incoming) => {
+    const items = Array.isArray(incoming) ? incoming : [incoming]
+    qc.setQueryData(['notifications', user?.id], (old) => {
+      const prev = old || []
+      const seen = new Set(prev.map((row) => row.id))
+      const fresh = []
+      for (let i = items.length - 1; i >= 0; i--) {
+        const row = items[i]
+        if (row?.id && !seen.has(row.id)) {
+          seen.add(row.id)
+          fresh.push(row)
+        }
+      }
+      return [...fresh, ...prev].slice(0, 50)
+    })
+    const latest = items[items.length - 1]
+    if (latest?.title) toast(latest.title, { icon: TYPE_ICON[latest.type] || '🔔' })
   })
 
   const markAllRead = async () => {

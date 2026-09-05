@@ -13,6 +13,17 @@ export function isServiceRoleRequest(req: Request): boolean {
   return Boolean(token && serviceKey && token === serviceKey);
 }
 
+/** JWT-scoped client so Postgres sees auth.uid() / auth.role()='authenticated'. */
+export function createUserClient(token: string) {
+  const url = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!url || !anonKey) throw new Error("Missing Supabase env");
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+}
+
 export async function getAuthenticatedUser(req: Request): Promise<User | null> {
   const token = getBearerToken(req);
   if (!token || isServiceRoleRequest(req)) return null;

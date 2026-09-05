@@ -17,6 +17,25 @@ function requestIp(req:Request){
   return req.headers.get("cf-connecting-ip") || req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
 
+/** /24 for IPv4, /48 for IPv6 — used when writing bans so rotation within a subnet still matches. */
+function ipPrefixCidr(ip:string):string|null{
+  if(!ip||ip==="unknown") return null;
+  if(ip.includes(".")){
+    const parts=ip.split(".");
+    if(parts.length!==4||parts.some(p=>Number.isNaN(Number(p)))) return null;
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
+  }
+  if(ip.includes(":")){
+    const expanded=ip.split("::");
+    // Keep first three hextets when possible for a coarse /48-style prefix string.
+    const head=(expanded[0]||"").split(":").filter(Boolean).slice(0,3);
+    if(head.length===0) return null;
+    while(head.length<3) head.push("0");
+    return `${head.join(":")}::/48`;
+  }
+  return null;
+}
+
 serve(async(req:Request)=>{
   if(req.method==="OPTIONS") return new Response("ok",{headers:CORS});
   if(req.method!=="POST") return bad("Method not allowed",405);
@@ -39,17 +58,28 @@ serve(async(req:Request)=>{
   const ua=(req.headers.get("user-agent")||"unknown").slice(0,512);
   const language=(req.headers.get("accept-language")||"").slice(0,128);
   const serverFingerprint=await sha256(`${ip}\n${ua}\n${language}`);
+  const clientFingerprint=typeof body.client_fingerprint==="string"?body.client_fingerprint.slice(0,128):null;
 
-  const {data:banned,error:bannedError}=await admin.from("banned_devices")
-    .select("ban_reason,reason,ip_prefix")
-    .eq("server_fingerprint",serverFingerprint)
-    .eq("active",true)
-    .maybeSingle();
-  if(bannedError) return bad("Security service unavailable",503);
-  if(banned) return bad(`DEVICE_BANNED: ${banned.ban_reason||banned.reason||"This device has been restricted."}`,403);
+  // Match exact server hash, subnet prefix, or known client correlation id.
+  const {data:banHit,error:banError}=await admin.rpc("check_device_ban",{
+    p_server_fingerprint:serverFingerprint,
+    p_ip:ip==="unknown"?null:ip,
+    p_client_fingerprint:clientFingerprint,
+  });
+  if(banError){
+    // Fallback if migration not applied yet: exact fingerprint only.
+    const {data:banned,error:bannedError}=await admin.from("banned_devices")
+      .select("ban_reason,reason")
+      .eq("server_fingerprint",serverFingerprint)
+      .eq("active",true)
+      .maybeSingle();
+    if(bannedError) return bad("Security service unavailable",503);
+    if(banned) return bad(`DEVICE_BANNED: ${banned.ban_reason||banned.reason||"This device has been restricted."}`,403);
+  } else if(banHit?.banned){
+    return bad(`DEVICE_BANNED: ${banHit.reason||"This device has been restricted."}`,403);
+  }
 
   if(user){
-    const clientFingerprint=typeof body.client_fingerprint==="string"?body.client_fingerprint.slice(0,128):null;
     const deviceHash=clientFingerprint||serverFingerprint;
     const {error}=await admin.from("user_security").upsert({
       user_id:user.id,
@@ -65,5 +95,9 @@ serve(async(req:Request)=>{
     if(error) return bad("Unable to register security context",503);
   }
 
-  return ok({success:true,server_fingerprint:action==="register"?serverFingerprint:undefined});
+  return ok({
+    success:true,
+    server_fingerprint:action==="register"?serverFingerprint:undefined,
+    ip_prefix_hint:action==="register"?ipPrefixCidr(ip):undefined,
+  });
 });

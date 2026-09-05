@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
-import { getAuthenticatedUser, getBearerToken, isServiceRoleRequest } from "../_shared/auth.ts";
+import { createUserClient, getAuthenticatedUser, getBearerToken, isServiceRoleRequest } from "../_shared/auth.ts";
 import { enforceRateLimitWithToken } from "../_shared/rateLimit.ts";
 
 const CORS={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Content-Type":"application/json"};
@@ -26,7 +26,10 @@ serve(async(req:Request)=>{
   try{const limit=await enforceRateLimitWithToken(token,"escrow-actions",30,60);if(!limit.allowed) return bad("Rate limit exceeded",429);}catch{return bad("Rate limit service unavailable",503);}
   const transactionId=typeof body.transaction_id==='string'?body.transaction_id:""; if(!transactionId) return bad("Missing transaction_id");
   const rpcArgs={p_transaction_id:transactionId,p_action:action,p_qr_secret:typeof body.qr_secret==='string'?body.qr_secret:(typeof body.release_code==='string'?body.release_code:null),p_reason:typeof body.reason==='string'?body.reason:null};
-  const {data,error}=await admin.rpc("process_escrow_action",rpcArgs);
+  // User actions must run as the JWT subject. Calling with the service role makes
+  // process_escrow_action treat every request as privileged and reject buyer/seller steps.
+  let userClient; try{userClient=createUserClient(token);}catch{return bad("Auth client unavailable",503);}
+  const {data,error}=await userClient.rpc("process_escrow_action",rpcArgs);
   if(error){const message=error.message||"Escrow action failed";const status=/not authorized|only the|invalid release credential|authentication/i.test(message)?403:400;return bad(message,status);}
   return ok(data);
 });

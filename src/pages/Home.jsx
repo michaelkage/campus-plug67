@@ -29,7 +29,26 @@ export default function Home() {
     },
   })
   useEffect(() => { if (initialFeed) setFeedItems(initialFeed) }, [initialFeed])
-  useRealtimeTable({ table: 'activity_feed', onInsert: (item) => setFeedItems(p => [item, ...p].slice(0, 30)) })
+  // Batch burst inserts (post-lecture rush) into one React update to avoid mobile jank.
+  useRealtimeTable({
+    table: 'activity_feed',
+    batchMs: 250,
+    onInsert: (incoming) => {
+      const items = Array.isArray(incoming) ? incoming : [incoming]
+      setFeedItems((prev) => {
+        const seen = new Set(prev.map((row) => row.id))
+        const fresh = []
+        for (let i = items.length - 1; i >= 0; i--) {
+          const row = items[i]
+          if (row?.id && !seen.has(row.id)) {
+            seen.add(row.id)
+            fresh.push(row)
+          }
+        }
+        return [...fresh, ...prev].slice(0, 30)
+      })
+    },
+  })
 
   // Stats
   const { data: stats } = useQuery({

@@ -15,3 +15,11 @@ additional_redirect_urls = ["http://localhost:5173/*"]
 
 [edge_runtime]
 enabled = true
+
+# These endpoints perform their own authentication/authorization checks.
+# Passkey login and Paystack webhooks cannot rely on Supabase's generic JWT gate.
+[functions.passkey-auth]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false

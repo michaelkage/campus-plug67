@@ -1,9 +1,3 @@
-/**
- * Campus Plug — AuthContext
- *
- * FIX #5: checkDeviceBan() was querying `banned_devices` with `.eq('device_hash', ...)`
- *         but the schema column is `device_fingerprint`.  Fixed to use the correct column.
- */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase, validateEduEmail } from '@/lib/supabase'
 import { registerDevice, getDeviceHash } from '@/lib/security'
@@ -13,17 +7,13 @@ import toast from 'react-hot-toast'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [session,    setSession]    = useState(null)
-  const [profile,    setProfile]    = useState(null)
-  const [loading,    setLoading]    = useState(true)
+  const [session, setSession] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [deviceHash, setDeviceHash] = useState(null)
 
   const fetchProfile = useCallback(async (userId) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
     if (data) setProfile(data)
     return data
   }, [])
@@ -31,44 +21,49 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     getDeviceHash().then(setDeviceHash).catch(() => {})
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
       if (session?.user) {
-        fetchProfile(session.user.id)
-        registerDevice(session.user.id).catch(e => {
+        await fetchProfile(session.user.id)
+        try {
+          await registerDevice(session.user.id)
+        } catch (e) {
           if (e.message?.startsWith('DEVICE_BANNED')) {
-            supabase.auth.signOut()
+            await supabase.auth.signOut()
             toast.error('🚫 This device has been flagged for policy violations.')
           }
-        })
+        }
       }
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_e, session) => {
-        setSession(session)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-          registerDevice(session.user.id).catch(() => {})
-        } else {
-          setProfile(null)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
+      setSession(session)
+      if (session?.user) {
+        await fetchProfile(session.user.id)
+        try {
+          await registerDevice(session.user.id)
+        } catch (e) {
+          if (e.message?.startsWith('DEVICE_BANNED')) {
+            await supabase.auth.signOut()
+            toast.error('🚫 This device has been flagged for policy violations.')
+          }
         }
+      } else {
+        setProfile(null)
       }
-    )
+    })
     return () => subscription.unsubscribe()
   }, [fetchProfile])
 
-  // FIX #5: use `device_fingerprint` not `device_hash` on banned_devices
+  // Device bans are checked by the server security gate. The client never reads
+  // banned_devices directly and therefore cannot replace the authoritative signal.
   const checkDeviceBan = async () => {
-    const hash = await getDeviceHash().catch(() => null)
-    if (!hash) return false
-    const { data } = await supabase
-      .from('banned_devices')
-      .select('ban_reason')
-      .eq('device_fingerprint', hash)
-      .maybeSingle()
-    return !!data
+    const { data, error } = await supabase.functions.invoke('security-gate', { body: { action: 'check' } })
+    if (error) throw new Error(error.message || 'Security service unavailable')
+    if (data?.error?.startsWith?.('DEVICE_BANNED')) return true
+    if (!data?.success) throw new Error('Security service unavailable')
+    return false
   }
 
   const signUp = async ({ email, password, fullName, university, matric }) => {
@@ -78,17 +73,22 @@ export function AuthProvider({ children }) {
       return { error: 'Invalid email domain' }
     }
 
-    if (await checkDeviceBan()) {
-      toast.error('🚫 This device is restricted from creating new accounts.')
-      return { error: 'DEVICE_BANNED' }
+    try {
+      if (await checkDeviceBan()) {
+        toast.error('🚫 This device is restricted from creating new accounts.')
+        return { error: 'DEVICE_BANNED' }
+      }
+    } catch (e) {
+      toast.error('Security check unavailable. Please try again.')
+      return { error: e }
     }
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data:             { full_name: fullName, university: university || detectedUni },
-        emailRedirectTo:  `${import.meta.env.VITE_APP_URL}/auth/callback`,
+        data: { full_name: fullName, university: university || detectedUni },
+        emailRedirectTo: `${import.meta.env.VITE_APP_URL}/auth/callback`,
       },
     })
 
@@ -96,8 +96,8 @@ export function AuthProvider({ children }) {
 
     if (data.user) {
       await supabase.from('profiles').update({
-        full_name:     fullName,
-        university:    university || detectedUni,
+        full_name: fullName,
+        university: university || detectedUni,
         matric_number: matric || null,
       }).eq('id', data.user.id)
       await supabase.rpc('provision_emergency_tokens', { p_user_id: data.user.id })
@@ -108,10 +108,16 @@ export function AuthProvider({ children }) {
   }
 
   const signIn = async ({ email, password }) => {
-    if (await checkDeviceBan()) {
-      toast.error('🚫 This device is restricted from signing in.')
-      return { error: 'DEVICE_BANNED' }
+    try {
+      if (await checkDeviceBan()) {
+        toast.error('🚫 This device is restricted from signing in.')
+        return { error: 'DEVICE_BANNED' }
+      }
+    } catch (e) {
+      toast.error('Security check unavailable. Please try again.')
+      return { error: e }
     }
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { toast.error(error.message); return { error } }
     return { data }
@@ -151,12 +157,8 @@ export function AuthProvider({ children }) {
 
   const updateProfile = async (updates) => {
     if (!session?.user) return
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', session.user.id)
-      .select()
-      .single()
+    const { data, error } = await supabase.from('profiles')
+      .update(updates).eq('id', session.user.id).select().single()
     if (error) { toast.error('Failed to update profile'); return { error } }
     setProfile(data)
     toast.success('Profile updated!')
@@ -167,12 +169,9 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      session, profile, user: session?.user ?? null,
-      loading, deviceHash,
-      isAuthenticated:  !!session,
-      passkeySupported: browserSupportsWebAuthn(),
-      signUp, signIn, signInWithPasskey, addPasskey,
-      signOut, updateProfile, refreshProfile,
+      session, profile, user: session?.user ?? null, loading, deviceHash,
+      isAuthenticated: !!session, passkeySupported: browserSupportsWebAuthn(),
+      signUp, signIn, signInWithPasskey, addPasskey, signOut, updateProfile, refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

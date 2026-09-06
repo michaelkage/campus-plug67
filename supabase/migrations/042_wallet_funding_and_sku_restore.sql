@@ -36,7 +36,12 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  IF length(trim(coalesce(search_title,''))) < 3 OR length(trim(search_title)) > 80 THEN
+  -- Keep NULL handling explicit, while retaining the regression-tested minimum
+  -- query-length guard for non-NULL input.
+  IF search_title IS NULL THEN
+    RETURN;
+  END IF;
+  IF length(trim(search_title)) < 3 OR length(trim(search_title)) > 80 THEN
     RETURN;
   END IF;
   RETURN QUERY

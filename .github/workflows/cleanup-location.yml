@@ -18,7 +18,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          curl --fail-with-body -sS -X POST \
+          set -euo pipefail
+          [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
+          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
+          curl --fail-with-body --silent --show-error -X POST \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \

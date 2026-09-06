@@ -7,7 +7,6 @@ import toast from 'react-hot-toast'
 
 const LIMIT_KOBO = 1_000_000
 type MicroListing = { id: string; title: string; price: number; seller_id: string; status: string }
-
 type WalletRpcResult = { success?: boolean; transaction_id?: string }
 
 export default function MicroEscrowLauncher() {
@@ -34,7 +33,7 @@ export default function MicroEscrowLauncher() {
     if (!user) return
     setBusy(true)
     try {
-      const { data, error } = await supabase.rpc('create_wallet_micro_escrow', { p_listing_id: listing.id })
+      const { data, error } = await supabase.rpc('create_wallet_micro_escrow' as any, { p_listing_id: listing.id })
       if (error) throw error
       const result = data as WalletRpcResult | null
       if (!result?.success) throw new Error('Campus Wallet purchase failed')

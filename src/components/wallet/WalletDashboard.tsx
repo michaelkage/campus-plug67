@@ -65,7 +65,7 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
       if (!recipientId) throw new Error('Recipient ID is required')
 
       // Balance checks and both ledger writes are server-side and atomic.
-      const { data, error: transferError } = await supabase.rpc('transfer_plug_credit', {
+      const { data, error: transferError } = await supabase.rpc('transfer_plug_credit' as any, {
         p_recipient_id: recipientId,
         p_amount: amountKobo,
         p_reason: transferReason || null,

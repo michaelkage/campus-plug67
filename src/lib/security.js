@@ -3,25 +3,24 @@
  *
  * Device checks are server-authoritative. The browser fingerprint is retained
  * only as a correlation signal; it is never trusted as proof of device identity.
- * EXIF parsed in the browser is advisory only because image metadata is forgeable.
+ * Browser EXIF is advisory only; authoritative verification runs in Supabase.
  */
 
 import { supabase } from '@/lib/supabase'
 
 const UNI_BOUNDS = {
-  'University of Lagos':          [6.495, 6.520,  3.390, 3.415],
-  'Obafemi Awolowo University':   [7.516, 7.535,  4.515, 4.535],
-  'University of Ibadan':         [7.440, 7.460,  3.890, 3.910],
-  'University of Benin':          [6.393, 6.415,  5.602, 5.625],
-  'Ahmadu Bello University':      [11.155, 11.180, 7.645, 7.670],
-  'Yaba College of Technology':   [6.497, 6.512,  3.375, 3.392],
-  'Lagos State University':       [6.555, 6.580,  3.290, 3.320],
-  'University of Nigeria Nsukka': [6.853, 6.880,  7.390, 7.420],
+  'University of Lagos': [6.495, 6.520, 3.390, 3.415],
+  'Obafemi Awolowo University': [7.516, 7.535, 4.515, 4.535],
+  'University of Ibadan': [7.440, 7.460, 3.890, 3.910],
+  'University of Benin': [6.393, 6.415, 5.602, 5.625],
+  'Ahmadu Bello University': [11.155, 11.180, 7.645, 7.670],
+  'Yaba College of Technology': [6.497, 6.512, 3.375, 3.392],
+  'Lagos State University': [6.555, 6.580, 3.290, 3.320],
+  'University of Nigeria Nsukka': [6.853, 6.880, 7.390, 7.420],
 }
 
 let _fpPromise = null
 
-/** Browser fingerprint used only as a secondary correlation signal. */
 export async function getDeviceHash() {
   if (!_fpPromise) {
     _fpPromise = import('@fingerprintjs/fingerprintjs')
@@ -43,10 +42,6 @@ export async function getDeviceHash() {
   return _fpPromise
 }
 
-/**
- * Ask the server to derive and record the security context from the request.
- * No client-side value is accepted as the authoritative device identity.
- */
 export async function registerDevice(userId) {
   const clientFingerprint = await getDeviceHash().catch(() => null)
   const { data: { session } } = await supabase.auth.getSession()
@@ -62,8 +57,9 @@ export async function registerDevice(userId) {
 }
 
 /**
- * Advisory EXIF analysis. GPS/timestamp results are never treated as proof of
- * presence and cannot grant a trust/score bonus from the browser.
+ * Browser-side analysis is UX/advisory only. It never grants score or trust.
+ * The uploaded, stored bytes are independently re-downloaded and verified by
+ * the verify-listing-images Edge Function.
  */
 export async function analyzeAndStripExif(file, userUniversity) {
   const result = {
@@ -106,7 +102,7 @@ export async function analyzeAndStripExif(file, userUniversity) {
     }
     result.clean_blob = await stripExif(file)
   } catch (err) {
-    console.warn('EXIF analysis error:', err.message)
+    console.warn('EXIF analysis error:', err?.message || err)
     result.clean_blob = file
   }
   return result
@@ -137,15 +133,15 @@ function sanitizeExif(exif) {
   return safe
 }
 
-/** Save browser EXIF as advisory evidence only. */
-export async function saveExifFlags(listingId, imageUrl, exifResult) {
-  const { gps_lat, gps_lng, gps_mismatch, timestamp_flag, make, model, software, raw_exif } = exifResult
-  const { error } = await supabase.from('listing_exif_flags').insert({
-    listing_id: listingId, image_url: imageUrl, gps_lat, gps_lng, gps_mismatch,
-    timestamp_flag, make, model, software, raw_exif,
-    verification_source: 'client_advisory',
+/**
+ * Preserve the existing Marketplace call-site, but never persist browser EXIF.
+ * This schedules authoritative server verification for the stored listing images.
+ */
+export async function saveExifFlags(listingId, _imageUrl, _exifResult) {
+  const { error } = await supabase.functions.invoke('verify-listing-images', {
+    body: { listing_id: listingId },
   })
-  if (error) console.warn('EXIF advisory save error:', error.message)
+  if (error) console.warn('Server image verification request failed:', error.message)
 }
 
 export async function checkPriceFloor(priceNaira, category, university, userId) {
@@ -169,7 +165,6 @@ export async function checkPriceFloor(priceNaira, category, university, userId) 
   }
 }
 
-/** Consume a token atomically; the row update succeeds for only one caller. */
 export async function consumeEmergencyToken(tokenId, listingId) {
   const { data, error } = await supabase.from('emergency_sale_tokens')
     .update({ used: true, used_at: new Date().toISOString(), used_for: listingId })

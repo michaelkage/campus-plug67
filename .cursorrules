@@ -1,0 +1,19 @@
+# CP-67 MATRIX Engineering Standards
+
+- Never bypass the 7-state escrow state engine for marketplace items.
+- Geofenced functions must strictly reference the server-validated 50m boundaries.
+- All pricing and values must use Nigerian Naira (NGN, ₦).
+- When altering transaction files, never weaken, expose, or repurpose session handoff keys/tokens.
+- Session handoff tokens must remain short-lived, single-use, opaque, and server-validated.
+- Do not use component UI libraries (e.g. shadcn) unless explicitly directed. Use raw, responsive mobile-first Tailwind CSS utility classes.
+- Treat browser/device fingerprints as correlation signals, never authoritative identity proof.
+- Physical meetup verification and escrow release must remain server-authoritative and mobile-gated.
+- Never trust client-supplied GPS, EXIF, device type, transaction state, wallet balance, or PlugScore as authoritative.
+- Persist offline transaction ownership with the authenticated user ID and reject/purge stale-user backlog before sync.
+- Do not store Supabase access/refresh tokens or reusable credentials in QR codes, IndexedDB transaction payloads, URLs, or logs.
+- Keep Edge Function health checks cheap and side-effect free; warm-up requests must use `x-health-check: true`.
+- Prefer TypeScript-safe code, explicit return types for security-critical utilities, and no unsafe `as any` casts.
+- Preserve existing RLS, rate limits, idempotency, escrow guards, duress protections, and payment verification when refactoring.
+- Do not introduce live network/payment/database dependencies into structural CI regression tests.
+- Before changing schema-dependent code, inspect `.ai-context/schema-dump.sql` and the relevant Supabase migrations.
+- Run typecheck, build, tests, and security regression checks before declaring a change complete.

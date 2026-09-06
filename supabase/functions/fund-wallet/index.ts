@@ -1,0 +1,44 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
+import { createUserClient, getAuthenticatedUser, getBearerToken, jsonResponse, optionsResponse } from "../_shared/auth.ts";
+
+const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return optionsResponse(req);
+  if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405, {}, req);
+  const user = await getAuthenticatedUser(req);
+  const token = getBearerToken(req);
+  if (!user || !token) return jsonResponse({ error: "Unauthorized" }, 401, {}, req);
+
+  const body = await req.json().catch(() => null) as Record<string, unknown> | null;
+  const reference = typeof body?.reference === "string" ? body.reference.trim() : "";
+  const amountKobo = Number(body?.amount_kobo);
+  if (!reference || !Number.isSafeInteger(amountKobo) || amountKobo <= 0) return jsonResponse({ error: "Invalid wallet funding request" }, 400, {}, req);
+
+  const existing = await admin.from("wallet_funding_intents").select("status,amount_kobo").eq("reference", reference).maybeSingle();
+  if (existing.data?.status === "credited") return jsonResponse({ success: true, already_credited: true, amount_kobo: existing.data.amount_kobo }, 200, {}, req);
+
+  const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+  if (!secret) return jsonResponse({ error: "Payment service unavailable" }, 503, {}, req);
+
+  const verify = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  const payload = await verify.json().catch(() => null);
+  const payment = payload?.data;
+  if (!verify.ok || payload?.status !== true || payment?.status !== "success") return jsonResponse({ error: "Payment is not verified yet" }, 409, {}, req);
+  if (Number(payment.amount) !== amountKobo || String(payment.currency || "NGN") !== "NGN") return jsonResponse({ error: "Verified payment amount does not match" }, 400, {}, req);
+
+  const metadata = payment.metadata || {};
+  if (metadata.user_id && String(metadata.user_id) !== user.id) return jsonResponse({ error: "Payment owner mismatch" }, 403, {}, req);
+
+  const userClient = createUserClient(token);
+  const { data: intent, error: intentError } = await userClient.from("wallet_funding_intents").upsert({
+    user_id: user.id, reference, amount_kobo: amountKobo, status: "pending",
+  }, { onConflict: "reference", ignoreDuplicates: false }).select().single();
+  if (intentError || !intent) return jsonResponse({ error: intentError?.message || "Unable to create funding intent" }, 500, {}, req);
+
+  const { data: credited, error: creditError } = await userClient.rpc("credit_wallet_funding", { p_reference: reference, p_amount_kobo: amountKobo });
+  if (creditError) return jsonResponse({ error: creditError.message }, 500, {}, req);
+  return jsonResponse(credited, 200, {}, req);
+});

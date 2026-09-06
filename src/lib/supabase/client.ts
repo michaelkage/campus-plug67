@@ -11,7 +11,26 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+type LooseTable = {
+  Row: Record<string, any>
+  Insert: Record<string, any>
+  Update: Record<string, any>
+}
+
+type LooseFunction = {
+  Args: Record<string, any>
+  Returns: any
+}
+
+type AppDatabase = Database & {
+  public: Database['public'] & {
+    Tables: Database['public']['Tables'] & Record<string, LooseTable>
+    Views: Record<string, LooseTable>
+    Functions: Record<string, LooseFunction>
+  }
+}
+
+export const supabase = createClient<AppDatabase>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,

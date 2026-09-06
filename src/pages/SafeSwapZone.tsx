@@ -15,7 +15,31 @@ function CarryMeAlong({tx}:{tx:Tx|null}){if(!tx)return null;const frozen=tx.escr
 
 export default function SafeSwapZone(){
   const {user,profile}=useAuth();const [params]=useSearchParams();const transactionId=params.get('tx');const [zones,setZones]=useState<SafeZone[]>([]);const [tx,setTx]=useState<Tx|null>(null);const [position,setPosition]=useState<GeolocationCoordinates|null>(null);const [error,setError]=useState<string|null>(null);const [checking,setChecking]=useState(false);const [localDraft,setLocalDraft]=useState(false);const device=getDeviceType();
-  useEffect(()=>{const load=async()=>{if(!profile?.university)return;const {data:zoneData}=await supabase.from('safe_zones').select('id,name,description,lat,lng,radius_m,zone_type').eq('active',true).eq('university',profile.university).order('name');setZones((zoneData||[]) as SafeZone[]);if(transactionId){const {data}=await supabase.from('transactions').select('id,buyer_id,seller_id,university,status,escrow_status,payout_status,buyer_safe_zone_id,seller_safe_zone_id').eq('id',transactionId).single();setTx(data as Tx|null);const draft=await getLocalTransaction(`safe-arrival:${transactionId}`).catch(()=>undefined);setLocalDraft(Boolean(draft))}}};void load()},[profile?.university,transactionId]);
+    useEffect(() => {
+    const load = async () => {
+      if (!profile?.university) return;
+      const { data: zoneData } = await supabase
+        .from('safe_zones')
+        .select('id,name,description,lat,lng,radius_m,zone_type')
+        .eq('active', true)
+        .eq('university', profile.university)
+        .order('name');
+      setZones((zoneData || []) as SafeZone[]);
+
+      if (transactionId) {
+        const { data } = await supabase
+          .from('transactions')
+          .select('id,buyer_id,seller_id,university,status,escrow_status,payout_status,buyer_safe_zone_id,seller_safe_zone_id')
+          .eq('id', transactionId)
+          .single();
+        setTx(data as Tx | null);
+        const draft = await getLocalTransaction(`safe-arrival:${transactionId}`).catch(() => undefined);
+        setLocalDraft(Boolean(draft));
+      }
+    };
+    void load();
+  }, [profile?.university, transactionId]);
+
   const nearest=useMemo(()=>{if(!position||!zones.length)return null;return zones.map(zone=>({zone,distance:Math.round(distanceM(position,zone))})).sort((a,b)=>a.distance-b.distance)[0]},[position,zones]);const isInside=nearest?nearest.distance<=50:false;
   const startGps=()=>{if(device!=='mobile'){setError('This device cannot provide a trustworthy meetup GPS fix. Scan the desktop Transfer-to-Mobile QR and continue on your phone.');return}if(!navigator.geolocation){setError('This browser does not provide GPS.');return}setError(null);navigator.geolocation.getCurrentPosition(pos=>setPosition(pos.coords),err=>setError(err.message||'Unable to read your location.'),{enableHighAccuracy:true,timeout:12000,maximumAge:3000})}
   const confirmArrival=async()=>{if(device!=='mobile'){toast.error('Meetup verification is phone-only.');return}if(!user||!transactionId||!position)return;setChecking(true);await saveLocalTransaction({id:`safe-arrival:${transactionId}`,ownerId:user.id,kind:'safe-arrival',payload:{transactionId,role:tx?.buyer_id===user.id?'buyer':tx?.seller_id===user.id?'seller':null,lat:position.latitude,lng:position.longitude},status:'syncing',updatedAt:Date.now()}).catch(()=>{});try{const role=tx?.buyer_id===user.id?'buyer':tx?.seller_id===user.id?'seller':null;if(!role)throw new Error('You are not a participant in this transaction.');const {data,error:rpcError}=await supabase.functions.invoke('safe-arrival',{body:{transaction_id:transactionId,role,lat:position.latitude,lng:position.longitude}});if(rpcError)throw rpcError;if(!data?.success)throw new Error(data?.message||'You are outside the approved Safe Swap Zone.');await removeLocalTransaction(`safe-arrival:${transactionId}`).catch(()=>{});setLocalDraft(false);toast.success(`${data.zone_name} verified — mobile QR release zone confirmed.`);setTx(prev=>prev?({...prev,...(role==='buyer'?{buyer_safe_zone_id:data.zone_id}:{seller_safe_zone_id:data.zone_id})}):prev)}catch(err){await saveLocalTransaction({id:`safe-arrival:${transactionId}`,ownerId:user.id,kind:'safe-arrival',payload:{transactionId},status:'failed',updatedAt:Date.now(),error:err instanceof Error?err.message:'Verification failed'}).catch(()=>{});setLocalDraft(true);toast.error(err instanceof Error?err.message:'Safe-zone verification failed')}finally{setChecking(false)}}

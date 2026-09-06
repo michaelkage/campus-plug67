@@ -14,6 +14,7 @@ export default {
           500: '#202735', 800: '#121721', 900: '#0A0D14', 950: '#05070A',
         },
         cyan: { DEFAULT: '#00E5FF', 400: '#33ECFF', 500: '#00E5FF', 600: '#00B8CC' },
+        purple: { DEFAULT: '#A855F7', 400: '#C084FC', 500: '#A855F7', 600: '#9333EA' },
       },
       fontFamily: {
         mono: ['"JetBrains Mono"', 'monospace'], sans: ['"Inter"', 'sans-serif'],

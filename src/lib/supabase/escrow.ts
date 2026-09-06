@@ -30,12 +30,10 @@ interface SmartPriceParams {
   p_university: string
 }
 
-async function typedRpc<T>(name: string, params: Record<string, unknown>): Promise<{ data: T | null; error: Error | null }> {
-  // The generated schema may lag behind deployed migrations. Keep the escape hatch
-  // here, in one place, instead of spreading unsafe casts through UI code.
+async function typedRpc<T>(name: string, params: object): Promise<{ data: T | null; error: Error | null }> {
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     rpcName: string,
-    rpcParams: Record<string, unknown>,
+    rpcParams: object,
   ) => Promise<{ data: T | null; error: { message: string } | null }>
   const result = await rpc(name, params)
   return { data: result.data, error: result.error ? new Error(result.error.message) : null }

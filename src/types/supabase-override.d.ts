@@ -1,4 +1,4 @@
-import { PostgrestFilterBuilder, PostgrestQueryBuilder } from '@supabase/postgrest-js'
+import { PostgrestFilterBuilder } from '@supabase/postgrest-js'
 
 declare module '@supabase/supabase-js' {
   interface SupabaseQueryBuilder<Schema, Table, Relationships> {
@@ -14,5 +14,3 @@ declare module '@supabase/postgrest-js' {
     insert(values: Record<string, any>[], options?: { count?: 'exact' | 'planned' | 'estimated'; defaultToNull?: boolean }): PostgrestFilterBuilder<any, any, any, any>;
   }
 }
-
-void (PostgrestQueryBuilder as unknown)

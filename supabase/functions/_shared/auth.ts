@@ -1,5 +1,7 @@
 import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 
+const ALLOWED_HEADERS = "authorization, x-client-info, apikey, content-type";
+
 export function getBearerToken(req: Request): string | null {
   const value = req.headers.get("Authorization") ?? "";
   if (!value.startsWith("Bearer ")) return null;
@@ -13,7 +15,24 @@ export function isServiceRoleRequest(req: Request): boolean {
   return Boolean(token && serviceKey && token === serviceKey);
 }
 
-/** JWT-scoped client so Postgres sees auth.uid() / auth.role()='authenticated'. */
+export function corsHeaders(req: Request): HeadersInit {
+  const origin = req.headers.get("Origin");
+  const configured = [Deno.env.get("VITE_APP_URL"), Deno.env.get("APP_URL")]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.replace(/\/$/, ""));
+
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": ALLOWED_HEADERS,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Vary": "Origin",
+  };
+
+  if (origin && configured.includes(origin.replace(/\/$/, ""))) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
+}
+
 export function createUserClient(token: string) {
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
@@ -46,14 +65,17 @@ export async function requireUser(req: Request): Promise<User> {
   return user;
 }
 
-export function jsonResponse(data: unknown, status = 200, extraHeaders: HeadersInit = {}): Response {
+export function jsonResponse(data: unknown, status = 200, extraHeaders: HeadersInit = {}, req?: Request): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      ...(req ? corsHeaders(req) : {}),
       "Content-Type": "application/json",
       ...extraHeaders,
     },
   });
+}
+
+export function optionsResponse(req: Request): Response {
+  return new Response(null, { status: 204, headers: corsHeaders(req) });
 }

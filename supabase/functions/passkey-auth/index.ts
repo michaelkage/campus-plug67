@@ -6,88 +6,42 @@ import { encode as encodeBase64Url, decode as decodeBase64Url } from "https://de
 
 const admin=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,{auth:{persistSession:false}});
 const RP_NAME="Campus Plug";const RP_ID=Deno.env.get("RP_ID")??"campusplug.ng";const ORIGIN=Deno.env.get("APP_ORIGIN")??"https://campusplug.ng";const CHALLENGE_TTL_MS=5*60*1000;
-
 type ChallengeEntry={challenge:string;expiresAt:number};
 type PasskeyBody={action?:string;userId?:string;userEmail?:string;response?:Record<string,unknown>;deviceLabel?:string};
 const cache=new Map<string,ChallengeEntry>();
-
-async function saveChallenge(userId:string,type:"reg"|"auth",challenge:string){
-  const key=`challenge:${userId}:${type}`;
-  const expiresAtMs=Date.now()+CHALLENGE_TTL_MS;
-  cache.set(key,{challenge,expiresAt:expiresAtMs});
-  const expiresAtIso=new Date(expiresAtMs).toISOString();
-  const {error}=await admin.from("auth_challenges").upsert({user_id:userId,challenge_type:type,challenge,expires_at:expiresAtIso},{onConflict:"user_id,challenge_type"});
-  if(error){
-    await admin.from("user_security").upsert({user_id:userId,device_hash:key,device_label:`__challenge__${challenge}`,flag_type:"webauthn_challenge",created_at:new Date().toISOString()},{onConflict:"user_id,device_hash"}).catch(()=>{});
-  }
-}
-
-async function loadChallenge(userId:string,type:"reg"|"auth"){
-  const key=`challenge:${userId}:${type}`;
-  const cached=cache.get(key);
-  if(cached){if(Date.now()>cached.expiresAt){await clearChallenge(userId,type);return null;}return cached.challenge;}
-  const {data:challengeRow}=await admin.from("auth_challenges").select("challenge,expires_at").eq("user_id",userId).eq("challenge_type",type).maybeSingle();
-  if(challengeRow?.challenge){
-    if(new Date(challengeRow.expires_at).getTime()<Date.now()){await clearChallenge(userId,type);return null;}
-    cache.set(key,{challenge:challengeRow.challenge,expiresAt:new Date(challengeRow.expires_at).getTime()});
-    return challengeRow.challenge;
-  }
-  const {data}=await admin.from("user_security").select("device_label,created_at").eq("user_id",userId).eq("device_hash",key).maybeSingle();
-  if(!data?.device_label)return null;
-  if(Date.now()-new Date(data.created_at).getTime()>CHALLENGE_TTL_MS){await clearChallenge(userId,type);return null;}
-  const challenge=data.device_label.replace("__challenge__","");
-  cache.set(key,{challenge,expiresAt:new Date(data.created_at).getTime()+CHALLENGE_TTL_MS});
-  return challenge;
-}
-
+async function saveChallenge(userId:string,type:"reg"|"auth",challenge:string){const key=`challenge:${userId}:${type}`;const expiresAtMs=Date.now()+CHALLENGE_TTL_MS;cache.set(key,{challenge,expiresAt:expiresAtMs});const {error}=await admin.from("auth_challenges").upsert({user_id:userId,challenge_type:type,challenge,expires_at:new Date(expiresAtMs).toISOString()},{onConflict:"user_id,challenge_type"});if(error) await admin.from("user_security").upsert({user_id:userId,device_hash:key,device_label:`__challenge__${challenge}`,flag_type:"webauthn_challenge",created_at:new Date().toISOString()},{onConflict:"user_id,device_hash"}).catch(()=>{});}
+async function loadChallenge(userId:string,type:"reg"|"auth"){const key=`challenge:${userId}:${type}`;const cached=cache.get(key);if(cached){if(Date.now()>cached.expiresAt){await clearChallenge(userId,type);return null;}return cached.challenge;}const {data:row}=await admin.from("auth_challenges").select("challenge,expires_at").eq("user_id",userId).eq("challenge_type",type).maybeSingle();if(row?.challenge){if(new Date(row.expires_at).getTime()<Date.now()){await clearChallenge(userId,type);return null;}cache.set(key,{challenge:row.challenge,expiresAt:new Date(row.expires_at).getTime()});return row.challenge;}return null;}
 async function clearChallenge(userId:string,type:"reg"|"auth"){const key=`challenge:${userId}:${type}`;cache.delete(key);await admin.from("auth_challenges").delete().eq("user_id",userId).eq("challenge_type",type);await admin.from("user_security").delete().eq("user_id",userId).eq("device_hash",key).catch(()=>{});}
-
 serve(async(req:Request)=>{
   if(req.method==="OPTIONS")return optionsResponse(req);
   if(req.method==="GET"&&new URL(req.url).pathname.endsWith("/ping"))return jsonResponse({status:"warm",ts:Date.now(),fn:"passkey-auth"},200,{},req);
   let body:PasskeyBody;try{body=await req.json();}catch{return jsonResponse({error:"Invalid JSON"},400,{},req);}
   const {action,userId,userEmail,response,deviceLabel}=body;
-  if(action==="generate_registration_options"||action==="verify_registration"){
-    const user=await getAuthenticatedUser(req);if(!user)return jsonResponse({error:"Unauthorized"},401,{},req);
-    if(userId!==user.id)return jsonResponse({error:"User identity mismatch"},403,{},req);
-  }
+  if(action==="generate_registration_options"||action==="verify_registration"){const user=await getAuthenticatedUser(req);if(!user)return jsonResponse({error:"Unauthorized"},401,{},req);if(userId!==user.id)return jsonResponse({error:"User identity mismatch"},403,{},req);}
   if(action==="generate_registration_options"){
     if(!userId||!userEmail)return jsonResponse({error:"Missing userId or userEmail"},400,{},req);
     const {data:existing}=await admin.from("passkey_credentials").select("credential_id,transports").eq("user_id",userId);
-    const options=await generateRegistrationOptions({rpName:RP_NAME,rpID:RP_ID,userID:userId,userName:userEmail,timeout:60000,attestationType:"none",excludeCredentials:(existing??[]).map(c=>({id:c.credential_id,type:"public-key",transports:c.transports??[]})),authenticatorSelection:{residentKey:"required",userVerification:"required",authenticatorAttachment:"platform"}});
+    const options=await generateRegistrationOptions({rpName:RP_NAME,rpID:RP_ID,userID:userId,userName:userEmail,timeout:60000,attestationType:"none",excludeCredentials:(existing??[]).map(c=>({id:c.credential_id,type:"public-key",transports:c.transports??["internal","hybrid"]})),authenticatorSelection:{residentKey:"required",userVerification:"required"}});
     await saveChallenge(userId,"reg",options.challenge);return jsonResponse({options},200,{},req);
   }
   if(action==="verify_registration"){
-    if(!userId||!response)return jsonResponse({error:"Missing userId or response"},400,{},req);
-    const expectedChallenge=await loadChallenge(userId,"reg");if(!expectedChallenge)return jsonResponse({error:"Challenge expired or not found. Please retry."},400,{},req);
+    if(!userId||!response)return jsonResponse({error:"Missing userId or response"},400,{},req);const expectedChallenge=await loadChallenge(userId,"reg");if(!expectedChallenge)return jsonResponse({error:"Challenge expired or not found. Please retry."},400,{},req);
     let verification;try{verification=await verifyRegistrationResponse({response:response as never,expectedChallenge,expectedOrigin:ORIGIN,expectedRPID:RP_ID,requireUserVerification:true});}catch(e){return jsonResponse({error:"Verification failed: "+(e as Error).message},400,{},req);}
     if(!verification.verified||!verification.registrationInfo)return jsonResponse({error:"Passkey verification did not succeed"},400,{},req);
     const {credentialID,credentialPublicKey,counter,credentialBackedUp}=verification.registrationInfo;
-    const {error}=await admin.from("passkey_credentials").insert({user_id:userId,credential_id:credentialID,public_key:encodeBase64Url(credentialPublicKey),sign_count:counter,transports:[],device_label:deviceLabel||"My Passkey",backed_up:credentialBackedUp});
-    if(error)return jsonResponse({error:"Failed to save credential: "+error.message},400,{},req);await clearChallenge(userId,"reg");return jsonResponse({verified:true,credentialID},200,{},req);
+    const responseTransports=Array.isArray((response as Record<string,unknown>).response && ((response as Record<string,unknown>).response as Record<string,unknown>).transports)?((response as Record<string,unknown>).response as Record<string,unknown>).transports as string[]:[];
+    const transports=[...new Set(responseTransports.length?responseTransports:["internal","hybrid"])];
+    const {error}=await admin.from("passkey_credentials").insert({user_id:userId,credential_id:credentialID,public_key:encodeBase64Url(credentialPublicKey),sign_count:counter,transports,device_label:deviceLabel||"My Passkey",backed_up:credentialBackedUp});
+    if(error)return jsonResponse({error:"Failed to save credential: "+error.message},400,{},req);await clearChallenge(userId,"reg");return jsonResponse({verified:true,credentialID,transports},200,{},req);
   }
   if(action==="generate_authentication_options"){
-    if(!userId)return jsonResponse({error:"Missing userId"},400,{},req);
-    const {data:creds}=await admin.from("passkey_credentials").select("credential_id,transports").eq("user_id",userId);
-    if(!creds?.length)return jsonResponse({options:null},200,{},req);
-    const options=await generateAuthenticationOptions({rpID:RP_ID,timeout:60000,allowCredentials:creds.map(c=>({id:c.credential_id,type:"public-key",transports:c.transports??["internal"]})),userVerification:"required"});
-    await saveChallenge(userId,"auth",options.challenge);return jsonResponse({options},200,{},req);
+    if(!userId)return jsonResponse({error:"Missing userId"},400,{},req);const {data:creds}=await admin.from("passkey_credentials").select("credential_id,transports").eq("user_id",userId);if(!creds?.length)return jsonResponse({options:null},200,{},req);
+    const options=await generateAuthenticationOptions({rpID:RP_ID,timeout:60000,allowCredentials:creds.map(c=>({id:c.credential_id,type:"public-key",transports:(c.transports?.length?c.transports:["internal","hybrid"]) as never})),userVerification:"required"});await saveChallenge(userId,"auth",options.challenge);return jsonResponse({options},200,{},req);
   }
   if(action==="verify_authentication"){
-    if(!userId||!response)return jsonResponse({error:"Missing userId or response"},400,{},req);
-    const credId=typeof response.id==="string"?response.id:"";
-    const {data:cred}=await admin.from("passkey_credentials").select("*").eq("credential_id",credId).eq("user_id",userId).maybeSingle();
-    if(!cred)return jsonResponse({error:"Credential not found"},400,{},req);
-    const expectedChallenge=await loadChallenge(userId,"auth");if(!expectedChallenge)return jsonResponse({error:"Challenge expired. Please retry login."},400,{},req);
-    let verification;try{verification=await verifyAuthenticationResponse({response:response as never,expectedChallenge,expectedOrigin:ORIGIN,expectedRPID:RP_ID,authenticator:{credentialID:cred.credential_id,credentialPublicKey:decodeBase64Url(cred.public_key),counter:cred.sign_count??0,transports:cred.transports??[]},requireUserVerification:true});}catch(e){return jsonResponse({error:"Auth verification failed: "+(e as Error).message},400,{},req);}
-    if(!verification.verified)return jsonResponse({error:"Signature invalid"},400,{},req);
-    await admin.from("passkey_credentials").update({sign_count:verification.authenticationInfo.newCounter,last_used_at:new Date().toISOString()}).eq("credential_id",credId);
-    await clearChallenge(userId,"auth");
-    const {data:profileData}=await admin.from("profiles").select("email").eq("id",userId).single();
-    const {data:sessionData,error:sessionErr}=await admin.auth.admin.generateLink({type:"magiclink",email:profileData?.email??""});
-    if(sessionErr||!sessionData)return jsonResponse({error:"Session generation failed"},400,{},req);
-    const {data:session}=await admin.auth.verifyOtp({token_hash:sessionData.properties?.hashed_token??"",type:"magiclink"});
-    return jsonResponse({verified:true,access_token:session?.session?.access_token??null,refresh_token:session?.session?.refresh_token??null},200,{},req);
+    if(!userId||!response)return jsonResponse({error:"Missing userId or response"},400,{},req);const credId=typeof response.id==="string"?response.id:"";const {data:cred}=await admin.from("passkey_credentials").select("*").eq("credential_id",credId).eq("user_id",userId).maybeSingle();if(!cred)return jsonResponse({error:"Credential not found"},400,{},req);const expectedChallenge=await loadChallenge(userId,"auth");if(!expectedChallenge)return jsonResponse({error:"Challenge expired. Please retry login."},400,{},req);
+    let verification;try{verification=await verifyAuthenticationResponse({response:response as never,expectedChallenge,expectedOrigin:ORIGIN,expectedRPID:RP_ID,authenticator:{credentialID:cred.credential_id,credentialPublicKey:decodeBase64Url(cred.public_key),counter:cred.sign_count??0,transports:(cred.transports?.length?cred.transports:["internal","hybrid"]) as never},requireUserVerification:true});}catch(e){return jsonResponse({error:"Auth verification failed: "+(e as Error).message},400,{},req);}
+    if(!verification.verified)return jsonResponse({error:"Signature invalid"},400,{},req);await admin.from("passkey_credentials").update({sign_count:verification.authenticationInfo.newCounter,last_used_at:new Date().toISOString()}).eq("credential_id",credId);await clearChallenge(userId,"auth");const {data:profileData}=await admin.from("profiles").select("email").eq("id",userId).single();const {data:sessionData,error:sessionErr}=await admin.auth.admin.generateLink({type:"magiclink",email:profileData?.email??""});if(sessionErr||!sessionData)return jsonResponse({error:"Session generation failed"},400,{},req);const {data:session}=await admin.auth.verifyOtp({token_hash:sessionData.properties?.hashed_token??"",type:"magiclink"});return jsonResponse({verified:true,access_token:session?.session?.access_token??null,refresh_token:session?.session?.refresh_token??null},200,{},req);
   }
   return jsonResponse({error:`Unknown action: ${action}`},400,{},req);
 });

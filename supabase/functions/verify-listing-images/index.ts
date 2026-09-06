@@ -9,7 +9,6 @@ const admin = createClient(
   { auth: { persistSession: false } },
 );
 
-type Listing = { id: string; seller_id: string; university: string | null };
 type VerificationResult = {
   image_url: string;
   gps_lat: number | null;
@@ -34,14 +33,6 @@ const UNI_BOUNDS: Record<string, [number, number, number, number]> = {
 
 function scalar(value: unknown): string | number | null {
   return typeof value === "string" || typeof value === "number" ? value : null;
-}
-
-function sanitizeExif(exif: Record<string, unknown>) {
-  const output: Record<string, string | number | boolean> = {};
-  for (const [key, value] of Object.entries(exif)) {
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") output[key] = value;
-  }
-  return output;
 }
 
 async function verifyImage(imageUrl: string, university: string | null): Promise<VerificationResult> {
@@ -99,29 +90,17 @@ async function verifyListing(listingId: string, userId: string) {
   const images = Array.isArray(listing.images) ? listing.images.filter((v): v is string => typeof v === "string") : [];
   const results: VerificationResult[] = [];
   for (const imageUrl of images.slice(0, 4)) {
-    try {
-      results.push(await verifyImage(imageUrl, listing.university));
-    } catch (error) {
-      console.warn("server image verification failed", imageUrl, error instanceof Error ? error.message : error);
-    }
+    try { results.push(await verifyImage(imageUrl, listing.university)); }
+    catch (error) { console.warn("server image verification failed", imageUrl, error instanceof Error ? error.message : error); }
   }
-
   if (!results.length) return { verified: false, processed: 0 };
 
   await admin.from("listing_exif_flags").delete().eq("listing_id", listingId).eq("verification_source", "server_verified");
   const rows = results.map((result) => ({
-    listing_id: listingId,
-    image_url: result.image_url,
-    gps_lat: result.gps_lat,
-    gps_lng: result.gps_lng,
-    gps_mismatch: result.gps_mismatch,
-    timestamp_flag: result.timestamp_flag,
-    make: result.make,
-    model: result.model,
-    software: result.software,
-    raw_exif: null,
-    verification_source: "server_verified",
-    verified_at: new Date().toISOString(),
+    listing_id: listingId, image_url: result.image_url, gps_lat: result.gps_lat, gps_lng: result.gps_lng,
+    gps_mismatch: result.gps_mismatch, timestamp_flag: result.timestamp_flag,
+    make: result.make, model: result.model, software: result.software,
+    raw_exif: null, verification_source: "server_verified", verified_at: new Date().toISOString(),
   }));
   const { error: insertError } = await admin.from("listing_exif_flags").insert(rows);
   if (insertError) throw insertError;
@@ -139,15 +118,15 @@ serve(async (req: Request) => {
 
   const body: unknown = await req.json().catch(() => null);
   if (typeof body !== "object" || body === null) return jsonResponse({ error: "Invalid JSON" }, 400, {}, req);
-  const listingId = typeof (body as Record<string, unknown>).listing_id === "string" ? (body as Record<string, unknown>).listing_id as string : "";
+  const record = body as Record<string, unknown>;
+  const listingId = typeof record.listing_id === "string" ? record.listing_id : "";
   if (!listingId) return jsonResponse({ error: "Missing listing_id" }, 400, {}, req);
 
-  // The browser can request verification, but cannot supply EXIF/GPS results.
-  // The function re-downloads the stored bytes and calculates all security signals itself.
-  const result = await verifyListing(listingId, user.id).catch((error) => {
-    console.error("listing verification failed", error);
-    return null;
-  });
-  if (!result) return jsonResponse({ error: "Verification failed" }, 500, {}, req);
-  return jsonResponse({ success: true, ...result }, 200, {}, req);
+  // The request only identifies the listing. The server re-downloads the stored bytes,
+  // parses EXIF and performs GPS/time checks itself. The work is deliberately detached
+  // from the client response so image forensics never adds marketplace latency.
+  EdgeRuntime.waitUntil(
+    verifyListing(listingId, user.id).catch((error) => console.error("listing verification failed", error)),
+  );
+  return jsonResponse({ success: true, queued: true }, 202, {}, req);
 });

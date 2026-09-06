@@ -5,7 +5,10 @@ name: Campus Plug Operations
 
 on:
   schedule:
+    # Edge-function warmup runs every 5 minutes.
     - cron: '*/5 * * * *'
+    # Auto-release runs independently every 15 minutes.
+    - cron: '0,15,30,45 * * * *'
   workflow_dispatch:
     inputs:
       action:
@@ -20,10 +23,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-secrets:
+    name: Validate Supabase credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check required secrets are configured
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "$SUPABASE_URL" ]] || missing+=(SUPABASE_URL)
+          [[ -n "$SUPABASE_ANON_KEY" ]] || missing+=(SUPABASE_ANON_KEY)
+          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || missing+=(SUPABASE_SERVICE_ROLE_KEY)
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing GitHub Actions secret(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+          echo 'Required Supabase secrets are configured.'
+
   warm-functions:
     name: Warm Edge Functions
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    needs: validate-secrets
     if: github.event_name == 'schedule' || github.event.inputs.action == 'warm' || github.event.inputs.action == 'all'
     steps:
       - name: Health-check Edge Functions
@@ -47,6 +73,7 @@ jobs:
     name: Calculate Trending Scores
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    needs: validate-secrets
     if: github.event_name == 'schedule'
     steps:
       - name: Run weighted gravity + anti-collusion + rookie boost
@@ -55,7 +82,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error -X POST \
+          curl --fail-with-body --silent --show-error -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
@@ -68,7 +95,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error -X POST \
+          curl --fail-with-body --silent --show-error -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
@@ -79,6 +106,7 @@ jobs:
     name: Process Auto-Release
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    needs: validate-secrets
     if: github.event_name == 'workflow_dispatch' && (github.event.inputs.action == 'auto-release' || github.event.inputs.action == 'all')
     steps:
       - name: Trigger auto-release
@@ -87,7 +115,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error -X POST \
+          curl --fail-with-body --silent --show-error -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
@@ -98,7 +126,8 @@ jobs:
     name: Scheduled Auto-Release
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    if: github.event_name == 'schedule' && (startsWith(github.event.schedule, '0 *') || startsWith(github.event.schedule, '15 *') || startsWith(github.event.schedule, '30 *') || startsWith(github.event.schedule, '45 *'))
+    needs: validate-secrets
+    if: github.event_name == 'schedule' && github.event.schedule == '0,15,30,45 * * * *'
     steps:
       - name: Auto-release timed-out escrow transactions
         env:
@@ -106,7 +135,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error -X POST \
+          curl --fail-with-body --silent --show-error -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \

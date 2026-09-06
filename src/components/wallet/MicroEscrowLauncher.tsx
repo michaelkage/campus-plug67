@@ -6,17 +6,14 @@ import { WalletCards } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const LIMIT_KOBO = 1_000_000
+type MicroListing = { id: string; title: string; price: number; seller_id: string; status: string }
+
+type WalletRpcResult = { success?: boolean; transaction_id?: string }
 
 export default function MicroEscrowLauncher() {
-  const { user } = useAuth()
-  const location = useLocation()
-  const navigate = useNavigate()
-  const [listing, setListing] = useState<any>(null)
-  const [balance, setBalance] = useState(0)
-  const [busy, setBusy] = useState(false)
-
-  const match = location.pathname.match(/^\/marketplace\/([^/]+)$/)
-  const listingId = match?.[1]
+  const { user } = useAuth(); const location = useLocation(); const navigate = useNavigate()
+  const [listing, setListing] = useState<MicroListing | null>(null); const [balance, setBalance] = useState(0); const [busy, setBusy] = useState(false)
+  const listingId = location.pathname.match(/^\/marketplace\/([^/]+)$/)?.[1]
 
   useEffect(() => {
     if (!listingId || !user) { setListing(null); return }
@@ -26,7 +23,7 @@ export default function MicroEscrowLauncher() {
         supabase.from('listings').select('id,title,price,seller_id,status').eq('id', listingId).maybeSingle(),
         supabase.from('profiles').select('plug_credit_balance').eq('id', user.id).maybeSingle(),
       ])
-      if (active) { setListing(item); setBalance(Number(profile?.plug_credit_balance || 0)) }
+      if (active) { setListing(item as MicroListing | null); setBalance(Number(profile?.plug_credit_balance || 0)) }
     })()
     return () => { active = false }
   }, [listingId, user?.id])
@@ -39,12 +36,12 @@ export default function MicroEscrowLauncher() {
     try {
       const { data, error } = await supabase.rpc('create_wallet_micro_escrow', { p_listing_id: listing.id })
       if (error) throw error
-      if (!data?.success) throw new Error('Campus Wallet purchase failed')
+      const result = data as WalletRpcResult | null
+      if (!result?.success) throw new Error('Campus Wallet purchase failed')
       toast.success('🔐 Wallet escrow locked — no Paystack checkout needed.')
       navigate(`/marketplace/${listing.id}`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Campus Wallet purchase failed')
-    } finally { setBusy(false) }
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Campus Wallet purchase failed') }
+    finally { setBusy(false) }
   }
 
   return <div className="fixed bottom-20 sm:bottom-6 right-4 z-40 w-[min(360px,calc(100vw-2rem))] bg-obsidian-400 border border-plug-green/30 rounded-2xl p-4 shadow-2xl">

@@ -21,6 +21,7 @@ const Leaderboard = lazy(() => import('@/pages/Leaderboard'))
 const Reviews = lazy(() => import('@/pages/Reviews'))
 const Notifications = lazy(() => import('@/pages/Notifications'))
 const WarRoom = lazy(() => import('@/pages/WarRoom'))
+const SafeSwapZone = lazy(() => import('@/pages/SafeSwapZone'))
 const Auth = lazy(() => import('@/pages/Auth'))
 const OnboardingComplete = lazy(() => import('@/pages/OnboardingComplete'))
 const Privacy = lazy(() => import('@/pages/Privacy'))
@@ -86,6 +87,7 @@ function AppRoutes() {
             <Route path="reviews" element={<Reviews />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="war-room" element={<WarRoom />} />
+            <Route path="safe-swap" element={<SafeSwapZone />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

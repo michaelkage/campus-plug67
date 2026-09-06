@@ -4,60 +4,12 @@ import { supabase, formatNaira, openPaystack, generatePaystackRef, callEdgeFunct
 import { WalletCards, ArrowDownToLine, ShieldCheck, Zap, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const MICRO_LIMIT_KOBO = 1_000_000
-
 export default function CampusWallet() {
-  const { user, profile } = useAuth()
-  const [balance, setBalance] = useState(0)
-  const [amount, setAmount] = useState('5000')
-  const [loading, setLoading] = useState(true)
-  const [funding, setFunding] = useState(false)
-
-  const refresh = async () => {
-    if (!user) return
-    setLoading(true)
-    const { data, error } = await supabase.from('profiles').select('plug_credit_balance').eq('id', user.id).single()
-    if (!error) setBalance(Number(data?.plug_credit_balance || 0))
-    setLoading(false)
-  }
-
-  useEffect(() => { void refresh() }, [user?.id])
-
-  const fund = async () => {
-    if (!user) return
-    const naira = Number(amount)
-    const kobo = Math.round(naira * 100)
-    if (!Number.isSafeInteger(kobo) || kobo < 1000) { toast.error('Enter at least ₦10'); return }
-    setFunding(true)
-    try {
-      const reference = generatePaystackRef('WALLET')
-      await openPaystack({
-        email: user.email || profile?.email || '',
-        amount: kobo,
-        ref: reference,
-        publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
-        metadata: { type: 'campus_wallet_funding', user_id: user.id },
-      })
-      const result = await callEdgeFunction('fund-wallet', { reference, amount_kobo: kobo })
-      if (result.error) throw new Error(result.error)
-      toast.success(`Campus Wallet funded with ${formatNaira(kobo)}`)
-      await refresh()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Wallet funding failed')
-    } finally { setFunding(false) }
-  }
-
-  return <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
-    <div className="bg-obsidian-400 border border-cyan/20 rounded-2xl p-6">
-      <div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-cyan text-xs font-bold uppercase tracking-widest"><WalletCards size={15} /> Campus Wallet</div><h1 className="text-2xl font-black mt-2">One Paystack top-up. Many tiny swaps.</h1><p className="text-sm text-white/45 mt-2 max-w-xl">Use stored Campus Wallet value for low-cost academic purchases and rentals. Internal wallet transfers do not run another Paystack checkout.</p></div><button onClick={() => void refresh()} className="p-2 rounded-lg border border-obsidian-500 text-white/40 hover:text-white"><RefreshCw size={15} /></button></div>
-      <div className="mt-6 rounded-2xl border border-plug-green/20 bg-plug-green/5 p-5"><div className="text-[10px] uppercase tracking-widest text-white/35">Available balance</div><div className="text-4xl font-black font-mono text-plug-green mt-1">{loading ? '…' : formatNaira(balance)}</div></div>
-    </div>
-
-    <div className="grid md:grid-cols-2 gap-5">
-      <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5"><div className="flex items-center gap-2 mb-3"><ArrowDownToLine size={15} className="text-cyan" /><h2 className="font-bold text-sm">Fund wallet</h2></div><p className="text-xs text-white/40 mb-4">Paystack is used only when you add money. The server verifies the reference before crediting your wallet.</p><div className="flex gap-2"><input className="input flex-1" type="number" min="10" step="10" value={amount} onChange={e => setAmount(e.target.value)} /><button onClick={() => void fund()} disabled={funding} className="btn-primary px-4 disabled:opacity-40">{funding ? 'Processing…' : 'Add funds'}</button></div></div>
-      <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5"><div className="flex items-center gap-2 mb-3"><Zap size={15} className="text-plug-amber" /><h2 className="font-bold text-sm">Micro-escrow lane</h2></div><p className="text-xs text-white/40">Purchases up to <strong className="text-white">₦10,000</strong> can use Campus Wallet escrow. Higher-value deals stay on the protected Paystack escrow path.</p><div className="mt-4 text-[10px] text-white/30">No second card checkout for internal wallet settlement.</div></div>
-    </div>
-
-    <div className="rounded-xl border border-cyan/20 bg-cyan/5 p-4 flex gap-3"><ShieldCheck size={16} className="text-cyan flex-shrink-0" /><div className="text-xs text-white/45"><strong className="text-white">Server-authoritative:</strong> wallet debits, escrow holds, releases, refunds, and Paystack verification happen server-side. A browser callback alone cannot create wallet value.</div></div>
-  </div>
+  const { user } = useAuth(); const [balance,setBalance]=useState(0); const [amount,setAmount]=useState('5000'); const [loading,setLoading]=useState(true); const [funding,setFunding]=useState(false)
+  const refresh=async()=>{if(!user)return;setLoading(true);const {data,error}=await supabase.from('profiles').select('plug_credit_balance').eq('id',user.id).single();if(!error)setBalance(Number(data?.plug_credit_balance||0));setLoading(false)}
+  useEffect(()=>{void refresh()},[user?.id])
+  const fund=async()=>{if(!user)return;const naira=Number(amount),kobo=Math.round(naira*100);if(!Number.isSafeInteger(kobo)||kobo<1000){toast.error('Enter at least ₦10');return}setFunding(true);try{const reference=generatePaystackRef('WALLET');await openPaystack({email:user.email||'',amount:kobo,ref:reference,publicKey:import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,metadata:{type:'campus_wallet_funding',user_id:user.id}});const result=await callEdgeFunction('fund-wallet',{reference,amount_kobo:kobo});if(result.error)throw new Error(result.error);toast.success(`Campus Wallet funded with ${formatNaira(kobo)}`);await refresh()}catch(error){toast.error(error instanceof Error?error.message:'Wallet funding failed')}finally{setFunding(false)}}
+  return <div className="max-w-3xl mx-auto px-4 py-8 space-y-5"><div className="bg-obsidian-400 border border-cyan/20 rounded-2xl p-6"><div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-cyan text-xs font-bold uppercase tracking-widest"><WalletCards size={15}/>Campus Wallet</div><h1 className="text-2xl font-black mt-2">One Paystack top-up. Many tiny swaps.</h1><p className="text-sm text-white/45 mt-2 max-w-xl">Use stored Campus Wallet value for low-cost academic purchases and rentals. Internal wallet transfers do not run another Paystack checkout.</p></div><button onClick={()=>void refresh()} className="p-2 rounded-lg border border-obsidian-500 text-white/40 hover:text-white"><RefreshCw size={15}/></button></div><div className="mt-6 rounded-2xl border border-plug-green/20 bg-plug-green/5 p-5"><div className="text-[10px] uppercase tracking-widest text-white/35">Available balance</div><div className="text-4xl font-black font-mono text-plug-green mt-1">{loading?'…':formatNaira(balance)}</div></div></div>
+    <div className="grid md:grid-cols-2 gap-5"><div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5"><div className="flex items-center gap-2 mb-3"><ArrowDownToLine size={15} className="text-cyan"/><h2 className="font-bold text-sm">Fund wallet</h2></div><p className="text-xs text-white/40 mb-4">Paystack is used only when you add money. The server verifies the reference before crediting your wallet.</p><div className="flex gap-2"><input className="input flex-1" type="number" min="10" step="10" value={amount} onChange={e=>setAmount(e.target.value)}/><button onClick={()=>void fund()} disabled={funding} className="btn-primary px-4 disabled:opacity-40">{funding?'Processing…':'Add funds'}</button></div></div><div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5"><div className="flex items-center gap-2 mb-3"><Zap size={15} className="text-plug-amber"/><h2 className="font-bold text-sm">Micro-escrow lane</h2></div><p className="text-xs text-white/40">Purchases up to <strong className="text-white">₦10,000</strong> can use Campus Wallet escrow. Higher-value deals stay on the protected Paystack escrow path.</p><div className="mt-4 text-[10px] text-white/30">No second card checkout for internal wallet settlement.</div></div></div>
+    <div className="rounded-xl border border-cyan/20 bg-cyan/5 p-4 flex gap-3"><ShieldCheck size={16} className="text-cyan flex-shrink-0"/><div className="text-xs text-white/45"><strong className="text-white">Server-authoritative:</strong> wallet debits, escrow holds, releases, refunds, and Paystack verification happen server-side. A browser callback alone cannot create wallet value.</div></div></div>
 }

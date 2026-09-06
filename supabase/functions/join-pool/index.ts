@@ -39,8 +39,8 @@ async function atomicJoin(poolId: string, userId: string, paystackRef: string | 
 
 function stringField(body: unknown, key: string): string | null {
   if (typeof body !== "object" || body === null || !(key in body)) return null;
-  const value = body[key as keyof typeof body];
-  return typeof value === "string" ? value : null;
+  const record = body as Record<string, unknown>;
+  return typeof record[key] === "string" ? record[key] : null;
 }
 
 serve(async (req: Request) => {

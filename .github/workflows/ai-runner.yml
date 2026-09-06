@@ -3,6 +3,13 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-runner-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -19,8 +26,40 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Run Security Regression Suite
+      - name: Apply targeted TypeScript compatibility fixes
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const replacements = [
+            ['src/pages/WarRoom.tsx', 'return () => supabase.removeChannel(ch)', 'return () => { void supabase.removeChannel(ch) }'],
+            ['src/components/ui/DemandEngine.tsx', 'return () => supabase.removeChannel(channel)', 'return () => { void supabase.removeChannel(channel) }'],
+            ['src/components/transactions/LiveMeetupTracker.tsx', 'return () => { supabase.removeChannel(ch) }', 'return () => { void supabase.removeChannel(ch) }'],
+          ]
+          for (const [file, from, to] of replacements) {
+            if (!fs.existsSync(file)) continue
+            const before = fs.readFileSync(file, 'utf8')
+            const after = before.replaceAll(from, to)
+            if (after !== before) fs.writeFileSync(file, after)
+          }
+          NODE
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Security Regression Suite
         run: node scripts/security-regression.mjs
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Commit targeted fixes
+        run: |
+          if git diff --quiet; then
+            echo "No compatibility patches were needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          git commit -m "fix: resolve remaining TypeScript compatibility blockers [cp67-tsfix]"
+          git push origin main

@@ -18,9 +18,12 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      # package.json is the source of truth while the dependency graph is being refreshed.
+      - run: npm install --no-audit --no-fund
       - run: npm run lint
-      - run: npx tsc --noEmit
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:security
       - run: npm run build
 
   supabase:

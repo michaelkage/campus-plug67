@@ -26,7 +26,7 @@ export function openPaystack(options: PaystackTransactionOptions): Promise<Payst
 
 export function generatePaystackRef(prefix = 'CP'): string { return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}` }
 
-export type AllowedEdgeFunctionName = 'release-escrow' | 'fund-wallet' | 'ai-chat-scan' | 'beacon-matcher' | 'security-gate'
+export type AllowedEdgeFunctionName = 'release-escrow' | 'fund-wallet' | 'ai-chat-scan' | 'beacon-matcher' | 'security-gate' | 'process-growth-events' | 'process-dispute'
 export interface EdgeFunctionResult<T> { data: T | null; error: string | null }
 
 export async function callEdgeFunction<T = unknown>(functionName: AllowedEdgeFunctionName, body: unknown, accessToken?: string): Promise<EdgeFunctionResult<T>> {
@@ -48,5 +48,5 @@ export async function callEdgeFunction<T = unknown>(functionName: AllowedEdgeFun
 
 export async function pingEdgeFunction(functionName: AllowedEdgeFunctionName): Promise<{ warm: boolean; latencyMs: number }> {
   const url = `${SUPABASE_URL}/functions/v1/${functionName}/ping`; const start = Date.now()
-  try { const response = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }, signal: AbortSignal.timeout(5000) }); return { warm: response.ok, latencyMs: Date.now() - start } } catch { return { warm: false, latencyMs: Date.now() - start } }
+  try { const response = await fetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }, signal: AbortSignal.timeout(5000) }); return { warm: response.ok, latencyMs: Date.now() - start } catch { return { warm: false, latencyMs: Date.now() - start } }
 }

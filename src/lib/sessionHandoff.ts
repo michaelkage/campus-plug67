@@ -1,9 +1,9 @@
 import { supabase } from './supabase'
 
 export async function createSessionHandoff(transactionId:string){
-  const {data,error}=await supabase.rpc('create_session_handoff',{p_transaction_id:transactionId})
+  const {data,error}=await supabase.rpc('create_session_handoff' as any,{p_transaction_id:transactionId})
   if(error) throw error
-  if(!data?.token) throw new Error('Unable to create mobile handoff')
+  if (!data || !('token' in data) || !data.token) { throw new Error('Unable to create mobile handoff'); }
   return data as {token:string;expires_at:string;handoff_id:string;transaction_id:string|null}
 }
 

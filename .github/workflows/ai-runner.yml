@@ -38,20 +38,21 @@ jobs:
             else { fs.writeFileSync(file, after); console.log(`Patched: ${file}`) }
           }
 
-          // Custom RPCs are present in the deployed Supabase schema but are not
-          // represented in the checked-in generated Database type. Cast the
-          // overloaded rpc method locally so only these unmapped calls escape
-          // the generated function-name/argument constraint.
-          const rpcNames = [
-            ['src/components/marketplace/MultiMatchSelectionGrid.tsx', "supabase.rpc('match_global_sku' as any,", "(supabase.rpc as any)('match_global_sku',"],
-            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_ghost_refund' as any,", "(supabase.rpc as any)('check_ghost_refund',"],
-            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_priority_relist_v2' as any,", "(supabase.rpc as any)('check_priority_relist_v2',"],
+          // Custom RPCs exist in the deployed Supabase schema but are absent
+          // from the checked-in generated Database type. Cast the rpc method
+          // locally for only these unmapped calls so their argument object is
+          // not constrained to the generated `never` parameter type.
+          const rpcCalls = [
+            ['src/components/marketplace/MultiMatchSelectionGrid.tsx', "supabase.rpc('match_global_sku',", "(supabase.rpc as any)('match_global_sku',"],
+            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_ghost_refund',", "(supabase.rpc as any)('check_ghost_refund',"],
+            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_priority_relist_v2',", "(supabase.rpc as any)('check_priority_relist_v2',"],
             ['src/components/wallet/MicroEscrowLauncher.tsx', "supabase.rpc('create_wallet_micro_escrow' as any,", "(supabase.rpc as any)('create_wallet_micro_escrow',"],
             ['src/components/wallet/WalletDashboard.tsx', "supabase.rpc('transfer_plug_credit' as any,", "(supabase.rpc as any)('transfer_plug_credit',"],
-            ['src/contexts/AuthContext.tsx', "supabase.rpc('provision_emergency_tokens' as any,", "(supabase.rpc as any)('provision_emergency_tokens',"],
+            ['src/contexts/AuthContext.tsx', "supabase.rpc('provision_emergency_tokens',", "(supabase.rpc as any)('provision_emergency_tokens',"],
             ['src/lib/sessionHandoff.ts', "supabase.rpc('create_session_handoff' as any,", "(supabase.rpc as any)('create_session_handoff',"],
+            ['src/lib/sessionHandoff.ts', "supabase.rpc('create_session_handoff',", "(supabase.rpc as any)('create_session_handoff',"],
           ]
-          for (const [file, from, to] of rpcNames) {
+          for (const [file, from, to] of rpcCalls) {
             if (!fs.existsSync(file)) continue
             const before = fs.readFileSync(file, 'utf8')
             const after = before.replaceAll(from, to)
@@ -82,8 +83,6 @@ jobs:
             "        setProximity(p)",
             "        setProximity(p as ProximityResponse)")
 
-          // The custom RPC result is intentionally narrowed locally; null is a
-          // valid Supabase response and must be handled before property access.
           patch('src/components/ui/MeetupPanel.tsx',
             "    supabase.rpc('check_ghost_refund', { p_transaction_id: tx.id }).then(({ data }) => setGhostEligible(!!data?.eligible))",
             "    (supabase.rpc as any)('check_ghost_refund', { p_transaction_id: tx.id }).then(({ data }: { data: unknown }) => { const result = data as { eligible?: boolean } | null; setGhostEligible(result?.eligible === true) })")
@@ -97,8 +96,7 @@ jobs:
             "    if (!data?.eligible) { toast.error(data?.reason || 'Not eligible'); return }",
             "    const result = data as { eligible?: boolean; reason?: string | null } | null\n    if (!result?.eligible) { toast.error(result?.reason || 'Not eligible'); return }")
 
-          // React effect destructors must be synchronous. Discard the async
-          // remove-channel result explicitly while still performing cleanup.
+          // React effect destructors must be synchronous.
           patch('src/pages/WarRoom.tsx',
             /return \(\) => \{? ?supabase\.removeChannel\(ch\) ?\}?/g,
             'return () => { void supabase.removeChannel(ch) }')

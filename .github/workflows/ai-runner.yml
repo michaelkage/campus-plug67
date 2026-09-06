@@ -41,6 +41,8 @@ jobs:
           // Custom RPCs are present in the deployed Supabase schema but are not
           // represented in the checked-in generated Database type. Cast only the
           // function identifier so the rest of each call remains type-checked.
+          // JavaScript files are intentionally excluded because TS assertions
+          // are invalid syntax in .js files.
           const rpcNames = [
             ['src/components/marketplace/MultiMatchSelectionGrid.tsx', "supabase.rpc('match_global_sku',", "supabase.rpc('match_global_sku' as any,"],
             ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_ghost_refund',", "supabase.rpc('check_ghost_refund' as any,"],
@@ -48,7 +50,6 @@ jobs:
             ['src/components/wallet/MicroEscrowLauncher.tsx', "supabase.rpc('create_wallet_micro_escrow',", "supabase.rpc('create_wallet_micro_escrow' as any,"],
             ['src/components/wallet/WalletDashboard.tsx', "supabase.rpc('transfer_plug_credit',", "supabase.rpc('transfer_plug_credit' as any,"],
             ['src/contexts/AuthContext.tsx', "supabase.rpc('provision_emergency_tokens',", "supabase.rpc('provision_emergency_tokens' as any,"],
-            ['src/lib/security.js', "supabase.rpc('provision_emergency_tokens',", "supabase.rpc('provision_emergency_tokens' as any,"],
             ['src/lib/sessionHandoff.ts', "supabase.rpc('create_session_handoff',", "supabase.rpc('create_session_handoff' as any,"],
           ]
           for (const [file, from, to] of rpcNames) {

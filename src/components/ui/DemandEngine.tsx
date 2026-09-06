@@ -27,10 +27,12 @@ export function TrendingBadge({ listingId, isPreloaded = false }) {
     refetchInterval: 120_000,
   })
 
-  if (!trending && !isPreloaded) return null
-  if (trending && trending.views_1h < 5) return null
+  const activeTrending = trending as Record<string, any> | null;
 
-  const isHot = trending?.views_1h >= 20 || (trending?.score || 0) >= 40
+  if (!activeTrending && !isPreloaded) return null
+  if (activeTrending && activeTrending.views_1h < 5) return null
+
+  const isHot = activeTrending?.views_1h >= 20 || (activeTrending?.score || 0) >= 40
 
   return (
     <motion.div
@@ -341,7 +343,7 @@ export function DemandBroadcastForm() {
       const { data, error } = await supabase.from('buyer_broadcast_demands').insert({
         buyer_id: user?.id,
         title,
-        max_budget: parseInt(budget, 10) * 100, // store in kobo
+        max_budget: parseInt(budget, 10) * 100,
         category_id: parseInt(categoryId, 10)
       }).select();
       if (error) throw error;

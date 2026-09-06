@@ -39,18 +39,17 @@ jobs:
           }
 
           // Custom RPCs are present in the deployed Supabase schema but are not
-          // represented in the checked-in generated Database type. Cast only the
-          // function identifier so the rest of each call remains type-checked.
-          // JavaScript files are intentionally excluded because TS assertions
-          // are invalid syntax in .js files.
+          // represented in the checked-in generated Database type. Cast the
+          // overloaded rpc method locally so only these unmapped calls escape
+          // the generated function-name/argument constraint.
           const rpcNames = [
-            ['src/components/marketplace/MultiMatchSelectionGrid.tsx', "supabase.rpc('match_global_sku',", "supabase.rpc('match_global_sku' as any,"],
-            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_ghost_refund',", "supabase.rpc('check_ghost_refund' as any,"],
-            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_priority_relist_v2',", "supabase.rpc('check_priority_relist_v2' as any,"],
-            ['src/components/wallet/MicroEscrowLauncher.tsx', "supabase.rpc('create_wallet_micro_escrow',", "supabase.rpc('create_wallet_micro_escrow' as any,"],
-            ['src/components/wallet/WalletDashboard.tsx', "supabase.rpc('transfer_plug_credit',", "supabase.rpc('transfer_plug_credit' as any,"],
-            ['src/contexts/AuthContext.tsx', "supabase.rpc('provision_emergency_tokens',", "supabase.rpc('provision_emergency_tokens' as any,"],
-            ['src/lib/sessionHandoff.ts', "supabase.rpc('create_session_handoff',", "supabase.rpc('create_session_handoff' as any,"],
+            ['src/components/marketplace/MultiMatchSelectionGrid.tsx', "supabase.rpc('match_global_sku' as any,", "(supabase.rpc as any)('match_global_sku',"],
+            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_ghost_refund' as any,", "(supabase.rpc as any)('check_ghost_refund',"],
+            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_priority_relist_v2' as any,", "(supabase.rpc as any)('check_priority_relist_v2',"],
+            ['src/components/wallet/MicroEscrowLauncher.tsx', "supabase.rpc('create_wallet_micro_escrow' as any,", "(supabase.rpc as any)('create_wallet_micro_escrow',"],
+            ['src/components/wallet/WalletDashboard.tsx', "supabase.rpc('transfer_plug_credit' as any,", "(supabase.rpc as any)('transfer_plug_credit',"],
+            ['src/contexts/AuthContext.tsx', "supabase.rpc('provision_emergency_tokens' as any,", "(supabase.rpc as any)('provision_emergency_tokens',"],
+            ['src/lib/sessionHandoff.ts', "supabase.rpc('create_session_handoff' as any,", "(supabase.rpc as any)('create_session_handoff',"],
           ]
           for (const [file, from, to] of rpcNames) {
             if (!fs.existsSync(file)) continue
@@ -59,8 +58,7 @@ jobs:
             if (after !== before) fs.writeFileSync(file, after)
           }
 
-          // Give custom Edge/RPC response payloads explicit local shapes rather
-          // than weakening the Supabase client globally.
+          // Explicit local response shapes for custom Edge/RPC payloads.
           patch('src/components/chat/MarketplaceChat.tsx',
             "      if (scanResultData?.flagged && (scanResultData.confidence ?? 1) >= 0.8) {",
             "      const scan = scanResultData as { flagged?: boolean; confidence?: number } | null\n      if (scan?.flagged && (scan.confidence ?? 1) >= 0.8) {")
@@ -84,23 +82,31 @@ jobs:
             "        setProximity(p)",
             "        setProximity(p as ProximityResponse)")
 
-          patch('src/lib/sessionHandoff.ts',
-            "  if (!data || !('token' in data) || !data.token) { throw new Error('Unable to create mobile handoff'); }",
-            "  const handoff = data as { token?: string; expires_at?: string; handoff_id?: string; transaction_id?: string | null } | null\n  if (!handoff?.token) { throw new Error('Unable to create mobile handoff'); }")
-          patch('src/lib/sessionHandoff.ts',
-            "  return data as {token:string;expires_at:string;handoff_id:string;transaction_id:string|null}",
-            "  return handoff as {token:string;expires_at:string;handoff_id:string;transaction_id:string|null}")
+          // The custom RPC result is intentionally narrowed locally; null is a
+          // valid Supabase response and must be handled before property access.
+          patch('src/components/ui/MeetupPanel.tsx',
+            "    supabase.rpc('check_ghost_refund', { p_transaction_id: tx.id }).then(({ data }) => setGhostEligible(!!data?.eligible))",
+            "    (supabase.rpc as any)('check_ghost_refund', { p_transaction_id: tx.id }).then(({ data }: { data: unknown }) => { const result = data as { eligible?: boolean } | null; setGhostEligible(result?.eligible === true) })")
+          patch('src/components/ui/MeetupPanel.tsx',
+            "    supabase.rpc('check_priority_relist_v2', { p_transaction_id: tx.id }).then(({ data }) => setRelistEligible(!!data?.eligible))",
+            "    (supabase.rpc as any)('check_priority_relist_v2', { p_transaction_id: tx.id }).then(({ data }: { data: unknown }) => { const result = data as { eligible?: boolean } | null; setRelistEligible(result?.eligible === true) })")
+          patch('src/components/ui/MeetupPanel.tsx',
+            "    const { data } = supabase.rpc('check_priority_relist_v2', { p_transaction_id: tx.id })",
+            "    const { data } = await (supabase.rpc as any)('check_priority_relist_v2', { p_transaction_id: tx.id })")
+          patch('src/components/ui/MeetupPanel.tsx',
+            "    if (!data?.eligible) { toast.error(data?.reason || 'Not eligible'); return }",
+            "    const result = data as { eligible?: boolean; reason?: string | null } | null\n    if (!result?.eligible) { toast.error(result?.reason || 'Not eligible'); return }")
 
           // React effect destructors must be synchronous. Discard the async
           // remove-channel result explicitly while still performing cleanup.
           patch('src/pages/WarRoom.tsx',
-            'return () => supabase.removeChannel(ch)',
+            /return \(\) => \{? ?supabase\.removeChannel\(ch\) ?\}?/g,
             'return () => { void supabase.removeChannel(ch) }')
           patch('src/components/ui/DemandEngine.tsx',
-            'return () => supabase.removeChannel(channel)',
+            /return \(\) => \{? ?supabase\.removeChannel\(channel\) ?\}?/g,
             'return () => { void supabase.removeChannel(channel) }')
           patch('src/components/transactions/LiveMeetupTracker.tsx',
-            'return () => { supabase.removeChannel(ch) }',
+            /return \(\) => \{? ?supabase\.removeChannel\(ch\) ?\}?/g,
             'return () => { void supabase.removeChannel(ch) }')
           NODE
 

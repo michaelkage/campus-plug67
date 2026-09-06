@@ -22,9 +22,13 @@ type LooseFunction = {
   Returns: any
 }
 
+// The checked-in schema intentionally contains a curated subset of the deployed
+// Supabase surface. Keep the application client tolerant of additional migration
+// tables/columns while preserving the canonical Database type for explicit domain
+// models imported by components.
 type AppDatabase = Database & {
   public: Database['public'] & {
-    Tables: Database['public']['Tables'] & Record<string, LooseTable>
+    Tables: Record<string, LooseTable>
     Views: Record<string, LooseTable>
     Functions: Record<string, LooseFunction>
   }

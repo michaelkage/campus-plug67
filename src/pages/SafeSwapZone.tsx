@@ -2,218 +2,50 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { ShieldCheck, MapPin, Navigation, LockKeyhole, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { ShieldCheck, MapPin, Navigation, LockKeyhole, CheckCircle2, AlertTriangle, WalletCards } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-type SafeZone = {
-  id: string
-  name: string
-  description: string | null
-  lat: number
-  lng: number
-  radius_m: number
-  zone_type: string
-}
-
-type Tx = {
-  id: string
-  buyer_id: string
-  seller_id: string
-  university: string | null
-  buyer_safe_zone_id: string | null
-  seller_safe_zone_id: string | null
-}
-
+type SafeZone = { id: string; name: string; description: string | null; lat: number; lng: number; radius_m: number; zone_type: string }
+type Tx = { id: string; buyer_id: string; seller_id: string; university: string | null; status: string; escrow_status: string | null; buyer_safe_zone_id: string | null; seller_safe_zone_id: string | null }
 const UNILAG_BOUNDS = { west: 3.390, south: 6.495, east: 3.415, north: 6.520 }
 
 function distanceM(a: GeolocationCoordinates, z: SafeZone) {
-  const R = 6371000
-  const p1 = a.latitude * Math.PI / 180
-  const p2 = z.lat * Math.PI / 180
-  const dp = (z.lat - a.latitude) * Math.PI / 180
-  const dl = (z.lng - a.longitude) * Math.PI / 180
+  const R = 6371000, p1 = a.latitude * Math.PI / 180, p2 = z.lat * Math.PI / 180, dp = (z.lat - a.latitude) * Math.PI / 180, dl = (z.lng - a.longitude) * Math.PI / 180
   const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
 }
 
+function CarryMeAlong({ tx }: { tx: Tx | null }) {
+  if (!tx) return null
+  const frozen = tx.escrow_status === 'frozen'
+  const released = tx.status === 'released' || tx.escrow_status === 'released'
+  const requested = tx.status === 'release_requested'
+  const held = tx.escrow_status === 'held'
+  const step = released ? 3 : (requested ? 2 : (held ? 2 : 1))
+  const labels = ['Money Don Land', 'Chop Eye / Inspection Time', 'Deal Clean']
+  const detail = frozen ? 'Safety freeze active — funds stay locked while the alert is handled.' : released ? 'QR handshake completed and escrow release is confirmed.' : requested ? 'Inspection is complete; finish the protected QR handshake in the approved zone.' : held ? 'Payment is verified and funds are locked until the exchange is completed.' : 'Payment is being verified before the swap can proceed.'
+  return <div className={`rounded-2xl border p-5 ${frozen ? 'border-plug-red/40 bg-plug-red/5' : 'border-cyan/20 bg-cyan/5'}`}>
+    <div className="flex items-center gap-2 mb-2"><WalletCards size={15} className={frozen ? 'text-plug-red' : 'text-cyan'} /><h2 className="font-bold text-sm">Carry Me Along</h2></div>
+    <p className="text-xs text-white/45 mb-4">{detail}</p>
+    <div className="grid grid-cols-3 gap-2">{labels.map((label, i) => <div key={label} className={`rounded-xl border p-3 ${i + 1 <= step ? 'border-plug-green/30 bg-plug-green/5' : 'border-obsidian-500 bg-obsidian-300/30'}`}><div className="text-[9px] uppercase tracking-widest text-white/30">State {i + 1}</div><div className={`text-[11px] font-black mt-1 ${i + 1 <= step ? 'text-plug-green' : 'text-white/45'}`}>{label}</div></div>)}</div>
+  </div>
+}
+
 export default function SafeSwapZone() {
-  const { user, profile } = useAuth()
-  const [params] = useSearchParams()
-  const transactionId = params.get('tx')
-  const [zones, setZones] = useState<SafeZone[]>([])
-  const [tx, setTx] = useState<Tx | null>(null)
-  const [position, setPosition] = useState<GeolocationCoordinates | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
-
-  useEffect(() => {
-    const load = async () => {
-      const { data: zoneData } = await supabase
-        .from('safe_zones')
-        .select('id,name,description,lat,lng,radius_m,zone_type')
-        .eq('active', true)
-        .eq('university', profile?.university || '')
-        .order('name')
-      setZones((zoneData || []) as SafeZone[])
-
-      if (transactionId) {
-        const { data } = await supabase
-          .from('transactions')
-          .select('id,buyer_id,seller_id,university,buyer_safe_zone_id,seller_safe_zone_id')
-          .eq('id', transactionId)
-          .single()
-        setTx(data as Tx | null)
-      }
-    }
-    if (profile?.university) void load()
-  }, [profile?.university, transactionId])
-
-  const nearest = useMemo(() => {
-    if (!position || zones.length === 0) return null
-    return zones
-      .map(zone => ({ zone, distance: Math.round(distanceM(position, zone)) }))
-      .sort((a, b) => a.distance - b.distance)[0]
-  }, [position, zones])
-
-  const startGps = () => {
-    if (!navigator.geolocation) {
-      setError('This browser does not provide GPS.')
-      return
-    }
-    setError(null)
-    navigator.geolocation.getCurrentPosition(
-      pos => setPosition(pos.coords),
-      err => setError(err.message || 'Unable to read your location.'),
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 3000 },
-    )
-  }
-
-  const confirmArrival = async () => {
-    if (!user || !transactionId || !position) return
-    setChecking(true)
-    try {
-      const role = tx?.buyer_id === user.id ? 'buyer' : tx?.seller_id === user.id ? 'seller' : null
-      if (!role) throw new Error('You are not a participant in this transaction.')
-      const { data, error: rpcError } = await supabase.rpc('record_safe_arrival', {
-        p_transaction_id: transactionId,
-        p_role: role,
-        p_lat: position.latitude,
-        p_lng: position.longitude,
-      })
-      if (rpcError) throw rpcError
-      if (!data?.success) {
-        toast.error(data?.message || 'You are outside the approved Safe Swap Zone.')
-        return
-      }
-      toast.success(`${data.zone_name} verified — QR release zone confirmed.`)
-      setTx(prev => prev ? ({ ...prev, ...(role === 'buyer' ? { buyer_safe_zone_id: data.zone_id } : { seller_safe_zone_id: data.zone_id }) }) : prev)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Safe-zone verification failed')
-    } finally {
-      setChecking(false)
-    }
-  }
-
-  const bbox = `${UNILAG_BOUNDS.west},${UNILAG_BOUNDS.south},${UNILAG_BOUNDS.east},${UNILAG_BOUNDS.north}`
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik`
-  const isInside = nearest ? nearest.distance <= 50 : false
-
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-plug-green text-xs font-bold uppercase tracking-widest">
-              <ShieldCheck size={15} /> Safe Swap Zone
-            </div>
-            <h1 className="text-2xl font-black mt-2">Meet where the QR release is protected.</h1>
-            <p className="text-sm text-white/50 mt-2 max-w-2xl">
-              QR escrow release is restricted to approved campus meetup points. For UNILAG, each point has a strict 50m server-validated release radius.
-            </p>
-          </div>
-          <div className="rounded-xl border border-cyan/30 bg-cyan/5 px-4 py-3 text-right">
-            <div className="text-[10px] uppercase tracking-widest text-white/40">Release radius</div>
-            <div className="text-2xl font-black text-cyan font-mono">50m</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-[1.6fr_1fr] gap-5">
-        <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl overflow-hidden">
-          <div className="h-[430px] bg-obsidian-300">
-            <iframe
-              title="UNILAG Safe Swap Zone map"
-              src={mapSrc}
-              className="w-full h-full border-0"
-              loading="lazy"
-            />
-          </div>
-          <div className="p-4 border-t border-obsidian-500">
-            <div className="flex items-center gap-2 text-xs font-bold text-white/70">
-              <LockKeyhole size={13} className="text-plug-green" />
-              Server-authoritative release gate
-            </div>
-            <p className="text-xs text-white/35 mt-1">
-              The map is for orientation. The final 50m check is performed by Supabase against the recorded GPS fix.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-sm">Your location</h2>
-              {position && <span className={`text-[10px] font-bold ${isInside ? 'text-plug-green' : 'text-plug-red'}`}>{isInside ? 'IN SAFE ZONE' : 'OUTSIDE'}</span>}
-            </div>
-            {position ? (
-              <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-                <div><span className="text-white/30 block">LAT</span>{position.latitude.toFixed(6)}</div>
-                <div><span className="text-white/30 block">LNG</span>{position.longitude.toFixed(6)}</div>
-                <div className="col-span-2"><span className="text-white/30 block">GPS ACCURACY</span>±{Math.round(position.accuracy)}m</div>
-              </div>
-            ) : <p className="text-xs text-white/35">Get a fresh GPS fix before confirming arrival.</p>}
-            {nearest && (
-              <div className={`mt-4 rounded-xl p-3 border ${isInside ? 'border-plug-green/30 bg-plug-green/5' : 'border-plug-red/30 bg-plug-red/5'}`}>
-                <div className="flex items-center gap-2"><MapPin size={13} /><span className="font-bold text-xs">{nearest.zone.name}</span></div>
-                <div className="text-[10px] text-white/40 mt-1">{nearest.distance}m from center · 50m release radius</div>
-              </div>
-            )}
-            <button onClick={startGps} className="w-full mt-4 py-3 rounded-xl bg-cyan text-obsidian font-black text-sm flex items-center justify-center gap-2">
-              <Navigation size={15} /> Refresh GPS
-            </button>
-            {error && <p className="text-xs text-plug-red mt-2 flex gap-2"><AlertTriangle size={13} />{error}</p>}
-          </div>
-
-          {transactionId && (
-            <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5">
-              <h2 className="font-bold text-sm mb-2">Transaction handshake</h2>
-              <p className="text-xs text-white/40 mb-4">TX {transactionId.slice(0, 8).toUpperCase()}</p>
-              <button
-                onClick={confirmArrival}
-                disabled={!position || !isInside || checking}
-                className="w-full py-3 rounded-xl bg-plug-green text-obsidian font-black text-sm disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 size={15} />
-                {checking ? 'VERIFYING…' : 'VERIFY SAFE SWAP LOCATION'}
-              </button>
-              <p className="text-[10px] text-white/30 mt-3">If you are outside the zone, the button stays locked. Moving to an unapproved meetup point cannot unlock QR release.</p>
-            </div>
-          )}
-
-          <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5">
-            <h2 className="font-bold text-sm mb-3">Approved UNILAG points</h2>
-            <div className="space-y-2">
-              {zones.map(zone => (
-                <div key={zone.id} className="flex items-start gap-3 rounded-xl border border-obsidian-500 bg-obsidian-300/30 p-3">
-                  <div className="w-7 h-7 rounded-full bg-plug-green/10 flex items-center justify-center text-plug-green flex-shrink-0"><MapPin size={13} /></div>
-                  <div className="min-w-0"><div className="text-xs font-bold truncate">{zone.name}</div><div className="text-[10px] text-white/35 mt-0.5">50m strict release radius</div></div>
-                </div>
-              ))}
-              {zones.length === 0 && <p className="text-xs text-white/30">No active safe zones configured for this campus yet.</p>}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  const { user, profile } = useAuth(); const [params] = useSearchParams(); const transactionId = params.get('tx')
+  const [zones, setZones] = useState<SafeZone[]>([]); const [tx, setTx] = useState<Tx | null>(null); const [position, setPosition] = useState<GeolocationCoordinates | null>(null); const [error, setError] = useState<string | null>(null); const [checking, setChecking] = useState(false)
+  useEffect(() => { const load = async () => { const { data: zoneData } = await supabase.from('safe_zones').select('id,name,description,lat,lng,radius_m,zone_type').eq('active', true).eq('university', profile?.university || '').order('name'); setZones((zoneData || []) as SafeZone[]); if (transactionId) { const { data } = await supabase.from('transactions').select('id,buyer_id,seller_id,university,status,escrow_status,buyer_safe_zone_id,seller_safe_zone_id').eq('id', transactionId).single(); setTx(data as Tx | null) } }; if (profile?.university) void load() }, [profile?.university, transactionId])
+  const nearest = useMemo(() => { if (!position || zones.length === 0) return null; return zones.map(zone => ({ zone, distance: Math.round(distanceM(position, zone)) })).sort((a, b) => a.distance - b.distance)[0] }, [position, zones])
+  const startGps = () => { if (!navigator.geolocation) { setError('This browser does not provide GPS.'); return }; setError(null); navigator.geolocation.getCurrentPosition(pos => setPosition(pos.coords), err => setError(err.message || 'Unable to read your location.'), { enableHighAccuracy: true, timeout: 12000, maximumAge: 3000 }) }
+  const confirmArrival = async () => { if (!user || !transactionId || !position) return; setChecking(true); try { const role = tx?.buyer_id === user.id ? 'buyer' : tx?.seller_id === user.id ? 'seller' : null; if (!role) throw new Error('You are not a participant in this transaction.'); const { data, error: rpcError } = await supabase.rpc('record_safe_arrival', { p_transaction_id: transactionId, p_role: role, p_lat: position.latitude, p_lng: position.longitude }); if (rpcError) throw rpcError; if (!data?.success) { toast.error(data?.message || 'You are outside the approved Safe Swap Zone.'); return } toast.success(`${data.zone_name} verified — QR release zone confirmed.`); setTx(prev => prev ? ({ ...prev, ...(role === 'buyer' ? { buyer_safe_zone_id: data.zone_id } : { seller_safe_zone_id: data.zone_id }) }) : prev) } catch (err) { toast.error(err instanceof Error ? err.message : 'Safe-zone verification failed') } finally { setChecking(false) } }
+  const bbox = `${UNILAG_BOUNDS.west},${UNILAG_BOUNDS.south},${UNILAG_BOUNDS.east},${UNILAG_BOUNDS.north}`; const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik`; const isInside = nearest ? nearest.distance <= 50 : false
+  return <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-plug-green text-xs font-bold uppercase tracking-widest"><ShieldCheck size={15} /> Safe Swap Zone</div><h1 className="text-2xl font-black mt-2">Meet where the QR release is protected.</h1><p className="text-sm text-white/50 mt-2 max-w-2xl">QR escrow release is restricted to approved campus meetup points. For UNILAG, each point has a strict 50m server-validated release radius.</p></div><div className="rounded-xl border border-cyan/30 bg-cyan/5 px-4 py-3 text-right"><div className="text-[10px] uppercase tracking-widest text-white/40">Release radius</div><div className="text-2xl font-black text-cyan font-mono">50m</div></div></div></div>
+    {transactionId && <CarryMeAlong tx={tx} />}
+    <div className="grid lg:grid-cols-[1.6fr_1fr] gap-5"><div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl overflow-hidden"><div className="h-[430px] bg-obsidian-300"><iframe title="UNILAG Safe Swap Zone map" src={mapSrc} className="w-full h-full border-0" loading="lazy" /></div><div className="p-4 border-t border-obsidian-500"><div className="flex items-center gap-2 text-xs font-bold text-white/70"><LockKeyhole size={13} className="text-plug-green" />Server-authoritative release gate</div><p className="text-xs text-white/35 mt-1">The map is for orientation. The final 50m check is performed by Supabase against the recorded GPS fix.</p></div></div>
+      <div className="space-y-4"><div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5"><div className="flex items-center justify-between mb-4"><h2 className="font-bold text-sm">Your location</h2>{position && <span className={`text-[10px] font-bold ${isInside ? 'text-plug-green' : 'text-plug-red'}`}>{isInside ? 'IN SAFE ZONE' : 'OUTSIDE'}</span>}</div>{position ? <div className="grid grid-cols-2 gap-3 text-xs font-mono"><div><span className="text-white/30 block">LAT</span>{position.latitude.toFixed(6)}</div><div><span className="text-white/30 block">LNG</span>{position.longitude.toFixed(6)}</div><div className="col-span-2"><span className="text-white/30 block">GPS ACCURACY</span>±{Math.round(position.accuracy)}m</div></div> : <p className="text-xs text-white/35">Get a fresh GPS fix before confirming arrival.</p>}{nearest && <div className={`mt-4 rounded-xl p-3 border ${isInside ? 'border-plug-green/30 bg-plug-green/5' : 'border-plug-red/30 bg-plug-red/5'}`}><div className="flex items-center gap-2"><MapPin size={13} /><span className="font-bold text-xs">{nearest.zone.name}</span></div><div className="text-[10px] text-white/40 mt-1">{nearest.distance}m from center · 50m release radius</div></div>}<button onClick={startGps} className="w-full mt-4 py-3 rounded-xl bg-cyan text-obsidian font-black text-sm flex items-center justify-center gap-2"><Navigation size={15} /> Refresh GPS</button>{error && <p className="text-xs text-plug-red mt-2 flex gap-2"><AlertTriangle size={13} />{error}</p>}</div>
+        {transactionId && <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5"><h2 className="font-bold text-sm mb-2">Transaction handshake</h2><p className="text-xs text-white/40 mb-4">TX {transactionId.slice(0, 8).toUpperCase()}</p><button onClick={confirmArrival} disabled={!position || !isInside || checking} className="w-full py-3 rounded-xl bg-plug-green text-obsidian font-black text-sm disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"><CheckCircle2 size={15} />{checking ? 'VERIFYING…' : 'VERIFY SAFE SWAP LOCATION'}</button><p className="text-[10px] text-white/30 mt-3">If you are outside the zone, the button stays locked. Moving to an unapproved meetup point cannot unlock QR release.</p></div>}
+        <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5"><h2 className="font-bold text-sm mb-3">Approved UNILAG points</h2><div className="space-y-2">{zones.map(zone => <div key={zone.id} className="flex items-start gap-3 rounded-xl border border-obsidian-500 bg-obsidian-300/30 p-3"><div className="w-7 h-7 rounded-full bg-plug-green/10 flex items-center justify-center text-plug-green flex-shrink-0"><MapPin size={13} /></div><div className="min-w-0"><div className="text-xs font-bold truncate">{zone.name}</div><div className="text-[10px] text-white/35 mt-0.5">50m strict release radius</div></div></div>)}{zones.length === 0 && <p className="text-xs text-white/30">No active safe zones configured for this campus yet.</p>}</div></div>
+      </div></div>
+  </div>
 }

@@ -8,7 +8,7 @@ permissions:
 
 concurrency:
   group: ai-runner-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-test:
@@ -24,7 +24,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Apply targeted TypeScript compatibility fixes
         run: |
@@ -128,12 +128,12 @@ jobs:
 
       - name: Commit targeted fixes
         run: |
-          if git diff --quiet; then
-            echo "No compatibility patches were needed."
+          if git diff --quiet -- src package-lock.json; then
+            echo "No compatibility patches or lockfile changes were needed."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src
-          git commit -m "fix: resolve remaining TypeScript compatibility blockers [cp67-tsfix]"
+          git add src package-lock.json
+          git commit -m "fix: resolve TypeScript compatibility and lockfile drift [cp67-tsfix]"
           git push origin main

@@ -29,7 +29,7 @@ async function verifyListing(listingId:string,userId:string,sourceDevice:string)
   for(const imageUrl of images.slice(0,4)){try{results.push(await verifyImage(imageUrl,listing.university))}catch(error){console.warn('server image verification failed',imageUrl,error instanceof Error?error.message:error)}}
   if(!results.length)return {verified:false,processed:0};
   await admin.from('listing_exif_flags').delete().eq('listing_id',listingId).eq('verification_source','server_verified');
-  const rows=results.map(result=>({...result,listing_id:listingId,raw_exif:null,verification_source:'server_verified',verified_at:new Date().toISOString()}));
+  const rows=results.map(result=>({...result,listing_id:listingId,raw_exif:null,verification_source: "server_verified",verified_at:new Date().toISOString()}));
   const {error:insertError}=await admin.from('listing_exif_flags').insert(rows); if(insertError)throw insertError;
   const clean=results.every(result=>!result.gps_mismatch&&!result.timestamp_flag); const needsMobile=sourceDevice==='desktop';
   await admin.from('listings').update({metadata_verified:clean&&!needsMobile,verification_source_device:sourceDevice,mobile_verification_required:needsMobile,mobile_verification_requested_at:needsMobile?new Date().toISOString():null}).eq('id',listingId).eq('seller_id',userId);

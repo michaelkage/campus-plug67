@@ -5,9 +5,7 @@ name: Campus Plug Operations
 
 on:
   schedule:
-    # Edge-function warmup runs every 5 minutes.
     - cron: '*/5 * * * *'
-    # Auto-release runs independently every 15 minutes.
     - cron: '0,15,30,45 * * * *'
   workflow_dispatch:
     inputs:
@@ -48,7 +46,7 @@ jobs:
   warm-functions:
     name: Warm Edge Functions
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     needs: validate-secrets
     if: github.event_name == 'schedule' || github.event.inputs.action == 'warm' || github.event.inputs.action == 'all'
     steps:
@@ -61,11 +59,19 @@ jobs:
           functions=(release-escrow join-pool paystack-webhook passkey-auth process-growth-events process-dispute calculate-trending)
           for fn in "${functions[@]}"; do
             echo "→ Pinging ${fn}..."
-            curl --fail --silent --show-error --max-time 8 \
-              -H "apikey: ${SUPABASE_ANON_KEY}" \
-              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-              -H "x-health-check: true" \
-              "${SUPABASE_URL}/functions/v1/${fn}/ping" >/dev/null
+            ok=false
+            for attempt in 1 2 3; do
+              if curl --fail --silent --show-error --max-time 8 \
+                -H "apikey: ${SUPABASE_ANON_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+                -H "x-health-check: true" \
+                "${SUPABASE_URL}/functions/v1/${fn}/ping" >/dev/null; then
+                ok=true
+                break
+              fi
+              sleep 2
+            done
+            [[ "$ok" == true ]] || { echo "Health check failed for ${fn}"; exit 1; }
           done
           echo "✅ All health checks passed."
 
@@ -82,12 +88,17 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error -X POST \
+          response=$(curl --fail-with-body --silent --show-error -X POST \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             --max-time 30 -d '{}' \
-            "${SUPABASE_URL}/functions/v1/calculate-trending"
+            "${SUPABASE_URL}/functions/v1/calculate-trending") || {
+              echo 'calculate-trending rejected the service-role request.'
+              echo 'The function now accepts a verified service_role JWT for the same project; refresh SUPABASE_SERVICE_ROLE_KEY if this remains a 403.'
+              exit 1
+            }
+          echo "$response"
 
       - name: Rotate stale jury cases
         env:

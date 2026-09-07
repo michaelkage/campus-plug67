@@ -109,9 +109,11 @@ function CaseView({ juryCase, onVoted }: any) {
     setSubmitting(false)
     if (error) { toast.error(error); return }
 
-    toast.success(data?.case_closed
-      ? `⚖️ Verdict reached: ${data.verdict}. Justice served.`
-      : `✓ Vote recorded. ${data?.votes_cast} vote(s) so far.`
+    const disputeResult = data as { case_closed?: boolean; verdict?: string; votes_cast?: number } | null
+
+    toast.success(disputeResult?.case_closed
+      ? `⚖️ Verdict reached: ${disputeResult.verdict}. Justice served.`
+      : `✓ Vote recorded. ${disputeResult?.votes_cast} vote(s) so far.`
     )
     onVoted?.()
   }

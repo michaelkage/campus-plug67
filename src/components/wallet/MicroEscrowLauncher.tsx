@@ -33,7 +33,7 @@ export default function MicroEscrowLauncher() {
     if (!user) return
     setBusy(true)
     try {
-      const { data, error } = await supabase.rpc('create_wallet_micro_escrow' as any, { p_listing_id: listing.id })
+      const { data, error } = await (supabase.rpc as any)('create_wallet_micro_escrow', { p_listing_id: listing.id })
       if (error) throw error
       const result = data as WalletRpcResult | null
       if (!result?.success) throw new Error('Campus Wallet purchase failed')

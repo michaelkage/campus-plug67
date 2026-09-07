@@ -620,8 +620,8 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
   // Protection eligibility
   useEffect(() => {
     if (!tx?.id) return
-    supabase.rpc('check_ghost_refund', { p_transaction_id: tx.id }).then(({ data }) => setGhostEligible(!!data?.eligible))
-    supabase.rpc('check_priority_relist_v2', { p_transaction_id: tx.id }).then(({ data }) => setRelistEligible(!!data?.eligible))
+    (supabase.rpc as any)('check_ghost_refund', { p_transaction_id: tx.id }).then(({ data }) => setGhostEligible(!!data?.eligible))
+    (supabase.rpc as any)('check_priority_relist_v2', { p_transaction_id: tx.id }).then(({ data }) => setRelistEligible(!!data?.eligible))
   }, [tx?.id])
 
   const toggleOMW = async () => {
@@ -669,8 +669,9 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
   }
 
   const handleRelist = async () => {
-    const { data } = await supabase.rpc('check_priority_relist_v2', { p_transaction_id: tx.id })
-    if (!data?.eligible) { toast.error(data?.reason || 'Not eligible'); return }
+    const { data } = await (supabase.rpc as any)('check_priority_relist_v2', { p_transaction_id: tx.id })
+    const rpcResult = data as { eligible?: boolean; reason?: string } | null
+    if (!rpcResult || !rpcResult.eligible) { toast.error(rpcResult?.reason || 'Not eligible'); return }
     await supabase.from('priority_relist_log').insert({ seller_id: user?.id, listing_id: tx.listing_id, transaction_id: tx.id })
     await supabase.from('profiles').update({ priority_relist_today: 1, last_boost_at: new Date().toISOString() }).eq('id', user?.id)
     toast.success('🚀 Priority Relist Boost — top of feed 1 hour!')

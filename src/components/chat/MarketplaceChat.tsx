@@ -393,7 +393,8 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
         'marketplace'
       )
 
-      if (scanResultData?.flagged && (scanResultData.confidence ?? 1) >= 0.8) {
+      const scan = scanResultData as { flagged?: boolean; confidence?: number } | null
+      if (scan?.flagged && (scan.confidence ?? 1) >= 0.8) {
         setSecurityWarning({
           show: true,
           message: 'Message blocked: Off-platform payment or phone number sharing is restricted for safety.',

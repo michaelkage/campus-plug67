@@ -367,18 +367,18 @@ export default function LiveMeetupTracker({
       .subscribe()
 
     channelRef.current = ch
-    return () => { supabase.removeChannel(ch) }
+    return () => { void supabase.removeChannel(ch) }
   }, [transactionId])
 
   // ── Beacon + proximity update on each location fix ────────────────────────
   const pushBeacon = useCallback(async (loc: LocationData) => {
     try {
       const b = await updateBeacon(userId, loc.latitude, loc.longitude, 'meetup', transactionId, 500)
-      setBeacon(b)
+      setBeacon(b as BeaconResponse)
 
       if (tx?.meetup_latitude && tx?.meetup_longitude) {
         const p = await checkProximity(userId, transactionId, loc.latitude, loc.longitude, 500)
-        setProximity(p)
+        setProximity(p as ProximityResponse)
       }
     } catch {
       // Non-fatal — beacon update should never break the UI

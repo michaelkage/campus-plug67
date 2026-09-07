@@ -197,7 +197,7 @@ export default function WarRoom() {
         qc.invalidateQueries({ queryKey: ['global-config'] })
       })
       .subscribe()
-    return () => supabase.removeChannel(ch)
+    return () => { void supabase.removeChannel(ch) }
   }, [qc])
 
   const handleToggle = async (key: string, newValue: boolean) => {

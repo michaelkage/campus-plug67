@@ -108,7 +108,8 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
     }
 
     setMyArrived(true)
-    if (data?.other_arrived) setOtherArrived(true)
+    const arrivalPayload = data as { other_arrived?: boolean } | null
+    if (arrivalPayload?.other_arrived) setOtherArrived(true)
     toast.success(manual ? '✓ Marked as arrived!' : '📍 Location confirmed — you\'re at the safe zone!')
   }
 

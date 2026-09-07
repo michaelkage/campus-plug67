@@ -47,7 +47,8 @@ export function useReferral() {
     )
     if (error) toast.error(error)
     else {
-      toast.success(`Referral applied! Referred by ${data?.referrer_name}`)
+      const referralPayload = data as { referrer_name?: string } | null
+      toast.success(`Referral applied! Referred by ${referralPayload?.referrer_name}`)
       qc.invalidateQueries({ queryKey: ['referral-data'] })
     }
     return { data, error }

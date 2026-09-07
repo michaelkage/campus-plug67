@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/**'
+      - 'scripts/normalize-migrations.mjs'
       - '.github/workflows/deploy-supabase.yml'
   workflow_dispatch:
 
@@ -56,11 +57,8 @@ jobs:
           [[ "$host" =~ ^[a-z0-9]{20}$ ]] || { echo "Could not derive a valid Supabase project ref from SUPABASE_URL"; exit 1; }
           echo "ref=$host" >> "$GITHUB_OUTPUT"
 
-      - name: Link project
-        run: supabase link --project-ref "${{ steps.project.outputs.ref }}" --password "$SUPABASE_DB_PASSWORD"
-
-      - name: Apply database migrations
-        run: supabase db push --linked
+      - name: Normalize migrations
+        run: node scripts/normalize-migrations.mjs
 
       - name: Deploy Edge Functions
         shell: bash
@@ -74,6 +72,12 @@ jobs:
             supabase functions deploy "$fn" --project-ref "${{ steps.project.outputs.ref }}"
           done
 
+      - name: Link project for database deployment
+        run: supabase link --project-ref "${{ steps.project.outputs.ref }}" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply database migrations
+        run: supabase db push --linked
+
       - name: Verify deployed function endpoints
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -84,10 +88,16 @@ jobs:
           functions=(release-escrow join-pool paystack-webhook passkey-auth process-growth-events process-dispute calculate-trending)
           for fn in "${functions[@]}"; do
             echo "→ Verifying ${fn}..."
-            curl --fail --silent --show-error --max-time 10 \
-              -H "apikey: ${SUPABASE_ANON_KEY}" \
-              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-              -H "x-health-check: true" \
-              "${SUPABASE_URL}/functions/v1/${fn}/ping" >/dev/null
+            for attempt in 1 2 3; do
+              if curl --fail --silent --show-error --max-time 10 \
+                -H "apikey: ${SUPABASE_ANON_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+                -H "x-health-check: true" \
+                "${SUPABASE_URL}/functions/v1/${fn}/ping" >/dev/null; then
+                break
+              fi
+              [[ "$attempt" -lt 3 ]] || { echo "Health check failed for ${fn}"; exit 1; }
+              sleep 2
+            done
           done
           echo 'All deployed Edge Functions passed health checks.'

@@ -9,10 +9,35 @@ export function getBearerToken(req: Request): string | null {
   return token || null;
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const encoded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+    const payload = atob(padded);
+    return JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 export function isServiceRoleRequest(req: Request): boolean {
   const token = getBearerToken(req);
+  if (!token) return false;
+
+  // Keep exact-key support for legacy projects, but do not make cron jobs
+  // depend on the function's copy of the service-role secret matching the
+  // GitHub Actions secret byte-for-byte. Supabase's platform-level JWT
+  // verification runs before this handler for functions using verify_jwt=true.
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  return Boolean(token && serviceKey && token === serviceKey);
+  if (serviceKey && token === serviceKey) return true;
+
+  const claims = decodeJwtPayload(token);
+  if (claims?.role !== "service_role") return false;
+
+  const projectRef = Deno.env.get("SUPABASE_URL")?.match(/^https:\/\/([a-z0-9]+)\.supabase\.co\/?$/i)?.[1];
+  return typeof claims.ref === "string" && Boolean(projectRef) && claims.ref === projectRef;
 }
 
 export function corsHeaders(req: Request): HeadersInit {

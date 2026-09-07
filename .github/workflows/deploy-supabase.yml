@@ -1,0 +1,93 @@
+name: Deploy Supabase Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/deploy-supabase.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy database and Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || missing+=(SUPABASE_ACCESS_TOKEN)
+          [[ -n "$SUPABASE_DB_PASSWORD" ]] || missing+=(SUPABASE_DB_PASSWORD)
+          [[ -n "$SUPABASE_URL" ]] || missing+=(SUPABASE_URL)
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing GitHub Actions secret(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Resolve project reference
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+          host="${SUPABASE_URL#https://}"
+          host="${host%%.*}"
+          [[ "$host" =~ ^[a-z0-9]{20}$ ]] || { echo "Could not derive a valid Supabase project ref from SUPABASE_URL"; exit 1; }
+          echo "ref=$host" >> "$GITHUB_OUTPUT"
+
+      - name: Link project
+        run: supabase link --project-ref "${{ steps.project.outputs.ref }}" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply database migrations
+        run: supabase db push --linked
+
+      - name: Deploy Edge Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for dir in supabase/functions/*; do
+            [[ -d "$dir" ]] || continue
+            fn="$(basename "$dir")"
+            [[ "$fn" == "_shared" ]] && continue
+            echo "→ Deploying ${fn}..."
+            supabase functions deploy "$fn" --project-ref "${{ steps.project.outputs.ref }}"
+          done
+
+      - name: Verify deployed function endpoints
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$SUPABASE_ANON_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_ANON_KEY'; exit 1; }
+          functions=(release-escrow join-pool paystack-webhook passkey-auth process-growth-events process-dispute calculate-trending)
+          for fn in "${functions[@]}"; do
+            echo "→ Verifying ${fn}..."
+            curl --fail --silent --show-error --max-time 10 \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+              -H "x-health-check: true" \
+              "${SUPABASE_URL}/functions/v1/${fn}/ping" >/dev/null
+          done
+          echo 'All deployed Edge Functions passed health checks.'

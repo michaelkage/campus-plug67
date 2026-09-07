@@ -36,26 +36,22 @@ function Card({ label, value, sub, trend, alert, Icon, color = 'text-cyan' }) {
 export function InsightDashboard() {
   const { profile } = useAuth()
   const isAdmin = profile?.badges?.includes('Plug Dev') || profile?.badges?.includes('Community Hero')
-  if (!isAdmin) return (
-    <div className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-6 text-center">
-      <BarChart3 size={28} className="mx-auto mb-3 text-white/20"/>
-      <div className="text-sm text-white/30">Insight Engine — Admin Only</div>
-    </div>
-  )
 
   const { data: velocity } = useQuery({
     queryKey: ['insight-velocity'],
+    enabled: isAdmin,
     queryFn: async () => {
       const { data } = await supabase.from('transactions').select('locked_at,released_at').eq('status','released')
         .not('locked_at','is',null).not('released_at','is',null)
         .gte('released_at', new Date(Date.now()-30*86400000).toISOString()).limit(500)
       if (!data?.length) return null
       const ds = data.map(t => new Date(t.released_at).getTime()-new Date(t.locked_at).getTime()).filter(d=>d>0&&d<7*86400000).sort((a,b)=>a-b)
+      if (!ds.length) return null
       const avg = ds.reduce((s,d)=>s+d,0)/ds.length
       const med = ds[Math.floor(ds.length/2)]
       const cut = Date.now()-7*86400000
-      const rec = data.filter(t=>new Date(t.released_at).getTime()>cut).map(t=>new Date(t.released_at).getTime()-new Date(t.locked_at).getTime())
-      const old = data.filter(t=>new Date(t.released_at).getTime()<=cut).map(t=>new Date(t.released_at).getTime()-new Date(t.locked_at).getTime())
+      const rec = data.filter(t=>new Date(t.released_at).getTime()>cut).map(t=>new Date(t.released_at).getTime()-new Date(t.locked_at).getTime()).filter(d=>d>0)
+      const old = data.filter(t=>new Date(t.released_at).getTime()<=cut).map(t=>new Date(t.released_at).getTime()-new Date(t.locked_at).getTime()).filter(d=>d>0)
       const rAvg = rec.length ? rec.reduce((s,d)=>s+d,0)/rec.length : avg
       const oAvg = old.length ? old.reduce((s,d)=>s+d,0)/old.length : avg
       const trend = oAvg > 0 ? Math.round(((rAvg-oAvg)/oAvg)*100) : 0
@@ -65,6 +61,7 @@ export function InsightDashboard() {
 
   const { data: dropoffs } = useQuery({
     queryKey: ['insight-dropoffs'],
+    enabled: isAdmin,
     queryFn: async () => {
       const { data } = await supabase.from('transactions').select('status').gte('created_at',new Date(Date.now()-30*86400000).toISOString())
       const counts = {}
@@ -73,6 +70,13 @@ export function InsightDashboard() {
       return { counts, total, convRate: total>0 ? Math.round((counts.released||0)/total*100) : 0 }
     }, staleTime: 300_000,
   })
+
+  if (!isAdmin) return (
+    <div className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-6 text-center">
+      <BarChart3 size={28} className="mx-auto mb-3 text-white/20"/>
+      <div className="text-sm text-white/30">Insight Engine — Admin Only</div>
+    </div>
+  )
 
   const friction = (velocity?.trend||0) >= 40
 

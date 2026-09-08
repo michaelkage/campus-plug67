@@ -79,11 +79,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # These historical versions are present in the production migration
-          # history but no longer exist in the canonical repository migrations.
-          # Repair changes only supabase_migrations.schema_migrations; it does
-          # not execute or undo their SQL.
+          # These versions are present in production migration history but are
+          # not part of the canonical repository migrations. Repair only updates
+          # supabase_migrations.schema_migrations; it does not execute or undo SQL.
+          #
+          # 011-015 are historical repository migrations that were removed.
           supabase migration repair 011 012 013 014 015 --status reverted --linked
+          # 20260608213351 is a dashboard/manual migration that is not present
+          # in the canonical repository. Keeping it marked applied blocks
+          # `supabase db push --include-all` with "remote migration versions not
+          # found in local migrations directory". The canonical schema is owned
+          # by the checked-in migrations, so reconcile this orphaned history row.
+          supabase migration repair 20260608213351 --status reverted --linked
 
       - name: Apply database migrations
         shell: bash

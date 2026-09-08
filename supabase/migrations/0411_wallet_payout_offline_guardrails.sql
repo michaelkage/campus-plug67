@@ -117,7 +117,9 @@ END; $$;
 GRANT EXECUTE ON FUNCTION public.create_wallet_micro_escrow(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.resolve_wallet_micro_escrow(uuid,text) TO authenticated;
 
--- SKU query guardrail: the RPC itself rejects very short/high-cost fuzzy queries.
+-- SKU query guardrail. Migration 042 owns the final response contract, so remove
+-- any legacy return signature before defining the temporary 0411-compatible RPC.
+DROP FUNCTION IF EXISTS public.match_global_sku(text);
 CREATE OR REPLACE FUNCTION public.match_global_sku(search_title text)
 RETURNS SETOF public.global_sku_catalog
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$

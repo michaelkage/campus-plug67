@@ -45,6 +45,17 @@ FOR EACH ROW EXECUTE FUNCTION public.sync_transaction_escrow_fields();
 ALTER TABLE public.transactions DROP COLUMN IF EXISTS new_status;
 DROP TRIGGER IF EXISTS trigger_reconcile_escrow ON public.transactions;
 
+-- Beacon state/history fields used by the beacon matcher were introduced after
+-- the original ticker_events table. Keep the base ticker feed fields intact and
+-- extend the table here before creating the beacon uniqueness index.
+ALTER TABLE public.ticker_events
+  ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES public.profiles(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS event_type text,
+  ADD COLUMN IF NOT EXISTS latitude numeric,
+  ADD COLUMN IF NOT EXISTS longitude numeric,
+  ADD COLUMN IF NOT EXISTS transaction_id uuid REFERENCES public.transactions(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+
 -- One live beacon per user; history remains append-only.
 CREATE UNIQUE INDEX IF NOT EXISTS ticker_events_current_beacon_uidx
   ON public.ticker_events(user_id,event_type) WHERE event_type='beacon_current';

@@ -9,17 +9,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: production-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
+    name: Frontend validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-      # package.json is the source of truth while the dependency graph is being refreshed.
-      - run: npm install --no-audit --no-fund
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -27,7 +33,9 @@ jobs:
       - run: npm run build
 
   supabase:
+    name: Supabase validation
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Normalize migrations for PostgreSQL immutability rules
@@ -35,7 +43,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - run: supabase start
+      - name: Start local Supabase
+        run: supabase start
       - name: Apply migrations from a clean database
         run: supabase db reset --local
       - name: Validate Edge Functions compile
@@ -46,13 +55,16 @@ jobs:
             echo "Checking $f"
             npx --yes deno@2.1.4 check --no-lock "$f"
           done
-      - run: supabase stop
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop
 
   security:
+    name: Secret-pattern scan
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Secret-pattern scan
-        uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

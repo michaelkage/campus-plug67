@@ -154,7 +154,10 @@ export async function checkPriceFloor(priceNaira, category, university, userId) 
   if (priceKobo >= floorKobo) return { allowed: true, floor_price: floorKobo, needs_token: false, token_available: false, savings_pct: 0 }
 
   const monthKey = new Date().toISOString().slice(0, 7)
-  await supabase.rpc('provision_emergency_tokens', { p_user_id: userId })
+  const { error: provisionError } = await supabase.rpc('provision_my_emergency_tokens')
+  if (provisionError) {
+    console.warn('Emergency token provisioning unavailable:', provisionError.message)
+  }
   const { data: tokens } = await supabase.from('emergency_sale_tokens')
     .select('id, used').eq('user_id', userId).eq('month_year', monthKey).eq('used', false)
   const below_pct = Math.round((1 - priceKobo / floorKobo) * 100)

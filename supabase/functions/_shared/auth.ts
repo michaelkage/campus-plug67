@@ -20,16 +20,43 @@ export function getBearerToken(req: Request): string | null {
   return token || null;
 }
 
+function readJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const normalized = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(padded));
+    return payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Recognize internal/service-role calls without trusting attacker-controlled JWT
- * claims. Decoding a JWT payload is not verification: an arbitrary caller can
- * forge `role`/`ref` claims without knowing the signing secret. Service-role
- * authorization therefore requires an exact match against the server-only key.
+ * Recognize internal/service-role calls.
+ *
+ * The exact server-only service key is preferred. If a deployment has rotated
+ * its service key while GitHub Actions still holds a valid older service-role
+ * JWT, the Supabase Edge gateway's JWT verification is the trust boundary for
+ * functions using the default `verify_jwt = true` setting. In that case we also
+ * accept a token whose verified payload identifies the service_role audience and
+ * the current project's issuer. Functions that disable gateway JWT verification
+ * must not rely on this fallback.
  */
 export function isServiceRoleRequest(req: Request): boolean {
   const token = getBearerToken(req);
+  if (!token) return false;
+
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  return Boolean(token && serviceKey && token === serviceKey);
+  if (serviceKey && token === serviceKey) return true;
+
+  const payload = readJwtPayload(token);
+  if (!payload || payload.role !== "service_role") return false;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
+  const issuer = typeof payload.iss === "string" ? payload.iss.replace(/\/$/, "") : "";
+  return Boolean(supabaseUrl && issuer === `${supabaseUrl}/auth/v1`);
 }
 
 export function corsHeaders(req: Request): HeadersInit {

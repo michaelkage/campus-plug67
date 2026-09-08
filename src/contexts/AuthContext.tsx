@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase, validateEduEmail } from '@/lib/supabase'
-import { registerDevice, getDeviceHash } from '@/lib/security'
+import { registerDevice, getDeviceHash, checkDeviceBan } from '@/lib/security'
 import { registerPasskey, authenticateWithPasskey, browserSupportsWebAuthn } from '@/lib/passkeys'
 import type { Database } from '@/types/database'
 import toast from 'react-hot-toast'
@@ -81,17 +81,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
     return () => subscription.unsubscribe()
   }, [fetchProfile])
-
-  const checkDeviceBan = async () => {
-    const clientFingerprint = await getDeviceHash().catch(() => null)
-    const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('security-gate', {
-      body: { action: 'check', client_fingerprint: clientFingerprint },
-    })
-    if (error) throw new Error(error.message || 'Security service unavailable')
-    if (data?.error?.startsWith('DEVICE_BANNED')) return true
-    if (!data?.success) throw new Error('Security service unavailable')
-    return false
-  }
 
   const signUp = async ({ email, password, fullName, university, matric }: { email: string; password: string; fullName: string; university?: string; matric?: string }) => {
     const { valid, university: detectedUni } = await validateEduEmail(email)

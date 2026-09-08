@@ -64,6 +64,13 @@ type RpcResult<Name extends RpcName> = {
   error: { message: string } | null
 }
 
+type TypedRpcClient = Omit<ReturnType<typeof createClient<Database>>, 'rpc'> & {
+  rpc<Name extends RpcName>(
+    name: Name,
+    args: RpcDefinitions[Name]['Args'],
+  ): Promise<RpcResult<Name>>
+}
+
 const rawSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
@@ -78,16 +85,9 @@ const rawSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 /**
  * The generated schema currently contains tables but no Functions map.
- * Supabase therefore resolves `rpc()` argument types to `never`. Keep the
+ * Supabase therefore resolves rpc() argument types to never. Keep the
  * generated Database untouched and type only the known application RPCs here.
  */
-export const supabase = Object.assign(rawSupabase, {
-  rpc<Name extends RpcName>(
-    name: Name,
-    args: RpcDefinitions[Name]['Args'],
-  ): Promise<RpcResult<Name>> {
-    return rawSupabase.rpc(name, args as never) as unknown as Promise<RpcResult<Name>>
-  },
-})
+export const supabase: TypedRpcClient = rawSupabase as unknown as TypedRpcClient
 
 export { SUPABASE_URL, SUPABASE_ANON_KEY }

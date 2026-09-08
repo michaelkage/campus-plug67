@@ -10,9 +10,10 @@
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",
     "test:security": "node scripts/security-regression.mjs",
+    "test:security:supabase": "node scripts/supabase-security-regression.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:security:all": "npm run test:security && npm run test",
+    "test:security:all": "npm run test:security && npm run test:security:supabase && npm run test",
     "gen:types": "supabase gen types typescript --project-id etwsfdovcgofhqseejjo > src/types/database.ts",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
@@ -37,7 +38,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
-    "react-hot-toast": "^2.4.1",
+    "react-hot-toast": "^2.4.0",
     "react-router-dom": "^6.21.0"
   },
   "devDependencies": {

@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
-import { createHmac } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 import { jsonResponse, optionsResponse } from "../_shared/auth.ts";
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -13,6 +12,26 @@ type PaystackEvent = {
     metadata?: Record<string, unknown>;
   };
 };
+
+async function createHmacSignature(secret: string, message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const messageData = encoder.encode(message);
+  
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-512" },
+    false,
+    ["sign"]
+  );
+  
+  const signature = await crypto.subtle.sign("HMAC", key, messageData);
+  
+  // Convert to hex
+  const hashArray = Array.from(new Uint8Array(signature));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return optionsResponse(req);
@@ -27,7 +46,7 @@ serve(async (req: Request) => {
   const secret = Deno.env.get("PAYSTACK_SECRET_KEY") ?? "";
   if (!secret) return jsonResponse({ error: "Server misconfiguration" }, 500, {}, req);
 
-  const expected = createHmac("sha512", secret).update(body).digest("hex");
+  const expected = await createHmacSignature(secret, body);
   if (expected !== signature) return jsonResponse({ error: "Invalid signature" }, 400, {}, req);
 
   let event: PaystackEvent;

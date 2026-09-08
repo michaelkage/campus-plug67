@@ -11,7 +11,7 @@ type Profile = Database['public']['Tables']['profiles']['Row'] & {
   juror_streak?: number | null
   free_listing_tokens?: number | null
   referral_code?: string | null
-  badges?: unknown[] | null
+  badges?: string[] | null
 }
 type AuthResult = { data?: unknown; error?: unknown; success?: boolean }
 

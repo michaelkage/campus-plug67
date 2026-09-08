@@ -82,12 +82,17 @@ jobs:
           # These historical versions are present in the production migration
           # history but no longer exist in the canonical repository migrations.
           # Repair changes only supabase_migrations.schema_migrations; it does
-          # not execute or undo their SQL. This is the state Supabase CLI itself
-          # recommends when local and remote migration histories diverge.
+          # not execute or undo their SQL.
           supabase migration repair 011 012 013 014 015 --status reverted --linked
 
       - name: Apply database migrations
-        run: supabase db push --linked
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Local migrations 031+ are intentionally earlier than the latest
+          # remote migration. --include-all tells the CLI to apply those files
+          # instead of refusing with "local migration files to be inserted".
+          supabase db push --linked --include-all
 
       - name: Verify deployed function endpoints
         env:

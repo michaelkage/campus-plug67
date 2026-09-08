@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
+import type { WalletTransferResult } from '../../types/domain'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 type PlugCreditLedger = Database['public']['Tables']['plug_credit_ledger']['Row']
-
-type TransferResult = {
-  success?: boolean
-  [key: string]: unknown
-}
 
 interface WalletDashboardProps { userId: string }
 
@@ -75,7 +71,7 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
         p_reason: transferReason || null,
       })
       if (transferError) throw transferError
-      const result = data as TransferResult | null
+      const result = data as WalletTransferResult | null
       if (!result?.success) throw new Error('Transfer failed')
 
       setSuccess('Transfer completed successfully')

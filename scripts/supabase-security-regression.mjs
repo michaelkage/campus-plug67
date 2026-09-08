@@ -33,12 +33,15 @@ for (const file of walk('.')) {
 }
 
 const migration = read('supabase/migrations/049_postgis_api_hardening.sql');
+const normalizedMigration = migration.replace(/\s+/g, '');
 for (const signature of [
-  'st_estimatedextent(text, text)',
-  'st_estimatedextent(text, text, text)',
-  'st_estimatedextent(text, text, text, boolean)',
+  'st_estimatedextent(text,text)',
+  'st_estimatedextent(text,text,text)',
+  'st_estimatedextent(text,text,text,boolean)',
 ]) {
-  if (!migration.includes(signature)) fail(`Missing PostGIS hardening for ${signature}`);
+  if (!normalizedMigration.includes(signature)) {
+    fail(`Missing PostGIS hardening for ${signature}`);
+  }
 }
 if (!/revoke execute on function public\.st_estimatedextent/i.test(migration)) {
   fail('PostGIS helper execution is not revoked from client roles');

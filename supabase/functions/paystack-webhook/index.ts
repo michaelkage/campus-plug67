@@ -16,6 +16,11 @@ type PaystackEvent = {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return optionsResponse(req);
+  // The deployment health-check intentionally does not send a Paystack signature.
+  // Keep it ahead of the webhook validation so the endpoint can be warmed safely.
+  if (req.method === "GET" && new URL(req.url).pathname.endsWith("/ping")) {
+    return jsonResponse({ status: "warm", ts: Date.now(), fn: "paystack-webhook" }, 200, {}, req);
+  }
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405, {}, req);
   const body = await req.text();
   const signature = req.headers.get("x-paystack-signature") ?? "";

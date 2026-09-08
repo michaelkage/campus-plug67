@@ -44,14 +44,14 @@ migration006 = removeStatements(
 fs.writeFileSync(migration006Path, migration006);
 
 // Migration 009 was written as a later integration pass but repeats objects
-// already created by migration 007. PostgreSQL rejects duplicate policy/rule
-// names on a clean database. The 007 definitions are canonical; keep 009's
-// table definitions and other ALTER/UPSERT work, but remove only the repeated
-// policy/rule statements.
+// already created by earlier migrations. PostgreSQL rejects duplicate policy,
+// rule, and realtime-publication membership statements on a clean database.
+// Keep 009's table definitions and other ALTER/UPSERT work, but remove only
+// the known repeated statements.
 const migration009Path = path.join(root, 'supabase/migrations/009_v67_integration.sql');
 let migration009 = fs.readFileSync(migration009Path, 'utf8');
 
-const duplicatePoliciesAndRules = [
+const duplicatePoliciesRulesAndRealtime = [
   `create policy "Parties see own cases" on public.jury_cases for select\n  using (auth.uid() = claimant_id or auth.uid() = respondent_id);`,
   `create policy "Assigned jurors see cases" on public.jury_cases for select\n  using (auth.uid() = any(jurors_assigned));`,
   `create policy "Service manages cases" on public.jury_cases for all using (auth.role() = 'service_role');`,
@@ -60,7 +60,16 @@ const duplicatePoliciesAndRules = [
   `create policy "Service manages votes" on public.jury_votes for all using (auth.role() = 'service_role');`,
   `create rule audit_no_update as on update to public.audit_logs do instead nothing;`,
   `create rule audit_no_delete as on delete to public.audit_logs do instead nothing;`,
+  'alter publication supabase_realtime add table public.global_config;',
+  'alter publication supabase_realtime add table public.jury_cases;',
+  'alter publication supabase_realtime add table public.jury_votes;',
+  'alter publication supabase_realtime add table public.amber_confirmations;',
+  'alter publication supabase_realtime add table public.plug_credit_ledger;',
 ];
 
-migration009 = removeStatements(migration009, duplicatePoliciesAndRules, 'migration 009');
+migration009 = removeStatements(
+  migration009,
+  duplicatePoliciesRulesAndRealtime,
+  'migration 009',
+);
 fs.writeFileSync(migration009Path, migration009);

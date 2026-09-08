@@ -3,12 +3,15 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+const isGitHubPages = process.env.GITHUB_ACTIONS === 'true'
+
 export default defineConfig(({ mode }) => ({
+  base: isGitHubPages ? '/campus-plug67/' : '/',
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   plugins: [react(), VitePWA({
     registerType: 'autoUpdate',
     includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
-    manifest: { name: 'Campus Plug', short_name: 'Campus Plug', description: 'Tactical-aesthetic student marketplace', theme_color: '#0a0a0a', background_color: '#0a0a0a', display: 'standalone', icons: [{ src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' }, { src: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }] },
+    manifest: { name: 'Campus Plug', short_name: 'Campus Plug', description: 'Tactical-aesthetic student marketplace', theme_color: '#0a0a0a', background_color: '#0a0a0a', display: 'standalone', icons: [{ src: 'android-chrome-192x192.png', sizes: '192x192', type: 'image/png' }, { src: 'android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }] },
     workbox: {
       runtimeCaching: [
         {
@@ -19,9 +22,7 @@ export default defineConfig(({ mode }) => ({
         {
           urlPattern: ({ url, request }) => (url.hostname.includes('supabase.co') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/rest/v1/')) && ['POST', 'PUT', 'PATCH'].includes(request.method),
           handler: 'NetworkOnly',
-          options: {
-            backgroundSync: { name: 'campus-plug-mutations', options: { maxRetentionTime: 24 * 60 } },
-          },
+          options: { backgroundSync: { name: 'campus-plug-mutations', options: { maxRetentionTime: 24 * 60 } } },
         },
         {
           urlPattern: ({ request }) => request.destination === 'image',

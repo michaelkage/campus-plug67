@@ -5,7 +5,7 @@ import { isServiceRoleRequest, jsonResponse, optionsResponse } from "../_shared/
 type Body = Record<string, unknown>;
 type EvidenceMessage = { sender_id: string; body: string | null; created_at: string; flagged: boolean | null; flag_type: string | null; is_system_msg: boolean | null };
 type Evidence = { role: "[Claimant]" | "[Respondent]"; body: string; created_at: string; is_system: boolean; flagged: boolean };
-type DisputeCase = { id: string; claimant_id: string; respondent_id: string; jurors_assigned: string[] | null; high_value: boolean; required_votes: number; votes_cast: number; created_at: string; d[...]
+type DisputeCase = { id: string; claimant_id: string; respondent_id: string; jurors_assigned: string[] | null; high_value: boolean; required_votes: number; votes_cast: number; created_at: string; dispute_reason: string; status: string; verdict: string | null; dispute_campus: string; escalated_to_admin: boolean };
 type TransactionRow = { id: string; buyer_id: string; seller_id: string; amount: number; listings: { title?: string; university?: string | null } | null };
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -33,23 +33,23 @@ const PII_PATTERNS: [RegExp, string][] = [
 ];
 function redactPII(text: string): string { return PII_PATTERNS.reduce((value, [pattern, replacement]) => value.replace(pattern, replacement), text); }
 function sanitizeEvidence(messages: EvidenceMessage[], claimantId: string): Evidence[] {
-  return messages.map(message => ({ role: message.sender_id === claimantId ? "[Claimant]" : "[Respondent]", body: redactPII(message.flagged ? `⚠️ [FLAGGED: ${message.flag_type}] ${message.body[...]
+  return messages.map(message => ({ role: message.sender_id === claimantId ? "[Claimant]" : "[Respondent]", body: redactPII(message.flagged ? `⚠️ [FLAGGED: ${message.flag_type}] ${message.body ?? ""}` : message.body ?? ""), created_at: message.created_at, is_system: message.is_system_msg ?? false, flagged: message.flagged ?? false }));
 }
 
 async function assignJurors(caseId: string, required: number, excludeIds: string[], disputeCampus: string, currentRotations: number): Promise<string[]> {
   const excluded = excludeIds.length ? `(${excludeIds.map(id => `'${id}'`).join(",")})` : "('')";
-  const { data: crossJurors } = await admin.from("profiles").select("id").eq("juror_enabled", true).gte("rolling_accuracy", 50).lt("juror_cases_today", 5).eq("collusion_flag", false).neq("universi[...]
+  const { data: crossJurors } = await admin.from("profiles").select("id").eq("juror_enabled", true).gte("rolling_accuracy", 50).lt("juror_cases_today", 5).eq("collusion_flag", false).neq("university", disputeCampus);
   let selected = (crossJurors ?? []).map(row => row.id as string);
   if (selected.length < required) {
     const allExcluded = [...excludeIds, ...selected];
     const exclusion = allExcluded.length ? `(${allExcluded.map(id => `'${id}'`).join(",")})` : "('')";
-    const { data: fallback } = await admin.from("profiles").select("id").eq("juror_enabled", true).gte("rolling_accuracy", 50).lt("juror_cases_today", 5).eq("collusion_flag", false).not("id", "in"[...]
+    const { data: fallback } = await admin.from("profiles").select("id").eq("juror_enabled", true).gte("rolling_accuracy", 50).lt("juror_cases_today", 5).eq("collusion_flag", false).not("id", "in", exclusion);
     selected = [...selected, ...(fallback ?? []).map(row => row.id as string)];
   }
-  await admin.from("jury_cases").update({ jurors_assigned: selected, status: "deliberating", assigned_at: new Date().toISOString(), juror_rotation_count: currentRotations + selected.length }).eq("[...]
+  await admin.from("jury_cases").update({ jurors_assigned: selected, status: "deliberating", assigned_at: new Date().toISOString(), juror_rotation_count: currentRotations + selected.length }).eq("id", caseId);
   if (selected.length) {
     await admin.from("jury_votes").upsert(selected.map(id => ({ case_id: caseId, juror_id: id, verdict: "pending" })));
-    await admin.from("notifications").insert(selected.map(id => ({ user_id: id, type: "jury_assigned", title: "⚖️ New Case — 30 Minutes to Respond", body: "A dispute from another campus need[...]
+    await admin.from("notifications").insert(selected.map(id => ({ user_id: id, type: "jury_assigned", title: "⚖️ New Case — 30 Minutes to Respond", body: "A dispute from another campus needs your judgment." })));
   }
   return selected;
 }
@@ -57,8 +57,8 @@ async function assignJurors(caseId: string, required: number, excludeIds: string
 async function executeVerdict(juryCase: DisputeCase, verdict: string) {
   const { data, error } = await admin.rpc("resolve_dispute_verdict", { p_case_id: juryCase.id, p_verdict: verdict, p_admin_override: false });
   if (error) throw error;
-  const messages: Record<string, string> = { claimant: "⚖️ The cross-campus jury found in your favour. Your escrow protection is restored.", respondent: "⚖️ The cross-campus jury found in [...]
-  for (const userId of [juryCase.claimant_id, juryCase.respondent_id]) await admin.from("notifications").insert({ user_id: userId, type: "jury_verdict", title: "⚖️ Jury Verdict Delivered", bod[...]
+  const messages: Record<string, string> = { claimant: "⚖️ The cross-campus jury found in your favour. Your escrow protection is restored.", respondent: "⚖️ The cross-campus jury found against you. The escrow has been released." };
+  for (const userId of [juryCase.claimant_id, juryCase.respondent_id]) await admin.from("notifications").insert({ user_id: userId, type: "jury_verdict", title: "⚖️ Jury Verdict Delivered", body: messages[userId === juryCase.claimant_id ? "claimant" : "respondent"] });
   return data;
 }
 
@@ -70,7 +70,7 @@ async function rewardJuror(jurorId: string, correct: boolean, caseId: string) {
     await admin.rpc("payout_juror_incentive", { p_juror_id: jurorId, p_amount: JURY_PAYOUT_KOBO });
     await admin.from("jury_votes").update({ plug_credit_payout: JURY_PAYOUT_KOBO, payout_processed: true, reward_given: true }).eq("case_id", caseId).eq("juror_id", jurorId);
   } else await admin.from("jury_votes").update({ reward_given: true }).eq("case_id", caseId).eq("juror_id", jurorId);
-  await admin.from("notifications").insert({ user_id: jurorId, type: "jury_reward", title: correct ? `⚖️ Correct Verdict! +${scoreBonus} PlugScore + ₦100 PlugCredit` : `⚖️ Participation [...]
+  await admin.from("notifications").insert({ user_id: jurorId, type: "jury_reward", title: correct ? `⚖️ Correct Verdict! +${scoreBonus} PlugScore + ₦100 PlugCredit` : `⚖️ Participation Rewarded! +${scoreBonus} PlugScore` });
 }
 
 serve(async (req: Request) => {
@@ -86,16 +86,16 @@ serve(async (req: Request) => {
     const transactionId = typeof body.transaction_id === "string" ? body.transaction_id : "";
     const reason = typeof body.reason === "string" ? body.reason : "";
     if (!transactionId || reason.trim().length < 20) return bad(req, "Dispute reason must be at least 20 characters");
-    const { data: rawTx } = await admin.from("transactions").select("*, listings(title, university)").eq("id", transactionId).in("status", ["release_requested", "meetup_initiated", "locked"]).mayb[...]
+    const { data: rawTx } = await admin.from("transactions").select("*, listings(title, university)").eq("id", transactionId).in("status", ["release_requested", "meetup_initiated", "locked"]).maybeSingle();
     const tx = rawTx as TransactionRow | null;
     if (!tx) return bad(req, "Transaction not found or not in a disputable state", 404);
     if (tx.buyer_id !== user.id && tx.seller_id !== user.id) return bad(req, "You are not a party to this transaction", 403);
     const { data: claimant } = await admin.from("profiles").select("university").eq("id", user.id).single();
     const disputeCampus = claimant?.university ?? "";
     const respondentId = tx.buyer_id === user.id ? tx.seller_id : tx.buyer_id;
-    const { data: rawMessages } = await admin.from("messages").select("id, sender_id, body, created_at, flagged, flag_type, is_system_msg").eq("transaction_id", transactionId).is("deleted_at", nul[...]
+    const { data: rawMessages } = await admin.from("messages").select("id, sender_id, body, created_at, flagged, flag_type, is_system_msg").eq("transaction_id", transactionId).is("deleted_at", null);
     const evidence = sanitizeEvidence((rawMessages ?? []) as EvidenceMessage[], user.id);
-    const { data: rawCase, error: caseError } = await admin.from("jury_cases").insert({ transaction_id: transactionId, claimant_id: user.id, respondent_id: respondentId, dispute_reason: reason.tri[...]
+    const { data: rawCase, error: caseError } = await admin.from("jury_cases").insert({ transaction_id: transactionId, claimant_id: user.id, respondent_id: respondentId, dispute_reason: reason.trim(), dispute_campus: disputeCampus, high_value: tx.amount > 100000 }).select().single();
     const juryCase = rawCase as DisputeCase | null;
     if (caseError || !juryCase) return bad(req, "Failed to open case: " + (caseError?.message ?? "Unknown error"), 500);
     await admin.from("transactions").update({ status: "disputed", disputed_at: new Date().toISOString(), dispute_reason: reason.trim() }).eq("id", transactionId);
@@ -104,7 +104,7 @@ serve(async (req: Request) => {
     const university = tx.listings?.university ?? disputeCampus;
     if (university) await admin.from("ticker_events").insert({ university, emoji: "⚖️", text: "A dispute is being reviewed by a cross-campus jury. Justice is blind.", category: "dispute" });
     await admin.rpc("increment_config_counter", { p_key: "peer_jury" });
-    return ok(req, { success: true, case_id: juryCase.id, jurors_count: jurors.length, high_value: juryCase.high_value, required_votes: required, cross_campus: true, dispute_campus: disputeCampus[...]
+    return ok(req, { success: true, case_id: juryCase.id, jurors_count: jurors.length, high_value: juryCase.high_value, required_votes: required, cross_campus: true, dispute_campus: disputeCampus });
   }
 
   if (action === "open_for_review") {
@@ -114,9 +114,9 @@ serve(async (req: Request) => {
     if (!juryCase) return bad(req, "Case not found or not deliberating", 404);
     if (!(juryCase.jurors_assigned as string[] | null)?.includes(user.id)) return bad(req, "Not assigned to this case", 403);
     const { data: existingVote } = await admin.from("jury_votes").select("first_opened_at, opened_count").eq("case_id", caseId).eq("juror_id", user.id).maybeSingle();
-    if (existingVote?.first_opened_at) return ok(req, { success: true, first_opened_at: existingVote.first_opened_at, already_opened: true, required_review_s: juryCase.high_value ? HIGH_VALUE_REV[...]
+    if (existingVote?.first_opened_at) return ok(req, { success: true, first_opened_at: existingVote.first_opened_at, already_opened: true, required_review_s: juryCase.high_value ? HIGH_VALUE_REVIEW_S : STANDARD_REVIEW_S });
     const now = new Date().toISOString();
-    if (existingVote) await admin.from("jury_votes").update({ first_opened_at: now, opened_count: (existingVote.opened_count ?? 0) + 1 }).eq("case_id", caseId).eq("juror_id", user.id).is("first_o[...]
+    if (existingVote) await admin.from("jury_votes").update({ first_opened_at: now, opened_count: (existingVote.opened_count ?? 0) + 1 }).eq("case_id", caseId).eq("juror_id", user.id).is("first_opened_at", null);
     else await admin.from("jury_votes").upsert({ case_id: caseId, juror_id: user.id, verdict: "pending", first_opened_at: now, opened_count: 1 });
     return ok(req, { success: true, first_opened_at: now, already_opened: false, required_review_s: juryCase.high_value ? HIGH_VALUE_REVIEW_S : STANDARD_REVIEW_S });
   }
@@ -154,9 +154,9 @@ serve(async (req: Request) => {
     if (!finalVerdict) return ok(req, { success: true, votes_cast: juryCase.votes_cast + 1, verdict: null, case_closed: false });
     await admin.from("jury_cases").update({ status: "decided", verdict: finalVerdict, verdict_decided_at: new Date().toISOString() }).eq("id", caseId);
     await executeVerdict(juryCase, finalVerdict);
-    for (const vote of votes ?? []) { const correct = vote.verdict === finalVerdict; await rewardJuror(vote.juror_id, correct, caseId); await admin.rpc("update_juror_accuracy", { p_juror_id: vote[...]
+    for (const vote of votes ?? []) { const correct = vote.verdict === finalVerdict; await rewardJuror(vote.juror_id, correct, caseId); await admin.rpc("update_juror_accuracy", { p_juror_id: vote.juror_id, p_is_correct: correct }); }
     const minsElapsed = Math.round((Date.now() - new Date(juryCase.created_at).getTime()) / 60_000);
-    await admin.from("ticker_events").insert({ university: juryCase.dispute_campus ?? "", emoji: "⚖️", text: `Cross-campus dispute resolved in ${minsElapsed} minutes. Justice served.`, catego[...]
+    await admin.from("ticker_events").insert({ university: juryCase.dispute_campus ?? "", emoji: "⚖️", text: `Cross-campus dispute resolved in ${minsElapsed} minutes. Justice served.`, category: "dispute" });
     return ok(req, { success: true, verdict: finalVerdict, case_closed: true });
   }
 
@@ -171,9 +171,9 @@ serve(async (req: Request) => {
 
   if (action === "reclaim_silent") {
     if (!isCron) return bad(req, "Forbidden — cron only", 403);
-    const { data: cases } = await admin.from("jury_cases").select("id").eq("status", "deliberating").eq("escalated_to_admin", false).lt("assigned_at", new Date(Date.now() - RECLAIM_TIMEOUT_MS).to[...]
+    const { data: cases } = await admin.from("jury_cases").select("id").eq("status", "deliberating").eq("escalated_to_admin", false).lt("assigned_at", new Date(Date.now() - RECLAIM_TIMEOUT_MS).toISOString());
     let reclaimed = 0, escalations = 0;
-    for (const item of cases ?? []) { const { data: result } = await admin.rpc("reclaim_silent_jurors", { p_case_id: item.id }); if (result?.escalated) escalations++; else reclaimed += result?.re[...]
+    for (const item of cases ?? []) { const { data: result } = await admin.rpc("reclaim_silent_jurors", { p_case_id: item.id }); if (result?.escalated) escalations++; else reclaimed += result?.reclaimed ?? 0; }
     try {
       await admin.rpc("cleanup_amber_confirmations");
     } catch {
@@ -184,12 +184,12 @@ serve(async (req: Request) => {
 
   if (action === "rotate_stale") {
     if (!isCron) return bad(req, "Forbidden — cron only", 403);
-    const { data: cases } = await admin.from("jury_cases").select("id, votes_cast, required_votes, jurors_assigned, juror_rotation_count, claimant_id, respondent_id, dispute_campus").eq("status",[...]
+    const { data: cases } = await admin.from("jury_cases").select("id, votes_cast, required_votes, jurors_assigned, juror_rotation_count, claimant_id, respondent_id, dispute_campus").eq("status", "deliberating").eq("escalated_to_admin", false).lt("assigned_at", new Date(Date.now() - RECLAIM_TIMEOUT_MS).toISOString());
     let rotated = 0;
     for (const item of cases ?? []) {
       if (item.votes_cast >= item.required_votes) continue;
       const rotations = item.juror_rotation_count ?? 0;
-      if (rotations >= MAX_ROTATIONS) { await admin.from("jury_cases").update({ escalated_to_admin: true, escalated_at: new Date().toISOString(), status: "escalated" }).eq("id", item.id); continu[...]
+      if (rotations >= MAX_ROTATIONS) { await admin.from("jury_cases").update({ escalated_to_admin: true, escalated_at: new Date().toISOString(), status: "escalated" }).eq("id", item.id); continue; }
       await assignJurors(item.id, item.required_votes, [item.claimant_id, item.respondent_id, ...(item.jurors_assigned ?? [])], item.dispute_campus ?? "", rotations);
       rotated++;
     }

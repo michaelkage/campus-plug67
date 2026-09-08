@@ -11,12 +11,6 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
-type FlexibleTable = {
-  Row: Record<string, unknown>
-  Insert: Record<string, unknown>
-  Update: Record<string, unknown>
-}
-
 type Rpc = { Args: Record<string, unknown>; Returns: unknown }
 
 type KnownFunctions = {
@@ -55,15 +49,25 @@ type KnownFunctions = {
     Args: { p_user_id: string }
     Returns: unknown
   }
+  get_department_leaderboard: {
+    Args: { p_university: string }
+    Returns: unknown
+  }
+  create_session_handoff: {
+    Args: { p_transaction_id: string }
+    Returns: unknown
+  }
 }
 
-// Known tables keep their generated schema. The unknown-key fallback exists only
-// for legacy migration tables not yet checked into database.ts and uses `unknown`
-// instead of `any`, forcing callers to narrow dynamic data before using it.
 type AppDatabase = Database & {
   public: Database['public'] & {
-    Tables: Database['public']['Tables'] & Record<string, FlexibleTable>
-    Views: Database['public']['Views'] & Record<string, FlexibleTable>
+    Views: Database['public'] extends { Views: infer V } ? V : {
+      public_profile_stats: {
+        Row: Database['public']['Tables']['public_profile_stats']['Row']
+        Insert: never
+        Update: never
+      }
+    }
     Functions: KnownFunctions & Record<string, Rpc>
   }
 }

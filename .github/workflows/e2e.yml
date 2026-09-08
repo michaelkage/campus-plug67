@@ -25,20 +25,33 @@ jobs:
       VITE_SUPABASE_ANON_KEY: e2e-placeholder-key
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
+
       - name: Install locked dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm ci --no-audit --no-fund --prefer-offline
+
       - name: Install Playwright test runner
-        run: npm install --no-save --no-package-lock @playwright/test@1.55.0
+        run: npm install --no-save --no-package-lock --prefer-offline @playwright/test@1.55.0
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-1.55.0
+
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
       - name: Build production bundle
         run: npm run build
+
       - name: Run browser smoke tests
         run: npx playwright test
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

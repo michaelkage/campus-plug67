@@ -22,5 +22,8 @@ verify_jwt = false
 [functions.paystack-webhook]
 verify_jwt = false
 
+# Internal maintenance calls use the same verified service-role JWT boundary
+# as the other protected Edge Functions. Webhook/passkey endpoints remain
+# explicitly public because they perform their own authentication.
 [functions.maintenance-cleanup]
-verify_jwt = false
+verify_jwt = true

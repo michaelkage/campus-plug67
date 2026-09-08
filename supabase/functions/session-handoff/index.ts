@@ -6,7 +6,7 @@ const ORIGIN=Deno.env.get('APP_ORIGIN')??'https://campusplug.ng';
 
 function isMobile(req:Request){return /android|iphone|ipad|ipod|mobile|windows phone/i.test(req.headers.get('user-agent')||'');}
 
-serve(async(req:Request)=>{
+Deno.serve(async(req:Request)=>{
   if(req.method==='OPTIONS') return optionsResponse(req);
   if(req.method!=='POST') return jsonResponse({error:'Method not allowed'},405,{},req);
   if(!isMobile(req)) return jsonResponse({error:'Session handoff must be completed on a mobile device.',code:'MOBILE_REQUIRED'},403,{},req);

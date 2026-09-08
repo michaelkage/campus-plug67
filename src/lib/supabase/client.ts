@@ -11,12 +11,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
-type Rpc = {
-  Args: Record<string, unknown>
-  Returns: unknown
-}
-
-type KnownFunctions = {
+export interface RpcDefinitions {
   get_price_floor: {
     Args: { p_category: string; p_university: string }
     Returns: {
@@ -62,16 +57,14 @@ type KnownFunctions = {
   }
 }
 
-type AppPublicSchema = Omit<Database['public'], 'Views' | 'Functions'> & {
-  Views: Database['public'] extends { Views: infer V } ? V : Record<string, never>
-  Functions: KnownFunctions & Record<string, Rpc>
+type RpcName = keyof RpcDefinitions
+
+type RpcResult<Name extends RpcName> = {
+  data: RpcDefinitions[Name]['Returns'] | null
+  error: { message: string } | null
 }
 
-type AppDatabase = Omit<Database, 'public'> & {
-  public: AppPublicSchema
-}
-
-export const supabase = createClient<AppDatabase>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const rawSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -81,6 +74,20 @@ export const supabase = createClient<AppDatabase>(SUPABASE_URL, SUPABASE_ANON_KE
   },
   realtime: { params: { eventsPerSecond: 12 } },
   global: { headers: { 'x-app-version': '3.1.0' } },
+})
+
+/**
+ * The generated schema currently contains tables but no Functions map.
+ * Supabase therefore resolves `rpc()` argument types to `never`. Keep the
+ * generated Database untouched and type only the known application RPCs here.
+ */
+export const supabase = Object.assign(rawSupabase, {
+  rpc<Name extends RpcName>(
+    name: Name,
+    args: RpcDefinitions[Name]['Args'],
+  ): Promise<RpcResult<Name>> {
+    return rawSupabase.rpc(name, args as never) as unknown as Promise<RpcResult<Name>>
+  },
 })
 
 export { SUPABASE_URL, SUPABASE_ANON_KEY }

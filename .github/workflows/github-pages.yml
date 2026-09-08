@@ -15,6 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  VITE_BASE_PATH: /campus-plug67/
   VITE_SUPABASE_URL: https://etwsfdovcgofhqseejjo.supabase.co
   VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 

@@ -1,139 +1,43 @@
 name: AI Environment Runner
+
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ai-runner-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
+  validate:
+    name: Typecheck and security validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: 20
+          cache: npm
 
-      - name: Install Dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Apply targeted TypeScript compatibility fixes
-        run: |
-          node <<'NODE'
-          const fs = require('fs')
-          const patch = (file, pattern, replacement) => {
-            if (!fs.existsSync(file)) throw new Error(`Missing ${file}`)
-            const before = fs.readFileSync(file, 'utf8')
-            const after = before.replace(pattern, replacement)
-            if (after === before) console.log(`No change needed: ${file}`)
-            else { fs.writeFileSync(file, after); console.log(`Patched: ${file}`) }
-          }
-
-          const replaceAll = (file, from, to) => {
-            if (!fs.existsSync(file)) throw new Error(`Missing ${file}`)
-            const before = fs.readFileSync(file, 'utf8')
-            const after = before.replaceAll(from, to)
-            if (after === before) console.log(`No change needed: ${file}`)
-            else { fs.writeFileSync(file, after); console.log(`Patched: ${file}`) }
-          }
-
-          // Custom RPCs are deployed in Supabase but absent from generated
-          // Database types. Cast only the rpc method for these calls.
-          const rpcCalls = [
-            ['src/components/marketplace/MultiMatchSelectionGrid.tsx', "supabase.rpc('match_global_sku',", "(supabase.rpc as any)('match_global_sku',"],
-            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_ghost_refund',", "(supabase.rpc as any)('check_ghost_refund',"],
-            ['src/components/ui/MeetupPanel.tsx', "supabase.rpc('check_priority_relist_v2',", "(supabase.rpc as any)('check_priority_relist_v2',"],
-            ['src/components/wallet/MicroEscrowLauncher.tsx', "supabase.rpc('create_wallet_micro_escrow' as any,", "(supabase.rpc as any)('create_wallet_micro_escrow',"],
-            ['src/components/wallet/MicroEscrowLauncher.tsx', "supabase.rpc('create_wallet_micro_escrow',", "(supabase.rpc as any)('create_wallet_micro_escrow',"],
-            ['src/components/wallet/WalletDashboard.tsx', "supabase.rpc('transfer_plug_credit' as any,", "(supabase.rpc as any)('transfer_plug_credit',"],
-            ['src/components/wallet/WalletDashboard.tsx', "supabase.rpc('transfer_plug_credit',", "(supabase.rpc as any)('transfer_plug_credit',"],
-            ['src/contexts/AuthContext.tsx', "supabase.rpc('provision_emergency_tokens',", "(supabase.rpc as any)('provision_emergency_tokens',"],
-            ['src/lib/sessionHandoff.ts', "supabase.rpc('create_session_handoff' as any,", "(supabase.rpc as any)('create_session_handoff',"],
-            ['src/lib/sessionHandoff.ts', "supabase.rpc('create_session_handoff',", "(supabase.rpc as any)('create_session_handoff',"],
-          ]
-          for (const [file, from, to] of rpcCalls) replaceAll(file, from, to)
-
-          // sessionHandoff: explicitly narrow the custom RPC payload before reading token.
-          patch('src/lib/sessionHandoff.ts',
-            "  if (!data || !('token' in data) || !data.token) { throw new Error('Unable to create mobile handoff'); }",
-            "  const responseData = data as { token?: string } | null\n  if (!responseData || !responseData.token) { throw new Error('Unable to create mobile handoff'); }")
-          patch('src/lib/sessionHandoff.ts',
-            "  return data as {token:string;expires_at:string;handoff_id:string;transaction_id:string|null}",
-            "  return responseData as {token:string;expires_at:string;handoff_id:string;transaction_id:string|null}")
-
-          // Edge/RPC response payloads are custom and therefore typed as unknown.
-          patch('src/components/chat/MarketplaceChat.tsx',
-            "      if (scanResultData?.flagged && (scanResultData.confidence ?? 1) >= 0.8) {",
-            "      const scan = scanResultData as { flagged?: boolean; confidence?: number } | null\n      if (scan?.flagged && (scan.confidence ?? 1) >= 0.8) {")
-          patch('src/components/ui/CheckIn.tsx',
-            "    if (data?.other_arrived) setOtherArrived(true)",
-            "    const arrivalPayload = data as { other_arrived?: boolean } | null\n    if (arrivalPayload?.other_arrived) setOtherArrived(true)")
-          patch('src/components/ui/JuryPortal.tsx',
-            "    toast.success(data?.case_closed\n      ? `⚖️ Verdict reached: ${data.verdict}. Justice served.`\n      : `✓ Vote recorded. ${data?.votes_cast} vote(s) so far.`\n    )",
-            "    const disputeResult = data as { case_closed?: boolean; verdict?: string; votes_cast?: number } | null\n\n    toast.success(disputeResult?.case_closed\n      ? `⚖️ Verdict reached: ${disputeResult.verdict}. Justice served.`\n      : `✓ Vote recorded. ${disputeResult?.votes_cast} vote(s) so far.`\n    )")
-          patch('src/components/ui/Referral.tsx',
-            "      toast.success(`Referral applied! Referred by ${data?.referrer_name}`)",
-            "      const referralPayload = data as { referrer_name?: string } | null\n      toast.success(`Referral applied! Referred by ${referralPayload?.referrer_name}`)")
-
-          // Realtime callback payloads arrive as unknown from helper wrappers.
-          replaceAll('src/components/transactions/LiveMeetupTracker.tsx',
-            '      setBeacon(b)', '      setBeacon(b as BeaconResponse)')
-          replaceAll('src/components/transactions/LiveMeetupTracker.tsx',
-            '        setProximity(p)', '        setProximity(p as ProximityResponse)')
-
-          // Meetup protection RPCs: cast method and narrow nullable custom response.
-          replaceAll('src/components/ui/MeetupPanel.tsx',
-            "supabase.rpc('check_ghost_refund', { p_transaction_id: tx.id }).then(({ data }) => setGhostEligible(!!data?.eligible))",
-            "(supabase.rpc as any)('check_ghost_refund', { p_transaction_id: tx.id }).then(({ data }: { data: unknown }) => { const res = data as { eligible?: boolean } | null; setGhostEligible(!!res?.eligible) })")
-          replaceAll('src/components/ui/MeetupPanel.tsx',
-            "supabase.rpc('check_priority_relist_v2', { p_transaction_id: tx.id }).then(({ data }) => setRelistEligible(!!data?.eligible))",
-            "(supabase.rpc as any)('check_priority_relist_v2', { p_transaction_id: tx.id }).then(({ data }: { data: unknown }) => { const res = data as { eligible?: boolean } | null; setRelistEligible(!!res?.eligible) })")
-          replaceAll('src/components/ui/MeetupPanel.tsx',
-            "const { data } = supabase.rpc('check_priority_relist_v2', { p_transaction_id: tx.id })",
-            "const { data } = await (supabase.rpc as any)('check_priority_relist_v2', { p_transaction_id: tx.id })")
-          replaceAll('src/components/ui/MeetupPanel.tsx',
-            "if (!data?.eligible) { toast.error(data?.reason || 'Not eligible'); return }",
-            "const rpcResult = data as { eligible?: boolean; reason?: string } | null\n    if (!rpcResult || !rpcResult.eligible) { toast.error(rpcResult?.reason || 'Not eligible'); return }")
-
-          // React effect destructors must return synchronously; void discards the
-          // Promise returned by Supabase's removeChannel without returning it.
-          patch('src/pages/WarRoom.tsx',
-            /return \(\) => \{? ?supabase\.removeChannel\(ch\) ?\}?/g,
-            'return () => { void supabase.removeChannel(ch) }')
-          patch('src/components/ui/DemandEngine.tsx',
-            /return \(\) => \{? ?supabase\.removeChannel\(channel\) ?\}?/g,
-            'return () => { void supabase.removeChannel(channel) }')
-          patch('src/components/transactions/LiveMeetupTracker.tsx',
-            /return \(\) => \{? ?supabase\.removeChannel\(ch\) ?\}?/g,
-            'return () => { void supabase.removeChannel(ch) }')
-          NODE
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Security Regression Suite
-        run: node scripts/security-regression.mjs
+      - name: Security regression suite
+        run: npm run test:security
         env:
+          CI: true
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
-      - name: Commit targeted fixes
-        run: |
-          if git diff --quiet -- src package-lock.json; then
-            echo "No compatibility patches or lockfile changes were needed."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src package-lock.json
-          git commit -m "fix: resolve TypeScript compatibility and lockfile drift [cp67-tsfix]"
-          git push origin main
+      - name: Build production bundle
+        run: npm run build

@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Campus Plug - Student Marketplace</title>
     <meta name="description" content="Tactical-aesthetic student marketplace web application">
+    <script>
+      const params = new URLSearchParams(location.search);
+      const redirect = params.get('redirect');
+      if (redirect) history.replaceState(null, '', redirect);
+    </script>
   </head>
   <body>
     <div id="root"></div>

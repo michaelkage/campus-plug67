@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
-import { createHmac } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { createHmac } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 import { jsonResponse, optionsResponse } from "../_shared/auth.ts";
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });

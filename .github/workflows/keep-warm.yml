@@ -4,8 +4,6 @@
 name: Campus Plug Operations
 
 on:
-  # Warm functions every 5 minutes. The 15-minute schedule below is reserved
-  # for scheduled auto-release so quarter-hour runs do not warm twice.
   schedule:
     - cron: '*/5 * * * *'
     - cron: '0,15,30,45 * * * *'
@@ -17,6 +15,9 @@ on:
         default: 'warm'
         type: choice
         options: [warm, auto-release, all]
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}
@@ -50,9 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     needs: validate-secrets
-    # */5 already includes :00/:15/:30/:45. Keep the second schedule only for
-    # auto-release and do not warm again on those quarter-hour invocations.
-    if: github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.action == 'warm' || github.event.inputs.action == 'all'))
+    if: (github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.action == 'warm' || github.event.inputs.action == 'all'))
     steps:
       - name: Health-check Edge Functions
         env:
@@ -61,31 +60,46 @@ jobs:
         run: |
           set -euo pipefail
           functions=(release-escrow join-pool paystack-webhook passkey-auth process-growth-events process-dispute calculate-trending)
+          failures=()
           for fn in "${functions[@]}"; do
             echo "→ Pinging ${fn}..."
             ok=false
+            last_body=''
             for attempt in 1 2 3; do
-              if curl --fail --silent --show-error --max-time 8 \
+              set +e
+              last_body=$(curl --silent --show-error --max-time 8 \
                 --retry 1 --retry-delay 1 --retry-all-errors \
                 -H "apikey: ${SUPABASE_ANON_KEY}" \
                 -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
                 -H "x-health-check: true" \
-                "${SUPABASE_URL}/functions/v1/${fn}/ping" >/dev/null; then
+                -w '\nHTTP_STATUS:%{http_code}' \
+                "${SUPABASE_URL}/functions/v1/${fn}/ping" 2>&1)
+              code=$?
+              set -e
+              status=$(printf '%s\n' "$last_body" | sed -n 's/^HTTP_STATUS://p' | tail -n 1)
+              body=$(printf '%s\n' "$last_body" | sed '/^HTTP_STATUS:/d')
+              if [[ $code -eq 0 && "$status" =~ ^2[0-9][0-9]$ ]]; then
+                echo "  ✓ ${fn} healthy (${status})"
                 ok=true
                 break
               fi
+              echo "  attempt ${attempt}/3 failed: HTTP ${status:-curl-error} ${body:-no response body}"
               sleep 2
             done
-            [[ "$ok" == true ]] || { echo "Health check failed for ${fn}"; exit 1; }
+            [[ "$ok" == true ]] || failures+=("${fn}")
           done
-          echo "✅ All health checks passed."
+          if (( ${#failures[@]} > 0 )); then
+            printf 'Health-check failures: %s\n' "${failures[*]}"
+            exit 1
+          fi
+          echo '✅ All Edge Function health checks passed.'
 
   calculate-trending:
     name: Calculate Trending Scores
     runs-on: ubuntu-latest
     timeout-minutes: 3
     needs: validate-secrets
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' && github.event.schedule == '0,15,30,45 * * * *'
     steps:
       - name: Run weighted gravity + anti-collusion + rookie boost
         env:

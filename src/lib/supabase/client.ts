@@ -11,6 +11,12 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
+type FlexibleTable = {
+  Row: Record<string, unknown>
+  Insert: Record<string, unknown>
+  Update: Record<string, unknown>
+}
+
 type Rpc = { Args: Record<string, unknown>; Returns: unknown }
 
 type KnownFunctions = {
@@ -51,11 +57,13 @@ type KnownFunctions = {
   }
 }
 
-// Keep the canonical generated table/view types intact. RPCs that are not yet
-// represented by the checked-in generated schema use an `unknown` return type
-// rather than an `any` escape hatch; individual callers must narrow their result.
+// Known tables keep their generated schema. The unknown-key fallback exists only
+// for legacy migration tables not yet checked into database.ts and uses `unknown`
+// instead of `any`, forcing callers to narrow dynamic data before using it.
 type AppDatabase = Database & {
   public: Database['public'] & {
+    Tables: Database['public']['Tables'] & Record<string, FlexibleTable>
+    Views: Database['public']['Views'] & Record<string, FlexibleTable>
     Functions: KnownFunctions & Record<string, Rpc>
   }
 }

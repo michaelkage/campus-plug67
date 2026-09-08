@@ -68,6 +68,17 @@ export async function getDeviceHash(): Promise<string> {
   return fingerprintPromise
 }
 
+export async function checkDeviceBan(): Promise<boolean> {
+  const clientFingerprint = await getDeviceHash().catch(() => null)
+  const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('security-gate', {
+    body: { action: 'check', client_fingerprint: clientFingerprint },
+  })
+  if (error) throw new Error(error.message || 'Security service unavailable')
+  if (data?.error?.startsWith('DEVICE_BANNED')) return true
+  if (!data?.success) throw new Error('Security service unavailable')
+  return false
+}
+
 export async function registerDevice(userId: string): Promise<string> {
   const clientFingerprint = await getDeviceHash().catch(() => null)
   const { data: { session } } = await supabase.auth.getSession()

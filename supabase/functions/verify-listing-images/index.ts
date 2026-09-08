@@ -3,6 +3,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 import { jsonResponse, optionsResponse, getAuthenticatedUser } from "../_shared/auth.ts";
 import exifr from "npm:exifr@7.1.3";
 
+declare const EdgeRuntime: {
+  waitUntil: (promise: Promise<unknown>) => void;
+};
+
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 type VerificationResult = { image_url:string; gps_lat:number|null; gps_lng:number|null; gps_mismatch:boolean; timestamp_flag:boolean; make:string|null; model:string|null; software:string|null };
 const UNI_BOUNDS:Record<string,[number,number,number,number]> = { "University of Lagos":[6.495,6.520,3.390,3.415], "Obafemi Awolowo University":[7.516,7.535,4.515,4.535], "University of Ibadan":[7.440,7.460,3.890,3.910], "University of Benin":[6.393,6.415,5.602,5.625], "Ahmadu Bello University":[11.155,11.180,7.645,7.670], "Yaba College of Technology":[6.497,6.512,3.375,3.392], "Lagos State University":[6.555,6.580,3.290,3.320], "University of Nigeria Nsukka":[6.853,6.880,7.390,7.420] };
@@ -14,7 +18,7 @@ async function verifyImage(imageUrl:string, university:string|null):Promise<Veri
   const response=await fetch(imageUrl,{redirect:'error'}); if(!response.ok)throw new Error(`Image fetch failed: ${response.status}`);
   const contentType=response.headers.get('content-type')??''; if(!contentType.startsWith('image/'))throw new Error('Stored object is not an image');
   const bytes=new Uint8Array(await response.arrayBuffer()); if(bytes.byteLength>8*1024*1024)throw new Error('Image too large for verification');
-  const exif=await exifr.parse(bytes,{gps:true,ifd0:true,exif:true,translateKeys:true,translateValues:true}).catch(()=>null) as Record<string,unknown>|null;
+  const exif=await (exifr as any).parse(bytes,{gps:true,ifd0:true,exif:true,translateKeys:true,translateValues:true}).catch(()=>null) as Record<string,unknown>|null;
   const lat=typeof exif?.latitude==='number'?exif.latitude:null; const lng=typeof exif?.longitude==='number'?exif.longitude:null;
   let gpsMismatch=false; const bounds=university?UNI_BOUNDS[university]:undefined;
   if(bounds&&lat!==null&&lng!==null){const [latMin,latMax,lngMin,lngMax]=bounds;gpsMismatch=!(lat>=latMin&&lat<=latMax&&lng>=lngMin&&lng<=lngMax)}

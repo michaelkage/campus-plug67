@@ -3,10 +3,8 @@
   <head>
     <meta charset="utf-8">
     <script>
-      // GitHub Pages has no SPA fallback. Preserve the requested path and let
-      // the app's BrowserRouter restore it after index.html loads.
-      sessionStorage.redirect = location.href;
-      location.replace(location.origin + '/campus-plug67/');
+      const target = location.pathname + location.search + location.hash;
+      location.replace(location.origin + '/campus-plug67/?redirect=' + encodeURIComponent(target));
     </script>
   </head>
   <body></body>

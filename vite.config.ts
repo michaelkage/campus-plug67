@@ -3,10 +3,12 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
-const isGitHubPages = process.env.GITHUB_ACTIONS === 'true'
+// GitHub Pages serves the app from /campus-plug67/; local development,
+// preview and CI/E2E runs serve it from the root.
+const base = process.env.VITE_BASE_PATH || '/'
 
 export default defineConfig(({ mode }) => ({
-  base: isGitHubPages ? '/campus-plug67/' : '/',
+  base,
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   plugins: [react(), VitePWA({
     registerType: 'autoUpdate',

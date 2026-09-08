@@ -1,8 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 import { isServiceRoleRequest, jsonResponse, optionsResponse } from "../_shared/auth.ts";
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse(req);
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   if (!service || !isServiceRoleRequest(req)) return jsonResponse({ error: "Forbidden" }, 403, {}, req);

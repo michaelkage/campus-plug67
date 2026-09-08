@@ -6,7 +6,13 @@ import { registerPasskey, authenticateWithPasskey, browserSupportsWebAuthn } fro
 import type { Database } from '@/types/database'
 import toast from 'react-hot-toast'
 
-type Profile = Database['public']['Tables']['profiles']['Row']
+type Profile = Database['public']['Tables']['profiles']['Row'] & {
+  magistrate_at?: string | null
+  juror_streak?: number | null
+  free_listing_tokens?: number | null
+  referral_code?: string | null
+  badges?: unknown[] | null
+}
 type AuthResult = { data?: unknown; error?: unknown; success?: boolean }
 
 type AuthContextValue = {
@@ -40,8 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    if (data) setProfile(data)
-    return data ?? null
+    if (data) setProfile(data as Profile)
+    return (data as Profile | null) ?? null
   }, [])
 
   useEffect(() => {
@@ -78,125 +84,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null)
       }
+      setLoading(false)
     })
+
     return () => subscription.unsubscribe()
   }, [fetchProfile])
 
-  const signUp = async ({ email, password, fullName, university, matric }: { email: string; password: string; fullName: string; university?: string; matric?: string }) => {
-    const { valid, university: detectedUni } = await validateEduEmail(email)
-    if (!valid) {
-      toast.error('Please use an approved university email from the allowlist')
-      return { error: 'Invalid email domain' }
-    }
-
+  const signUp = useCallback(async ({ email, password, fullName, university, matric }: { email: string; password: string; fullName: string; university?: string; matric?: string }) => {
     try {
-      if (await checkDeviceBan()) {
-        toast.error('🚫 This device is restricted from creating new accounts.')
-        return { error: 'DEVICE_BANNED' }
+      const validation = validateEduEmail(email)
+      if (!validation.valid) return { success: false, error: validation.error }
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (error) return { success: false, error: error.message }
+      if (data.user) {
+        const detectedUni = university || validation.university || ''
+        await supabase.from('profiles').update({ full_name: fullName, university: detectedUni, matric_number: matric || null }).eq('id', data.user.id)
+        const { error: tokenError } = await supabase.rpc('provision_my_emergency_tokens')
+        if (tokenError) console.warn('Initial emergency token provisioning unavailable:', tokenError.message)
       }
+      return { data, success: true }
     } catch (error: unknown) {
-      toast.error('Security check unavailable. Please try again.')
-      return { error }
+      return { success: false, error: errorMessage(error, 'Sign up failed') }
     }
+  }, [])
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName, university: university || detectedUni },
-        emailRedirectTo: `${import.meta.env.VITE_APP_URL}/auth/callback`,
-      },
-    })
-
-    if (error) { toast.error(error.message); return { error } }
-
-    if (data.user) {
-      await supabase.from('profiles').update({
-        full_name: fullName,
-        university: university || detectedUni,
-        matric_number: matric || null,
-      }).eq('id', data.user.id)
-      const { error: tokenError } = await supabase.rpc('provision_my_emergency_tokens')
-      if (tokenError) console.warn('Initial emergency token provisioning unavailable:', tokenError.message)
-    }
-
-    toast.success('Account created! Check your email to verify.')
-    return { data }
-  }
-
-  const signIn = async ({ email, password }: { email: string; password: string }) => {
-    try {
-      if (await checkDeviceBan()) {
-        toast.error('🚫 This device is restricted from signing in.')
-        return { error: 'DEVICE_BANNED' }
-      }
-    } catch (error: unknown) {
-      toast.error('Security check unavailable. Please try again.')
-      return { error }
-    }
-
+  const signIn = useCallback(async ({ email, password }: { email: string; password: string }) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { toast.error(error.message); return { error } }
-    return { data }
-  }
+    if (error) return { success: false, error: error.message }
+    return { data, success: true }
+  }, [])
 
-  const signInWithPasskey = async (email: string) => {
-    if (!browserSupportsWebAuthn()) {
-      toast.error('Passkeys not supported on this device')
-      return { error: 'NOT_SUPPORTED' }
-    }
-    try {
-      const result = await authenticateWithPasskey(email)
-      toast.success('Signed in with biometrics! 🔐')
-      return { data: result }
-    } catch (error: unknown) {
-      toast.error(errorMessage(error, 'Passkey authentication failed'))
-      return { error: errorMessage(error, 'Passkey authentication failed') }
-    }
-  }
+  const signInWithPasskey = useCallback(async (email: string) => {
+    return authenticateWithPasskey(email)
+  }, [])
 
-  const addPasskey = async (deviceLabel: string) => {
-    if (!session?.user) return { error: 'Not authenticated' }
-    try {
-      await registerPasskey(session.user, deviceLabel)
-      toast.success('🔐 Passkey registered! Use biometrics to sign in next time.')
-      return { success: true }
-    } catch (error: unknown) {
-      toast.error(errorMessage(error, 'Passkey registration failed'))
-      return { error: errorMessage(error, 'Passkey registration failed') }
-    }
-  }
+  const addPasskey = useCallback(async (deviceLabel: string) => {
+    if (!session?.user) return { success: false, error: 'Not authenticated' }
+    return registerPasskey(session.user.id, deviceLabel)
+  }, [session])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut()
+    setSession(null)
     setProfile(null)
+  }, [])
+
+  const updateProfile = useCallback(async (updates: Partial<Profile>) => {
+    if (!session?.user) return undefined
+    const { data, error } = await supabase.from('profiles').update(updates).eq('id', session.user.id).select().single()
+    if (error) return { success: false, error: error.message }
+    setProfile(data as Profile)
+    return { data, success: true }
+  }, [session])
+
+  const refreshProfile = useCallback(async () => {
+    if (!session?.user) return null
+    return fetchProfile(session.user.id)
+  }, [fetchProfile, session])
+
+  const value: AuthContextValue = {
+    session,
+    profile,
+    user: session?.user ?? null,
+    loading,
+    deviceHash,
+    isAuthenticated: !!session,
+    passkeySupported: browserSupportsWebAuthn(),
+    signUp,
+    signIn,
+    signInWithPasskey,
+    addPasskey,
+    signOut,
+    updateProfile,
+    refreshProfile,
   }
 
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!session?.user) return
-    const { data, error } = await supabase.from('profiles')
-      .update(updates).eq('id', session.user.id).select().single()
-    if (error) { toast.error('Failed to update profile'); return { error } }
-    setProfile(data)
-    toast.success('Profile updated!')
-    return { data }
-  }
-
-  const refreshProfile = () => session?.user ? fetchProfile(session.user.id) : Promise.resolve(undefined)
-
-  return (
-    <AuthContext.Provider value={{
-      session, profile, user: session?.user ?? null, loading, deviceHash,
-      isAuthenticated: !!session, passkeySupported: browserSupportsWebAuthn(),
-      signUp, signIn, signInWithPasskey, addPasskey, signOut, updateProfile, refreshProfile,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export const useAuth = (): AuthContextValue => {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used within AuthProvider')
+  return context
 }

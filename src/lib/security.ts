@@ -50,7 +50,7 @@ export async function getDeviceHash(): Promise<string> {
   if (!fingerprintPromise) {
     fingerprintPromise = import('@fingerprintjs/fingerprintjs')
       .then(async ({ default: FingerprintJS }) => {
-        const fp = await FingerprintJS.load({ monitoring: false })
+        const fp = await FingerprintJS.load()
         const result = await fp.get()
         return result.visitorId
       })
@@ -101,9 +101,7 @@ export async function analyzeAndStripExif(file: File, userUniversity: string): P
 
   try {
     const { default: exifr } = await import('exifr')
-    const exif = await exifr.parse(file, {
-      gps: true, ifd0: true, exif: true, translateKeys: true, translateValues: true,
-    })
+    const exif = await exifr.parse(file, true)
 
     if (exif) {
       result.raw_exif = sanitizeExif(exif as Record<string, unknown>)

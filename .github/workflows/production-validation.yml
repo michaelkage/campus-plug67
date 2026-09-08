@@ -64,7 +64,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # Gitleaks needs the complete commit history to resolve the commit range
+      # supplied by GitHub Actions. A shallow checkout can make that SHA absent
+      # and causes gitleaks to fail before it can scan anything.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

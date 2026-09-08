@@ -124,7 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         university: university || detectedUni,
         matric_number: matric || null,
       }).eq('id', data.user.id)
-      await (supabase.rpc as any)('provision_emergency_tokens', { p_user_id: data.user.id })
+      const { error: tokenError } = await supabase.rpc('provision_my_emergency_tokens')
+      if (tokenError) console.warn('Initial emergency token provisioning unavailable:', tokenError.message)
     }
 
     toast.success('Account created! Check your email to verify.')

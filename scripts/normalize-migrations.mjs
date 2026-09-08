@@ -17,6 +17,10 @@ if (before.includes(invalid)) {
   throw new Error('Migration 006 ticker index definition was not found; refusing an unsafe rewrite.');
 }
 
+// Migration 001 already establishes the realtime publication membership used by
+// this project. Re-adding these tables makes a clean local Supabase bootstrap
+// fail with SQLSTATE 42710 because PostgreSQL rejects duplicate publication
+// membership. Leave publication management to the canonical schema migration.
 const publicationStatements = [
   'alter publication supabase_realtime add table public.ticker_events;',
   'alter publication supabase_realtime add table public.messages;',
@@ -25,15 +29,8 @@ const publicationStatements = [
 
 for (const statement of publicationStatements) {
   if (!before.includes(statement)) continue;
-
-  const match = statement.match(/add table public\.([a-z_]+);/i);
-  if (!match) throw new Error(`Could not parse realtime publication statement: ${statement}`);
-
-  const table = match[1];
-  const safeBlock = `do $$\nbegin\n  if not exists (\n    select 1\n    from pg_publication_tables\n    where pubname = 'supabase_realtime'\n      and schemaname = 'public'\n      and tablename = '${table}'\n  ) then\n    alter publication supabase_realtime add table public.${table};\n  end if;\nend;\n$$;`;
-
-  before = before.replace(statement, safeBlock);
+  before = before.replace(statement, '');
+  console.log(`Normalized migration 006: removed duplicate realtime publication statement for ${statement.match(/public\\.([a-z_]+)/i)?.[1] ?? 'table'}.`);
 }
 
 fs.writeFileSync(migration, before);
-console.log('Normalized migration 006: made supabase_realtime publication membership idempotent.');

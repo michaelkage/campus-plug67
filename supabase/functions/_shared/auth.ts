@@ -1,5 +1,15 @@
 import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 
+// Supabase's current Edge Runtime documents Deno.serve as the canonical server
+// entry point. Keep a small compatibility bridge for older functions that still
+// call the historical global `serve(...)` helper. This lets the whole function
+// fleet migrate safely without making the health/deploy pipeline depend on the
+// order in which individual functions are updated.
+const edgeRuntime = globalThis as typeof globalThis & {
+  serve?: typeof Deno.serve;
+};
+if (!edgeRuntime.serve) edgeRuntime.serve = Deno.serve;
+
 const ALLOWED_HEADERS = "authorization, x-client-info, apikey, content-type";
 
 export function getBearerToken(req: Request): string | null {

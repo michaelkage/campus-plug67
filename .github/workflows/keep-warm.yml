@@ -4,6 +4,8 @@
 name: Campus Plug Operations
 
 on:
+  # Warm functions every 5 minutes. The 15-minute schedule below is reserved
+  # for scheduled auto-release so quarter-hour runs do not warm twice.
   schedule:
     - cron: '*/5 * * * *'
     - cron: '0,15,30,45 * * * *'
@@ -48,7 +50,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     needs: validate-secrets
-    if: github.event_name == 'schedule' || github.event.inputs.action == 'warm' || github.event.inputs.action == 'all'
+    # This job used to run twice at :00/:15/:30/:45 because */5 also matches
+    # those times. Restrict it to the dedicated five-minute schedule (or manual
+    # warm/all dispatch) so the quarter-hour schedule only runs auto-release.
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
     steps:
       - name: Health-check Edge Functions
         env:
@@ -62,6 +67,7 @@ jobs:
             ok=false
             for attempt in 1 2 3; do
               if curl --fail --silent --show-error --max-time 8 \
+                --retry 1 --retry-delay 1 --retry-all-errors \
                 -H "apikey: ${SUPABASE_ANON_KEY}" \
                 -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
                 -H "x-health-check: true" \
@@ -89,13 +95,14 @@ jobs:
         run: |
           set -euo pipefail
           response=$(curl --fail-with-body --silent --show-error -X POST \
+            --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            --max-time 30 -d '{}' \
+            -d '{}' \
             "${SUPABASE_URL}/functions/v1/calculate-trending") || {
               echo 'calculate-trending rejected the service-role request.'
-              echo 'The function now accepts a verified service_role JWT for the same project; refresh SUPABASE_SERVICE_ROLE_KEY if this remains a 403.'
+              echo 'Refresh SUPABASE_SERVICE_ROLE_KEY if this remains a 403.'
               exit 1
             }
           echo "$response"
@@ -107,10 +114,11 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error -X POST \
+            --retry 2 --retry-delay 2 --retry-all-errors --max-time 20 \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            --max-time 20 -d '{"action":"rotate_jurors"}' \
+            -d '{"action":"rotate_jurors"}' \
             "${SUPABASE_URL}/functions/v1/process-dispute"
 
   auto-release:
@@ -127,10 +135,11 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error -X POST \
+            --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            --max-time 30 -d '{"action":"auto_release"}' \
+            -d '{"action":"auto_release"}' \
             "${SUPABASE_URL}/functions/v1/release-escrow"
 
   scheduled-auto-release:
@@ -147,8 +156,9 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error -X POST \
+            --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            --max-time 30 -d '{"action":"auto_release"}' \
+            -d '{"action":"auto_release"}' \
             "${SUPABASE_URL}/functions/v1/release-escrow"

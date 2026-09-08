@@ -3,11 +3,11 @@ import type { Session, User } from '@supabase/supabase-js'
 import { supabase, validateEduEmail } from '@/lib/supabase'
 import { registerDevice, getDeviceHash } from '@/lib/security'
 import { registerPasskey, authenticateWithPasskey, browserSupportsWebAuthn } from '@/lib/passkeys'
+import type { Database } from '@/types/database'
 import toast from 'react-hot-toast'
 
-type Profile = Record<string, any>
-
-type AuthResult = { data?: any; error?: any }
+type Profile = Database['public']['Tables']['profiles']['Row']
+type AuthResult = { data?: unknown; error?: unknown; success?: boolean }
 
 type AuthContextValue = {
   session: Session | null
@@ -22,11 +22,15 @@ type AuthContextValue = {
   signInWithPasskey: (email: string) => Promise<AuthResult>
   addPasskey: (deviceLabel: string) => Promise<AuthResult>
   signOut: () => Promise<void>
-  updateProfile: (updates: Record<string, any>) => Promise<AuthResult | undefined>
+  updateProfile: (updates: Partial<Profile>) => Promise<AuthResult | undefined>
   refreshProfile: () => Promise<Profile | null | undefined>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -36,8 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    if (data) setProfile(data as Profile)
-    return (data as Profile | null) ?? null
+    if (data) setProfile(data)
+    return data ?? null
   }, [])
 
   useEffect(() => {
@@ -49,8 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await fetchProfile(session.user.id)
         try {
           await registerDevice(session.user.id)
-        } catch (e: any) {
-          if (e?.message?.startsWith('DEVICE_BANNED')) {
+        } catch (error: unknown) {
+          if (errorMessage(error, '').startsWith('DEVICE_BANNED')) {
             await supabase.auth.signOut()
             toast.error('🚫 This device has been flagged for policy violations.')
           }
@@ -65,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await fetchProfile(session.user.id)
         try {
           await registerDevice(session.user.id)
-        } catch (e: any) {
-          if (e?.message?.startsWith('DEVICE_BANNED')) {
+        } catch (error: unknown) {
+          if (errorMessage(error, '').startsWith('DEVICE_BANNED')) {
             await supabase.auth.signOut()
             toast.error('🚫 This device has been flagged for policy violations.')
           }
@@ -79,13 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile])
 
   const checkDeviceBan = async () => {
-    const { getDeviceHash } = await import('@/lib/security')
     const clientFingerprint = await getDeviceHash().catch(() => null)
-    const { data, error } = await supabase.functions.invoke('security-gate', {
+    const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('security-gate', {
       body: { action: 'check', client_fingerprint: clientFingerprint },
     })
     if (error) throw new Error(error.message || 'Security service unavailable')
-    if (data?.error?.startsWith?.('DEVICE_BANNED')) return true
+    if (data?.error?.startsWith('DEVICE_BANNED')) return true
     if (!data?.success) throw new Error('Security service unavailable')
     return false
   }
@@ -102,9 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.error('🚫 This device is restricted from creating new accounts.')
         return { error: 'DEVICE_BANNED' }
       }
-    } catch (e: any) {
+    } catch (error: unknown) {
       toast.error('Security check unavailable. Please try again.')
-      return { error: e }
+      return { error }
     }
 
     const { data, error } = await supabase.auth.signUp({
@@ -138,9 +141,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         toast.error('🚫 This device is restricted from signing in.')
         return { error: 'DEVICE_BANNED' }
       }
-    } catch (e: any) {
+    } catch (error: unknown) {
       toast.error('Security check unavailable. Please try again.')
-      return { error: e }
+      return { error }
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -157,9 +160,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await authenticateWithPasskey(email)
       toast.success('Signed in with biometrics! 🔐')
       return { data: result }
-    } catch (e: any) {
-      toast.error(e?.message || 'Passkey authentication failed')
-      return { error: e?.message || 'Passkey authentication failed' }
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, 'Passkey authentication failed'))
+      return { error: errorMessage(error, 'Passkey authentication failed') }
     }
   }
 
@@ -169,9 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await registerPasskey(session.user, deviceLabel)
       toast.success('🔐 Passkey registered! Use biometrics to sign in next time.')
       return { success: true }
-    } catch (e: any) {
-      toast.error(e?.message || 'Passkey registration failed')
-      return { error: e?.message || 'Passkey registration failed' }
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, 'Passkey registration failed'))
+      return { error: errorMessage(error, 'Passkey registration failed') }
     }
   }
 
@@ -180,12 +183,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
   }
 
-  const updateProfile = async (updates: Record<string, any>) => {
+  const updateProfile = async (updates: Partial<Profile>) => {
     if (!session?.user) return
     const { data, error } = await supabase.from('profiles')
       .update(updates).eq('id', session.user.id).select().single()
     if (error) { toast.error('Failed to update profile'); return { error } }
-    setProfile(data as Profile)
+    setProfile(data)
     toast.success('Profile updated!')
     return { data }
   }

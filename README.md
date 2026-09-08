@@ -126,3 +126,7 @@ By deploying, interacting with, or registering on Campus Plug, users and adminis
 5. **Data Privacy**: Profile details, location beacons, and chat records are stored securely, but we maintain the right to intercept and scan chats (via the AI proxy) strictly to prevent off-platform scam attempts or prohibited activities.
 
 *These terms are subject to change. Ensure you consult with a legal professional before launching commercially.*
+
+
+
+<-------------- Ai Bot Usage Line--------------------->

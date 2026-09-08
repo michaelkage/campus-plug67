@@ -21,6 +21,12 @@ CREATE TABLE IF NOT EXISTS public.chat_flag_log (
 -- Protect chat flag logs from tampering
 ALTER TABLE public.chat_flag_log ENABLE ROW LEVEL SECURITY;
 
+-- This migration can be replayed against a production database whose schema
+-- already contains these policies. Drop only the policies owned by this
+-- migration before recreating them so schema reconciliation is idempotent.
+DROP POLICY IF EXISTS "Service and admins can read chat logs" ON public.chat_flag_log;
+DROP POLICY IF EXISTS "Users can insert their own chat logs" ON public.chat_flag_log;
+
 -- Admins / Services can read
 CREATE POLICY "Service and admins can read chat logs" ON public.chat_flag_log
     FOR SELECT USING (auth.role() = 'service_role');

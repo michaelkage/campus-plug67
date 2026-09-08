@@ -9,7 +9,7 @@
 
 | Layer | Feature | Implementation |
 |---|---|---|
-| **Security** | EDU email domain gating | `allowed_domains` table + fallback regex |
+| **Security** | EDU email domain gating | `allowed_domains` table + explicit institution configuration |
 | **Security** | Hardware fingerprinting | FingerprintJS → `user_security` table |
 | **Security** | Biometric passkey login | WebAuthn API + `@simplewebauthn/browser` |
 | **Security** | EXIF forensics | `exifr` + GPS bounding box check + canvas strip |
@@ -42,8 +42,9 @@ campus-plug/
 │   ├── main.tsx                         # React DOM entry
 │   ├── lib/
 │   │   ├── supabase.ts                  # Client, edge wrappers, formatting
-│   │   ├── security.js                  # Device hash, EXIF analysis
-│   │   ├── passkeys.js                  # WebAuthn workflows
+│   │   ├── security.ts                  # Device hash, EXIF analysis
+│   │   ├── gpsSpoof.ts                  # GPS spoof telemetry
+│   │   ├── passkeys.ts                  # WebAuthn workflows
 │   │   └── ai.ts                        # Gemini Proxy interface
 │   ├── components/
 │   │   ├── marketplace/                 # MultiMatchSelectionGrid, etc.
@@ -52,8 +53,8 @@ campus-plug/
 │   │   └── academic/                    # ClassDetailAlertHub
 │   └── pages/                           # Home, Marketplace, StudyPools, WarRoom
 ├── supabase/
-│   ├── migrations/                      # 010_v68_campus_overhaul.sql (CP-67 MATRIX)
-│   └── functions/                       # ai-proxy, beacon-matcher, paystack-webhook
+│   ├── migrations/                      # Versioned database hardening and schema
+│   └── functions/                       # Edge Functions and server-authoritative jobs
 ├── .github/workflows/                   # Automated GH actions
 └── tailwind.config.js                   # Obsidian/Cyan/Purple theme
 ```
@@ -71,6 +72,7 @@ npm install
 # 2. Environment
 cp .env.example .env
 # Edit .env — fill in Supabase URL, anon key, Paystack public key
+# Never commit .env or server-side credentials.
 
 # 3. Database
 # Run all migrations located in supabase/migrations/
@@ -87,12 +89,30 @@ npm run dev
 
 ---
 
+## Security Configuration Notes
+
+The repository hardens database authorization, but some controls are platform-level settings and cannot safely be configured from application code.
+
+### Supabase Auth: leaked-password protection
+
+Enable **Leaked Password Protection** in the Supabase Auth settings before production launch. This is a dashboard/project configuration requirement; do not put dashboard credentials, API keys, JWT secrets, database passwords, or other secrets in this repository.
+
+### PostGIS
+
+PostGIS remains installed because the application uses spatial functionality. The extension-managed `public.spatial_ref_sys` table is intentionally not altered by migrations. The known `ST_EstimatedExtent` helper overloads have had direct client execution revoked in migration `049_postgis_api_hardening.sql` so they are not exposed as a public RPC surface.
+
+### Security-definer RPCs
+
+Security-definer functions that are intentionally callable by signed-in users must enforce identity and ownership inside the function. Sensitive worker/admin routines are restricted to trusted server roles. In particular, wallet, escrow, duress, safe-arrival, session-handoff, and related routines are treated as server-authoritative state transitions rather than trusted client parameters.
+
+---
+
 ## PlugScore System
 
 Points are managed by PostgreSQL triggers to ensure structural integrity:
 
 | Event | Delta | Trigger |
-|---|---|---|
+|---|---:|---|
 | Completed sale | +50 | `handle_transaction_update` on `released` |
 | EXIF-verified upload | +10 | `update_plugscore_on_event` |
 | 5★ review received | +25 | `ratings` insert trigger |
@@ -104,14 +124,16 @@ Score range: 0–1000, starting at 500 on signup.
 
 ## Production Checklist
 
-- [ ] Switch Paystack to live keys (`pk_live_` / `sk_live_`)
+- [ ] Enable Supabase **Leaked Password Protection** in Auth settings
+- [ ] Switch Paystack to live keys (`pk_live_` / `sk_live_`) using the provider's secret-management system; never commit keys
 - [ ] Set `RP_ID` = your actual domain (e.g. `campusplug.ng`)
 - [ ] Set `APP_ORIGIN` = `https://campusplug.ng`
 - [ ] Deploy Edge Functions with `supabase functions deploy --all`
-- [ ] Add GitHub repo secrets for Actions
+- [ ] Configure GitHub Actions secrets without printing or committing their values
 - [ ] Enable Supabase Point-in-Time Recovery
 - [ ] Verify `pg_cron` routines for Anti-Ghosting features
 - [ ] Test full escrow flow with Paystack test card on staging
+- [ ] Run `npm run test:security:all` before release
 
 ---
 

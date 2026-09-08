@@ -18,5 +18,5 @@ GRANT INSERT ON TABLE public.ticker_events TO service_role;
 
 GRANT EXECUTE ON FUNCTION public.process_escrow_action(uuid,text,text,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.expire_flash_deals() TO service_role;
-GRANT EXECUTE ON FUNCTION public.cleanup_expired_amber() TO service_role;
-GRANT EXECUTE ON FUNCTION public.reclaim_silent_jurors() TO service_role;
+GRANT EXECUTE ON FUNCTION public.cleanup_amber_confirmations() TO service_role;
+GRANT EXECUTE ON FUNCTION public.reclaim_silent_jurors(uuid) TO service_role;

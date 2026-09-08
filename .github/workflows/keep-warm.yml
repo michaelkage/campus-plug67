@@ -50,10 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     needs: validate-secrets
-    # This job used to run twice at :00/:15/:30/:45 because */5 also matches
-    # those times. Restrict it to the dedicated five-minute schedule (or manual
-    # warm/all dispatch) so the quarter-hour schedule only runs auto-release.
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    # */5 already includes :00/:15/:30/:45. Keep the second schedule only for
+    # auto-release and do not warm again on those quarter-hour invocations.
+    if: github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.action == 'warm' || github.event.inputs.action == 'all'))
     steps:
       - name: Health-check Edge Functions
         env:

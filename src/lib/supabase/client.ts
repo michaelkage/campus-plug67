@@ -11,6 +11,11 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
+type Rpc = {
+  Args: Record<string, unknown>
+  Returns: unknown
+}
+
 type KnownFunctions = {
   get_price_floor: {
     Args: { p_category: string; p_university: string }
@@ -58,14 +63,8 @@ type KnownFunctions = {
 }
 
 type AppPublicSchema = Omit<Database['public'], 'Views' | 'Functions'> & {
-  Views: {
-    public_profile_stats: {
-      Row: Database['public']['Tables']['public_profile_stats']['Row']
-      Insert: never
-      Update: never
-    }
-  }
-  Functions: KnownFunctions
+  Views: Database['public'] extends { Views: infer V } ? V : Record<string, never>
+  Functions: KnownFunctions & Record<string, Rpc>
 }
 
 type AppDatabase = Omit<Database, 'public'> & {

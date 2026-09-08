@@ -64,13 +64,6 @@ type RpcResult<Name extends RpcName> = {
   error: { message: string } | null
 }
 
-type TypedRpcClient = Omit<ReturnType<typeof createClient<Database>>, 'rpc'> & {
-  rpc<Name extends RpcName>(
-    name: Name,
-    args: RpcDefinitions[Name]['Args'],
-  ): Promise<RpcResult<Name>>
-}
-
 const rawSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
@@ -83,10 +76,22 @@ const rawSupabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: { headers: { 'x-app-version': '3.1.0' } },
 })
 
+type TypedRpcClient = Omit<typeof rawSupabase, 'rpc'> & {
+  rpc<Name extends RpcName>(
+    name: Name,
+    args: RpcDefinitions[Name]['Args'],
+  ): Promise<RpcResult<Name>>
+  rpc(name: string, args?: Record<string, unknown>): Promise<{
+    data: unknown
+    error: { message: string } | null
+  }>
+}
+
 /**
  * The generated schema currently contains tables but no Functions map.
- * Supabase therefore resolves rpc() argument types to never. Keep the
- * generated Database untouched and type only the known application RPCs here.
+ * Supabase's generic rpc overload consequently collapses arguments to never.
+ * Keep the generated Database untouched and provide a narrow typed facade for
+ * application RPCs while retaining a generic escape hatch for legacy calls.
  */
 export const supabase: TypedRpcClient = rawSupabase as unknown as TypedRpcClient
 

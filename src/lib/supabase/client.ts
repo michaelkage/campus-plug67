@@ -11,26 +11,52 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   )
 }
 
-type LooseTable = {
-  Row: Record<string, any>
-  Insert: Record<string, any>
-  Update: Record<string, any>
+type Rpc = { Args: Record<string, unknown>; Returns: unknown }
+
+type KnownFunctions = {
+  get_price_floor: {
+    Args: { p_category: string; p_university: string }
+    Returns: {
+      floor_price: number
+      median_price: number | null
+      q1_price: number | null
+      q3_price: number | null
+      iqr: number
+      has_floor: boolean
+    }
+  }
+  provision_my_emergency_tokens: {
+    Args: Record<string, never>
+    Returns: number
+  }
+  get_price_suggestion: {
+    Args: { p_category: string; p_university: string }
+    Returns: unknown
+  }
+  get_market_intelligence: {
+    Args: { p_category: string; p_university: string }
+    Returns: unknown
+  }
+  transfer_plug_credit: {
+    Args: { p_recipient_id: string; p_amount: number; p_reason?: string | null }
+    Returns: { success?: boolean; [key: string]: unknown }
+  }
+  create_wallet_micro_escrow: {
+    Args: { p_listing_id: string }
+    Returns: { success?: boolean; [key: string]: unknown }
+  }
+  increment_spoof_flag: {
+    Args: { p_user_id: string }
+    Returns: unknown
+  }
 }
 
-type LooseFunction = {
-  Args: Record<string, any>
-  Returns: any
-}
-
-// The checked-in schema intentionally contains a curated subset of the deployed
-// Supabase surface. Keep the application client tolerant of additional migration
-// tables/columns while preserving the canonical Database type for explicit domain
-// models imported by components.
+// Keep the canonical generated table/view types intact. RPCs that are not yet
+// represented by the checked-in generated schema use an `unknown` return type
+// rather than an `any` escape hatch; individual callers must narrow their result.
 type AppDatabase = Database & {
   public: Database['public'] & {
-    Tables: Record<string, LooseTable>
-    Views: Record<string, LooseTable>
-    Functions: Record<string, LooseFunction>
+    Functions: KnownFunctions & Record<string, Rpc>
   }
 }
 

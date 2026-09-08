@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Database } from '../../types/database'
+import type { Database } from '../../types/database'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 type PlugCreditLedger = Database['public']['Tables']['plug_credit_ledger']['Row']
+
+type TransferResult = {
+  success?: boolean
+  [key: string]: unknown
+}
 
 interface WalletDashboardProps { userId: string }
 
@@ -30,7 +35,7 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
       if (error) throw error
       setProfile(data)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching profile:', err)
       setError('Failed to load wallet data')
     }
@@ -46,7 +51,7 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
       setTransactions(data || [])
       setTotalPages(Math.max(1, Math.ceil((count || 0) / itemsPerPage)))
       setCurrentPage(page)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error fetching transactions:', err)
       setError('Failed to load transactions')
     } finally { setLoading(false) }
@@ -64,27 +69,27 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
       if (!Number.isSafeInteger(amountKobo) || amountKobo <= 0) throw new Error('Invalid amount')
       if (!recipientId) throw new Error('Recipient ID is required')
 
-      // Balance checks and both ledger writes are server-side and atomic.
-      const { data, error: transferError } = await (supabase.rpc as any)('transfer_plug_credit', {
+      const { data, error: transferError } = await supabase.rpc('transfer_plug_credit', {
         p_recipient_id: recipientId,
         p_amount: amountKobo,
         p_reason: transferReason || null,
-      } as any)
+      })
       if (transferError) throw transferError
-      if (!(data as any)?.success) throw new Error('Transfer failed')
+      const result = data as TransferResult | null
+      if (!result?.success) throw new Error('Transfer failed')
 
       setSuccess('Transfer completed successfully')
       setTransferAmount(''); setRecipientId(''); setTransferReason(''); setShowModal(false)
       await fetchProfile(); await fetchTransactions(currentPage)
-    } catch (err: any) {
-      setError(err.message || 'Transfer failed')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Transfer failed')
     } finally { setProcessing(false) }
   }
 
   const handlePageChange = (page: number) => fetchTransactions(page)
   const getTransactionColor = (amount: bigint | number) => Number(amount) > 0 ? 'text-green-400' : 'text-red-400'
   const getTransactionSign = (amount: bigint | number) => Number(amount) > 0 ? '+' : ''
-  const balance = (profile as any)?.plug_credit_balance ?? 0
+  const balance = profile?.plug_credit_balance ?? 0
 
   return (
     <div className="w-full">

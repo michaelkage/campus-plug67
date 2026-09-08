@@ -3,37 +3,12 @@
 -- public_profile_stats is intentionally public for the unauthenticated
 -- verification route, but it must execute with the querying user's RLS
 -- context rather than the view owner's context.
-create or replace view public.public_profile_stats
-with (security_invoker = true)
-as
-  select
-    p.id,
-    p.full_name,
-    p.university,
-    p.department,
-    p.level,
-    p.plug_score,
-    p.total_sales,
-    p.total_earnings,
-    p.badges,
-    p.is_verified,
-    p.created_at,
-    coalesce(r.avg_rating, 0) as avg_rating,
-    coalesce(r.rating_count, 0) as rating_count,
-    (
-      select count(*) from public.listings
-      where seller_id = p.id and status = 'active'
-    ) as active_listings,
-    (
-      select count(*)
-      from public.listing_exif_flags ef
-      join public.listings l on l.id = ef.listing_id
-      where l.seller_id = p.id
-        and not ef.gps_mismatch
-        and not ef.timestamp_flag
-    ) as verified_uploads
-  from public.profiles p
-  left join public.profile_ratings r on r.profile_id = p.id;
+--
+-- The view already exists with the canonical column set from migration 004.
+-- CREATE OR REPLACE VIEW cannot remove/reorder existing view columns, so use
+-- ALTER VIEW to change only the security_invoker option.
+alter view public.public_profile_stats
+  set (security_invoker = true);
 
 grant select on public.public_profile_stats to anon;
 

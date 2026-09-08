@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { Eye, EyeOff, Fingerprint, Shield, Zap } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, Fingerprint, LockKeyhole, Mail, ShieldCheck, Zap } from 'lucide-react'
 
 const UNIVERSITIES = [
   'University of Lagos (UNILAG)',
@@ -16,6 +16,12 @@ const UNIVERSITIES = [
   'Other',
 ]
 
+const features = [
+  { title: 'Your campus, connected', text: 'Find people, services, opportunities and things happening around you.' },
+  { title: 'Built for students', text: 'One account for the everyday tools that make campus life easier.' },
+  { title: 'Privacy first', text: 'Your account and activity are protected with modern security controls.' },
+]
+
 export default function Auth() {
   const { isAuthenticated, signIn, signUp, signInWithPasskey, passkeySupported } = useAuth()
   const [mode, setMode] = useState('signin')
@@ -26,154 +32,273 @@ export default function Auth() {
 
   if (isAuthenticated) return <Navigate to="/" replace />
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = key => event => setForm(current => ({ ...current, [key]: event.target.value }))
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const switchMode = nextMode => {
+    if (submitting) return
+    setMode(nextMode)
+  }
+
+  const handleSubmit = async event => {
+    event.preventDefault()
     setSubmitting(true)
-    if (mode === 'signin') {
-      await signIn({ email: form.email, password: form.password })
-    } else {
-      await signUp({ email: form.email, password: form.password, fullName: form.fullName, university: form.university, matric: form.matric })
+
+    try {
+      if (mode === 'signin') {
+        await signIn({ email: form.email, password: form.password })
+      } else {
+        await signUp({
+          email: form.email,
+          password: form.password,
+          fullName: form.fullName,
+          university: form.university,
+          matric: form.matric,
+        })
+      }
+    } finally {
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   const handlePasskey = async () => {
-    if (!form.email) { alert('Enter your email first'); return }
+    if (!form.email) {
+      alert('Enter your email first')
+      return
+    }
+
     setPasskeyLoading(true)
-    await signInWithPasskey(form.email)
-    setPasskeyLoading(false)
+    try {
+      await signInWithPasskey(form.email)
+    } finally {
+      setPasskeyLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-obsidian flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 cyber-grid opacity-50 [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,black,transparent)]" />
-      <div className="absolute w-96 h-96 rounded-full bg-cyan/5 -top-20 -left-20 blur-3xl pointer-events-none" />
-      <div className="absolute w-80 h-80 rounded-full bg-purple/6 -bottom-16 -right-16 blur-3xl pointer-events-none" />
+    <main className="min-h-screen bg-[#080B10] text-white selection:bg-cyan/30">
+      <div className="min-h-screen lg:grid lg:grid-cols-[minmax(360px,0.95fr)_minmax(520px,1.05fr)]">
+        {/* Brand panel */}
+        <section className="relative hidden overflow-hidden border-r border-white/[0.07] bg-[#0C1017] lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-14">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(0,229,255,0.10),transparent_30%),radial-gradient(circle_at_85%_85%,rgba(168,85,247,0.08),transparent_32%)]" />
+          <div className="absolute inset-0 opacity-[0.035] [background-image:linear-gradient(rgba(255,255,255,1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,1)_1px,transparent_1px)] [background-size:44px_44px]" />
 
-      <motion.div
-        className="relative z-10 w-full max-w-md"
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-      >
-        <div className="text-center mb-8">
-          <motion.div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan to-purple text-obsidian font-black text-2xl mb-4 shadow-cyan"
-            animate={{ boxShadow: ['0 0 20px rgba(0,242,255,0.3)', '0 0 40px rgba(0,242,255,0.6)', '0 0 20px rgba(0,242,255,0.3)'] }}
-            transition={{ duration: 2.5, repeat: Infinity }}
-          >
-            <Zap size={28} />
-          </motion.div>
-          <h1 className="text-2xl font-black tracking-tight">
-            Campus<span className="text-cyan">Plug</span>
-          </h1>
-          <p className="text-sm text-white/40 mt-1">
-            {mode === 'signin' ? 'Welcome back, student.' : 'Join your campus ecosystem.'}
-          </p>
-        </div>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan text-[#061014] shadow-[0_0_30px_rgba(0,229,255,0.16)]">
+                <Zap size={20} strokeWidth={2.5} />
+              </div>
+              <span className="text-xl font-black tracking-tight">Campus<span className="text-cyan">Plug</span></span>
+            </div>
 
-        <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-8 shadow-card">
-          <div className="flex items-center gap-3 mb-5 p-3 rounded-xl bg-obsidian-300">
-            <Shield size={13} className="text-plug-green flex-shrink-0" />
-            <div className="text-xs text-white/40 leading-relaxed">
-              EDU email verified · Device fingerprinted · End-to-end encrypted
+            <div className="mt-24 max-w-xl">
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-cyan/70">The student network</p>
+              <h2 className="text-4xl font-black leading-[1.08] tracking-[-0.03em] xl:text-5xl">
+                Campus life,
+                <br />
+                <span className="text-white/45">without the friction.</span>
+              </h2>
+              <p className="mt-6 max-w-md text-base leading-7 text-white/45">
+                A focused campus ecosystem for discovering people, opportunities, services and the things that matter day to day.
+              </p>
+            </div>
+
+            <div className="mt-14 space-y-5">
+              {features.map((feature, index) => (
+                <div key={feature.title} className="flex gap-4">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-xs font-bold text-cyan">
+                    0{index + 1}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white/85">{feature.title}</p>
+                    <p className="mt-1 max-w-sm text-sm leading-6 text-white/35">{feature.text}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="flex bg-obsidian-300 rounded-xl p-1 mb-6">
-            {['signin', 'signup'].map(m => (
-              <button key={m} onClick={() => setMode(m)}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${mode === m ? 'bg-cyan text-obsidian shadow-sm' : 'text-white/40 hover:text-white/70'}`}>
-                {m === 'signin' ? 'Sign In' : 'Sign Up'}
-              </button>
-            ))}
+          <div className="relative z-10 flex items-center gap-2 text-xs text-white/25">
+            <span className="h-1.5 w-1.5 rounded-full bg-plug-green shadow-[0_0_10px_rgba(0,255,136,0.5)]" />
+            Built for students, by Campus Plug
           </div>
+        </section>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <AnimatePresence>
-              {mode === 'signup' && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                  <label className="label" htmlFor="full-name">Full Name</label>
-                  <input id="full-name" className="input" type="text" placeholder="Oluwafemi Adeyemi" value={form.fullName} onChange={set('fullName')} required={mode === 'signup'} />
-                </motion.div>
+        {/* Auth panel */}
+        <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-8 sm:px-8 lg:min-h-0 lg:px-12 xl:px-20">
+          <div className="pointer-events-none absolute -left-32 top-1/3 h-72 w-72 rounded-full bg-cyan/[0.035] blur-3xl" />
+          <div className="pointer-events-none absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-purple/[0.035] blur-3xl" />
+
+          <motion.div
+            className="relative z-10 w-full max-w-[460px]"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          >
+            <div className="mb-8 lg:hidden">
+              <div className="mb-7 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan text-[#061014]">
+                  <Zap size={20} strokeWidth={2.5} />
+                </div>
+                <span className="text-xl font-black tracking-tight">Campus<span className="text-cyan">Plug</span></span>
+              </div>
+            </div>
+
+            <header className="mb-7">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan/70">
+                {mode === 'signin' ? 'Welcome back' : 'Get started'}
+              </p>
+              <h1 className="text-3xl font-black tracking-[-0.03em] sm:text-[34px]">
+                {mode === 'signin' ? 'Sign in to Campus Plug' : 'Create your student account'}
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-white/40">
+                {mode === 'signin'
+                  ? 'Use your university email to continue where you left off.'
+                  : 'Join your campus community in a few quick steps.'}
+              </p>
+            </header>
+
+            <div className="mb-7 grid grid-cols-2 rounded-xl border border-white/[0.07] bg-white/[0.025] p-1">
+              <button
+                type="button"
+                onClick={() => switchMode('signin')}
+                aria-pressed={mode === 'signin'}
+                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-white text-[#090C11] shadow-sm' : 'text-white/40 hover:text-white/70'}`}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('signup')}
+                aria-pressed={mode === 'signup'}
+                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-white text-[#090C11] shadow-sm' : 'text-white/40 hover:text-white/70'}`}
+              >
+                Create account
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.25)] sm:p-7">
+              <div className="mb-6 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-black/10 px-3.5 py-3">
+                <ShieldCheck size={17} className="shrink-0 text-plug-green" />
+                <div>
+                  <p className="text-xs font-bold text-white/70">Secure student access</p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-white/30">Your credentials are protected and your university identity is verified.</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <AnimatePresence initial={false} mode="popLayout">
+                  {mode === 'signup' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <label className="label" htmlFor="full-name">Full name</label>
+                      <input id="full-name" className="input" type="text" placeholder="Oluwafemi Adeyemi" value={form.fullName} onChange={set('fullName')} required />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div>
+                  <label className="label" htmlFor="university-email">University email</label>
+                  <div className="relative">
+                    <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" />
+                    <input id="university-email" className="input pl-10" type="email" placeholder="your.name@unilag.edu.ng" value={form.email} onChange={set('email')} required />
+                  </div>
+                  {mode === 'signup' && (
+                    <p className="mt-2 text-[11px] leading-4 text-white/30">
+                      Use an approved university email. We verify it against the campus allowlist.
+                    </p>
+                  )}
+                </div>
+
+                <AnimatePresence initial={false} mode="popLayout">
+                  {mode === 'signup' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden space-y-4"
+                    >
+                      <div>
+                        <label className="label" htmlFor="university">University</label>
+                        <select id="university" className="input" value={form.university} onChange={set('university')} required>
+                          <option value="">Select your university</option>
+                          {UNIVERSITIES.map(university => <option key={university} value={university}>{university}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="matric-number">Matric number <span className="font-normal text-white/20">(optional)</span></label>
+                        <input id="matric-number" className="input" type="text" placeholder="e.g. 190402056" value={form.matric} onChange={set('matric')} />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div>
+                  <label className="label" htmlFor="password">Password</label>
+                  <div className="relative">
+                    <LockKeyhole size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" />
+                    <input id="password" className="input pl-10 pr-11" type={showPass ? 'text' : 'password'} placeholder="Min 8 characters" value={form.password} onChange={set('password')} minLength={8} required />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(value => !value)}
+                      aria-label={showPass ? 'Hide password' : 'Show password'}
+                      className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-white/25 transition-colors hover:bg-white/[0.05] hover:text-white/60"
+                    >
+                      {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-plug-green px-4 font-black text-[#06110B] transition-all hover:bg-[#1AFF9A] hover:shadow-[0_8px_30px_rgba(0,255,136,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {submitting ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+                  {!submitting && <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />}
+                </button>
+              </form>
+
+              {mode === 'signin' && passkeySupported && (
+                <div className="mt-5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-white/[0.07]" />
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-white/20">or</span>
+                    <div className="h-px flex-1 bg-white/[0.07]" />
+                  </div>
+                  <motion.button
+                    type="button"
+                    onClick={handlePasskey}
+                    disabled={passkeyLoading || !form.email}
+                    whileTap={{ scale: 0.985 }}
+                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/[0.09] bg-white/[0.025] text-sm font-bold text-white/70 transition-colors hover:border-cyan/25 hover:bg-cyan/[0.04] hover:text-cyan disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    <Fingerprint size={17} className={passkeyLoading ? 'animate-pulse' : ''} />
+                    {passkeyLoading ? 'Verifying…' : 'Use Face ID or fingerprint'}
+                  </motion.button>
+                  {!form.email && <p className="mt-2 text-center text-[11px] text-white/20">Enter your email first to use passkey sign-in.</p>}
+                </div>
               )}
-            </AnimatePresence>
 
-            <div>
-              <label className="label" htmlFor="university-email">University Email</label>
-              <input id="university-email" className="input" type="email" placeholder="your.name@unilag.edu.ng" value={form.email} onChange={set('email')} required />
               {mode === 'signup' && (
-                <p className="text-xs text-white/30 mt-1.5 flex items-center gap-1">
-                  <Shield size={10} className="text-cyan" />
-                  Must be an approved university email — verified against the campus allowlist
+                <p className="mt-5 text-center text-[11px] leading-5 text-white/25">
+                  By creating an account, you confirm that you are a registered student. Device fingerprinting may be used for fraud prevention.
                 </p>
               )}
             </div>
 
-            <AnimatePresence>
-              {mode === 'signup' && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden space-y-4">
-                  <div>
-                    <label className="label" htmlFor="university">University</label>
-                    <select id="university" className="input" value={form.university} onChange={set('university')} required={mode === 'signup'}>
-                      <option value="">Select your university</option>
-                      {UNIVERSITIES.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="matric-number">Matric Number (optional)</label>
-                    <input id="matric-number" className="input" type="text" placeholder="e.g. 190402056" value={form.matric} onChange={set('matric')} />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div>
-              <label className="label" htmlFor="password">Password</label>
-              <div className="relative">
-                <input id="password" className="input pr-10" type={showPass ? 'text' : 'password'} placeholder="Min 8 characters" value={form.password} onChange={set('password')} minLength={8} required />
-                <button type="button" onClick={() => setShowPass(v => !v)} aria-label={showPass ? 'Hide password' : 'Show password'} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
+            <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-white/20">
+              <LockKeyhole size={12} />
+              Secure connection · Campus Plug
             </div>
-
-            <button type="submit" disabled={submitting} className="btn-primary w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
-              {submitting ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Create Account'}
-            </button>
-          </form>
-
-          {mode === 'signin' && passkeySupported && (
-            <div className="mt-4">
-              <div className="flex items-center gap-3 my-4">
-                <div className="flex-1 h-px bg-obsidian-500" />
-                <span className="text-xs text-white/30">or</span>
-                <div className="flex-1 h-px bg-obsidian-500" />
-              </div>
-              <motion.button onClick={handlePasskey} disabled={passkeyLoading || !form.email} whileTap={{ scale: 0.97 }} className="w-full py-3 rounded-xl border border-cyan/30 bg-cyan/5 text-cyan font-semibold text-sm flex items-center justify-center gap-2.5 hover:bg-cyan/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                <Fingerprint size={17} className={passkeyLoading ? 'animate-pulse' : ''} />
-                {passkeyLoading ? 'Verifying biometrics...' : 'Sign in with Face ID / Fingerprint'}
-              </motion.button>
-              {!form.email && <p className="text-xs text-white/25 text-center mt-2">Enter your email above first</p>}
-            </div>
-          )}
-
-          {mode === 'signup' && (
-            <p className="text-xs text-center text-white/25 mt-4">
-              By signing up you confirm you are a registered student. Your device fingerprint is collected to prevent fraud and scam accounts.
-            </p>
-          )}
-        </div>
-
-        <div className="text-center mt-6">
-          <div className="inline-flex items-center gap-2 text-xs text-white/30">
-            <div className="plug-dot scale-75" />
-            12,400+ students already plugged in
-          </div>
-        </div>
-      </motion.div>
-    </div>
+          </motion.div>
+        </section>
+      </div>
+    </main>
   )
 }

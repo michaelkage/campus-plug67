@@ -1,5 +1,5 @@
 /**
- * Campus Plug — calculate-trending Edge Function v6.3
+ * Campus Plug — calculate-trending Edge Function v6.4
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
@@ -8,14 +8,9 @@ import { jsonResponse, optionsResponse, isServiceRoleRequest } from "../_shared/
 type ProfileMeta = { tier?: string; collusion_flag?: boolean; total_sales?: number; created_at?: string; gps_spoof_flags?: number };
 type Candidate = { id: string; created_at: string; university: string | null; seller_id: string; profiles: ProfileMeta | null };
 type ActivityRow = { listing_id: string; viewer_id?: string | null; sender_id?: string | null };
-
-type Scored = {
-  listing_id: string; score: number; views_1h: number; views_24h: number;
-  messages_1h: number; eligible: boolean; is_rookie: boolean;
-};
+type Scored = { listing_id: string; score: number; views_1h: number; views_24h: number; messages_1h: number; eligible: boolean; is_rookie: boolean };
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-
 const ok = (req: Request, data: unknown) => jsonResponse(data, 200, {}, req);
 const bad = (req: Request, message: string, status = 400) => jsonResponse({ error: message }, status, {}, req);
 
@@ -65,6 +60,9 @@ serve(async (req: Request) => {
       admin.from("listing_views").select("listing_id, viewer_id").in("listing_id", listingIds).gte("viewed_at", new Date(Date.now() - 86_400_000).toISOString()),
       admin.from("messages").select("listing_id, sender_id").in("listing_id", listingIds).gte("created_at", new Date(Date.now() - 3_600_000).toISOString()).eq("is_system_msg", false),
     ]);
+    if (views1hRes.error) return bad(req, views1hRes.error.message, 500);
+    if (totalViewsRes.error) return bad(req, totalViewsRes.error.message, 500);
+    if (msgs1hRes.error) return bad(req, msgs1hRes.error.message, 500);
 
     const views1hMap = rowsToMap((views1hRes.data ?? []) as ActivityRow[], "viewer_id");
     const totalViewMap = rowsToMap((totalViewsRes.data ?? []) as ActivityRow[], "viewer_id");
@@ -87,7 +85,8 @@ serve(async (req: Request) => {
       const seller = candidates.find(c => c.seller_id === sellerId)?.profiles;
       if ((seller?.total_sales ?? 0) >= 10 || seller?.collusion_flag) continue;
       collusionFlaggedSellers.add(sellerId);
-      await admin.from("profiles").update({ collusion_flag: true, collusion_ceiling: 60, collusion_flagged_at: now.toISOString() }).eq("id", sellerId);
+      const { error } = await admin.from("profiles").update({ collusion_flag: true, collusion_ceiling: 60, collusion_flagged_at: now.toISOString() }).eq("id", sellerId);
+      if (error) return bad(req, error.message, 500);
     }
 
     const scores: Scored[] = [];
@@ -118,23 +117,35 @@ serve(async (req: Request) => {
     const trending = [...regTop, ...rookieTop];
     const trendingIds = new Set(trending.map(t => t.listing_id));
 
-    if (trending.length > 0) await admin.from("trending_listings").upsert(trending.map(t => ({ listing_id: t.listing_id, views_1h: t.views_1h, views_24h: t.views_24h, messages_1h: t.messages_1h, score: t.score, updated_at: now.toISOString() })), { onConflict: "listing_id" });
-    if (trendingIds.size > 0) await admin.from("listings").update({ is_trending: true }).in("id", [...trendingIds]);
+    if (trending.length > 0) {
+      const { error } = await admin.from("trending_listings").upsert(trending.map(t => ({ listing_id: t.listing_id, views_1h: t.views_1h, views_24h: t.views_24h, messages_1h: t.messages_1h, score: t.score, updated_at: now.toISOString() })), { onConflict: "listing_id" });
+      if (error) return bad(req, error.message, 500);
+    }
+    if (trendingIds.size > 0) {
+      const { error } = await admin.from("listings").update({ is_trending: true }).in("id", [...trendingIds]);
+      if (error) return bad(req, error.message, 500);
+    }
 
     const staleIds = scores.filter(s => !trendingIds.has(s.listing_id)).map(s => s.listing_id);
     if (staleIds.length > 0) {
-      await admin.from("listings").update({ is_trending: false }).in("id", staleIds).eq("is_trending", true);
-      await admin.from("trending_listings").delete().in("listing_id", staleIds);
+      const { error: listingError } = await admin.from("listings").update({ is_trending: false }).in("id", staleIds).eq("is_trending", true);
+      if (listingError) return bad(req, listingError.message, 500);
+      const { error: trendingError } = await admin.from("trending_listings").delete().in("listing_id", staleIds);
+      if (trendingError) return bad(req, trendingError.message, 500);
     }
 
-    await admin.rpc("expire_flash_deals");
-    await admin.rpc("cleanup_expired_amber");
-    await admin.rpc("reclaim_silent_jurors");
-    if (now.getHours() === 0 && now.getMinutes() < 16) await admin.from("profiles").update({ juror_cases_today: 0 }).neq("juror_cases_today", 0);
+    // Trending owns ranking. Escrow/dispute maintenance is handled by their
+    // dedicated workers; do not invoke parameterised jury RPCs from here.
+    const { error: flashError } = await admin.rpc("expire_flash_deals");
+    if (flashError) return bad(req, flashError.message, 500);
+    if (now.getHours() === 0 && now.getMinutes() < 16) {
+      const { error } = await admin.from("profiles").update({ juror_cases_today: 0 }).neq("juror_cases_today", 0);
+      if (error) return bad(req, error.message, 500);
+    }
 
     return ok(req, { trending: trending.length, rookie_slots: rookieTop.length, regular_slots: regTop.length, processed: candidates.length, collusion_flagged: collusionFlaggedSellers.size, ts: now.toISOString() });
   } catch (err) {
-    console.error("[calculate-trending v6.3]", err);
+    console.error("[calculate-trending v6.4]", err);
     return bad(req, "Internal error: " + (err instanceof Error ? err.message : "Unknown error"), 500);
   }
 });

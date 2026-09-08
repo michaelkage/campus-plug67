@@ -75,6 +75,17 @@ jobs:
       - name: Link project for database deployment
         run: supabase link --project-ref "${{ steps.project.outputs.ref }}" --password "$SUPABASE_DB_PASSWORD"
 
+      - name: Repair stale remote migration history
+        shell: bash
+        run: |
+          set -euo pipefail
+          # These historical versions are present in the production migration
+          # history but no longer exist in the canonical repository migrations.
+          # Repair changes only supabase_migrations.schema_migrations; it does
+          # not execute or undo their SQL. This is the state Supabase CLI itself
+          # recommends when local and remote migration histories diverge.
+          supabase migration repair 011 012 013 014 015 --status reverted --linked
+
       - name: Apply database migrations
         run: supabase db push --linked
 

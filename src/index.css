@@ -23,6 +23,14 @@
     outline: 2px solid #00E5FF;
     outline-offset: 2px;
   }
+
+  input::placeholder,
+  textarea::placeholder { color: rgba(255,255,255,.28); opacity: 1; }
+
+  option {
+    background: #121721;
+    color: #fff;
+  }
 }
 
 @layer components {
@@ -33,6 +41,51 @@
   .btn-secondary {
     @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 font-bold text-white transition-colors hover:border-cyan/40 hover:text-cyan disabled:cursor-not-allowed disabled:opacity-50;
   }
+
+  /* Shared form controls. Keep these consistent across every page instead of
+     relying on the browser's default input/select appearance. */
+  .label {
+    @apply mb-1.5 block text-xs font-bold tracking-wide text-white/65;
+  }
+
+  .input {
+    @apply block min-h-11 w-full rounded-xl border border-white/[0.10] bg-white/[0.035] px-3.5 py-2.5 text-sm text-white shadow-sm transition-all duration-150;
+    @apply placeholder:text-white/25;
+  }
+
+  .input:hover {
+    @apply border-white/[0.16] bg-white/[0.05];
+  }
+
+  .input:focus {
+    @apply border-cyan/60 bg-white/[0.055] outline-none ring-2 ring-cyan/10;
+  }
+
+  .input:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  textarea.input {
+    @apply min-h-24 py-3 leading-6;
+  }
+
+  select.input {
+    @apply cursor-pointer appearance-none pr-10;
+    background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,.55) 50%), linear-gradient(135deg, rgba(255,255,255,.55) 50%, transparent 50%);
+    background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  select.input:hover { background-color: rgba(255,255,255,.05); }
+  select.input:focus { background-color: rgba(255,255,255,.055); }
+
+  input[type='date'].input,
+  input[type='time'].input,
+  input[type='datetime-local'].input { color-scheme: dark; }
+
+  input[type='checkbox'],
+  input[type='radio'] { accent-color: #00FF88; }
 
   .plug-dot { @apply inline-block h-2 w-2 rounded-full bg-plug-green shadow-[0_0_12px_rgba(0,255,136,0.55)]; }
 

@@ -189,8 +189,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (updates: Partial<Profile>) => {
     if (!session?.user) return
+
+    // Only fields exposed by the profile editor are accepted here. Trust,
+    // moderation, accounting, wallet, and identity-control fields are server-managed.
+    const safeUpdates: Partial<Profile> = {}
+    if (updates.full_name !== undefined) safeUpdates.full_name = String(updates.full_name).trim().slice(0, 120)
+    if (updates.department !== undefined) safeUpdates.department = String(updates.department).trim().slice(0, 120)
+    if (updates.level !== undefined) safeUpdates.level = updates.level
+    if (updates.bio !== undefined) safeUpdates.bio = String(updates.bio).trim().slice(0, 1000)
+
+    if (Object.keys(safeUpdates).length === 0) {
+      return { error: 'No editable profile fields supplied' }
+    }
+
     const { data, error } = await supabase.from('profiles')
-      .update(updates).eq('id', session.user.id).select().single()
+      .update(safeUpdates).eq('id', session.user.id).select().single()
     if (error) { toast.error('Failed to update profile'); return { error } }
     setProfile(data as Profile)
     toast.success('Profile updated!')

@@ -23,8 +23,11 @@ This document records the production-hardening work added after the v6.9 securit
 - Existing dispute function authorization remains server-side.
 
 ## Phase 6 — Admin/audit
-- Added `is_platform_admin()` and a controlled `write_security_audit()` helper.
-- Sensitive audit insertion remains service-authoritative.
+- Hardened `write_security_audit()` with validated entity/action input, metadata size limits, and server-derived actor identity.
+- Direct browser `audit_logs` INSERT is prohibited; privileged database operations remain authoritative.
+- Added a shared frontend audit client so user actions use the controlled writer instead of table inserts.
+- Retrofitted the marketplace chat edit/delete evidence path to use the controlled audit writer.
+- Added a cross-page visual compatibility layer and application shell so older pages/components inherit the current Campus Plug design system.
 
 ## Phase 7 — Secrets/config
 - Added repository secret-pattern scanning through GitHub Actions.

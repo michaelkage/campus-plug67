@@ -48,8 +48,12 @@ if (!/revoke execute on function public\.st_estimatedextent/i.test(migration)) {
 }
 
 const config = read('supabase/config.toml');
-if (!/\[functions\.maintenance-cleanup\][\s\S]*?verify_jwt\s*=\s*true/.test(config)) {
-  fail('maintenance-cleanup must use gateway JWT verification');
+if (!/\[functions\.maintenance-cleanup\][\s\S]*?verify_jwt\s*=\s*false/.test(config)) {
+  fail('maintenance-cleanup must disable gateway JWT verification and authenticate its secret key in the handler');
+}
+for (const fn of ['release-escrow', 'calculate-trending', 'process-dispute']) {
+  const pattern = new RegExp(`\\[functions\\.${fn}\\][\\s\\S]*?verify_jwt\\s*=\\s*false`);
+  if (!pattern.test(config)) fail(`${fn} must use API-key authentication for service-to-service calls`);
 }
 
 const viewMigration = read('supabase/migrations/048_security_linter_hardening.sql');

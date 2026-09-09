@@ -20,43 +20,40 @@ export function getBearerToken(req: Request): string | null {
   return token || null;
 }
 
-function readJwtPayload(token: string): Record<string, unknown> | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
+function getApiKey(req: Request): string | null {
+  const value = req.headers.get("apikey") ?? "";
+  const key = value.trim();
+  return key || null;
+}
+
+function getSecretKeys(): string[] {
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (!raw) return [];
   try {
-    const normalized = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-    const payload = JSON.parse(atob(padded));
-    return payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return [];
+    return Object.values(parsed).filter((value): value is string => typeof value === "string" && value.length > 0);
   } catch {
-    return null;
+    return [];
   }
 }
 
 /**
  * Recognize internal/service-role calls.
  *
- * The exact server-only service key is preferred. If a deployment has rotated
- * its service key while GitHub Actions still holds a valid older service-role
- * JWT, the Supabase Edge gateway's JWT verification is the trust boundary for
- * functions using the default `verify_jwt = true` setting. In that case we also
- * accept a token whose verified payload identifies the service_role audience and
- * the current project's issuer. Functions that disable gateway JWT verification
- * must not rely on this fallback.
+ * Current Supabase secret keys are API keys, not JWTs. They must be supplied in
+ * the `apikey` header and authorized by the function itself. Legacy service_role
+ * JWTs remain supported for compatibility, but are accepted only when they
+ * exactly match the legacy service-role key provisioned by Supabase.
  */
 export function isServiceRoleRequest(req: Request): boolean {
-  const token = getBearerToken(req);
-  if (!token) return false;
-
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (serviceKey && token === serviceKey) return true;
+  const bearer = getBearerToken(req);
+  const apiKey = getApiKey(req);
 
-  const payload = readJwtPayload(token);
-  if (!payload || payload.role !== "service_role") return false;
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")?.replace(/\/$/, "");
-  const issuer = typeof payload.iss === "string" ? payload.iss.replace(/\/$/, "") : "";
-  return Boolean(supabaseUrl && issuer === `${supabaseUrl}/auth/v1`);
+  if (serviceKey && (bearer === serviceKey || apiKey === serviceKey)) return true;
+  if (apiKey && getSecretKeys().includes(apiKey)) return true;
+  return false;
 }
 
 export function corsHeaders(req: Request): HeadersInit {
@@ -103,10 +100,11 @@ export async function getAuthenticatedUser(req: Request): Promise<User | null> {
   return data.user;
 }
 
-export async function requireUser(req: Request): Promise<User> {
-  const user = await getAuthenticatedUser(req);
-  if (!user) throw new Error("Unauthorized");
-  return user;
+export function requireUser(req: Request): Promise<User> {
+  return getAuthenticatedUser(req).then((user) => {
+    if (!user) throw new Error("Unauthorized");
+    return user;
+  });
 }
 
 export function jsonResponse(data: unknown, status = 200, extraHeaders: HeadersInit = {}, req?: Request): Response {

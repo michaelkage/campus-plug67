@@ -55,6 +55,15 @@ export interface RpcDefinitions {
     Args: { p_transaction_id: string }
     Returns: unknown
   }
+  write_security_audit: {
+    Args: {
+      p_entity_type: string
+      p_entity_id: string
+      p_action: string
+      p_metadata?: Record<string, unknown> | null
+    }
+    Returns: string
+  }
 }
 
 type RpcName = keyof RpcDefinitions

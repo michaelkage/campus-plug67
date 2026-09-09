@@ -13,6 +13,7 @@ import {
 } from '@simplewebauthn/browser'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { getDeviceHash } from './security'
 
 export { browserSupportsWebAuthn, browserSupportsWebAuthnAutofill }
 
@@ -78,8 +79,14 @@ export async function authenticateWithPasskey(email: string) {
   if (profileError) throw profileError
   if (!profile) throw new Error('No account found for this email')
 
+  const clientFingerprint = await getDeviceHash().catch(() => null)
+
   const { data: optionsRes, error } = await supabase.functions.invoke<AuthenticationOptionsResponse>('passkey-auth', {
-    body: { action: 'generate_authentication_options', userId: profile.id },
+    body: {
+      action: 'generate_authentication_options',
+      userId: profile.id,
+      client_fingerprint: clientFingerprint,
+    },
   })
   if (error) throw new Error(error.message)
   if (!optionsRes?.options) throw new Error('No passkeys registered for this account')
@@ -95,7 +102,12 @@ export async function authenticateWithPasskey(email: string) {
   }
 
   const { data: verifyRes, error: verifyErr } = await supabase.functions.invoke<VerifyResponse>('passkey-auth', {
-    body: { action: 'verify_authentication', userId: profile.id, response: authResponse },
+    body: {
+      action: 'verify_authentication',
+      userId: profile.id,
+      response: authResponse,
+      client_fingerprint: clientFingerprint,
+    },
   })
   if (verifyErr) throw new Error(verifyErr.message)
   if (!verifyRes?.verified) throw new Error('Authentication failed — signature invalid')

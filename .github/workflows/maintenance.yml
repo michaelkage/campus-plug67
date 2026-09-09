@@ -30,6 +30,5 @@ jobs:
             --retry 3 --retry-delay 3 --retry-all-errors --max-time 60 \
             -X POST \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             "${SUPABASE_URL}/functions/v1/maintenance-cleanup"

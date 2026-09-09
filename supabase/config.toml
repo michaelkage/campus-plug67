@@ -22,8 +22,17 @@ verify_jwt = false
 [functions.paystack-webhook]
 verify_jwt = false
 
-# Internal maintenance calls use the same verified service-role JWT boundary
-# as the other protected Edge Functions. Webhook/passkey endpoints remain
-# explicitly public because they perform their own authentication.
+# Service-to-service workers authenticate with Supabase secret/service-role API
+# keys in the `apikey` header. These are not user JWTs, so the platform JWT
+# verifier must be disabled; each function performs its own exact key check.
+[functions.release-escrow]
+verify_jwt = false
+
+[functions.calculate-trending]
+verify_jwt = false
+
+[functions.process-dispute]
+verify_jwt = false
+
 [functions.maintenance-cleanup]
-verify_jwt = true
+verify_jwt = false

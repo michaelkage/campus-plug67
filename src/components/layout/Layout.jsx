@@ -7,10 +7,11 @@ import NotificationBanner from '@/components/ui/NotificationBanner'
 export default function Layout() {
   const location = useLocation()
   return (
-    <div className="min-h-screen bg-obsidian flex flex-col">
+    <div className="app-shell flex min-h-screen flex-col bg-obsidian text-white">
+      <div className="app-ambient" aria-hidden="true" />
       <TopNav />
       <NotificationBanner />
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className="app-main relative z-10 flex-1 pb-20 md:pb-0">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}

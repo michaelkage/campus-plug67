@@ -13,29 +13,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-
   html { min-height: 100%; background: #05070A; }
   body { margin: 0; min-height: 100vh; background: #0A0D14; color: #fff; }
   #root { min-height: 100vh; }
-
   button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-    outline: 2px solid #00E5FF;
-    outline-offset: 2px;
-  }
-
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #00E5FF; outline-offset: 2px; }
   button { font: inherit; }
   input::placeholder, textarea::placeholder { color: rgba(255,255,255,.28); opacity: 1; }
   option { background: #121721; color: #fff; }
-
-  /* Keep controls usable even in older components that predate the shared classes. */
-  input:not(.input), select:not(.input), textarea:not(.input) {
-    border-radius: .75rem;
-    border: 1px solid rgba(255,255,255,.10);
-    background: rgba(255,255,255,.035);
-    color: #fff;
-    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
-  }
+  input:not(.input), select:not(.input), textarea:not(.input) { border-radius: .75rem; border: 1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.035); color: #fff; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
   input:not(.input), select:not(.input) { min-height: 2.75rem; padding: .625rem .875rem; }
   textarea:not(.input) { padding: .75rem .875rem; }
   input:not(.input):hover, select:not(.input):hover, textarea:not(.input):hover { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.05); }
@@ -43,124 +29,77 @@
 }
 
 @layer components {
-  /* Buttons: one predictable height, radius, weight and interaction model. */
-  .btn-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-plug-green px-4 font-bold text-obsidian-950 shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-plug-green-600 hover:shadow-lg hover:shadow-plug-green/10 active:translate-y-0 active:scale-[.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none;
-  }
-
-  .btn-secondary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 font-bold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-cyan/40 hover:bg-white/[0.08] hover:text-cyan active:translate-y-0 active:scale-[.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0;
-  }
-
-  .icon-button {
-    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-transparent text-white/55 transition-all duration-150 hover:border-white/10 hover:bg-white/5 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40;
-  }
-
-  /* Shared form controls. */
+  .btn-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-plug-green px-4 font-bold text-obsidian-950 shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-plug-green-600 hover:shadow-lg hover:shadow-plug-green/10 active:translate-y-0 active:scale-[.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none; }
+  .btn-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 font-bold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:border-cyan/40 hover:bg-white/[0.08] hover:text-cyan active:translate-y-0 active:scale-[.985] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0; }
+  .icon-button { @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-transparent text-white/55 transition-all duration-150 hover:border-white/10 hover:bg-white/5 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40; }
   .label { @apply mb-1.5 block text-xs font-bold tracking-wide text-white/65; }
-  .input {
-    @apply block min-h-11 w-full rounded-xl border border-white/[0.10] bg-white/[0.035] px-3.5 py-2.5 text-sm text-white shadow-sm transition-all duration-150;
-    @apply placeholder:text-white/25;
-  }
+  .input { @apply block min-h-11 w-full rounded-xl border border-white/[0.10] bg-white/[0.035] px-3.5 py-2.5 text-sm text-white shadow-sm transition-all duration-150 placeholder:text-white/25; }
   .input:hover { @apply border-white/[0.16] bg-white/[0.05]; }
   .input:focus { @apply border-cyan/60 bg-white/[0.055] outline-none ring-2 ring-cyan/10; }
   .input:disabled { @apply cursor-not-allowed opacity-50; }
   textarea.input { @apply min-h-24 py-3 leading-6; }
-  select.input {
-    @apply cursor-pointer appearance-none pr-10;
-    background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,.55) 50%), linear-gradient(135deg, rgba(255,255,255,.55) 50%, transparent 50%);
-    background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
-    background-size: 5px 5px, 5px 5px;
-    background-repeat: no-repeat;
-  }
+  select.input { @apply cursor-pointer appearance-none pr-10; background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,.55) 50%), linear-gradient(135deg, rgba(255,255,255,.55) 50%, transparent 50%); background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
   select.input:hover { background-color: rgba(255,255,255,.05); }
   select.input:focus { background-color: rgba(255,255,255,.055); }
   input[type='date'].input, input[type='time'].input, input[type='datetime-local'].input { color-scheme: dark; }
   input[type='checkbox'], input[type='radio'] { accent-color: #00FF88; }
-
-  /* Surface primitives for pages/cards/dialogs. */
-  .surface {
-    @apply rounded-2xl border border-white/[0.08] bg-obsidian-400;
-    box-shadow: 0 10px 30px rgba(0,0,0,.12);
-  }
-  .surface-interactive {
-    @apply transition-all duration-150 hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-white/[0.02] hover:shadow-lg;
-  }
-  .modal-backdrop {
-    @apply fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4;
-  }
-  .modal-panel {
-    @apply relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-white/10 bg-obsidian-400 shadow-2xl sm:max-w-lg sm:rounded-2xl;
-  }
-  .modal-header {
-    @apply sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/[0.07] bg-obsidian-400/95 px-5 py-4 backdrop-blur-xl;
-  }
-
+  .surface { @apply rounded-2xl border border-white/[0.08] bg-obsidian-400; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
+  .surface-interactive { @apply transition-all duration-150 hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-white/[0.02] hover:shadow-lg; }
+  .modal-backdrop { @apply fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4; }
+  .modal-panel { @apply relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-white/10 bg-obsidian-400 shadow-2xl sm:max-w-lg sm:rounded-2xl; }
+  .modal-header { @apply sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/[0.07] bg-obsidian-400/95 px-5 py-4 backdrop-blur-xl; }
   .plug-dot { @apply inline-block h-2 w-2 rounded-full bg-plug-green shadow-[0_0_12px_rgba(0,255,136,0.55)]; }
-  .cyber-grid {
-    background-image: linear-gradient(rgba(0,229,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.07) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
+  .cyber-grid { background-image: linear-gradient(rgba(0,229,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.07) 1px, transparent 1px); background-size: 24px 24px; }
   .touch-target { @apply min-h-11 min-w-11; }
   .skeleton { @apply animate-pulse rounded-xl bg-white/5; }
+  .page-shell { @apply content-width page-gutter py-6 sm:py-8; }
+  .page-header { @apply mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between; }
+  .section-label { @apply text-[11px] font-bold uppercase tracking-[.16em] text-cyan/70; }
+  .page-title { @apply mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl; }
+  .page-subtitle { @apply mt-1 max-w-2xl text-sm leading-6 text-white/45; }
+  .stat-card { @apply surface p-4 sm:p-5; }
+  .app-shell { position: relative; isolation: isolate; overflow-x: clip; }
+  .app-ambient { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(circle at 12% 8%, rgba(0,229,255,.055), transparent 28%), radial-gradient(circle at 88% 22%, rgba(168,85,247,.045), transparent 26%), linear-gradient(180deg, rgba(255,255,255,.012), transparent 30%); }
+  .app-main { min-width: 0; }
 }
 
-/* Legacy card markup: bring older pages onto the same visual language without
-   requiring a risky component-by-component rewrite. */
 @layer utilities {
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .page-gutter { @apply px-4 sm:px-6 lg:px-8; }
   .content-width { @apply mx-auto w-full max-w-7xl; }
 }
 
+/* Retrofit older cards, dialogs and form markup so legacy pages share the current visual system. */
 .bg-obsidian-400.border.border-obsidian-500.rounded-xl,
 .bg-obsidian-400.border.border-obsidian-500.rounded-2xl,
-.bg-obsidian-400.border.border-obsidian-500.rounded-lg {
-  box-shadow: 0 10px 30px rgba(0,0,0,.12);
-  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
-}
-
-/* Dialogs in older pages use repeated fixed/backdrop markup instead of .modal-*.
-   These selectors intentionally only affect high-confidence dialog shapes. */
+.bg-obsidian-400.border.border-obsidian-500.rounded-lg { box-shadow: 0 10px 30px rgba(0,0,0,.12); transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
 .fixed.inset-0.z-50 > .relative.z-10.max-w-lg,
 .fixed.inset-0.z-50 > .relative.z-10.max-w-xl,
 .fixed.inset-0.z-50 > .relative.z-10.max-w-md,
 .fixed.inset-0.z-50 > div[class*="max-w-lg"][class*="bg-obsidian"],
 .fixed.inset-0.z-50 > div[class*="max-w-xl"][class*="bg-obsidian"],
-.fixed.inset-0.z-50 > div[class*="max-w-md"][class*="bg-obsidian"] {
-  box-shadow: 0 24px 80px rgba(0,0,0,.55);
-}
-
-/* Tables should remain readable on small screens rather than squeezing columns. */
+.fixed.inset-0.z-50 > div[class*="max-w-md"][class*="bg-obsidian"] { box-shadow: 0 24px 80px rgba(0,0,0,.55); }
 table th { font-weight: 700; letter-spacing: .04em; }
 table td, table th { vertical-align: middle; }
 
-/* Mobile rhythm: avoid cramped controls and prevent fixed bottom navigation overlap. */
 @media (max-width: 767px) {
   .btn-primary, .btn-secondary { min-height: 44px; }
   .modal-panel { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .page-gutter { padding-left: 1rem; padding-right: 1rem; }
-
-  /* Two-column form/card layouts become a comfortable single column by default. */
   .grid.grid-cols-2 { grid-template-columns: minmax(0, 1fr); }
-
-  /* Keep stats compact when a page explicitly uses three equal columns. */
   .grid.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
-  /* Full-width dialogs should breathe while respecting phone safe areas. */
   .fixed.inset-0.z-50 { padding-left: .75rem; padding-right: .75rem; padding-bottom: env(safe-area-inset-bottom, .75rem); }
-  .fixed.inset-0.z-50 > div[class*="max-w-lg"],
-  .fixed.inset-0.z-50 > div[class*="max-w-xl"],
-  .fixed.inset-0.z-50 > div[class*="max-w-md"] { max-height: calc(100dvh - 1rem); overflow-y: auto; }
-
-  /* Long labels and IDs should not force horizontal scrolling. */
+  .fixed.inset-0.z-50 > div[class*="max-w-lg"], .fixed.inset-0.z-50 > div[class*="max-w-xl"], .fixed.inset-0.z-50 > div[class*="max-w-md"] { max-height: calc(100dvh - 1rem); overflow-y: auto; }
   table { min-width: 640px; }
   .overflow-x-auto { -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
 }
-
 @media (max-width: 420px) {
   .grid.grid-cols-3 { gap: .5rem; }
   .grid.grid-cols-3 > * { padding-left: .5rem; padding-right: .5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }

@@ -1,11 +1,11 @@
 import { Link, NavLink } from 'react-router-dom'
-import { Bell, Laptop } from 'lucide-react'
+import { Bell, Laptop, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
-const links = [['/','Home'],['/marketplace','Market'],['/workspace','Workspace'],['/gigs','Gigs'],['/safe-swap','Safe Swap'],['/lost-found','Lost & Found'],['/leaderboard','Leaderboard']]
+const links = [['/','Home'],['/marketplace','Market'],['/campus-hub','Campus Hub'],['/workspace','Workspace'],['/gigs','Gigs'],['/safe-swap','Safe Swap'],['/lost-found','Lost & Found'],['/leaderboard','Leaderboard']]
 
 export default function TopNav(){
   const {user,profile,signOut}=useAuth()
@@ -13,29 +13,9 @@ export default function TopNav(){
   const {data:unreadCount=0}=useQuery({queryKey:['unread-notifications',user?.id],queryFn:async()=>{const {count}=await supabase.from('notifications').select('id',{count:'exact',head:true}).eq('user_id',user.id).eq('read',false);return count||0},enabled:!!user,refetchInterval:30_000})
   return <nav className="sticky top-0 z-50 h-16 border-b border-white/[0.07] bg-obsidian/90 px-4 backdrop-blur-2xl md:px-8">
     <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between">
-      <Link to="/" className="flex min-w-0 items-center gap-2.5" aria-label="CampusPlug home">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan to-purple text-sm font-black text-obsidian shadow-lg shadow-cyan/10">⚡</div>
-        <span className="hidden truncate text-lg font-bold tracking-tight sm:block">Campus<span className="text-cyan">Plug</span></span>
-      </Link>
-      <div className="hidden items-center gap-1 md:flex">
-        {links.map(([path,label])=><NavLink key={path} to={path} end={path==='/'} className={({isActive})=>`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive?'bg-white/5 text-white':'text-white/45 hover:bg-white/[0.03] hover:text-white/80'}`}>{label}</NavLink>)}
-      </div>
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <Link to="/workspace" className="icon-button md:hidden" aria-label="Workspace"><Laptop size={18}/></Link>
-        <Link to="/notifications" className="icon-button relative" aria-label={`Notifications${unreadCount?`, ${unreadCount} unread`:''}`}><Bell size={18}/>{unreadCount>0&&<span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-plug-red px-1 text-[9px] font-bold text-white">{unreadCount>9?'9+':unreadCount}</span>}</Link>
-        <div className="relative ml-1">
-          <button onClick={()=>setMenuOpen(v=>!v)} className="h-10 w-10 rounded-full bg-gradient-to-br from-cyan to-purple p-0.5 text-xs font-bold text-obsidian transition-transform hover:scale-105 focus-visible:outline-offset-2" aria-expanded={menuOpen} aria-haspopup="menu" aria-label="Account menu">
-            <span className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-obsidian-400">{profile?.avatar_url?<img src={profile.avatar_url} alt="" className="h-full w-full object-cover"/>:(profile?.full_name?.[0]||user?.email?.[0]||'?').toUpperCase()}</span>
-          </button>
-          {menuOpen&&<div className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-white/10 bg-obsidian-400/98 py-1 shadow-2xl backdrop-blur-xl" onClick={()=>setMenuOpen(false)} role="menu">
-            <div className="border-b border-white/[0.07] px-4 py-3"><p className="truncate text-sm font-semibold">{profile?.full_name||'Student'}</p><p className="truncate text-xs text-white/40">{user?.email}</p></div>
-            <Link to="/profile" className="block px-4 py-2.5 text-sm text-white/65 transition-colors hover:bg-white/5 hover:text-white">My Profile</Link>
-            <Link to="/marketplace?tab=my-listings" className="block px-4 py-2.5 text-sm text-white/65 transition-colors hover:bg-white/5 hover:text-white">My Listings</Link>
-            <Link to="/workspace" className="block px-4 py-2.5 text-sm text-white/65 transition-colors hover:bg-white/5 hover:text-white">Laptop Workspace</Link>
-            <button onClick={signOut} className="w-full px-4 py-2.5 text-left text-sm font-medium text-plug-red/80 transition-colors hover:bg-plug-red/5 hover:text-plug-red">Sign Out</button>
-          </div>}
-        </div>
-      </div>
+      <Link to="/" className="flex min-w-0 items-center gap-2.5" aria-label="CampusPlug home"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan to-purple text-sm font-black text-obsidian shadow-lg shadow-cyan/10">⚡</div><span className="hidden truncate text-lg font-bold tracking-tight sm:block">Campus<span className="text-cyan">Plug</span></span></Link>
+      <div className="hidden items-center gap-1 md:flex">{links.map(([path,label])=><NavLink key={path} to={path} end={path==='/'} className={({isActive})=>`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive?'bg-white/5 text-white':'text-white/45 hover:bg-white/[0.03] hover:text-white/80'}`}>{label}</NavLink>)}</div>
+      <div className="flex items-center gap-1.5 sm:gap-2"><Link to="/campus-hub" className="icon-button md:hidden" aria-label="Campus Hub"><Sparkles size={18}/></Link><Link to="/workspace" className="icon-button md:hidden" aria-label="Workspace"><Laptop size={18}/></Link><Link to="/notifications" className="icon-button relative" aria-label={`Notifications${unreadCount?`, ${unreadCount} unread`:''}`}><Bell size={18}/>{unreadCount>0&&<span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-plug-red px-1 text-[9px] font-bold text-white">{unreadCount>9?'9+':unreadCount}</span>}</Link><div className="relative ml-1"><button onClick={()=>setMenuOpen(v=>!v)} className="h-10 w-10 rounded-full bg-gradient-to-br from-cyan to-purple p-0.5 text-xs font-bold text-obsidian transition-transform hover:scale-105 focus-visible:outline-offset-2" aria-expanded={menuOpen} aria-haspopup="menu" aria-label="Account menu"><span className="grid h-full w-full place-items-center overflow-hidden rounded-full bg-obsidian-400">{profile?.avatar_url?<img src={profile.avatar_url} alt="" className="h-full w-full object-cover"/>:(profile?.full_name?.[0]||user?.email?.[0]||'?').toUpperCase()}</span></button>{menuOpen&&<div className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-white/10 bg-obsidian-400/98 py-1 shadow-2xl backdrop-blur-xl" onClick={()=>setMenuOpen(false)} role="menu"><div className="border-b border-white/[0.07] px-4 py-3"><p className="truncate text-sm font-semibold">{profile?.full_name||'Student'}</p><p className="truncate text-xs text-white/40">{user?.email}</p></div><Link to="/profile" className="block px-4 py-2.5 text-sm text-white/65 transition-colors hover:bg-white/5 hover:text-white">My Profile</Link><Link to="/campus-hub" className="block px-4 py-2.5 text-sm text-white/65 transition-colors hover:bg-white/5 hover:text-white">Campus Hub</Link><Link to="/marketplace?tab=my-listings" className="block px-4 py-2.5 text-sm text-white/65 transition-colors hover:bg-white/5 hover:text-white">My Listings</Link><Link to="/workspace" className="block px-4 py-2.5 text-sm text-white/65 transition-colors hover:bg-white/5 hover:text-white">Laptop Workspace</Link><button onClick={signOut} className="w-full px-4 py-2.5 text-left text-sm font-medium text-plug-red/80 transition-colors hover:bg-plug-red/5 hover:text-plug-red">Sign Out</button></div>}</div></div>
     </div>
   </nav>
 }

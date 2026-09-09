@@ -50,43 +50,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return (data as Profile | null) ?? null
   }, [])
 
+  const hydrateSession = useCallback(async (nextSession: Session | null) => {
+    setSession(nextSession)
+    if (!nextSession?.user) {
+      setProfile(null)
+      return
+    }
+
+    await fetchProfile(nextSession.user.id)
+    try {
+      await registerDevice(nextSession.user.id)
+    } catch (error: unknown) {
+      if (errorMessage(error, '').startsWith('DEVICE_BANNED')) {
+        await supabase.auth.signOut()
+        setSession(null)
+        setProfile(null)
+        toast.error('🚫 This device has been flagged for policy violations.')
+      }
+    }
+  }, [fetchProfile])
+
   useEffect(() => {
     getDeviceHash().then(setDeviceHash).catch(() => {})
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        await fetchProfile(session.user.id)
-        try {
-          await registerDevice(session.user.id)
-        } catch (error: unknown) {
-          if (errorMessage(error, '').startsWith('DEVICE_BANNED')) {
-            await supabase.auth.signOut()
-            toast.error('🚫 This device has been flagged for policy violations.')
-          }
-        }
-      }
+      await hydrateSession(session)
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
-      setSession(session)
-      if (session?.user) {
-        await fetchProfile(session.user.id)
-        try {
-          await registerDevice(session.user.id)
-        } catch (error: unknown) {
-          if (errorMessage(error, '').startsWith('DEVICE_BANNED')) {
-            await supabase.auth.signOut()
-            toast.error('🚫 This device has been flagged for policy violations.')
-          }
-        }
-      } else {
-        setProfile(null)
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      // Supabase recommends keeping auth callbacks synchronous. Defer database/function
+      // work until after the callback returns to avoid auth-state deadlocks.
+      setTimeout(() => { void hydrateSession(session) }, 0)
     })
     return () => subscription.unsubscribe()
-  }, [fetchProfile])
+  }, [hydrateSession])
 
   const signUp = async ({ email, password, fullName, university, matric }: { email: string; password: string; fullName: string; university?: string; matric?: string }) => {
     const { valid, university: detectedUni } = await validateEduEmail(email)
@@ -151,6 +149,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast.error('Passkeys not supported on this device')
       return { error: 'NOT_SUPPORTED' }
     }
+
+    try {
+      if (await checkDeviceBan()) {
+        toast.error('🚫 This device is restricted from signing in.')
+        return { error: 'DEVICE_BANNED' }
+      }
+    } catch (error: unknown) {
+      toast.error('Security check unavailable. Please try again.')
+      return { error }
+    }
+
     try {
       const result = await authenticateWithPasskey(email)
       toast.success('Signed in with biometrics! 🔐')

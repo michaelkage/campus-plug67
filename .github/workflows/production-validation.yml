@@ -31,6 +31,7 @@ jobs:
       - run: npm test
       - run: npm run test:security
       - run: npm run test:security:supabase
+      - run: npm run test:production-readiness
       - run: npm run build
 
   supabase:

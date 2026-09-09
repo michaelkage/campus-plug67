@@ -110,12 +110,11 @@ jobs:
           response=$(curl --fail-with-body --silent --show-error -X POST \
             --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -d '{}' \
             "${SUPABASE_URL}/functions/v1/calculate-trending") || {
-              echo 'calculate-trending rejected the service-role request.'
-              echo 'Refresh SUPABASE_SERVICE_ROLE_KEY if this remains a 403.'
+              echo 'calculate-trending rejected the service-to-service request.'
+              echo 'The worker now expects a Supabase secret/service key in the apikey header.'
               exit 1
             }
           echo "$response"
@@ -129,7 +128,6 @@ jobs:
           curl --fail-with-body --silent --show-error -X POST \
             --retry 2 --retry-delay 2 --retry-all-errors --max-time 20 \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -d '{"action":"rotate_jurors"}' \
             "${SUPABASE_URL}/functions/v1/process-dispute"
@@ -150,7 +148,6 @@ jobs:
           curl --fail-with-body --silent --show-error -X POST \
             --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -d '{"action":"auto_release"}' \
             "${SUPABASE_URL}/functions/v1/release-escrow"
@@ -171,7 +168,6 @@ jobs:
           curl --fail-with-body --silent --show-error -X POST \
             --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -d '{"action":"auto_release"}' \
             "${SUPABASE_URL}/functions/v1/release-escrow"

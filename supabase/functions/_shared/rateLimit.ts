@@ -1,5 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 
+function getAdminClient() {
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceRoleKey) throw new Error("Supabase runtime configuration is missing");
+  return createClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 export async function enforceRateLimitWithToken(
   token: string,
   scope: string,
@@ -15,6 +24,27 @@ export async function enforceRateLimitWithToken(
   });
   const { data, error } = await client.rpc("consume_rate_limit", {
     p_scope: scope,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) throw error;
+  return { allowed: Boolean(data?.allowed), resetAt: data?.reset_at };
+}
+
+/**
+ * Rate limit an unauthenticated flow using a server-derived key (for example,
+ * an IP hash). The key is never exposed to the client or stored in plaintext.
+ */
+export async function enforceRateLimitByKey(
+  scope: string,
+  key: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<{ allowed: boolean; resetAt?: string }> {
+  const admin = getAdminClient();
+  const { data, error } = await admin.rpc("consume_rate_limit_keyed", {
+    p_scope: scope,
+    p_key: key,
     p_limit: limit,
     p_window_seconds: windowSeconds,
   });

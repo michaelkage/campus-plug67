@@ -3,16 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-    line-height: 1.5;
-    font-weight: 400;
-    color-scheme: dark;
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+  :root { font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif; line-height: 1.5; font-weight: 400; color-scheme: dark; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   html { min-height: 100%; background: #05070A; }
   body { margin: 0; min-height: 100vh; background: #0A0D14; color: #fff; }
   #root { min-height: 100vh; }
@@ -52,12 +43,12 @@
   .cyber-grid { background-image: linear-gradient(rgba(0,229,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.07) 1px, transparent 1px); background-size: 24px 24px; }
   .touch-target { @apply min-h-11 min-w-11; }
   .skeleton { @apply animate-pulse rounded-xl bg-white/5; }
-  .page-shell { @apply content-width page-gutter py-6 sm:py-8; }
+  .page-shell { @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8; }
   .page-header { @apply mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between; }
   .section-label { @apply text-[11px] font-bold uppercase tracking-[.16em] text-cyan/70; }
   .page-title { @apply mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl; }
   .page-subtitle { @apply mt-1 max-w-2xl text-sm leading-6 text-white/45; }
-  .stat-card { @apply surface p-4 sm:p-5; }
+  .stat-card { @apply rounded-2xl border border-white/[0.08] bg-obsidian-400 p-4 sm:p-5; box-shadow: 0 10px 30px rgba(0,0,0,.12); }
   .app-shell { position: relative; isolation: isolate; overflow-x: clip; }
   .app-ambient { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(circle at 12% 8%, rgba(0,229,255,.055), transparent 28%), radial-gradient(circle at 88% 22%, rgba(168,85,247,.045), transparent 26%), linear-gradient(180deg, rgba(255,255,255,.012), transparent 30%); }
   .app-main { min-width: 0; }
@@ -97,11 +88,9 @@ table td, table th { vertical-align: middle; }
   .grid.grid-cols-3 { gap: .5rem; }
   .grid.grid-cols-3 > * { padding-left: .5rem; padding-right: .5rem; }
 }
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
-
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #121721; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 999px; }

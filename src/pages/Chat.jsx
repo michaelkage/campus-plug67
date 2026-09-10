@@ -12,7 +12,8 @@ export default function Chat() {
     enabled: !!user,
     staleTime: 15_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from('messages').select('id,sender_id,receiver_id,content,created_at,read,transaction_id').or(`sender_id.eq.${user!.id},receiver_id.eq.${user!.id}`).order('created_at', { ascending: false }).limit(500)
+      if (!user?.id) return []
+      const { data, error } = await supabase.from('messages').select('id,sender_id,receiver_id,content,created_at,read,transaction_id').or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`).order('created_at', { ascending: false }).limit(500)
       if (error) throw error
       return data ?? []
     },
@@ -25,7 +26,7 @@ export default function Chat() {
   })
   const conversations = useMemo(() => {
     const profileMap = new Map(profiles.map(profile => [profile.id, profile]))
-    const grouped = new Map<string, { otherId: string; last: typeof messages[number]; unread: number }>()
+    const grouped = new Map()
     for (const message of messages) {
       const otherId = message.sender_id === user?.id ? message.receiver_id : message.sender_id
       if (!otherId) continue

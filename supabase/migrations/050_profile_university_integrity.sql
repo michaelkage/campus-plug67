@@ -87,5 +87,49 @@ CREATE TRIGGER profiles_ensure_university
   FOR EACH ROW
   EXECUTE PROCEDURE public.ensure_profile_university();
 
+-- Defense in depth: if a client submits a listing without university,
+-- derive it from the seller profile and approved email domain before the
+-- NOT NULL constraint is evaluated. Existing non-null values are untouched.
+CREATE OR REPLACE FUNCTION public.ensure_listing_university()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  seller_university text;
+  seller_email text;
+BEGIN
+  IF NEW.university IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT p.university, p.email
+    INTO seller_university, seller_email
+  FROM public.profiles p
+  WHERE p.id = NEW.seller_id;
+
+  IF seller_university IS NOT NULL THEN
+    NEW.university := seller_university;
+    RETURN NEW;
+  END IF;
+
+  SELECT d.institution_name
+    INTO NEW.university
+  FROM public.allowed_domains d
+  WHERE d.active = TRUE
+    AND lower(d.domain) = lower(split_part(COALESCE(seller_email, ''), '@', 2))
+  LIMIT 1;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS listings_ensure_university ON public.listings;
+CREATE TRIGGER listings_ensure_university
+  BEFORE INSERT OR UPDATE OF seller_id, university ON public.listings
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.ensure_listing_university();
+
 COMMENT ON COLUMN public.profiles.university IS
   'Resolved campus institution. Populated from approved email domain when available.';

@@ -58,7 +58,17 @@ export function isServiceRoleRequest(req: Request): boolean {
 
 export function corsHeaders(req: Request): HeadersInit {
   const origin = req.headers.get("Origin");
-  const configured = [Deno.env.get("VITE_APP_URL"), Deno.env.get("APP_URL")]
+
+  // Keep production browser origins working even when APP_URL/VITE_APP_URL was
+  // not configured in the Edge Function environment. Environment variables can
+  // still add/override deployment-specific origins without opening CORS to '*'.
+  const configured = [
+    "https://michaelkage.github.io",
+    "https://campusplug.ng",
+    "https://www.campusplug.ng",
+    Deno.env.get("VITE_APP_URL"),
+    Deno.env.get("APP_URL"),
+  ]
     .filter((value): value is string => Boolean(value))
     .map((value) => value.replace(/\/$/, ""));
 

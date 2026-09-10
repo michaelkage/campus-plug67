@@ -11,6 +11,11 @@ const protectedRoutes = [
   '/wallet',
   '/campus-hub',
   '/chat',
+  '/gigs',
+  '/leaderboard',
+  '/reviews',
+  '/war-room',
+  '/workspace',
 ]
 
 test('public auth shell loads', async ({ page }) => {

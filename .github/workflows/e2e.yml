@@ -22,10 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      VITE_SUPABASE_URL: https://etwsfdovcgofhqseejjo.supabase.co
-      # A placeholder is sufficient for the unauthenticated browser smoke tests.
-      # Production deployments use the real public anon key from GitHub Secrets.
-      VITE_SUPABASE_ANON_KEY: e2e-placeholder-key
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
 

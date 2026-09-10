@@ -1,10 +1,5 @@
 import { createClient, type User } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 
-// Supabase's current Edge Runtime documents Deno.serve as the canonical server
-// entry point. Keep a small compatibility bridge for older functions that still
-// call the historical global `serve(...)` helper. This lets the whole function
-// fleet migrate safely without making the health/deploy pipeline depend on the
-// order in which individual functions are updated.
 const edgeRuntime = globalThis as typeof globalThis & {
   serve?: typeof Deno.serve;
 };
@@ -41,13 +36,16 @@ function getSecretKeys(): string[] {
 /**
  * Recognize internal/service-role calls.
  *
- * Current Supabase secret keys are API keys, not JWTs. They must be supplied in
- * the `apikey` header and authorized by the function itself. Legacy service_role
- * JWTs remain supported for compatibility, but are accepted only when they
- * exactly match the legacy service-role key provisioned by Supabase.
+ * EDGE_FUNCTION_SERVICE_KEY is application-owned because Supabase reserves
+ * SUPABASE_* names for its managed Edge Function environment. The deployment
+ * workflow synchronizes the GitHub service credential into this secret before
+ * deploying functions. Legacy SUPABASE_SERVICE_ROLE_KEY support remains for
+ * compatibility with existing deployments.
  */
 export function isServiceRoleRequest(req: Request): boolean {
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceKey =
+    Deno.env.get("EDGE_FUNCTION_SERVICE_KEY") ??
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const bearer = getBearerToken(req);
   const apiKey = getApiKey(req);
 
@@ -58,10 +56,6 @@ export function isServiceRoleRequest(req: Request): boolean {
 
 export function corsHeaders(req: Request): HeadersInit {
   const origin = req.headers.get("Origin");
-
-  // Keep production browser origins working even when APP_URL/VITE_APP_URL was
-  // not configured in the Edge Function environment. Environment variables can
-  // still add/override deployment-specific origins without opening CORS to '*'.
   const configured = [
     "https://michaelkage.github.io",
     "https://campusplug.ng",

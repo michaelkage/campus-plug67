@@ -3,7 +3,25 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 import { getAuthenticatedUser, getBearerToken, jsonResponse, optionsResponse } from "../_shared/auth.ts";
 import { enforceRateLimitWithToken } from "../_shared/rateLimit.ts";
 
-const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+function getPrivilegedKey(): string | null {
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (legacy) return legacy;
+
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (!raw) return null;
+  try {
+    const keys = JSON.parse(raw) as Record<string, unknown>;
+    const defaultKey = keys.default;
+    return typeof defaultKey === "string" && defaultKey.length > 0 ? defaultKey : null;
+  } catch {
+    return null;
+  }
+}
+
+const privilegedKey = getPrivilegedKey();
+const admin = privilegedKey
+  ? createClient(Deno.env.get("SUPABASE_URL")!, privilegedKey, { auth: { persistSession: false } })
+  : null;
 
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -41,6 +59,8 @@ serve(async (req: Request) => {
   const language = (req.headers.get("accept-language") || "").slice(0, 128);
   const serverFingerprint = await sha256(`${ip}\n${ua}\n${language}`);
   const clientFingerprint = typeof record.client_fingerprint === "string" ? record.client_fingerprint.slice(0, 128) : null;
+
+  if (!admin) return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
 
   const { data: banHit, error: banError } = await admin.rpc("check_device_ban", {
     p_server_fingerprint: serverFingerprint,

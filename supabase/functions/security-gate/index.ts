@@ -4,18 +4,22 @@ import { getAuthenticatedUser, getBearerToken, jsonResponse, optionsResponse } f
 import { enforceRateLimitWithToken } from "../_shared/rateLimit.ts";
 
 function getPrivilegedKey(): string | null {
-  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  if (legacy) return legacy;
-
+  // Supabase's current Edge Runtime provides the secret API keys as a JSON map.
+  // Prefer that source over the deprecated legacy service_role variable so a
+  // rotated/deactivated legacy key cannot break the security gate.
   const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
-  if (!raw) return null;
-  try {
-    const keys = JSON.parse(raw) as Record<string, unknown>;
-    const defaultKey = keys.default;
-    return typeof defaultKey === "string" && defaultKey.length > 0 ? defaultKey : null;
-  } catch {
-    return null;
+  if (raw) {
+    try {
+      const keys = JSON.parse(raw) as Record<string, unknown>;
+      const defaultKey = keys.default;
+      if (typeof defaultKey === "string" && defaultKey.trim()) return defaultKey.trim();
+    } catch {
+      // Fall through to the legacy compatibility path below.
+    }
   }
+
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  return legacy || null;
 }
 
 const privilegedKey = getPrivilegedKey();

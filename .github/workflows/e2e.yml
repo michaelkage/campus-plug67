@@ -9,9 +9,12 @@ on:
 permissions:
   contents: read
 
+# Do not cancel an in-flight validation just because another commit lands.
+# GitHub-hosted runners are disposable, and cancelled builds hide the actual
+# state of the commit that triggered them.
 concurrency:
   group: browser-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   e2e:

@@ -63,10 +63,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Keep the deployed function environment aligned with the credential
-          # used by scheduled GitHub workers. The value is never printed.
+          # SUPABASE_* names are reserved by Supabase and cannot be created as
+          # custom Edge Function secrets. Use an application-owned name instead.
           supabase secrets set \
-            SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+            EDGE_FUNCTION_SERVICE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
             --project-ref "${{ steps.project.outputs.ref }}"
 
       - name: Normalize migrations
@@ -91,27 +91,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # These versions are present in production migration history but are
-          # not part of the canonical repository migrations. Repair only updates
-          # supabase_migrations.schema_migrations; it does not execute or undo SQL.
-          #
-          # 011-015 are historical repository migrations that were removed.
           supabase migration repair 011 012 013 014 015 --status reverted --linked
-          # 20260608213351 and 20260910094433 are dashboard/manual or stale
-          # migration-history rows that are not present in the canonical repository.
-          # Keeping them marked applied blocks `supabase db push --include-all`.
-          # Marking them reverted reconciles history only; it does not execute
-          # or undo their SQL, so this is safe only because the canonical schema
-          # is owned by the checked-in migrations.
           supabase migration repair 20260608213351 20260910094433 --status reverted --linked
 
       - name: Apply database migrations
         shell: bash
         run: |
           set -euo pipefail
-          # Local migrations 031+ are intentionally earlier than the latest
-          # remote migration. --include-all tells the CLI to apply those files
-          # instead of refusing with "local migration files to be inserted".
           supabase db push --linked --include-all
 
       - name: Verify deployed function endpoints

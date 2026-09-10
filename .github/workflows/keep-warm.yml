@@ -67,13 +67,7 @@ jobs:
             last_body=''
             for attempt in 1 2 3; do
               set +e
-              last_body=$(curl --silent --show-error --max-time 8 \
-                --retry 1 --retry-delay 1 --retry-all-errors \
-                -H "apikey: ${SUPABASE_ANON_KEY}" \
-                -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-                -H "x-health-check: true" \
-                -w '\nHTTP_STATUS:%{http_code}' \
-                "${SUPABASE_URL}/functions/v1/${fn}/ping" 2>&1)
+              last_body=$(curl --silent --show-error --max-time 8 --retry 1 --retry-delay 1 --retry-all-errors -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" -H "x-health-check: true" -w '\nHTTP_STATUS:%{http_code}' "${SUPABASE_URL}/functions/v1/${fn}/ping" 2>&1)
               code=$?
               set -e
               status=$(printf '%s\n' "$last_body" | sed -n 's/^HTTP_STATUS://p' | tail -n 1)
@@ -107,17 +101,12 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          response=$(curl --fail-with-body --silent --show-error -X POST \
-            --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
-            -H "Content-Type: application/json" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -d '{}' \
-            "${SUPABASE_URL}/functions/v1/calculate-trending") || {
-              echo 'calculate-trending rejected the service-to-service request.'
-              echo 'The worker now expects a Supabase secret/service key in the apikey header.'
-              exit 1
-            }
-          echo "$response"
+          response=$(curl --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{}' -w '\nHTTP_STATUS:%{http_code}' "${SUPABASE_URL}/functions/v1/calculate-trending")
+          status=$(printf '%s\n' "$response" | sed -n 's/^HTTP_STATUS://p' | tail -n 1)
+          body=$(printf '%s\n' "$response" | sed '/^HTTP_STATUS:/d')
+          echo "calculate-trending HTTP ${status}"
+          echo "$body"
+          [[ "$status" =~ ^2[0-9][0-9]$ ]] || { echo 'calculate-trending failed.'; exit 1; }
 
       - name: Rotate stale jury cases
         env:
@@ -125,12 +114,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error -X POST \
-            --retry 2 --retry-delay 2 --retry-all-errors --max-time 20 \
-            -H "Content-Type: application/json" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -d '{"action":"rotate_jurors"}' \
-            "${SUPABASE_URL}/functions/v1/process-dispute"
+          curl --fail-with-body --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 20 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{"action":"rotate_jurors"}' "${SUPABASE_URL}/functions/v1/process-dispute"
 
   auto-release:
     name: Process Auto-Release
@@ -145,12 +129,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error -X POST \
-            --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
-            -H "Content-Type: application/json" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -d '{"action":"auto_release"}' \
-            "${SUPABASE_URL}/functions/v1/release-escrow"
+          curl --fail-with-body --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{"action":"auto_release"}' "${SUPABASE_URL}/functions/v1/release-escrow"
 
   scheduled-auto-release:
     name: Scheduled Auto-Release
@@ -165,9 +144,4 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error -X POST \
-            --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 \
-            -H "Content-Type: application/json" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -d '{"action":"auto_release"}' \
-            "${SUPABASE_URL}/functions/v1/release-escrow"
+          curl --fail-with-body --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{"action":"auto_release"}' "${SUPABASE_URL}/functions/v1/release-escrow"

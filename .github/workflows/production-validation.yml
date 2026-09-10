@@ -9,9 +9,12 @@ on:
 permissions:
   contents: read
 
+# Let each validation run finish. Cancelling a run halfway through creates
+# misleading "cancelled" results and prevents us from seeing whether that
+# specific commit is healthy.
 concurrency:
   group: production-validation-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   frontend:

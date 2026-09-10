@@ -25,7 +25,6 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,7 +37,6 @@ jobs:
           [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || missing+=(SUPABASE_ACCESS_TOKEN)
           [[ -n "$SUPABASE_DB_PASSWORD" ]] || missing+=(SUPABASE_DB_PASSWORD)
           [[ -n "$SUPABASE_URL" ]] || missing+=(SUPABASE_URL)
-          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || missing+=(SUPABASE_SERVICE_ROLE_KEY)
           if (( ${#missing[@]} > 0 )); then
             printf 'Missing GitHub Actions secret(s): %s\n' "${missing[*]}"
             exit 1
@@ -61,18 +59,6 @@ jobs:
 
       - name: Normalize migrations
         run: node scripts/normalize-migrations.mjs
-
-      - name: Provision Edge Function secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          # security-gate and other privileged Edge Functions require the
-          # service-role credential at runtime. Keep the value in GitHub
-          # Actions Secrets and provision it directly into Supabase; never
-          # write it to the repository or print it in logs.
-          supabase secrets set \
-            --project-ref "${{ steps.project.outputs.ref }}" \
-            SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY"
 
       - name: Deploy Edge Functions
         shell: bash

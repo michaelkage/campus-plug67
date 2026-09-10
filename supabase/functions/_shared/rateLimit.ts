@@ -1,10 +1,26 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 
+function getPrivilegedKey(): string | null {
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (raw) {
+    try {
+      const keys = JSON.parse(raw) as Record<string, unknown>;
+      const defaultKey = keys.default;
+      if (typeof defaultKey === "string" && defaultKey.trim()) return defaultKey.trim();
+    } catch {
+      // Fall through to the legacy compatibility path below.
+    }
+  }
+
+  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  return legacy || null;
+}
+
 function getAdminClient() {
   const url = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !serviceRoleKey) throw new Error("Supabase runtime configuration is missing");
-  return createClient(url, serviceRoleKey, {
+  const privilegedKey = getPrivilegedKey();
+  if (!url || !privilegedKey) throw new Error("Supabase runtime configuration is missing");
+  return createClient(url, privilegedKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

@@ -114,7 +114,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 20 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{"action":"rotate_jurors"}' "${SUPABASE_URL}/functions/v1/process-dispute"
+          curl --fail-with-body --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 20 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{"action":"rotate_stale"}' "${SUPABASE_URL}/functions/v1/process-dispute"
 
   auto-release:
     name: Process Auto-Release

@@ -137,4 +137,20 @@ jobs:
               sleep 2
             done
           done
+
+          echo "→ Verifying security-gate..."
+          for attempt in 1 2 3; do
+            if curl --fail --silent --show-error --max-time 10 \
+              -X POST \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+              -H "Content-Type: application/json" \
+              --data '{"action":"check"}' \
+              "${SUPABASE_URL}/functions/v1/security-gate" >/dev/null; then
+              break
+            fi
+            [[ "$attempt" -lt 3 ]] || { echo "Security-gate health check failed"; exit 1; }
+            sleep 2
+          done
+
           echo 'All deployed Edge Functions passed health checks.'

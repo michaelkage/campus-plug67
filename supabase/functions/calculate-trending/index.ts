@@ -47,7 +47,9 @@ serve(async (req: Request) => {
   const now = new Date();
   try {
     const { data: rawCandidates, error: candidateError } = await admin.from("listings")
-      .select("id, created_at, university, seller_id, profiles(tier, collusion_flag, total_sales, created_at, gps_spoof_flags)")
+      // Explicitly select the seller_id FK. profiles also points back to listings
+      // through featured_listing_id, so bare `profiles(...)` is ambiguous in PostgREST.
+      .select("id, created_at, university, seller_id, profiles!listings_seller_id_fkey(tier, collusion_flag, total_sales, created_at, gps_spoof_flags)")
       .eq("status", "active").limit(500);
     if (candidateError) return bad(req, candidateError.message, 500);
 

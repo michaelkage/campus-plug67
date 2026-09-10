@@ -205,7 +205,7 @@ export default function Auth() {
                   <label className="label" htmlFor="university-email">University email</label>
                   <div className="relative">
                     <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" />
-                    <input id="university-email" className="input pl-10" type="email" placeholder="your.name@unilag.edu.ng" value={form.email} onChange={set('email')} required />
+                    <input id="university-email" className="input pl-10" type="email" autoComplete="email" placeholder="your.name@unilag.edu.ng" value={form.email} onChange={set('email')} required />
                   </div>
                   {mode === 'signup' && (
                     <p className="mt-2 text-[11px] leading-4 text-white/30">
@@ -242,7 +242,7 @@ export default function Auth() {
                   <label className="label" htmlFor="password">Password</label>
                   <div className="relative">
                     <LockKeyhole size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" />
-                    <input id="password" className="input pl-10 pr-11" type={showPass ? 'text' : 'password'} placeholder="Min 8 characters" value={form.password} onChange={set('password')} minLength={8} required />
+                    <input id="password" className="input pl-10 pr-11" type={showPass ? 'text' : 'password'} autoComplete="current-password" placeholder="Min 8 characters" value={form.password} onChange={set('password')} minLength={8} required />
                     <button
                       type="button"
                       onClick={() => setShowPass(value => !value)}

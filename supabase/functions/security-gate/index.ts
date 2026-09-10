@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 import { getAuthenticatedUser, getBearerToken, jsonResponse, optionsResponse } from "../_shared/auth.ts";
-import { enforceRateLimitWithToken } from "../_shared/rateLimit.ts";
+import { enforceRateLimitByKey, enforceRateLimitWithToken } from "../_shared/rateLimit.ts";
 
 function getPrivilegedKey(): string | null {
   // Supabase's current Edge Runtime provides the secret API keys as a JSON map.
@@ -46,23 +46,28 @@ serve(async (req: Request) => {
   const action = String(record.action ?? "check");
   if (action !== "check" && action !== "register") return jsonResponse({ error: "Invalid action" }, 400, {}, req);
 
-  const token = getBearerToken(req);
-  if (token) {
-    try {
-      const limit = await enforceRateLimitWithToken(token, "security-gate", 20, 60);
-      if (!limit.allowed) return jsonResponse({ error: "Rate limit exceeded" }, 429, {}, req);
-    } catch { return jsonResponse({ error: "Rate limit service unavailable" }, 503, {}, req); }
-  }
-
-  const user = await getAuthenticatedUser(req);
-  if (action === "register" && !user) return jsonResponse({ error: "Unauthorized" }, 401, {}, req);
-
   // Server-observed signals are never accepted from the browser body.
   const ip = requestIp(req);
   const ua = (req.headers.get("user-agent") || "unknown").slice(0, 512);
   const language = (req.headers.get("accept-language") || "").slice(0, 128);
   const serverFingerprint = await sha256(`${ip}\n${ua}\n${language}`);
   const clientFingerprint = typeof record.client_fingerprint === "string" ? record.client_fingerprint.slice(0, 128) : null;
+
+  // Authenticated requests are rate-limited by their bearer token. Anonymous
+  // and internal health-check requests must use the keyed limiter instead:
+  // consume_rate_limit intentionally does not grant anon EXECUTE permission.
+  const token = getBearerToken(req);
+  const user = await getAuthenticatedUser(req);
+  try {
+    const limit = user && token
+      ? await enforceRateLimitWithToken(token, "security-gate", 20, 60)
+      : await enforceRateLimitByKey("security-gate", serverFingerprint, 20, 60);
+    if (!limit.allowed) return jsonResponse({ error: "Rate limit exceeded" }, 429, {}, req);
+  } catch {
+    return jsonResponse({ error: "Rate limit service unavailable" }, 503, {}, req);
+  }
+
+  if (action === "register" && !user) return jsonResponse({ error: "Unauthorized" }, 401, {}, req);
 
   if (!admin) return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
 

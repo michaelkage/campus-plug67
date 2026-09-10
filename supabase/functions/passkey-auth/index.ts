@@ -46,6 +46,7 @@ async function clearChallenge(userId:string,type:"reg"|"auth"){const key=`challe
 
 serve(async(req:Request)=>{
   if(req.method==="OPTIONS")return optionsResponse(req);
+  if(req.method==="GET"&&new URL(req.url).pathname.endsWith("/ping"))return jsonResponse({status:"warm",ts:Date.now(),fn:"passkey-auth"},200,{},req);
   if(req.method!=="POST")return jsonResponse({error:"Method not allowed"},405,{},req);
   let body:PasskeyBody;try{body=await req.json();}catch{return jsonResponse({error:"Invalid JSON"},400,{},req);}
   const {action,userId,userEmail,response,deviceLabel}=body;

@@ -5,7 +5,7 @@ const edgeRuntime = globalThis as typeof globalThis & {
 };
 if (!edgeRuntime.serve) edgeRuntime.serve = Deno.serve;
 
-const ALLOWED_HEADERS = "authorization, x-client-info, apikey, content-type";
+const ALLOWED_HEADERS = "authorization, x-client-info, apikey, content-type, x-app-version";
 
 export function getBearerToken(req: Request): string | null {
   const value = req.headers.get("Authorization") ?? "";

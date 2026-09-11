@@ -36,7 +36,8 @@ export function useRealtimeTable({
   useEffect(() => {
     if (!enabled) return
 
-    const channelName = `rt:${table}:${filter ? `${filter.column}=${filter.value}` : 'all'}`
+    const filterKey = filter ? `${filter.column}=${filter.value}` : 'all'
+    const channelName = `rt:${table}:${filterKey}`
     const flushInserts = () => {
       flushTimerRef.current = null
       const batch = pendingInsertsRef.current
@@ -46,7 +47,14 @@ export function useRealtimeTable({
       else onInsertRef.current(batch)
     }
 
-    let subscription = supabase.channel(channelName)
+    // Remove a stale channel with the same name before creating a new one.
+    // This prevents React StrictMode/remount cycles from reusing a channel that
+    // has already reached SUBSCRIBED and then receiving another .on() callback.
+    const staleChannel = supabase.getChannels().find((channel) => channel.topic === `realtime:${channelName}`)
+    if (staleChannel) void supabase.removeChannel(staleChannel)
+
+    const channel = supabase
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -74,9 +82,9 @@ export function useRealtimeTable({
           }
         }
       )
-      .subscribe()
 
-    channelRef.current = subscription
+    channelRef.current = channel
+    void channel.subscribe()
 
     return () => {
       if (flushTimerRef.current) {
@@ -84,7 +92,8 @@ export function useRealtimeTable({
         flushTimerRef.current = null
         flushInserts()
       }
-      supabase.removeChannel(subscription)
+      channelRef.current = null
+      void supabase.removeChannel(channel)
     }
   }, [table, filter?.column, filter?.value, enabled, batchMs])
 }

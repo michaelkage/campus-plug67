@@ -4,22 +4,17 @@ import { getAuthenticatedUser, getBearerToken, jsonResponse, optionsResponse } f
 import { enforceRateLimitByKey, enforceRateLimitWithToken } from "../_shared/rateLimit.ts";
 
 function getPrivilegedKey(): string | null {
-  // Supabase's current Edge Runtime provides the secret API keys as a JSON map.
-  // Prefer that source over the deprecated legacy service_role variable so a
-  // rotated/deactivated legacy key cannot break the security gate.
   const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
   if (raw) {
     try {
       const keys = JSON.parse(raw) as Record<string, unknown>;
       const defaultKey = keys.default;
       if (typeof defaultKey === "string" && defaultKey.trim()) return defaultKey.trim();
-    } catch {
-      // Fall through to the legacy compatibility path below.
-    }
+    } catch {}
   }
-
-  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  return legacy || null;
+  const applicationKey = Deno.env.get("EDGE_FUNCTION_SERVICE_KEY")?.trim();
+  if (applicationKey) return applicationKey;
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() || null;
 }
 
 const privilegedKey = getPrivilegedKey();
@@ -46,16 +41,12 @@ serve(async (req: Request) => {
   const action = String(record.action ?? "check");
   if (action !== "check" && action !== "register") return jsonResponse({ error: "Invalid action" }, 400, {}, req);
 
-  // Server-observed signals are never accepted from the browser body.
   const ip = requestIp(req);
   const ua = (req.headers.get("user-agent") || "unknown").slice(0, 512);
   const language = (req.headers.get("accept-language") || "").slice(0, 128);
   const serverFingerprint = await sha256(`${ip}\n${ua}\n${language}`);
   const clientFingerprint = typeof record.client_fingerprint === "string" ? record.client_fingerprint.slice(0, 128) : null;
 
-  // Authenticated requests are rate-limited by their bearer token. Anonymous
-  // and internal health-check requests must use the keyed limiter instead:
-  // consume_rate_limit intentionally does not grant anon EXECUTE permission.
   const token = getBearerToken(req);
   const user = await getAuthenticatedUser(req);
   try {
@@ -68,7 +59,6 @@ serve(async (req: Request) => {
   }
 
   if (action === "register" && !user) return jsonResponse({ error: "Unauthorized" }, 401, {}, req);
-
   if (!admin) return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
 
   const { data: banHit, error: banError } = await admin.rpc("check_device_ban", {

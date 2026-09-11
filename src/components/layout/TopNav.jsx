@@ -10,7 +10,7 @@ const links = [['/','Home'],['/marketplace','Market'],['/study-pools','Pools'],[
 export default function TopNav(){
   const {user,profile,signOut}=useAuth()
   const [menuOpen,setMenuOpen]=useState(false)
-  const {data:unreadCount=0}=useQuery({queryKey:['unread-notifications',user?.id],queryFn:async()=>{const {count}=await supabase.from('notifications').select('id',{count:'exact',head:true}).eq('user_id',user.id).eq('read',false);return count||0},enabled:!!user,refetchInterval:30_000})
+  const {data:unreadCount=0}=useQuery({queryKey:['unread-notifications',user?.id],queryFn:async()=>{const {data,error}=await supabase.from('notifications').select('id').eq('user_id',user.id).eq('read',false);if(error){console.error('[CampusPlug] unread notification query failed',error);return 0}return data?.length||0},enabled:!!user,refetchInterval:30_000})
   return <nav className="sticky top-0 z-50 h-16 border-b border-white/[0.07] bg-obsidian/90 px-4 backdrop-blur-2xl md:px-8">
     <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between gap-3">
       <Link to="/" className="flex min-w-0 items-center gap-2.5" aria-label="CampusPlug home"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan to-purple text-sm font-black text-obsidian shadow-lg shadow-cyan/10">⚡</div><span className="hidden truncate text-lg font-bold tracking-tight sm:block">Campus<span className="text-cyan">Plug</span></span></Link>

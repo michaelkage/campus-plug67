@@ -1,0 +1,66 @@
+name: One-off listing relationship fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-off-fix-listing-relationships.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, 'fix: disambiguate listings profile relationships') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix ambiguous listings -> profiles embeds
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files = [
+              Path('src/pages/Marketplace.jsx'),
+              Path('src/pages/Home.jsx'),
+              Path('src/pages/ListingDetail.jsx'),
+          ]
+          for path in files:
+              text = path.read_text()
+              out = []
+              i = 0
+              changed = False
+              while i < len(text):
+                  marker = 'profiles('
+                  j = text.find(marker, i)
+                  if j < 0:
+                      out.append(text[i:])
+                      break
+                  out.append(text[i:j])
+                  depth = 0
+                  k = j + len(marker) - 1
+                  while k < len(text):
+                      if text[k] == '(':
+                          depth += 1
+                      elif text[k] == ')':
+                          depth -= 1
+                          if depth == 0:
+                              break
+                      k += 1
+                  inner = text[j + len(marker):k]
+                  out.append('profiles!listings_seller_id_fkey(' + inner + ')')
+                  i = k + 1
+                  changed = True
+              new = ''.join(out)
+              if changed and new != text:
+                  path.write_text(new)
+                  print('patched', path)
+          PY
+      - name: Commit fixes and remove one-off workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/one-off-fix-listing-relationships.yml
+          git add src/pages/Marketplace.jsx src/pages/Home.jsx src/pages/ListingDetail.jsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix: disambiguate listings profile relationships'
+          git push

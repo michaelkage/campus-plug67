@@ -8,10 +8,16 @@ function getPrivilegedKey(): string | null {
       const defaultKey = keys.default;
       if (typeof defaultKey === "string" && defaultKey.trim()) return defaultKey.trim();
     } catch {
-      // Fall through to the legacy compatibility path below.
+      // Fall through to the application-owned service key below.
     }
   }
 
+  // Supabase reserves SUPABASE_* names for managed runtime variables, so the
+  // deployment workflow mirrors the service credential into this app-owned key.
+  const applicationKey = Deno.env.get("EDGE_FUNCTION_SERVICE_KEY")?.trim();
+  if (applicationKey) return applicationKey;
+
+  // Legacy compatibility for older deployments.
   const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
   return legacy || null;
 }

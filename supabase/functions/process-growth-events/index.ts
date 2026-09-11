@@ -16,9 +16,11 @@ function getPrivilegedKey(): string | null {
       const key = keys.default;
       if (typeof key === "string" && key.trim()) return key.trim();
     } catch {
-      // Fall through to legacy compatibility.
+      // Fall through to application-owned compatibility path.
     }
   }
+  const applicationKey = Deno.env.get("EDGE_FUNCTION_SERVICE_KEY")?.trim();
+  if (applicationKey) return applicationKey;
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim() || null;
 }
 
@@ -65,7 +67,6 @@ serve(async (req: Request) => {
       if (error) return bad(req, error.message, 500);
       return ok(req, { success: true, ...data });
     }
-
     if (action === "referral_signup") {
       const user = await getUser(req); if (!user) return bad(req, "Unauthorized", 401);
       const referralCode = typeof body.referral_code === "string" ? body.referral_code : "";
@@ -84,14 +85,12 @@ serve(async (req: Request) => {
       if (notificationError) return bad(req, notificationError.message, 500);
       return ok(req, { success: true, referrer_name: referrer.full_name });
     }
-
     if (action === "expire_flash_deals") {
       if (!isCron) return bad(req, "Forbidden — cron only", 403);
       const { error } = await admin.rpc("expire_flash_deals");
       if (error) return bad(req, error.message, 500);
       return ok(req, { success: true, action: "expired_flash_deals" });
     }
-
     if (action === "gig_response") {
       const user = await getUser(req); if (!user) return bad(req, "Unauthorized", 401);
       const gigId = typeof body.gig_id === "string" ? body.gig_id : "";
@@ -107,7 +106,6 @@ serve(async (req: Request) => {
       if (error) return bad(req, error.message, 500);
       return ok(req, { success: true, avg_response_mins: newAvgMins });
     }
-
     if (action === "log_view") {
       const user = await getUser(req);
       const listingId = typeof body.listing_id === "string" ? body.listing_id : "";
@@ -119,19 +117,15 @@ serve(async (req: Request) => {
       if (incrementError) return bad(req, incrementError.message, 500);
       return ok(req, { success: true });
     }
-
     if (action === "checkin") {
       const user = await getUser(req); if (!user) return bad(req, "Unauthorized", 401);
       const transactionId = typeof body.transaction_id === "string" ? body.transaction_id : "";
-      const lat = Number(body.lat);
-      const lng = Number(body.lng);
-      const manual = body.manual === true;
+      const lat = Number(body.lat); const lng = Number(body.lng); const manual = body.manual === true;
       if (!transactionId) return bad(req, "Missing transaction_id");
       const { data: tx, error: txError } = await admin.from("transactions").select("id, buyer_id, seller_id, buyer_arrived, seller_arrived, meetup_spot").eq("id", transactionId).in("status", ["locked", "meetup_initiated"]).single();
       if (txError) return bad(req, txError.message, 500);
       if (!tx) return bad(req, "Transaction not found or wrong status", 404);
-      const isBuyer = tx.buyer_id === user.id;
-      const isSeller = tx.seller_id === user.id;
+      const isBuyer = tx.buyer_id === user.id; const isSeller = tx.seller_id === user.id;
       if (!isBuyer && !isSeller) return bad(req, "Forbidden", 403);
       let proximityOk = manual;
       if (!manual && Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -140,14 +134,11 @@ serve(async (req: Request) => {
         proximityOk = (zones ?? []).some(zone => haversineM(lat, lng, Number(zone.lat), Number(zone.lng)) <= Number(zone.radius_m));
       }
       if (!proximityOk) return bad(req, "Not close enough to a Safe Zone. Move within 50m of a designated meetup spot.", 400);
-      const update = isBuyer
-        ? { buyer_arrived: true, buyer_lat: lat, buyer_lng: lng, buyer_arrived_at: new Date().toISOString() }
-        : { seller_arrived: true, seller_lat: lat, seller_lng: lng, seller_arrived_at: new Date().toISOString() };
+      const update = isBuyer ? { buyer_arrived: true, buyer_lat: lat, buyer_lng: lng, buyer_arrived_at: new Date().toISOString() } : { seller_arrived: true, seller_lat: lat, seller_lng: lng, seller_arrived_at: new Date().toISOString() };
       const { error } = await admin.from("transactions").update(update).eq("id", transactionId);
       if (error) return bad(req, error.message, 500);
       return ok(req, { success: true, arrived_as: isBuyer ? "buyer" : "seller", proximity_ok: proximityOk, other_arrived: isBuyer ? tx.seller_arrived : tx.buyer_arrived });
     }
-
     return bad(req, `Unknown action: ${action}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected growth service error";

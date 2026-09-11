@@ -13,6 +13,31 @@ function removeStatements(source, statements, label) {
   return output;
 }
 
+// Fail early if two local migration files claim the same Supabase migration
+// version. Supabase records migration versions as unique keys in
+// supabase_migrations.schema_migrations, so duplicate numeric prefixes can
+// otherwise make a production deployment fail after Edge Functions deploy.
+const migrationsDir = path.join(root, 'supabase/migrations');
+const migrationFiles = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
+const versions = new Map();
+
+for (const filename of migrationFiles) {
+  const match = filename.match(/^(\d+)[_-]/);
+  if (!match) continue;
+
+  const version = match[1];
+  const existing = versions.get(version);
+  if (existing) {
+    throw new Error(
+      `Duplicate Supabase migration version ${version}: ${existing} and ${filename}. ` +
+      'Each migration version must be unique.',
+    );
+  }
+  versions.set(version, filename);
+}
+
+console.log(`Validated ${versions.size} unique numbered migration versions.`);
+
 // Migration 006 contains two historical PostgreSQL problems:
 // 1. now() is not immutable and cannot be used in an index predicate.
 // 2. These realtime publication memberships are already established by 001.

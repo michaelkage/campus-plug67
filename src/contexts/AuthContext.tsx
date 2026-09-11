@@ -1,236 +1,29 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase, validateEduEmail } from '@/lib/supabase'
+import { debugError, debugInfo, debugSuccess, debugWarn, startDebugTrace } from '@/lib/debugger'
 import { registerDevice, getDeviceHash, checkDeviceBan } from '@/lib/security'
 import { registerPasskey, authenticateWithPasskey, browserSupportsWebAuthn } from '@/lib/passkeys'
 import type { Database } from '@/types/database'
 import toast from 'react-hot-toast'
 
-type Profile = Database['public']['Tables']['profiles']['Row'] & {
-  magistrate_at?: string | null
-  juror_streak?: number | null
-  free_listing_tokens?: number | null
-  referral_code?: string | null
-  badges?: string[] | null
-  department?: string | null
-  level?: string | null
+type Profile = Database['public']['Tables']['profiles']['Row'] & { magistrate_at?:string|null;juror_streak?:number|null;free_listing_tokens?:number|null;referral_code?:string|null;badges?:string[]|null;department?:string|null;level?:string|null }
+type AuthResult={data?:unknown;error?:unknown;success?:boolean}
+type AuthContextValue={session:Session|null;profile:Profile|null;user:User|null;loading:boolean;deviceHash:string|null;isAuthenticated:boolean;passkeySupported:boolean;signUp:(args:{email:string;password:string;fullName:string;university?:string;matric?:string})=>Promise<AuthResult>;signIn:(args:{email:string;password:string})=>Promise<AuthResult>;signInWithPasskey:(email:string)=>Promise<AuthResult>;addPasskey:(deviceLabel:string)=>Promise<AuthResult>;signOut:()=>Promise<void>;updateProfile:(updates:Partial<Profile>)=>Promise<AuthResult|undefined>;refreshProfile:()=>Promise<Profile|null|undefined>}
+const AuthContext=createContext<AuthContextValue|null>(null)
+function errorMessage(error:unknown,fallback:string){return error instanceof Error?error.message:fallback}
+export function AuthProvider({children}:{children:ReactNode}){
+ const[session,setSession]=useState<Session|null>(null),[profile,setProfile]=useState<Profile|null>(null),[loading,setLoading]=useState(true),[deviceHash,setDeviceHash]=useState<string|null>(null)
+ const fetchProfile=useCallback(async(userId:string)=>{const t=startDebugTrace('profile.fetch',{userId});const{data,error}=await supabase.from('profiles').select('*').eq('id',userId).single();if(data){setProfile(data as Profile);t.end('profile.fetch success',{userId,hasUniversity:Boolean(data.university),university:data.university})}else{t.fail(error,{userId});debugError('auth','Profile hydration returned no data',{userId,error})}return(data as Profile|null)??null},[])
+ const hydrateSession=useCallback(async(nextSession:Session|null)=>{debugInfo('auth','Session hydration started',{hasSession:Boolean(nextSession),userId:nextSession?.user?.id});setSession(nextSession);if(!nextSession?.user){setProfile(null);debugInfo('auth','Session cleared');return}await fetchProfile(nextSession.user.id);try{await registerDevice(nextSession.user.id);debugSuccess('auth','Device registration completed',{userId:nextSession.user.id})}catch(error:unknown){debugError('auth','Device registration failed',{userId:nextSession.user.id,error});if(errorMessage(error,'').startsWith('DEVICE_BANNED')){await supabase.auth.signOut();setSession(null);setProfile(null);toast.error('🚫 This device has been flagged for policy violations.')}}},[fetchProfile])
+ useEffect(()=>{getDeviceHash().then(h=>{setDeviceHash(h);debugInfo('auth','Device hash available')}).catch(error=>debugWarn('auth','Device hash unavailable',{error}));supabase.auth.getSession().then(async({data:{session}})=>{debugInfo('auth','Initial auth session loaded',{hasSession:Boolean(session),userId:session?.user?.id});await hydrateSession(session);setLoading(false)});const{data:{subscription}}=supabase.auth.onAuthStateChange((event,next)=>{debugInfo('auth','Auth state changed',{event,hasSession:Boolean(next),userId:next?.user?.id});setTimeout(()=>{void hydrateSession(next)},0)});return()=>subscription.unsubscribe()},[hydrateSession])
+ const signUp=async({email,password,fullName,university,matric}:{email:string;password:string;fullName:string;university?:string;matric?:string})=>{const t=startDebugTrace('auth.signUp',{emailDomain:email.split('@')[1],hasUniversity:Boolean(university),hasMatric:Boolean(matric)});const{valid,university:detectedUni}=await validateEduEmail(email);debugInfo('auth','Education email validation completed',{valid,detectedUniversity:detectedUni});if(!valid){toast.error('Please use an approved university email from the allowlist');t.fail('Invalid email domain');return{error:'Invalid email domain'}}try{if(await checkDeviceBan()){toast.error('🚫 This device is restricted from creating new accounts.');t.fail('DEVICE_BANNED');return{error:'DEVICE_BANNED'}}}catch(error:unknown){toast.error('Security check unavailable. Please try again.');t.fail(error);return{error}}const{data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:fullName,university:university||detectedUni},emailRedirectTo:`${import.meta.env.VITE_APP_URL}/auth/callback`}});if(error){toast.error(error.message);t.fail(error);return{error}}if(data.user){const{error:profileError}=await supabase.from('profiles').update({full_name:fullName,university:university||detectedUni,matric_number:matric||null}).eq('id',data.user.id);if(profileError)debugError('auth','Initial profile update failed',{userId:data.user.id,error:profileError});else debugSuccess('auth','Initial profile update succeeded',{userId:data.user.id,university:university||detectedUni});const{error:tokenError}=await supabase.rpc('provision_my_emergency_tokens');if(tokenError)debugWarn('auth','Initial emergency token provisioning unavailable',{error:tokenError.message})}toast.success('Account created! Check your email to verify.');t.end('auth.signUp success',{hasUser:Boolean(data.user)});return{data}}
+ const signIn=async({email,password}:{email:string;password:string})=>{const t=startDebugTrace('auth.signIn',{emailDomain:email.split('@')[1]});try{if(await checkDeviceBan()){toast.error('🚫 This device is restricted from signing in.');t.fail('DEVICE_BANNED');return{error:'DEVICE_BANNED'}}}catch(error:unknown){toast.error('Security check unavailable. Please try again.');t.fail(error);return{error}}const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error){toast.error(error.message);t.fail(error);return{error}}debugSuccess('auth','Password sign-in succeeded',{userId:data.user?.id});t.end('auth.signIn success');return{data}}
+ const signInWithPasskey=async(email:string)=>{if(!browserSupportsWebAuthn()){toast.error('Passkeys not supported on this device');debugWarn('auth','Passkey sign-in unavailable: browser unsupported');return{error:'NOT_SUPPORTED'}};try{if(await checkDeviceBan()){toast.error('🚫 This device is restricted from signing in.');return{error:'DEVICE_BANNED'}}}catch(error:unknown){toast.error('Security check unavailable. Please try again.');return{error}}try{const result=await authenticateWithPasskey(email);toast.success('Signed in with biometrics! 🔐');debugSuccess('auth','Passkey authentication succeeded',{emailDomain:email.split('@')[1]});return{data:result}}catch(error:unknown){toast.error(errorMessage(error,'Passkey authentication failed'));debugError('auth','Passkey authentication failed',{error});return{error:errorMessage(error,'Passkey authentication failed')}}}
+ const addPasskey=async(deviceLabel:string)=>{if(!session?.user)return{error:'Not authenticated'};try{await registerPasskey(session.user,deviceLabel);toast.success('🔐 Passkey registered! Use biometrics to sign in next time.');debugSuccess('auth','Passkey registered',{userId:session.user.id});return{success:true}}catch(error:unknown){toast.error(errorMessage(error,'Passkey registration failed'));debugError('auth','Passkey registration failed',{error});return{error:errorMessage(error,'Passkey registration failed')}}}
+ const signOut=async()=>{debugInfo('auth','Sign-out started',{userId:session?.user?.id});await supabase.auth.signOut();setProfile(null);debugSuccess('auth','Sign-out completed')}
+ const updateProfile=async(updates:Partial<Profile>)=>{if(!session?.user)return;const safeUpdates:Partial<Profile>={};if(updates.full_name!==undefined)safeUpdates.full_name=String(updates.full_name).trim().slice(0,120);if(updates.department!==undefined)safeUpdates.department=String(updates.department).trim().slice(0,120);if(updates.level!==undefined)safeUpdates.level=updates.level;if(updates.bio!==undefined)safeUpdates.bio=String(updates.bio).trim().slice(0,1000);if(Object.keys(safeUpdates).length===0)return{error:'No editable profile fields supplied'};const profileUpdate=safeUpdates as unknown as Database['public']['Tables']['profiles']['Update'];const{data,error}=await supabase.from('profiles').update(profileUpdate).eq('id',session.user.id).select().single();if(error){debugError('auth','Profile update failed',{userId:session.user.id,error});toast.error('Failed to update profile');return{error}}setProfile(data as Profile);debugSuccess('auth','Profile update succeeded',{userId:session.user.id,fields:Object.keys(safeUpdates)});toast.success('Profile updated!');return{data}}
+ const refreshProfile=()=>session?.user?fetchProfile(session.user.id):Promise.resolve(undefined)
+ return <AuthContext.Provider value={{session,profile,user:session?.user??null,loading,deviceHash,isAuthenticated:!!session,passkeySupported:browserSupportsWebAuthn(),signUp,signIn,signInWithPasskey,addPasskey,signOut,updateProfile,refreshProfile}}>{children}</AuthContext.Provider>
 }
-type AuthResult = { data?: unknown; error?: unknown; success?: boolean }
-
-type AuthContextValue = {
-  session: Session | null
-  profile: Profile | null
-  user: User | null
-  loading: boolean
-  deviceHash: string | null
-  isAuthenticated: boolean
-  passkeySupported: boolean
-  signUp: (args: { email: string; password: string; fullName: string; university?: string; matric?: string }) => Promise<AuthResult>
-  signIn: (args: { email: string; password: string }) => Promise<AuthResult>
-  signInWithPasskey: (email: string) => Promise<AuthResult>
-  addPasskey: (deviceLabel: string) => Promise<AuthResult>
-  signOut: () => Promise<void>
-  updateProfile: (updates: Partial<Profile>) => Promise<AuthResult | undefined>
-  refreshProfile: () => Promise<Profile | null | undefined>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback
-}
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [deviceHash, setDeviceHash] = useState<string | null>(null)
-
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
-    if (data) setProfile(data as Profile)
-    return (data as Profile | null) ?? null
-  }, [])
-
-  const hydrateSession = useCallback(async (nextSession: Session | null) => {
-    setSession(nextSession)
-    if (!nextSession?.user) {
-      setProfile(null)
-      return
-    }
-
-    await fetchProfile(nextSession.user.id)
-    try {
-      await registerDevice(nextSession.user.id)
-    } catch (error: unknown) {
-      if (errorMessage(error, '').startsWith('DEVICE_BANNED')) {
-        await supabase.auth.signOut()
-        setSession(null)
-        setProfile(null)
-        toast.error('🚫 This device has been flagged for policy violations.')
-      }
-    }
-  }, [fetchProfile])
-
-  useEffect(() => {
-    getDeviceHash().then(setDeviceHash).catch(() => {})
-
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      await hydrateSession(session)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      // Supabase recommends keeping auth callbacks synchronous. Defer database/function
-      // work until after the callback returns to avoid auth-state deadlocks.
-      setTimeout(() => { void hydrateSession(session) }, 0)
-    })
-    return () => subscription.unsubscribe()
-  }, [hydrateSession])
-
-  const signUp = async ({ email, password, fullName, university, matric }: { email: string; password: string; fullName: string; university?: string; matric?: string }) => {
-    const { valid, university: detectedUni } = await validateEduEmail(email)
-    if (!valid) {
-      toast.error('Please use an approved university email from the allowlist')
-      return { error: 'Invalid email domain' }
-    }
-
-    try {
-      if (await checkDeviceBan()) {
-        toast.error('🚫 This device is restricted from creating new accounts.')
-        return { error: 'DEVICE_BANNED' }
-      }
-    } catch (error: unknown) {
-      toast.error('Security check unavailable. Please try again.')
-      return { error }
-    }
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName, university: university || detectedUni },
-        emailRedirectTo: `${import.meta.env.VITE_APP_URL}/auth/callback`,
-      },
-    })
-
-    if (error) { toast.error(error.message); return { error } }
-
-    if (data.user) {
-      await supabase.from('profiles').update({
-        full_name: fullName,
-        university: university || detectedUni,
-        matric_number: matric || null,
-      }).eq('id', data.user.id)
-      const { error: tokenError } = await supabase.rpc('provision_my_emergency_tokens')
-      if (tokenError) console.warn('Initial emergency token provisioning unavailable:', tokenError.message)
-    }
-
-    toast.success('Account created! Check your email to verify.')
-    return { data }
-  }
-
-  const signIn = async ({ email, password }: { email: string; password: string }) => {
-    try {
-      if (await checkDeviceBan()) {
-        toast.error('🚫 This device is restricted from signing in.')
-        return { error: 'DEVICE_BANNED' }
-      }
-    } catch (error: unknown) {
-      toast.error('Security check unavailable. Please try again.')
-      return { error }
-    }
-
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { toast.error(error.message); return { error } }
-    return { data }
-  }
-
-  const signInWithPasskey = async (email: string) => {
-    if (!browserSupportsWebAuthn()) {
-      toast.error('Passkeys not supported on this device')
-      return { error: 'NOT_SUPPORTED' }
-    }
-
-    try {
-      if (await checkDeviceBan()) {
-        toast.error('🚫 This device is restricted from signing in.')
-        return { error: 'DEVICE_BANNED' }
-      }
-    } catch (error: unknown) {
-      toast.error('Security check unavailable. Please try again.')
-      return { error }
-    }
-
-    try {
-      const result = await authenticateWithPasskey(email)
-      toast.success('Signed in with biometrics! 🔐')
-      return { data: result }
-    } catch (error: unknown) {
-      toast.error(errorMessage(error, 'Passkey authentication failed'))
-      return { error: errorMessage(error, 'Passkey authentication failed') }
-    }
-  }
-
-  const addPasskey = async (deviceLabel: string) => {
-    if (!session?.user) return { error: 'Not authenticated' }
-    try {
-      await registerPasskey(session.user, deviceLabel)
-      toast.success('🔐 Passkey registered! Use biometrics to sign in next time.')
-      return { success: true }
-    } catch (error: unknown) {
-      toast.error(errorMessage(error, 'Passkey registration failed'))
-      return { error: errorMessage(error, 'Passkey registration failed') }
-    }
-  }
-
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    setProfile(null)
-  }
-
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!session?.user) return
-
-    // Only fields exposed by the profile editor are accepted here. Trust,
-    // moderation, accounting, wallet, and identity-control fields are server-managed.
-    const safeUpdates: Partial<Profile> = {}
-    if (updates.full_name !== undefined) safeUpdates.full_name = String(updates.full_name).trim().slice(0, 120)
-    if (updates.department !== undefined) safeUpdates.department = String(updates.department).trim().slice(0, 120)
-    if (updates.level !== undefined) safeUpdates.level = updates.level
-    if (updates.bio !== undefined) safeUpdates.bio = String(updates.bio).trim().slice(0, 1000)
-
-    if (Object.keys(safeUpdates).length === 0) {
-      return { error: 'No editable profile fields supplied' }
-    }
-
-    // department/level exist in the live profiles schema but are absent from the
-    // hand-maintained generated Database type. Keep the compatibility cast local
-    // to this narrow, explicitly editable payload.
-    const profileUpdate = safeUpdates as unknown as Database['public']['Tables']['profiles']['Update']
-    const { data, error } = await supabase.from('profiles')
-      .update(profileUpdate).eq('id', session.user.id).select().single()
-    if (error) { toast.error('Failed to update profile'); return { error } }
-    setProfile(data as Profile)
-    toast.success('Profile updated!')
-    return { data }
-  }
-
-  const refreshProfile = () => session?.user ? fetchProfile(session.user.id) : Promise.resolve(undefined)
-
-  return (
-    <AuthContext.Provider value={{
-      session, profile, user: session?.user ?? null, loading, deviceHash,
-      isAuthenticated: !!session, passkeySupported: browserSupportsWebAuthn(),
-      signUp, signIn, signInWithPasskey, addPasskey, signOut, updateProfile, refreshProfile,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
-export const useAuth = (): AuthContextValue => {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
-}
+export const useAuth=():AuthContextValue=>{const ctx=useContext(AuthContext);if(!ctx)throw new Error('useAuth must be used within AuthProvider');return ctx}

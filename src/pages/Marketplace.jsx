@@ -135,7 +135,7 @@ export default function Marketplace() {
     queryKey: ['listings', category, hostel, myOnly, verifiedOnly, profile?.id, profile?.university],
     enabled: Boolean(profile?.university),
     queryFn: async () => {
-      let q = supabase.from('listings').select('*, profiles(full_name, university, avatar_url)').eq('status', 'active').eq('university', profile?.university).order('created_at', { ascending: false })
+      let q = supabase.from('listings').select('*, profiles!listings_seller_id_fkey(full_name, university, avatar_url)').eq('status', 'active').eq('university', profile?.university).order('created_at', { ascending: false })
       if (category) q = q.eq('category', category); if (hostel) q = q.eq('hostel', hostel); if (myOnly) q = q.eq('seller_id', profile?.id); if (verifiedOnly) q = q.eq('metadata_verified', true)
       const { data, error } = await q; if (error) throw error; return data || []
     },

@@ -50,11 +50,23 @@ serve(async (req: Request) => {
   const token = getBearerToken(req);
   const user = await getAuthenticatedUser(req);
   try {
-    const limit = user && token
-      ? await enforceRateLimitWithToken(token, "security-gate", 20, 60)
-      : await enforceRateLimitByKey("security-gate", serverFingerprint, 20, 60);
+    let limit;
+    if (user && token) {
+      try {
+        // Prefer the per-user authenticated limiter. If its authenticated RPC
+        // path is temporarily unavailable, fall back to the server-derived key
+        // rather than taking the entire security gate offline.
+        limit = await enforceRateLimitWithToken(token, "security-gate", 20, 60);
+      } catch (rateError) {
+        console.error("[security-gate] authenticated rate limit failed; using keyed fallback", rateError);
+        limit = await enforceRateLimitByKey("security-gate", serverFingerprint, 20, 60);
+      }
+    } else {
+      limit = await enforceRateLimitByKey("security-gate", serverFingerprint, 20, 60);
+    }
     if (!limit.allowed) return jsonResponse({ error: "Rate limit exceeded" }, 429, {}, req);
-  } catch {
+  } catch (rateError) {
+    console.error("[security-gate] rate limit service unavailable", rateError);
     return jsonResponse({ error: "Rate limit service unavailable" }, 503, {}, req);
   }
 

@@ -316,13 +316,13 @@ export default function Profile() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       {/* Profile header */}
       <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl overflow-hidden">
-        <div className="h-24 bg-surface-container-high relative">
+        <div className="h-24 bg-[var(--md-surface-container-high)] relative">
           <div className="absolute inset-0 cyber-grid opacity-30" />
         </div>
         <div className="px-6 pb-6 -mt-10">
           <div className="flex items-end justify-between mb-4">
             <motion.div whileHover={{ scale: 1.05 }}
-              className="w-20 h-20 rounded-2xl bg-primary-container border-4 border-obsidian-400
+              className="w-20 h-20 rounded-2xl bg-[var(--md-primary-container)] border-4 border-obsidian-400
                          flex items-center justify-center text-obsidian font-black text-3xl shadow-md">
               {profile.avatar_url
                 ? <img src={profile.avatar_url} className="w-full h-full rounded-xl object-cover" />
@@ -336,7 +336,7 @@ export default function Profile() {
                   PDF + QR
                 </button>
                 <button onClick={() => setShowPasskeys(v => !v)}
-                  className={`btn-ghost flex items-center gap-1.5 text-xs ${showPasskeys ? 'text-cyan border-cyan/30 bg-cyan/5' : ''}`}>
+                  className={`btn-ghost flex items-center gap-1.5 text-xs ${showPasskeys ? 'text-cyan border-cyan/30 bg-[var(--md-primary)]/5' : ''}`}>
                   <Fingerprint size={13} /> Passkeys
                 </button>
                 <button onClick={() => { setForm({ full_name: profile.full_name, bio: profile.bio, department: profile.department, level: profile.level }); setEditMode(v => !v) }}
@@ -440,7 +440,7 @@ export default function Profile() {
                     <span className="text-cyan font-mono font-bold">{Math.round(pct)}%</span>
                   </div>
                   <div className="h-1.5 bg-obsidian-300 rounded-full overflow-hidden">
-                    <motion.div className="h-full rounded-full bg-cyan"
+                    <motion.div className="h-full rounded-full bg-[var(--md-primary)]"
                       initial={{ width:0 }} animate={{ width:`${Math.max(pct,2)}%` }}
                       transition={{ duration:0.9, ease:'easeOut', delay:0.2 }} />
                   </div>
@@ -470,14 +470,14 @@ export default function Profile() {
 
       {/* PlugCredit */}
       {viewingOwn && (
-        <div className="bg-obsidian-400 border border-secondary/30 rounded-2xl p-6">
+        <div className="bg-obsidian-400 border border-[var(--md-secondary)]/30 rounded-2xl p-6">
           <p className="section-label" style={{ color:'var(--md-secondary)' }}>PlugCredit</p>
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <CreditRing score={profile.plug_score} />
             <div className="flex-1">
               <h2 className="font-black text-lg mb-1">Micro-Loan Access</h2>
               <p className="text-xs text-white/40 mb-4">BNPL for academic essentials. Backed by your PlugScore.</p>
-              <div className="text-2xl font-black text-secondary mb-1">{formatNaira(creditLimit)}</div>
+              <div className="text-2xl font-black text-[var(--md-secondary)] mb-1">{formatNaira(creditLimit)}</div>
               <div className="text-xs text-white/40 mb-4">Available Credit Limit</div>
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {[{l:'Interest',v:'0%'},{l:'Payback',v:'60d'},{l:'Approval',v:'Instant'}].map(({l,v})=>(
@@ -490,7 +490,7 @@ export default function Profile() {
               <button onClick={() => profile.plug_score >= 600 ? toast('Coming soon!') : toast(`Need ${600-profile.plug_score} more pts`,{icon:'💳'})}
                 className={`px-6 py-2.5 rounded-lg text-sm font-bold border transition-all ${
                   profile.plug_score >= 600
-                    ? 'bg-secondary text-on-secondary border-secondary hover:opacity-90'
+                    ? 'bg-[var(--md-secondary)] text-[var(--md-on-secondary)] border-[var(--md-secondary)] hover:opacity-90'
                     : 'bg-transparent text-white/30 border-obsidian-500 cursor-not-allowed'
                 }`}>
                 {profile.plug_score >= 600 ? 'Apply for PlugCredit' : `Unlock at 600 pts (${600-profile.plug_score} more)`}

@@ -112,7 +112,7 @@ function ReportModal({ onClose, profile }) {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
          onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg bg-obsidian-400 border border-obsidian-500 rounded-2xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-lg bg-obsidian-400 border border-obsidian-500 rounded-3xl overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-obsidian-500">
           <h2 className="font-bold">Report an Item</h2>
           <button onClick={onClose} className="text-white/30 hover:text-white"><X size={18} /></button>
@@ -286,10 +286,10 @@ export default function LostFound() {
       </div>
 
       {/* How it works */}
-      <div className="bg-purple/5 border border-purple/20 rounded-xl p-5 mb-6">
+      <div className="bg-purple/5 border border-[var(--md-outline-variant)] rounded-xl p-5 mb-6">
         <div className="flex items-center gap-2 mb-2">
           <span>🤖</span>
-          <span className="text-xs font-bold text-purple uppercase tracking-wider">AI Matching Active</span>
+          <span className="text-xs font-bold text-[var(--md-secondary)] uppercase tracking-wider">AI Matching Active</span>
         </div>
         <p className="text-sm text-white/50">
           When you submit a report, our system automatically checks all existing reports for

@@ -79,7 +79,7 @@ function CreatePoolModal({ onClose, profile }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="bg-cyan/5 border border-cyan/20 rounded-xl p-4 text-sm text-white/60">
+          <div className="bg-[var(--md-primary)]/5 border border-cyan/20 rounded-xl p-4 text-sm text-white/60">
             <strong className="text-cyan">How pools work:</strong> Set a group buy deal.
             Students join and pay their share. When full, the pool locks and you purchase together at the bulk price.
           </div>
@@ -201,7 +201,7 @@ function PoolCard({ pool, myId, onJoin }) {
         </div>
         <div className="h-2 bg-obsidian-300 rounded-full overflow-hidden">
           <motion.div
-            className={`h-full rounded-full ${pool.status === 'locked' ? 'bg-plug-green' : 'bg-cyan'}`}
+            className={`h-full rounded-full ${pool.status === 'locked' ? 'bg-plug-green' : 'bg-[var(--md-primary)]'}`}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -213,7 +213,7 @@ function PoolCard({ pool, myId, onJoin }) {
       <div className="flex items-center gap-2 mb-4">
         <div className="flex -space-x-2">
           {Array.from({ length: Math.min(pool.current_count, 6) }).map((_, i) => (
-            <div key={i} className="w-6 h-6 rounded-full bg-primary-container
+            <div key={i} className="w-6 h-6 rounded-full bg-[var(--md-primary-container)]
                                     border border-obsidian-400 flex items-center justify-center text-[9px] font-bold text-obsidian">
               {String.fromCharCode(65 + i)}
             </div>
@@ -399,7 +399,7 @@ export default function StudyPools() {
         ].map(({ val, label }) => (
           <button key={val} onClick={() => setFilter(val)}
             className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
-              filter === val ? 'bg-cyan text-obsidian border-cyan' : 'bg-transparent text-white/40 border-obsidian-500 hover:border-cyan/30'
+              filter === val ? 'bg-[var(--md-primary)] text-obsidian border-cyan' : 'bg-transparent text-white/40 border-obsidian-500 hover:border-cyan/30'
             }`}>
             {label}
           </button>

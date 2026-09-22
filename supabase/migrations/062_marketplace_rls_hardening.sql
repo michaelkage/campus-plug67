@@ -63,12 +63,6 @@ DROP POLICY IF EXISTS "Allow public read on transactions" ON public.transactions
 DROP POLICY IF EXISTS "Allow authenticated read/write on activity_feed" ON public.activity_feed;
 DROP POLICY IF EXISTS "Allow public read on activity_feed" ON public.activity_feed;
 
-CREATE POLICY "Activity feed public read"
-  ON public.activity_feed
-  FOR SELECT
-  TO public
-  USING (true);
-
 CREATE POLICY "Authenticated users insert own activity"
   ON public.activity_feed
   FOR INSERT

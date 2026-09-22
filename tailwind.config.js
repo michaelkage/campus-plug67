@@ -6,15 +6,15 @@ export default {
       colors: {
         'campus-dark': '#0a0a0a', 'campus-gray': '#1a1a1a', 'campus-green': '#00ff88',
         'campus-red': '#ff4444', 'campus-yellow': '#ffaa00', 'campus-blue': '#00aaff',
-        'plug-green': { DEFAULT: '#00FF88', 50: '#E6FFFA', 100: '#B2F5EA', 500: '#00FF88', 600: '#00CC6A', 700: '#00994F', 900: '#00331A' },
-        'plug-red': { DEFAULT: '#FF3B30', 500: '#FF3B30', 600: '#D70015' },
-        'plug-amber': { DEFAULT: '#FF9500', 500: '#FF9500', 600: '#C77700' },
+        'plug-green': { DEFAULT: '#a8c7fa', 50: '#eaf2ff', 100: '#d7e7ff', 500: '#a8c7fa', 600: '#8fb8f2', 700: '#719edc', 900: '#234a7d' },
+        'plug-red': { DEFAULT: '#ffb4ab', 500: '#ffb4ab', 600: '#ff897d' },
+        'plug-amber': { DEFAULT: '#e6c35a', 500: '#e6c35a', 600: '#c7a642' },
         obsidian: {
-          DEFAULT: '#0A0D14', 100: '#171C26', 300: '#1A202B', 400: '#121721',
-          500: '#202735', 800: '#121721', 900: '#0A0D14', 950: '#05070A',
+          DEFAULT: '#111318', 100: '#1d1f24', 300: '#282a2f', 400: '#1d1f24',
+          500: '#33353a', 800: '#1d1f24', 900: '#111318', 950: '#0b0d10',
         },
-        cyan: { DEFAULT: '#00E5FF', 400: '#33ECFF', 500: '#00E5FF', 600: '#00B8CC' },
-        purple: { DEFAULT: '#A855F7', 400: '#C084FC', 500: '#A855F7', 600: '#9333EA' },
+        cyan: { DEFAULT: '#a8c7fa', 400: '#d7e7ff', 500: '#a8c7fa', 600: '#8fb8f2' },
+        purple: { DEFAULT: '#bec6d7', 400: '#dbe2f2', 500: '#bec6d7', 600: '#a5adbe' },
       },
       fontFamily: {
         mono: ['"JetBrains Mono"', 'monospace'], sans: ['"Inter"', 'sans-serif'],

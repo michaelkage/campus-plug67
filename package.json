@@ -21,7 +21,8 @@
     "supabase:link": "supabase link --project-ref etwsfdovcgofhqseejjo",
     "supabase:deploy": "supabase db push",
     "functions:deploy": "supabase functions deploy",
-    "functions:serve": "supabase functions serve"
+    "functions:serve": "supabase functions serve",
+    "test:production-smoke": "node scripts/production-smoke.mjs"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.5.0",

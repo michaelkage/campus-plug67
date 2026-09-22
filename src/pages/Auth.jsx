@@ -105,7 +105,7 @@ export default function Auth() {
             <div className="mt-14 space-y-5">
               {features.map((feature, index) => (
                 <div key={feature.title} className="flex gap-4">
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-xs font-bold text-cyan">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--md-outline-variant)] bg-white/[0.03] text-xs font-bold text-cyan">
                     0{index + 1}
                   </div>
                   <div>
@@ -176,7 +176,7 @@ export default function Auth() {
               </button>
             </div>
 
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.25)] sm:p-7">
+            <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.25)] sm:p-7">
               <div className="mb-6 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-black/10 px-3.5 py-3">
                 <ShieldCheck size={17} className="shrink-0 text-plug-green" />
                 <div>

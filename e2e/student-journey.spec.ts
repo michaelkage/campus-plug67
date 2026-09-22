@@ -44,7 +44,7 @@ test.describe('authenticated student journey', () => {
     await expect(page.getByLabel('Category', { exact: true })).toBeVisible()
     await expect(page.getByLabel('Price (₦)', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Publish Listing', exact: true })).toBeVisible()
-    await page.getByRole('button').filter({ hasText: '×' }).last().click()
+    await page.getByRole('button', { name: 'Close listing form' }).click()
   })
 
   test('sign in, traverse core student surfaces, sign out, and return to auth', async ({ page }) => {

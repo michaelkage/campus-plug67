@@ -78,7 +78,7 @@ export default function VerifyProfile() {
             </div>
           </div>
           <div className="ml-auto">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan to-purple flex items-center justify-center text-obsidian font-black text-sm">
+            <div className="w-8 h-8 rounded-lg bg-[var(--md-primary-container)] flex items-center justify-center text-obsidian font-black text-sm">
               ⚡
             </div>
           </div>
@@ -90,10 +90,10 @@ export default function VerifyProfile() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-6"
+          className="bg-obsidian-400 border border-obsidian-500 rounded-3xl p-6"
         >
           <div className="flex items-start gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan to-purple
+            <div className="w-16 h-16 rounded-3xl bg-[var(--md-primary-container)]
                             flex items-center justify-center text-obsidian font-black text-2xl flex-shrink-0">
               {stats.full_name?.[0]?.toUpperCase() || '?'}
             </div>
@@ -160,7 +160,7 @@ export default function VerifyProfile() {
             { label: 'Completed Sales',    val: stats.total_sales,                   icon: Package,    color: 'text-cyan' },
             { label: 'Total Earnings',     val: formatNaira(stats.total_earnings),   icon: TrendingUp, color: 'text-plug-green' },
             { label: 'Avg. Rating',        val: stats.avg_rating > 0 ? `${stats.avg_rating} ★` : 'N/A', icon: Star, color: 'text-plug-amber' },
-            { label: 'Verified Uploads',   val: stats.verified_uploads,              icon: Shield,     color: 'text-purple' },
+            { label: 'Verified Uploads',   val: stats.verified_uploads,              icon: Shield,     color: 'text-[var(--md-secondary)]' },
           ].map(({ label, val, icon: Icon, color }) => (
             <div key={label} className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4 text-center">
               <Icon size={16} className={`${color} mx-auto mb-2`} />

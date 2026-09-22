@@ -71,6 +71,23 @@ jobs:
         if: always()
         run: supabase stop
 
+  production-smoke:
+    name: Live production path smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Run live production smoke audit
+        run: node scripts/production-smoke.mjs
+
   security:
     name: Secret-pattern scan
     runs-on: ubuntu-latest

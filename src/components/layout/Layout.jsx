@@ -11,7 +11,7 @@ export default function Layout() {
       <div className="app-ambient" aria-hidden="true" />
       <TopNav />
       <NotificationBanner />
-      <main className="app-main relative z-10 flex-1 pb-20 md:pb-0">
+      <main id="main-content" className="app-main relative z-10 flex-1 pb-20 md:pb-0">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}

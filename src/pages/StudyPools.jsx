@@ -71,7 +71,7 @@ function CreatePoolModal({ onClose, profile }) {
       <motion.div
         initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="relative z-10 w-full max-w-lg bg-obsidian-400 border border-obsidian-500 rounded-2xl max-h-[90vh] overflow-y-auto"
+        className="relative z-10 w-full max-w-lg bg-obsidian-400 border border-obsidian-500 rounded-3xl max-h-[90vh] overflow-y-auto"
       >
         <div className="sticky top-0 bg-obsidian-400 border-b border-obsidian-500 px-6 py-4 flex items-center justify-between">
           <h2 className="font-bold text-lg">Start a Study Pool</h2>
@@ -163,7 +163,7 @@ function PoolCard({ pool, myId, onJoin }) {
       layout
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-obsidian-400 border rounded-2xl p-5 transition-all duration-200 ${statusColor[pool.status] || statusColor.open}`}
+      className={`bg-obsidian-400 border rounded-3xl p-5 transition-all duration-200 ${statusColor[pool.status] || statusColor.open}`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
@@ -201,7 +201,7 @@ function PoolCard({ pool, myId, onJoin }) {
         </div>
         <div className="h-2 bg-obsidian-300 rounded-full overflow-hidden">
           <motion.div
-            className={`h-full rounded-full ${pool.status === 'locked' ? 'bg-plug-green' : 'bg-gradient-to-r from-cyan to-purple'}`}
+            className={`h-full rounded-full ${pool.status === 'locked' ? 'bg-plug-green' : 'bg-cyan'}`}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -213,7 +213,7 @@ function PoolCard({ pool, myId, onJoin }) {
       <div className="flex items-center gap-2 mb-4">
         <div className="flex -space-x-2">
           {Array.from({ length: Math.min(pool.current_count, 6) }).map((_, i) => (
-            <div key={i} className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan to-purple
+            <div key={i} className="w-6 h-6 rounded-full bg-primary-container
                                     border border-obsidian-400 flex items-center justify-center text-[9px] font-bold text-obsidian">
               {String.fromCharCode(65 + i)}
             </div>
@@ -409,7 +409,7 @@ export default function StudyPools() {
       {isLoading ? (
         <div className="grid sm:grid-cols-2 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5 animate-pulse h-56" />
+            <div key={i} className="bg-obsidian-400 border border-obsidian-500 rounded-3xl p-5 animate-pulse h-56" />
           ))}
         </div>
       ) : pools.length === 0 ? (

@@ -79,7 +79,7 @@ export default function Leaderboard() {
 
       {/* Student of the Month */}
       {monthStar && (
-        <div className="relative overflow-hidden rounded-2xl border border-plug-amber/30
+        <div className="relative overflow-hidden rounded-3xl border border-plug-amber/30
                         bg-gradient-to-br from-plug-amber/5 to-plug-amber/0 p-6 mb-8">
           <div className="absolute top-0 right-0 w-48 h-48 rounded-full
                           bg-plug-amber/5 blur-3xl pointer-events-none" />
@@ -143,7 +143,7 @@ export default function Leaderboard() {
       </div>
 
       {/* Table */}
-      <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl overflow-hidden">
+      <div className="bg-obsidian-400 border border-obsidian-500 rounded-3xl overflow-hidden">
         {isLoading ? (
           Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4 p-4 border-b border-obsidian-500 animate-pulse last:border-0">
@@ -178,7 +178,7 @@ export default function Leaderboard() {
                   )}
                 </div>
 
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan to-purple
+                <div className="w-10 h-10 rounded-full bg-[var(--md-primary-container)]
                                 flex items-center justify-center text-obsidian font-bold text-sm flex-shrink-0">
                   {leader.avatar_url ? (
                     <img src={leader.avatar_url} className="w-full h-full rounded-full object-cover" />

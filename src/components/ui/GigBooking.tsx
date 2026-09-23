@@ -20,18 +20,18 @@ export function GigPerformanceStats({ gig, compact = false }) {
     : '—'
 
   if (compact) return (
-    <div className="flex items-center gap-3 text-xs text-white/50">
+    <div className="flex items-center gap-3 text-xs text-[var(--md-on-surface-variant)]">
       <span className="flex items-center gap-1">
-        <CheckCircle size={10} className="text-plug-green" />
+        <CheckCircle size={10} className="text-[var(--md-primary)]" />
         {gig.jobs_completed || 0} jobs
       </span>
       <span className="flex items-center gap-1">
-        <Clock size={10} className="text-cyan" />
+        <Clock size={10} className="text-[var(--md-primary)]" />
         {responseLabel} response
       </span>
       {gig.avg_rating > 0 && (
         <span className="flex items-center gap-1">
-          <Star size={10} className="text-plug-amber fill-plug-amber" />
+          <Star size={10} className="text-[var(--md-secondary)] fill-plug-amber" />
           {gig.avg_rating}
         </span>
       )}
@@ -40,22 +40,22 @@ export function GigPerformanceStats({ gig, compact = false }) {
 
   return (
     <div className="grid grid-cols-3 gap-2">
-      <div className="bg-obsidian-300 rounded-xl p-3 text-center">
-        <CheckCircle size={14} className="text-plug-green mx-auto mb-1" />
-        <div className="text-base font-black text-plug-green font-mono">{gig.jobs_completed || 0}</div>
-        <div className="text-[10px] text-white/40">Jobs Done</div>
+      <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 text-center">
+        <CheckCircle size={14} className="text-[var(--md-primary)] mx-auto mb-1" />
+        <div className="text-base font-black text-[var(--md-primary)] font-mono">{gig.jobs_completed || 0}</div>
+        <div className="text-[10px] text-[var(--md-on-surface-variant)]">Jobs Done</div>
       </div>
-      <div className="bg-obsidian-300 rounded-xl p-3 text-center">
-        <Clock size={14} className="text-cyan mx-auto mb-1" />
-        <div className="text-base font-black text-cyan font-mono">{responseLabel}</div>
-        <div className="text-[10px] text-white/40">Avg Response</div>
+      <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 text-center">
+        <Clock size={14} className="text-[var(--md-primary)] mx-auto mb-1" />
+        <div className="text-base font-black text-[var(--md-primary)] font-mono">{responseLabel}</div>
+        <div className="text-[10px] text-[var(--md-on-surface-variant)]">Avg Response</div>
       </div>
-      <div className="bg-obsidian-300 rounded-xl p-3 text-center">
-        <Star size={14} className="text-plug-amber mx-auto mb-1" />
-        <div className="text-base font-black text-plug-amber font-mono">
+      <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 text-center">
+        <Star size={14} className="text-[var(--md-secondary)] mx-auto mb-1" />
+        <div className="text-base font-black text-[var(--md-secondary)] font-mono">
           {gig.avg_rating ? `${gig.avg_rating}★` : '—'}
         </div>
-        <div className="text-[10px] text-white/40">Rating</div>
+        <div className="text-[10px] text-[var(--md-on-surface-variant)]">Rating</div>
       </div>
     </div>
   )
@@ -79,19 +79,19 @@ export function BookingSlotEditor({ slots, onChange }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-bold text-white/50 uppercase tracking-wider">Availability Slots</div>
+        <div className="text-xs font-bold text-[var(--md-on-surface-variant)] uppercase tracking-wider">Availability Slots</div>
         <button onClick={() => setAdding(v => !v)}
-          className="text-xs text-cyan hover:text-cyan/80 font-semibold transition-colors">
+          className="text-xs text-[var(--md-primary)] hover:text-[var(--md-primary)]/80 font-semibold transition-colors">
           + Add Slot
         </button>
       </div>
 
       {(slots || []).map((slot, i) => (
-        <div key={slot.id || i} className="flex items-center justify-between bg-obsidian-300 rounded-xl px-4 py-2.5 text-sm">
+        <div key={slot.id || i} className="flex items-center justify-between bg-[var(--md-surface-container-high)] rounded-xl px-4 py-2.5 text-sm">
           <div className="font-semibold">{slot.day}</div>
-          <div className="text-white/50 text-xs">{slot.start} – {slot.end}</div>
-          <div className="text-cyan text-xs font-mono">{slot.max_bookings} max</div>
-          <button onClick={() => removeSlot(i)} className="text-white/20 hover:text-plug-red transition-colors text-base ml-2">×</button>
+          <div className="text-[var(--md-on-surface-variant)] text-xs">{slot.start} – {slot.end}</div>
+          <div className="text-[var(--md-primary)] text-xs font-mono">{slot.max_bookings} max</div>
+          <button onClick={() => removeSlot(i)} className="text-[var(--md-on-surface)]/20 hover:text-[var(--md-error)] transition-colors text-base ml-2">×</button>
         </div>
       ))}
 
@@ -103,7 +103,7 @@ export function BookingSlotEditor({ slots, onChange }) {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-obsidian-300 rounded-xl p-4 space-y-3">
+            <div className="bg-[var(--md-surface-container-high)] rounded-xl p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Day</label>
@@ -220,7 +220,7 @@ export function BookGig({ gig, onClose }) {
   return (
     <div className="space-y-5">
       <div>
-        <div className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <div className="text-xs font-bold text-[var(--md-on-surface-variant)] uppercase tracking-wider mb-3 flex items-center gap-2">
           <Calendar size={12} /> Select a Date
         </div>
         <input
@@ -231,13 +231,13 @@ export function BookGig({ gig, onClose }) {
           onChange={e => { setSelectedDate(e.target.value); setSelectedSlot(null) }}
         />
         {selectedDate && !daySlot && (
-          <p className="text-xs text-plug-amber mt-2">Not available on {dayOfWeek}s. Try another day.</p>
+          <p className="text-xs text-[var(--md-secondary)] mt-2">Not available on {dayOfWeek}s. Try another day.</p>
         )}
       </div>
 
       {daySlot && timeSlots.length > 0 && (
         <div>
-          <div className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">
+          <div className="text-xs font-bold text-[var(--md-on-surface-variant)] uppercase tracking-wider mb-3">
             Available Times
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -250,9 +250,9 @@ export function BookGig({ gig, onClose }) {
                   disabled={taken}
                   onClick={() => setSelectedSlot({ time })}
                   className={`py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                    taken  ? 'border-obsidian-500 text-white/20 cursor-not-allowed line-through' :
-                    active ? 'border-cyan bg-cyan/15 text-cyan' :
-                             'border-obsidian-500 text-white/60 hover:border-cyan/40'
+                    taken  ? 'border-[var(--md-outline-variant)] text-[var(--md-on-surface)]/20 cursor-not-allowed line-through' :
+                    active ? 'border-cyan bg-[var(--md-primary)]/15 text-[var(--md-primary)]' :
+                             'border-[var(--md-outline-variant)] text-[var(--md-on-surface)]/70 hover:border-[var(--md-primary)]/40'
                   }`}
                 >
                   {time}
@@ -273,12 +273,12 @@ export function BookGig({ gig, onClose }) {
       )}
 
       {selectedSlot && (
-        <div className="bg-obsidian-300 rounded-xl p-4">
+        <div className="bg-[var(--md-surface-container-high)] rounded-xl p-4">
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-white/60">{gig.title}</span>
-            <span className="text-cyan font-mono font-bold">{formatNaira(gig.starting_price)}</span>
+            <span className="text-[var(--md-on-surface)]/70">{gig.title}</span>
+            <span className="text-[var(--md-primary)] font-mono font-bold">{formatNaira(gig.starting_price)}</span>
           </div>
-          <div className="text-xs text-white/40">
+          <div className="text-xs text-[var(--md-on-surface-variant)]">
             {selectedDate} at {selectedSlot.time}
           </div>
         </div>
@@ -293,7 +293,7 @@ export function BookGig({ gig, onClose }) {
         {booking ? 'Sending Request...' : 'Book Instantly'}
       </button>
 
-      <p className="text-xs text-center text-white/25">
+      <p className="text-xs text-center text-[var(--md-on-surface)]/25">
         Payment collected on confirmation via PlugPay
       </p>
     </div>

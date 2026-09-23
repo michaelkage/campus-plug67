@@ -43,9 +43,9 @@ export default function MicroEscrowLauncher() {
     finally { setBusy(false) }
   }
 
-  return <div className="fixed bottom-20 sm:bottom-6 right-4 z-40 w-[min(360px,calc(100vw-2rem))] bg-obsidian-400 border border-plug-green/30 rounded-2xl p-4 shadow-2xl">
-    <div className="flex items-start gap-3"><div className="w-9 h-9 rounded-xl bg-plug-green/10 border border-plug-green/20 flex items-center justify-center flex-shrink-0"><WalletCards size={16} className="text-plug-green" /></div><div className="flex-1 min-w-0"><div className="text-xs font-black text-plug-green uppercase tracking-wider">Campus Wallet micro-escrow</div><div className="text-[11px] text-white/45 mt-1">{formatNaira(Number(listing.price))} · balance {formatNaira(balance)}</div></div></div>
-    <button onClick={() => void buy()} disabled={busy || balance < Number(listing.price)} className="w-full mt-3 py-2.5 rounded-xl bg-plug-green text-obsidian font-black text-xs disabled:opacity-30 disabled:cursor-not-allowed">{busy ? 'LOCKING WALLET FUNDS…' : balance < Number(listing.price) ? 'TOP UP WALLET FIRST' : 'BUY WITH CAMPUS WALLET'}</button>
-    <p className="text-[9px] text-white/25 mt-2 text-center">For items ≤ ₦10,000. Higher-value items use Paystack escrow.</p>
+  return <div className="fixed bottom-20 sm:bottom-6 right-4 z-40 w-[min(360px,calc(100vw-2rem))] bg-surface-container border border-outline-variant rounded-3xl p-4 shadow-lg">
+    <div className="flex items-start gap-3"><div className="w-9 h-9 rounded-2xl bg-primary-container border border-outline-variant flex items-center justify-center flex-shrink-0"><WalletCards size={16} className="text-on-primary-container" /></div><div className="flex-1 min-w-0"><div className="text-xs font-black text-on-primary-container uppercase tracking-wider">Campus Wallet micro-escrow</div><div className="text-[11px] text-on-surface-variant mt-1">{formatNaira(Number(listing.price))} · balance {formatNaira(balance)}</div></div></div>
+    <button onClick={() => void buy()} disabled={busy || balance < Number(listing.price)} className="w-full mt-3 py-2.5 rounded-2xl bg-primary text-on-primary font-black text-xs disabled:opacity-30 disabled:cursor-not-allowed">{busy ? 'LOCKING WALLET FUNDS…' : balance < Number(listing.price) ? 'TOP UP WALLET FIRST' : 'BUY WITH CAMPUS WALLET'}</button>
+    <p className="text-[9px] text-on-surface-variant mt-2 text-center">For items ≤ ₦10,000. Higher-value items use Paystack escrow.</p>
   </div>
 }

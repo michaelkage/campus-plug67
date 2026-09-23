@@ -137,11 +137,11 @@ function KeywordTag({ text, onRemove }) {
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.8, opacity: 0 }}
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
-                 bg-cyan/10 border border-cyan/25 text-cyan text-xs font-semibold"
+                 bg-[var(--md-primary)]/10 border border-cyan/25 text-[var(--md-primary)] text-xs font-semibold"
     >
       {text}
       {onRemove && (
-        <button onClick={onRemove} className="hover:text-white transition-colors">
+        <button onClick={onRemove} className="hover:text-[var(--md-on-surface)] transition-colors">
           <X size={10} />
         </button>
       )}
@@ -154,15 +154,15 @@ function BudgetBar({ budgetKobo, ceilingKobo = 50_000_00 }) {
   const pct = Math.min(100, Math.round((budgetKobo / ceilingKobo) * 100))
   const color =
     pct > 70 ? 'bg-emerald-400' :
-    pct > 35 ? 'bg-cyan'        : 'bg-plug-amber'
+    pct > 35 ? 'bg-[var(--md-primary)]'        : 'bg-plug-amber'
 
   return (
     <div className="space-y-1">
-      <div className="flex justify-between text-[9px] text-white/30">
+      <div className="flex justify-between text-[9px] text-[var(--md-on-surface-variant)]">
         <span>BUDGET</span>
-        <span className="font-mono font-bold text-white">{formatNaira(budgetKobo)}</span>
+        <span className="font-mono font-bold text-[var(--md-on-surface)]">{formatNaira(budgetKobo)}</span>
       </div>
-      <div className="h-1 bg-obsidian-300 rounded-full overflow-hidden">
+      <div className="h-1 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden">
         <motion.div
           className={`h-full rounded-full ${color}`}
           initial={{ width: 0 }}
@@ -187,8 +187,8 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
       transition={{ type: 'spring', stiffness: 340, damping: 28 }}
       className={`rounded-xl border-2 p-4 space-y-3 transition-colors
                   ${isMine
-                    ? 'border-cyan/30 bg-cyan/3'
-                    : 'border-obsidian-500 bg-obsidian-400 hover:border-obsidian-400'}`}
+                    ? 'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/3'
+                    : 'border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] hover:border-obsidian-400'}`}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
@@ -198,16 +198,16 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
                  alt={broadcast.requester.full_name}
                  className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-obsidian-300 flex items-center justify-center
-                            text-xs font-bold text-white/50 flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[var(--md-surface-container-high)] flex items-center justify-center
+                            text-xs font-bold text-[var(--md-on-surface-variant)] flex-shrink-0">
               {(broadcast.requester?.full_name ?? '?')[0].toUpperCase()}
             </div>
           )}
           <div>
-            <p className="text-sm font-bold text-white leading-tight">
+            <p className="text-sm font-bold text-[var(--md-on-surface)] leading-tight">
               {isMine ? 'You' : broadcast.requester?.full_name ?? 'Student'}
             </p>
-            <p className="text-[10px] text-white/30">
+            <p className="text-[10px] text-[var(--md-on-surface-variant)]">
               {broadcast.requester?.university ?? '—'} · {timeAgo(broadcast.created_at)}
             </p>
           </div>
@@ -218,7 +218,7 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
           {isMine && (
             <button
               onClick={() => onClose(broadcast.id)}
-              className="text-white/30 hover:text-plug-red transition-colors"
+              className="text-[var(--md-on-surface-variant)] hover:text-[var(--md-error)] transition-colors"
               title="Cancel demand"
             >
               <X size={13} />
@@ -229,7 +229,7 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
 
       {/* Description */}
       {broadcast.description && (
-        <p className="text-sm text-white/70 leading-relaxed">
+        <p className="text-sm text-[var(--md-on-surface)] leading-relaxed">
           "{broadcast.description}"
         </p>
       )}
@@ -248,7 +248,7 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
 
       {/* Match count badge */}
       {broadcast.match_count > 0 && (
-        <div className="flex items-center gap-1.5 text-[10px] text-plug-green">
+        <div className="flex items-center gap-1.5 text-[10px] text-[var(--md-primary)]">
           <Check size={10} />
           {broadcast.match_count} seller match{broadcast.match_count !== 1 ? 'es' : ''} found
         </div>
@@ -261,8 +261,8 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
           onClick={() => { setPitching(true); onPitch(broadcast) }}
           disabled={pitching}
           className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl
-                     bg-plug-green/10 border border-plug-green/25 text-plug-green
-                     hover:bg-plug-green/20 transition-all text-sm font-bold
+                     bg-[var(--md-primary)]/10 border border-[var(--md-primary)]/25 text-[var(--md-primary)]
+                     hover:bg-[var(--md-primary)]/20 transition-all text-sm font-bold
                      disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <span className="flex items-center gap-2">
@@ -274,7 +274,7 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
       )}
 
       {isMine && (
-        <p className="text-[10px] text-cyan/50 text-center">
+        <p className="text-[10px] text-[var(--md-primary)]/50 text-center">
           Your broadcast is live — matching sellers will message you
         </p>
       )}
@@ -328,21 +328,21 @@ function DemandForm({ onSuccess, onCancel, profile }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5 space-y-4"
+      className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl p-5 space-y-4"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Radio size={14} className="text-cyan" />
+          <Radio size={14} className="text-[var(--md-primary)]" />
           <h3 className="font-bold text-sm">POST A DEMAND</h3>
         </div>
-        <button onClick={onCancel} className="text-white/30 hover:text-white">
+        <button onClick={onCancel} className="text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)]">
           <X size={14} />
         </button>
       </div>
 
       {/* Description */}
       <div className="space-y-1.5">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)]">
           What do you need? *
         </label>
         <textarea
@@ -353,13 +353,13 @@ function DemandForm({ onSuccess, onCancel, profile }) {
           onChange={e => setDescription(e.target.value)}
           maxLength={200}
         />
-        <p className="text-[9px] text-white/20 text-right">{description.length}/200</p>
+        <p className="text-[9px] text-[var(--md-on-surface)]/20 text-right">{description.length}/200</p>
       </div>
 
       {/* Category + budget */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)]">
             Category *
           </label>
           <select className="input text-sm" value={category} onChange={e => setCategory(e.target.value)}>
@@ -369,7 +369,7 @@ function DemandForm({ onSuccess, onCancel, profile }) {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)]">
             Max Budget (₦) *
           </label>
           <input
@@ -385,7 +385,7 @@ function DemandForm({ onSuccess, onCancel, profile }) {
 
       {/* Keywords */}
       <div className="space-y-2">
-        <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)]">
           Keywords ({keywords.length}/{MAX_KEYWORDS})
         </label>
         <div className="flex gap-2">
@@ -402,8 +402,8 @@ function DemandForm({ onSuccess, onCancel, profile }) {
             type="button"
             onClick={addKeyword}
             disabled={!kwInput.trim() || keywords.length >= MAX_KEYWORDS}
-            className="px-3 py-2 bg-obsidian-300 border border-obsidian-500 rounded-xl
-                       text-white/50 hover:text-white disabled:opacity-30 transition-colors"
+            className="px-3 py-2 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl
+                       text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)] disabled:opacity-30 transition-colors"
           >
             <Plus size={14} />
           </button>
@@ -430,7 +430,7 @@ function DemandForm({ onSuccess, onCancel, profile }) {
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl
                    font-bold text-sm tracking-wide transition-all
                    disabled:opacity-40 disabled:cursor-not-allowed
-                   bg-cyan text-obsidian hover:bg-cyan/90"
+                   bg-[var(--md-primary)] text-obsidian hover:bg-[var(--md-primary)]/90"
       >
         {mutation.isPending ? (
           <>
@@ -562,9 +562,9 @@ export default function BeaconBroadcastSystem() {
   if (!beaconEnabled && beaconEnabled !== undefined) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-        <Radio size={32} className="text-white/10 mb-4" />
-        <p className="font-bold text-white/40 text-sm">Beacon Broadcasts</p>
-        <p className="text-xs text-white/20 mt-1 max-w-xs">
+        <Radio size={32} className="text-[var(--md-on-surface)]/10 mb-4" />
+        <p className="font-bold text-[var(--md-on-surface-variant)] text-sm">Beacon Broadcasts</p>
+        <p className="text-xs text-[var(--md-on-surface)]/20 mt-1 max-w-xs">
           This feature is rolling out soon. Check back shortly.
         </p>
       </div>
@@ -580,11 +580,11 @@ export default function BeaconBroadcastSystem() {
       <div className="flex items-start justify-between">
         <div>
           <p className="section-label flex items-center gap-1.5">
-            <Radio size={10} className="text-cyan" />
+            <Radio size={10} className="text-[var(--md-primary)]" />
             REVERSE DEMAND ENGINE
           </p>
           <h1 className="text-2xl font-black tracking-tight">Beacon Broadcasts</h1>
-          <p className="text-xs text-white/30 mt-1">
+          <p className="text-xs text-[var(--md-on-surface-variant)] mt-1">
             Post what you need. Sellers come to you.
           </p>
         </div>
@@ -594,8 +594,8 @@ export default function BeaconBroadcastSystem() {
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold
                       transition-all self-start mt-1
                       ${showForm
-                        ? 'bg-obsidian-300 border border-obsidian-500 text-white/50'
-                        : 'bg-cyan text-obsidian hover:bg-cyan/90'}`}
+                        ? 'bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] text-[var(--md-on-surface-variant)]'
+                        : 'bg-[var(--md-primary)] text-obsidian hover:bg-[var(--md-primary)]/90'}`}
         >
           {showForm ? <X size={14} /> : <Plus size={14} />}
           {showForm ? 'CANCEL' : 'POST DEMAND'}
@@ -612,20 +612,20 @@ export default function BeaconBroadcastSystem() {
             exit={{ opacity: 0, y: -6 }}
             onClick={() => setTab('mine')}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl
-                       bg-cyan/5 border border-cyan/20 text-left"
+                       bg-[var(--md-primary)]/5 border border-cyan/20 text-left"
           >
             <motion.span
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-2 h-2 rounded-full bg-cyan flex-shrink-0"
+              className="w-2 h-2 rounded-full bg-[var(--md-primary)] flex-shrink-0"
             />
             <div className="flex-1">
-              <p className="text-xs font-bold text-cyan">
+              <p className="text-xs font-bold text-[var(--md-primary)]">
                 {activeDemands.length} active broadcast{activeDemands.length !== 1 ? 's' : ''} live
               </p>
-              <p className="text-[10px] text-white/30">Tap to manage your demands</p>
+              <p className="text-[10px] text-[var(--md-on-surface-variant)]">Tap to manage your demands</p>
             </div>
-            <ChevronRight size={13} className="text-white/30" />
+            <ChevronRight size={13} className="text-[var(--md-on-surface-variant)]" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -643,7 +643,7 @@ export default function BeaconBroadcastSystem() {
       </AnimatePresence>
 
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 bg-obsidian-400 border border-obsidian-500 rounded-xl p-1">
+      <div className="flex gap-1 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-1">
         {[
           { id: 'feed', label: 'DEMAND FEED', count: filteredFeed.length },
           { id: 'mine', label: 'MY DEMANDS',  count: myDemands.length    },
@@ -654,15 +654,15 @@ export default function BeaconBroadcastSystem() {
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg
                         text-xs font-bold uppercase tracking-widest transition-all
                         ${tab === t.id
-                          ? 'bg-cyan text-obsidian'
-                          : 'text-white/40 hover:text-white'}`}
+                          ? 'bg-[var(--md-primary)] text-obsidian'
+                          : 'text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)]'}`}
           >
             {t.label}
             {t.count > 0 && (
               <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold
                                 ${tab === t.id
                                   ? 'bg-obsidian/20 text-obsidian'
-                                  : 'bg-white/10 text-white/40'}`}>
+                                  : 'bg-white/10 text-[var(--md-on-surface-variant)]'}`}>
                 {t.count}
               </span>
             )}
@@ -683,7 +683,7 @@ export default function BeaconBroadcastSystem() {
             {/* Search + filter */}
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--md-on-surface-variant)]" />
                 <input
                   className="input pl-8 text-sm w-full"
                   placeholder="Search demands…"
@@ -703,8 +703,8 @@ export default function BeaconBroadcastSystem() {
 
             {/* Feed error */}
             {feedError && (
-              <div className="flex items-center gap-2 text-xs text-plug-red
-                              bg-plug-red/5 border border-plug-red/20 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2 text-xs text-[var(--md-error)]
+                              bg-plug-red/5 border border-[var(--md-error)]/20 rounded-xl px-4 py-3">
                 <AlertTriangle size={13} />
                 Failed to load feed. Check your connection.
               </div>
@@ -715,7 +715,7 @@ export default function BeaconBroadcastSystem() {
               <div className="space-y-3">
                 {[0, 1, 2].map(i => (
                   <div key={i}
-                    className="h-32 bg-obsidian-400 border border-obsidian-500 rounded-xl animate-pulse" />
+                    className="h-32 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl animate-pulse" />
                 ))}
               </div>
             )}
@@ -723,9 +723,9 @@ export default function BeaconBroadcastSystem() {
             {/* Empty state */}
             {!loadingFeed && filteredFeed.length === 0 && (
               <div className="flex flex-col items-center py-16 text-center">
-                <Radio size={32} className="text-white/10 mb-4" />
-                <p className="font-bold text-white/40 text-sm">No active demands yet</p>
-                <p className="text-xs text-white/20 mt-1">
+                <Radio size={32} className="text-[var(--md-on-surface)]/10 mb-4" />
+                <p className="font-bold text-[var(--md-on-surface-variant)] text-sm">No active demands yet</p>
+                <p className="text-xs text-[var(--md-on-surface)]/20 mt-1">
                   Be the first to broadcast what you need.
                 </p>
               </div>
@@ -759,14 +759,14 @@ export default function BeaconBroadcastSystem() {
               <div className="space-y-3">
                 {[0, 1].map(i => (
                   <div key={i}
-                    className="h-28 bg-obsidian-400 border border-obsidian-500 rounded-xl animate-pulse" />
+                    className="h-28 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl animate-pulse" />
                 ))}
               </div>
             ) : myDemands.length === 0 ? (
               <div className="flex flex-col items-center py-16 text-center">
-                <Zap size={32} className="text-white/10 mb-4" />
-                <p className="font-bold text-white/40 text-sm">No demands posted yet</p>
-                <p className="text-xs text-white/20 mt-1">
+                <Zap size={32} className="text-[var(--md-on-surface)]/10 mb-4" />
+                <p className="font-bold text-[var(--md-on-surface-variant)] text-sm">No demands posted yet</p>
+                <p className="text-xs text-[var(--md-on-surface)]/20 mt-1">
                   Post your first demand and watch sellers come to you.
                 </p>
                 <button

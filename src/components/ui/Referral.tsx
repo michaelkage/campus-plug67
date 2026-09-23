@@ -87,11 +87,11 @@ export function ReferralCard({ profile }) {
   }
 
   return (
-    <div className="bg-obsidian-400 border border-purple/20 rounded-2xl overflow-hidden">
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-secondary)]/20 rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple/10 to-cyan/5 px-6 py-4 border-b border-obsidian-500">
+      <div className="bg-[var(--md-secondary)]/6 px-6 py-4 border-b border-[var(--md-outline-variant)]">
         <div className="flex items-center gap-2 mb-1">
-          <Gift size={16} className="text-purple" />
+          <Gift size={16} className="text-[var(--md-secondary)]" />
           <span className="font-bold text-sm">Referral Program</span>
         </div>
         <p className="text-xs text-white/40">
@@ -104,20 +104,20 @@ export function ReferralCard({ profile }) {
         <div>
           <div className="label">Your Referral Code</div>
           <div className="flex gap-2">
-            <div className="flex-1 bg-obsidian-300 border border-obsidian-500 rounded-xl
-                            flex items-center px-4 font-mono text-xl font-black text-cyan tracking-widest">
+            <div className="flex-1 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl
+                            flex items-center px-4 font-mono text-xl font-black text-[var(--md-primary)] tracking-widest">
               {referralCode || '—'}
             </div>
             <button
               onClick={copy}
-              className="p-3 bg-obsidian-300 border border-obsidian-500 rounded-xl
+              className="p-3 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl
                          hover:border-cyan/30 transition-colors"
             >
-              {copied ? <Check size={16} className="text-plug-green" /> : <Copy size={16} className="text-white/40" />}
+              {copied ? <Check size={16} className="text-[var(--md-primary)]" /> : <Copy size={16} className="text-white/40" />}
             </button>
             <button
               onClick={share}
-              className="p-3 bg-obsidian-300 border border-obsidian-500 rounded-xl
+              className="p-3 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl
                          hover:border-cyan/30 transition-colors"
             >
               <Share2 size={16} className="text-white/40" />
@@ -128,11 +128,11 @@ export function ReferralCard({ profile }) {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Invites Sent',      val: referralData?.invitees.length ?? 0,     icon: Users,      color: 'text-cyan'        },
-            { label: 'Bonuses Earned',    val: referralData?.events.filter(e=>e.bonus_awarded).length ?? 0, icon: Gift, color: 'text-plug-green' },
-            { label: 'Score Earned',      val: `+${referralData?.bonusEarned ?? 0}`,   icon: TrendingUp, color: 'text-plug-amber'  },
+            { label: 'Invites Sent',      val: referralData?.invitees.length ?? 0,     icon: Users,      color: 'text-[var(--md-primary)]'        },
+            { label: 'Bonuses Earned',    val: referralData?.events.filter(e=>e.bonus_awarded).length ?? 0, icon: Gift, color: 'text-[var(--md-primary)]' },
+            { label: 'Score Earned',      val: `+${referralData?.bonusEarned ?? 0}`,   icon: TrendingUp, color: 'text-[var(--md-secondary)]'  },
           ].map(({ label, val, icon: Icon, color }) => (
-            <div key={label} className="bg-obsidian-300 rounded-xl p-3 text-center">
+            <div key={label} className="bg-[var(--md-surface-container-high)] rounded-xl p-3 text-center">
               <Icon size={14} className={`${color} mx-auto mb-1`} />
               <div className={`text-lg font-black font-mono ${color}`}>{val}</div>
               <div className="text-[10px] text-white/40 leading-tight">{label}</div>
@@ -141,7 +141,7 @@ export function ReferralCard({ profile }) {
         </div>
 
         {/* How it works */}
-        <div className="bg-obsidian-300 rounded-xl p-4 space-y-2">
+        <div className="bg-[var(--md-surface-container-high)] rounded-xl p-4 space-y-2">
           <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">How It Works</div>
           {[
             { step: '1', text: 'Share your code with a fellow student' },
@@ -150,7 +150,7 @@ export function ReferralCard({ profile }) {
             { step: '4', text: 'You automatically get +50 PlugScore' },
           ].map(({ step, text }) => (
             <div key={step} className="flex items-center gap-3 text-xs">
-              <div className="w-5 h-5 rounded-full bg-cyan/20 text-cyan font-bold
+              <div className="w-5 h-5 rounded-full bg-[var(--md-primary)]/15 text-[var(--md-primary)] font-bold
                               flex items-center justify-center text-[10px] flex-shrink-0">
                 {step}
               </div>
@@ -168,9 +168,9 @@ export function ReferralCard({ profile }) {
                 const event = referralData?.events.find(e => e.referee_id === inv.id)
                 return (
                   <div key={inv.id} className="flex items-center justify-between text-sm
-                                                bg-obsidian-300 rounded-xl px-3 py-2">
+                                                bg-[var(--md-surface-container-high)] rounded-xl px-3 py-2">
                     <span className="text-white/70">{inv.full_name}</span>
-                    <span className={`text-xs font-bold ${event?.bonus_awarded ? 'text-plug-green' : 'text-white/30'}`}>
+                    <span className={`text-xs font-bold ${event?.bonus_awarded ? 'text-[var(--md-primary)]' : 'text-white/30'}`}>
                       {event?.bonus_awarded ? '+50 PlugScore ✓' : 'Pending purchase'}
                     </span>
                   </div>
@@ -202,7 +202,7 @@ export function ReferralApply() {
   }
 
   if (applied) return (
-    <div className="flex items-center gap-2 p-3 rounded-xl bg-plug-green/10 border border-plug-green/20 text-sm text-plug-green">
+    <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--md-primary)]/10 border border-[var(--md-primary)]/20 text-sm text-[var(--md-primary)]">
       <Check size={14} />
       Referral code applied successfully!
     </div>
@@ -216,8 +216,8 @@ export function ReferralApply() {
           value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={8} />
         {code.length === 8 && (
           <button onClick={apply} disabled={applying}
-            className="px-4 bg-plug-green/20 text-plug-green border border-plug-green/30 rounded-xl
-                       text-sm font-bold hover:bg-plug-green/30 transition-colors disabled:opacity-50">
+            className="px-4 bg-[var(--md-primary)]/15 text-[var(--md-primary)] border border-[var(--md-primary)]/30 rounded-xl
+                       text-sm font-bold hover:bg-[var(--md-primary)]/20 transition-colors disabled:opacity-50">
             {applying ? '...' : 'Apply'}
           </button>
         )}

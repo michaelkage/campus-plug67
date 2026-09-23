@@ -9,7 +9,7 @@
  * Dedicated realtime channel: `meetup_state_updates:<transactionId>`
  * "Complete Handshake" CTA is locked until BOTH arrival flags are true.
  * Paystack verification inline loader fires during escrow status polling.
- * AMOLED styling: bg-black, text-neutral-50, border-neutral-900.
+ * AMOLED styling: bg-surface, text-on-surface, border-outline-variant.
  */
 
 import React, {
@@ -69,11 +69,11 @@ function proximityBand(distanceM: number): ProximityBand {
 }
 
 const BAND_STYLE: Record<ProximityBand, { ring: string; text: string; label: string }> = {
-  immediate: { ring: 'border-emerald-400',  text: 'text-emerald-400',  label: 'IMMEDIATE'  },
-  close:     { ring: 'border-yellow-400',   text: 'text-yellow-400',   label: 'CLOSE'      },
-  near:      { ring: 'border-orange-400',   text: 'text-orange-400',   label: 'NEAR'       },
+  immediate: { ring: 'border-primary',  text: 'text-on-primary-container',  label: 'IMMEDIATE'  },
+  close:     { ring: 'border-secondary',   text: 'text-secondary',   label: 'CLOSE'      },
+  near:      { ring: 'border-secondary',   text: 'text-secondary',   label: 'NEAR'       },
   far:       { ring: 'border-rose-500',     text: 'text-rose-500',     label: 'FAR'        },
-  unknown:   { ring: 'border-neutral-700',  text: 'text-neutral-500',  label: 'NO DATA'    },
+  unknown:   { ring: 'border-neutral-700',  text: 'text-on-surface0',  label: 'NO DATA'    },
 }
 
 function geolocationErrorMessage(err: GeolocationPositionError): string {
@@ -102,7 +102,7 @@ function ArrivalBadge({
       layout
       animate={arrived ? { borderColor: '#34d399' } : { borderColor: '#262626' }}
       className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors
-                  ${arrived ? 'bg-emerald-950/40' : 'bg-neutral-950'}`}
+                  ${arrived ? 'bg-primary-container' : 'bg-surface-container-high'}`}
     >
       <div className="flex items-center gap-2.5">
         <motion.span
@@ -110,20 +110,20 @@ function ArrivalBadge({
           transition={{ duration: 0.4 }}
           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
         />
-        <span className="text-xs font-bold tracking-widest text-neutral-300">{role}</span>
+        <span className="text-xs font-bold tracking-widest text-on-surface">{role}</span>
       </div>
       <div className="text-right">
         {arrived ? (
-          <span className="text-xs font-bold text-emerald-400 tracking-wide">
+          <span className="text-xs font-bold text-on-primary-container tracking-wide">
             ✓ ARRIVED
             {arrivalTime && (
-              <span className="ml-1.5 text-emerald-600 font-normal">
+              <span className="ml-1.5 text-on-primary-container font-normal">
                 {new Date(arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
           </span>
         ) : (
-          <span className="text-xs text-neutral-600 tracking-wide">PENDING</span>
+          <span className="text-xs text-on-surface-variant tracking-wide">PENDING</span>
         )}
       </div>
     </motion.div>
@@ -138,21 +138,21 @@ function EscrowVerificationLoader({ escrowStatus }: { escrowStatus: Transaction[
   const isRefunded  = escrowStatus === 'refunded'
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-neutral-950 border border-neutral-900">
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-high border border-outline-variant">
       {/* Animated status dot */}
       <div className="relative flex-shrink-0">
         {isVerifying && (
           <motion.span
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            className="block w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full"
+            className="block w-4 h-4 border-2 border-secondary border-t-transparent rounded-full"
           />
         )}
         {isHeld && (
           <motion.span
             animate={{ opacity: [1, 0.4, 1] }}
             transition={{ duration: 1.5, repeat: Infinity }}
-            className="block w-4 h-4 rounded-full bg-cyan-400"
+            className="block w-4 h-4 rounded-full bg-primary"
           />
         )}
         {isReleased && <span className="block w-4 h-4 rounded-full bg-emerald-400" />}
@@ -163,14 +163,14 @@ function EscrowVerificationLoader({ escrowStatus }: { escrowStatus: Transaction[
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface0">
           PLUGPAY ESCROW
         </p>
         <p className={`text-xs font-bold mt-0.5
-          ${isVerifying ? 'text-amber-400' :
-            isHeld      ? 'text-cyan-400'  :
-            isReleased  ? 'text-emerald-400' :
-            isRefunded  ? 'text-rose-400' : 'text-neutral-500'}`}>
+          ${isVerifying ? 'text-secondary' :
+            isHeld      ? 'text-on-primary-container'  :
+            isReleased  ? 'text-on-primary-container' :
+            isRefunded  ? 'text-on-error-container' : 'text-on-surface0'}`}>
           {isVerifying ? 'VERIFYING PAYMENT…' :
            isHeld      ? 'FUNDS LOCKED IN ESCROW' :
            isReleased  ? 'FUNDS RELEASED' :
@@ -190,36 +190,36 @@ function CoordPanel({
 }) {
   if (!location) {
     return (
-      <div className="px-4 py-4 rounded-xl bg-neutral-950 border border-neutral-900">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-600 mb-2">
+      <div className="px-4 py-4 rounded-xl bg-surface-container-high border border-outline-variant">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
           YOUR COORDINATES
         </p>
-        <p className="text-xs text-neutral-600 font-mono">AWAITING GPS SIGNAL…</p>
+        <p className="text-xs text-on-surface-variant font-mono">AWAITING GPS SIGNAL…</p>
       </div>
     )
   }
 
   return (
-    <div className="px-4 py-4 rounded-xl bg-neutral-950 border border-neutral-900 space-y-1.5">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-2">
+    <div className="px-4 py-4 rounded-xl bg-surface-container-high border border-outline-variant space-y-1.5">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface0 mb-2">
         YOUR COORDINATES
       </p>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1">
         <div>
-          <span className="text-[9px] text-neutral-600 uppercase tracking-widest">LAT</span>
-          <p className="font-mono text-sm text-neutral-100">{location.latitude.toFixed(7)}</p>
+          <span className="text-[9px] text-on-surface-variant uppercase tracking-widest">LAT</span>
+          <p className="font-mono text-sm text-on-surface">{location.latitude.toFixed(7)}</p>
         </div>
         <div>
-          <span className="text-[9px] text-neutral-600 uppercase tracking-widest">LNG</span>
-          <p className="font-mono text-sm text-neutral-100">{location.longitude.toFixed(7)}</p>
+          <span className="text-[9px] text-on-surface-variant uppercase tracking-widest">LNG</span>
+          <p className="font-mono text-sm text-on-surface">{location.longitude.toFixed(7)}</p>
         </div>
       </div>
-      <div className="flex items-center justify-between pt-1 border-t border-neutral-900">
-        <span className="text-[10px] text-neutral-600 font-mono">
+      <div className="flex items-center justify-between pt-1 border-t border-outline-variant">
+        <span className="text-[10px] text-on-surface-variant font-mono">
           ±{location.accuracy.toFixed(0)}m accuracy
         </span>
         {lastUpdate && (
-          <span className="text-[10px] text-neutral-600 font-mono">
+          <span className="text-[10px] text-on-surface-variant font-mono">
             {lastUpdate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </span>
         )}
@@ -270,7 +270,7 @@ function ProximityRing({
           {style.label}
         </p>
         {proximity && (
-          <p className="text-[10px] text-neutral-600 mt-0.5">
+          <p className="text-[10px] text-on-surface-variant mt-0.5">
             {proximity.message}
           </p>
         )}
@@ -478,14 +478,14 @@ export default function LiveMeetupTracker({
   // ── Loading state ──────────────────────────────────────────────────────────
   if (loadingTx) {
     return (
-      <div className="flex items-center justify-center py-20 bg-black">
+      <div className="flex items-center justify-center py-20 bg-surface">
         <div className="flex flex-col items-center gap-3">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full"
+            className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full"
           />
-          <p className="text-[10px] font-bold tracking-widest text-neutral-600 uppercase">
+          <p className="text-[10px] font-bold tracking-widest text-on-surface-variant uppercase">
             SYNCING MEETUP STATE…
           </p>
         </div>
@@ -495,8 +495,8 @@ export default function LiveMeetupTracker({
 
   if (txError || !tx) {
     return (
-      <div className="flex items-center justify-center py-20 bg-black">
-        <p className="text-sm text-rose-400">
+      <div className="flex items-center justify-center py-20 bg-surface">
+        <p className="text-sm text-on-error-container">
           {txError ?? 'Transaction not found.'}
         </p>
       </div>
@@ -506,17 +506,17 @@ export default function LiveMeetupTracker({
   // ── Disputed guard ─────────────────────────────────────────────────────────
   if (disputedAt || tx.status === 'disputed') {
     return (
-      <div className="bg-black border border-rose-900 rounded-2xl p-6 space-y-3">
-        <div className="flex items-center gap-2 text-rose-400">
+      <div className="bg-surface border border-error rounded-2xl p-6 space-y-3">
+        <div className="flex items-center gap-2 text-on-error-container">
           <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
           <p className="text-sm font-bold tracking-widest uppercase">Transaction Disputed</p>
         </div>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-on-surface0">
           Disputed at {disputedAt ? new Date(disputedAt).toLocaleString() : '—'}
         </p>
         <button
           onClick={() => navigate(`/war-room?tx=${transactionId}`)}
-          className="w-full py-3 bg-rose-950 border border-rose-800 text-rose-300
+          className="w-full py-3 bg-error-container border border-error text-on-error-container
                      rounded-xl text-sm font-bold tracking-wide hover:bg-rose-900 transition-colors"
         >
           VIEW IN WAR ROOM →
@@ -527,13 +527,13 @@ export default function LiveMeetupTracker({
 
   // ── Main render ────────────────────────────────────────────────────────────
   return (
-    <div className="bg-black text-neutral-50 rounded-2xl overflow-hidden border border-neutral-900">
+    <div className="bg-surface-container text-on-surface rounded-2xl overflow-hidden border border-outline-variant">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="px-5 pt-5 pb-4 border-b border-neutral-900">
+      <div className="px-5 pt-5 pb-4 border-b border-outline-variant">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-600">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant">
               LIVE MEETUP TRACKER
             </p>
             <h2 className="text-lg font-black tracking-tight mt-0.5">
@@ -548,7 +548,7 @@ export default function LiveMeetupTracker({
               transition={isTracking ? { duration: 1.2, repeat: Infinity } : {}}
               className="w-2 h-2 rounded-full flex-shrink-0"
             />
-            <span className="text-[10px] font-bold tracking-widest text-neutral-500 uppercase">
+            <span className="text-[10px] font-bold tracking-widest text-on-surface0 uppercase">
               {isTracking ? 'LIVE' : 'IDLE'}
             </span>
           </div>
@@ -556,11 +556,11 @@ export default function LiveMeetupTracker({
 
         {/* TX ref + paystack ref */}
         <div className="flex items-center gap-4 mt-3">
-          <span className="text-[10px] font-mono text-neutral-600">
+          <span className="text-[10px] font-mono text-on-surface-variant">
             TX {transactionId.slice(0, 8).toUpperCase()}
           </span>
           {paystackRef && (
-            <span className="text-[10px] font-mono text-neutral-600">
+            <span className="text-[10px] font-mono text-on-surface-variant">
               REF {paystackRef}
             </span>
           )}
@@ -580,7 +580,7 @@ export default function LiveMeetupTracker({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               className="flex items-start gap-2 px-4 py-3 rounded-xl
-                         bg-rose-950/40 border border-rose-900 text-rose-400 text-xs"
+                         bg-error-container border border-error text-on-error-container text-xs"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1 flex-shrink-0" />
               {locationErr}
@@ -590,7 +590,7 @@ export default function LiveMeetupTracker({
 
         {/* ── Arrival status ────────────────────────────────────────────── */}
         <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-600">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
             ARRIVAL STATUS
           </p>
           <ArrivalBadge
@@ -614,14 +614,14 @@ export default function LiveMeetupTracker({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="flex items-center gap-3 px-4 py-3 rounded-xl
-                         bg-emerald-950/40 border border-emerald-800"
+                         bg-primary-container border border-outline-variant"
             >
               <motion.span
                 animate={{ opacity: [1, 0.4, 1] }}
                 transition={{ duration: 1, repeat: Infinity }}
                 className="w-2.5 h-2.5 rounded-full bg-emerald-400 flex-shrink-0"
               />
-              <p className="text-xs font-bold text-emerald-400">
+              <p className="text-xs font-bold text-on-primary-container">
                 BOTH PARTIES ON-SITE — HANDSHAKE ENABLED
               </p>
             </motion.div>
@@ -630,8 +630,8 @@ export default function LiveMeetupTracker({
 
         {/* ── Proximity ring ────────────────────────────────────────────── */}
         {isTracking && (
-          <div className="border border-neutral-900 rounded-2xl overflow-hidden">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-600 px-4 pt-4">
+          <div className="border border-outline-variant rounded-2xl overflow-hidden">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-4 pt-4">
               PROXIMITY TO MEETUP POINT
             </p>
             <ProximityRing proximity={proximity} />
@@ -644,16 +644,16 @@ export default function LiveMeetupTracker({
         {/* ── Safe zones ────────────────────────────────────────────────── */}
         {beacon?.nearby_safe_zones && beacon.nearby_safe_zones.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-600">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
               NEARBY SAFE ZONES
             </p>
             {beacon.nearby_safe_zones.map((z, i) => (
               <div key={i}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg
-                           bg-neutral-950 border border-neutral-900">
+                           bg-surface-container-high border border-outline-variant">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                <span className="text-xs text-neutral-300">{z.zone_name}</span>
-                <span className="ml-auto text-[9px] text-neutral-600 uppercase">{z.zone_type}</span>
+                <span className="text-xs text-on-surface">{z.zone_name}</span>
+                <span className="ml-auto text-[9px] text-on-surface-variant uppercase">{z.zone_type}</span>
               </div>
             ))}
           </div>
@@ -667,9 +667,9 @@ export default function LiveMeetupTracker({
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={startTracking}
-              className="w-full py-3.5 rounded-xl border border-neutral-800 bg-neutral-950
-                         text-sm font-bold text-neutral-200 tracking-wide
-                         hover:border-emerald-700 hover:text-emerald-400 transition-all"
+              className="w-full py-3.5 rounded-xl border border-outline bg-surface-container-high
+                         text-sm font-bold text-on-surface tracking-wide
+                         hover:border-emerald-700 hover:text-on-primary-container transition-all"
             >
               START LOCATION TRACKING
             </motion.button>
@@ -677,9 +677,9 @@ export default function LiveMeetupTracker({
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={stopTracking}
-              className="w-full py-3.5 rounded-xl border border-rose-900 bg-rose-950/30
-                         text-sm font-bold text-rose-400 tracking-wide
-                         hover:bg-rose-950/50 transition-all"
+              className="w-full py-3.5 rounded-xl border border-error bg-error-container/30
+                         text-sm font-bold text-on-error-container tracking-wide
+                         hover:bg-error-container/50 transition-all"
             >
               STOP TRACKING
             </motion.button>
@@ -691,7 +691,7 @@ export default function LiveMeetupTracker({
               whileTap={{ scale: 0.97 }}
               onClick={() => arrivalMutation.mutate()}
               disabled={arrivalMutation.isPending}
-              className="w-full py-3.5 rounded-xl bg-emerald-500 text-black
+              className="w-full py-3.5 rounded-xl bg-primary text-black
                          text-sm font-black tracking-wide
                          disabled:opacity-40 disabled:cursor-not-allowed
                          hover:bg-emerald-400 transition-all"
@@ -717,8 +717,8 @@ export default function LiveMeetupTracker({
             className={`w-full py-3.5 rounded-xl text-sm font-black tracking-wide
                         transition-all duration-300
                         ${bothArrived
-                          ? 'bg-cyan-400 text-black hover:bg-cyan-300 cursor-pointer'
-                          : 'bg-neutral-900 border border-neutral-800 text-neutral-600 cursor-not-allowed'
+                          ? 'bg-primary text-black hover:bg-primary-300 cursor-pointer'
+                          : 'bg-surface-container-highest border border-outline text-on-surface-variant cursor-not-allowed'
                         }`}
           >
             {completing || completeMutation.isPending ? (

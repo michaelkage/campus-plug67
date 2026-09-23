@@ -57,9 +57,9 @@ export function MarketPulse({ category, university, currentPrice, className = ''
 
   if (!category || !university) return null
   if (isLoading) return (
-    <div className={`bg-obsidian-300 border border-obsidian-500 rounded-xl p-4 animate-pulse ${className}`}>
-      <div className="h-4 bg-obsidian-400 rounded w-1/2 mb-3" />
-      <div className="h-3 bg-obsidian-400 rounded w-3/4" />
+    <div className={`bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl p-4 animate-pulse ${className}`}>
+      <div className="h-4 bg-[var(--md-surface-container)] rounded w-1/2 mb-3" />
+      <div className="h-3 bg-[var(--md-surface-container)] rounded w-3/4" />
     </div>
   )
   if (!intel) return null
@@ -71,9 +71,9 @@ export function MarketPulse({ category, university, currentPrice, className = ''
     : null
 
   const demandConfig = {
-    high:   { color: 'text-plug-green', bg: 'bg-plug-green/10 border-plug-green/20', label: '🔥 High Demand', icon: TrendingUp  },
-    medium: { color: 'text-plug-amber', bg: 'bg-plug-amber/10 border-plug-amber/20', label: '📊 Medium Demand', icon: BarChart3  },
-    low:    { color: 'text-white/40',   bg: 'bg-obsidian-300 border-obsidian-500',   label: '📉 Low Demand',   icon: TrendingDown },
+    high:   { color: 'text-[var(--md-primary)]', bg: 'bg-[var(--md-primary)]/10 border-plug-green/20', label: '🔥 High Demand', icon: TrendingUp  },
+    medium: { color: 'text-[var(--md-secondary)]', bg: 'bg-[var(--md-secondary)]/10 border-[var(--md-secondary)]/20', label: '📊 Medium Demand', icon: BarChart3  },
+    low:    { color: 'text-[var(--md-on-surface-variant)]',   bg: 'bg-[var(--md-surface-container-high)] border-[var(--md-outline-variant)]',   label: '📉 Low Demand',   icon: TrendingDown },
   }
   const demand = demandConfig[intel.demand_level] || demandConfig.low
 
@@ -86,14 +86,14 @@ export function MarketPulse({ category, university, currentPrice, className = ''
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <Zap size={14} className="text-cyan" />
-          <span className="text-xs font-bold uppercase tracking-widest text-cyan">Market Pulse</span>
+          <Zap size={14} className="text-[var(--md-primary)]" />
+          <span className="text-xs font-bold uppercase tracking-widest text-[var(--md-primary)]">Market Pulse</span>
         </div>
         {liveViewers != null && liveViewers > 0 && (
           <motion.div
             animate={{ opacity: [1, 0.6, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="flex items-center gap-1.5 text-xs text-white/50"
+            className="flex items-center gap-1.5 text-xs text-[var(--md-on-surface-variant)]"
           >
             <Eye size={11} />
             <span>{liveViewers} browsing now</span>
@@ -105,15 +105,15 @@ export function MarketPulse({ category, university, currentPrice, className = ''
         {/* Sell time */}
         {intel.avg_days_to_sell > 0 && (
           <div className="flex items-start gap-3">
-            <Clock size={14} className="text-white/40 flex-shrink-0 mt-0.5" />
+            <Clock size={14} className="text-[var(--md-on-surface-variant)] flex-shrink-0 mt-0.5" />
             <div>
-              <span className="text-sm text-white/70">Items like this usually sell in </span>
-              <span className="text-sm font-bold text-white">
+              <span className="text-sm text-[var(--md-on-surface)]">Items like this usually sell in </span>
+              <span className="text-sm font-bold text-[var(--md-on-surface)]">
                 {intel.avg_days_to_sell < 1
                   ? `${Math.round(intel.avg_days_to_sell * 24)} hours`
                   : `${intel.avg_days_to_sell} day${intel.avg_days_to_sell !== 1 ? 's' : ''}`}
               </span>
-              <span className="text-sm text-white/70"> on your campus.</span>
+              <span className="text-sm text-[var(--md-on-surface)]"> on your campus.</span>
             </div>
           </div>
         )}
@@ -128,25 +128,25 @@ export function MarketPulse({ category, university, currentPrice, className = ''
               className="flex items-start gap-3"
             >
               {priceDiff > 0
-                ? <TrendingUp  size={14} className="text-plug-amber flex-shrink-0 mt-0.5" />
-                : <TrendingDown size={14} className="text-plug-green flex-shrink-0 mt-0.5" />
+                ? <TrendingUp  size={14} className="text-[var(--md-secondary)] flex-shrink-0 mt-0.5" />
+                : <TrendingDown size={14} className="text-[var(--md-primary)] flex-shrink-0 mt-0.5" />
               }
               <div className="text-sm">
-                <span className="text-white/70">You are pricing this </span>
+                <span className="text-[var(--md-on-surface)]">You are pricing this </span>
                 <span className={`font-bold ${
                   Math.abs(priceDiff) > 30
-                    ? priceDiff > 0 ? 'text-plug-red' : 'text-plug-green'
-                    : 'text-plug-amber'
+                    ? priceDiff > 0 ? 'text-[var(--md-error)]' : 'text-[var(--md-primary)]'
+                    : 'text-[var(--md-secondary)]'
                 }`}>
                   {Math.abs(priceDiff)}% {priceDiff > 0 ? 'above' : 'below'}
                 </span>
-                <span className="text-white/70"> the campus median </span>
-                <span className="text-white font-semibold font-mono">({formatNaira(medianPrice)})</span>
+                <span className="text-[var(--md-on-surface)]"> the campus median </span>
+                <span className="text-[var(--md-on-surface)] font-semibold font-mono">({formatNaira(medianPrice)})</span>
                 {priceDiff < -30 && (
-                  <span className="text-plug-green"> — great deal, should sell fast!</span>
+                  <span className="text-[var(--md-primary)]"> — great deal, should sell fast!</span>
                 )}
                 {priceDiff > 30 && (
-                  <span className="text-plug-red"> — consider lowering for faster sale.</span>
+                  <span className="text-[var(--md-error)]"> — consider lowering for faster sale.</span>
                 )}
               </div>
             </motion.div>
@@ -159,14 +159,14 @@ export function MarketPulse({ category, university, currentPrice, className = ''
             <demand.icon size={13} className={demand.color} />
             <span className={`text-xs font-semibold ${demand.color}`}>{demand.label}</span>
           </div>
-          <div className="text-xs text-white/30">
+          <div className="text-xs text-[var(--md-on-surface-variant)]">
             {intel.total_sold_90d} sold in 90d
           </div>
         </div>
 
         {/* Active supply warning */}
         {intel.price_data?.active_count > 10 && (
-          <div className="text-xs text-plug-amber flex items-center gap-1.5 pt-1 border-t border-white/5">
+          <div className="text-xs text-[var(--md-secondary)] flex items-center gap-1.5 pt-1 border-t border-white/5">
             <span>⚠️</span>
             <span>{intel.price_data.active_count} similar items active — price competitively.</span>
           </div>
@@ -220,9 +220,9 @@ export function LiveViewerGlow({ listingId, sellerId, currentUserId }) {
       <motion.div
         animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
         transition={{ duration: 1.5, repeat: Infinity }}
-        className="w-2 h-2 rounded-full bg-plug-green"
+        className="w-2 h-2 rounded-full bg-[var(--md-primary)]"
       />
-      <span className="text-plug-green font-semibold">
+      <span className="text-[var(--md-primary)] font-semibold">
         {viewerCount} {viewerCount === 1 ? 'person' : 'people'} viewing this right now
       </span>
     </motion.div>

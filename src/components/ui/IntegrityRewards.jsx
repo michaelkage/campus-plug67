@@ -18,24 +18,24 @@ export function IntegrityStreakCard({ profile }) {
   const has = profile?.badges?.includes('Integrity Streak')
   const pct = ((data?.clean || 0) / 5) * 100
   return (
-    <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl overflow-hidden">
-      <div className="bg-gradient-to-r from-plug-green/10 to-cyan/5 px-5 py-4 border-b border-obsidian-500">
-        <div className="flex items-center gap-2"><Shield size={14} className="text-plug-green"/><span className="font-bold text-sm">Integrity Streak</span>{has && <span className="ml-auto tag tag-green text-[9px]">🛡️ ACTIVE</span>}</div>
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl overflow-hidden">
+      <div className="bg-[var(--md-primary)]/6 px-5 py-4 border-b border-[var(--md-outline-variant)]">
+        <div className="flex items-center gap-2"><Shield size={14} className="text-[var(--md-primary)]"/><span className="font-bold text-sm">Integrity Streak</span>{has && <span className="ml-auto tag tag-green text-[9px]">🛡️ ACTIVE</span>}</div>
         <p className="text-xs text-white/40 mt-0.5">Complete 5 clean trades in a row with zero disputes.</p>
       </div>
       <div className="p-5">
         {!has ? (
           <>
-            <div className="flex justify-between text-xs mb-2"><span className="text-white/50">Clean trades</span><span className="font-mono font-bold text-plug-green">{data?.clean || 0} / 5</span></div>
-            <div className="h-2 bg-obsidian-300 rounded-full overflow-hidden mb-4">
-              <motion.div className="h-full rounded-full bg-gradient-to-r from-plug-green to-cyan" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: 'easeOut' }}/>
+            <div className="flex justify-between text-xs mb-2"><span className="text-white/50">Clean trades</span><span className="font-mono font-bold text-[var(--md-primary)]">{data?.clean || 0} / 5</span></div>
+            <div className="h-2 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden mb-4">
+              <motion.div className="h-full rounded-full bg-[var(--md-primary)]" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: 'easeOut' }}/>
             </div>
             <div className="space-y-2 text-xs text-white/50">
               <div>🛡️ Integrity Streak badge</div><div>+25 PlugScore bonus</div><div>1-hour top-of-feed boost</div>
             </div>
           </>
         ) : (
-          <div className="text-center py-2"><div className="text-3xl mb-1">🛡️</div><div className="font-bold text-sm text-plug-green">Integrity Streak Active</div></div>
+          <div className="text-center py-2"><div className="text-3xl mb-1">🛡️</div><div className="font-bold text-sm text-[var(--md-primary)]">Integrity Streak Active</div></div>
         )}
       </div>
     </div>
@@ -46,7 +46,7 @@ export function PowerUserBadge({ badges }) {
   if (!badges?.includes('Power User')) return null
   return (
     <motion.div animate={{ opacity: [1, 0.7, 1] }} transition={{ duration: 3, repeat: Infinity }}
-      className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border bg-purple/15 text-purple border-purple/30">
+      className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border bg-[var(--md-secondary)]/15 text-[var(--md-secondary)] border-[var(--md-secondary)]/30">
       <Zap size={10}/> Power User
     </motion.div>
   )
@@ -55,15 +55,15 @@ export function PowerUserBadge({ badges }) {
 export function AchievementToast({ badge, description, reward, onDismiss }) {
   const [visible, setVisible] = useState(true)
   useState(() => { const t = setTimeout(() => { setVisible(false); setTimeout(onDismiss, 300) }, 4000); return () => clearTimeout(t) })
-  const cfg = { 'Integrity Streak': { emoji: '🛡️', color: 'text-plug-green', border: 'border-plug-green/30' }, 'Power User': { emoji: '⚡', color: 'text-purple', border: 'border-purple/30' } }
-  const c = cfg[badge] || { emoji: '🎖️', color: 'text-plug-amber', border: 'border-plug-amber/30' }
+  const cfg = { 'Integrity Streak': { emoji: '🛡️', color: 'text-[var(--md-primary)]', border: 'border-plug-green/30' }, 'Power User': { emoji: '⚡', color: 'text-[var(--md-secondary)]', border: 'border-[var(--md-secondary)]/30' } }
+  const c = cfg[badge] || { emoji: '🎖️', color: 'text-[var(--md-secondary)]', border: 'border-[var(--md-secondary)]/30' }
   return (
     <AnimatePresence>
       {visible && (
         <motion.div initial={{ opacity:0, y:40 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-20 }} onClick={() => { setVisible(false); setTimeout(onDismiss, 200) }}
           className={`fixed bottom-24 md:bottom-8 left-4 right-4 z-50 max-w-sm mx-auto border rounded-2xl overflow-hidden cursor-pointer ${c.border}`}>
-          <div className="h-1 bg-gradient-to-r from-cyan to-purple"/>
-          <div className="p-5 flex items-center gap-4 bg-obsidian-400">
+          <div className="h-1 bg-[var(--md-primary)]"/>
+          <div className="p-5 flex items-center gap-4 bg-[var(--md-surface-container)]">
             <motion.div animate={{ rotate: [0,-8,8,-4,4,0] }} transition={{ duration: 0.6, delay: 0.2 }} className="text-4xl flex-shrink-0">{c.emoji}</motion.div>
             <div className="flex-1"><div className={`font-black text-base ${c.color}`}>{badge} Unlocked!</div><div className="text-xs text-white/60 mt-0.5">{description}</div>{reward && <div className={`text-xs font-bold mt-1 ${c.color}`}>{reward}</div>}</div>
           </div>

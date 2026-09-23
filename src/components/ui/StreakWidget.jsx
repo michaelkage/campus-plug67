@@ -75,27 +75,27 @@ export function StreakWidget({ userId, compact = false }) {
         animate={current > 0 ? { scale: [1, 1.2, 1] } : {}}
         transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
       >
-        <Flame size={13} className={current >= 7 ? 'text-plug-red fill-plug-red' : 'text-plug-amber'} />
+        <Flame size={13} className={current >= 7 ? 'text-[var(--md-error)] fill-[var(--md-error)]' : 'text-[var(--md-secondary)]'} />
       </motion.div>
-      <span className={`font-bold font-mono ${current >= 7 ? 'text-plug-red' : 'text-plug-amber'}`}>
+      <span className={`font-bold font-mono ${current >= 7 ? 'text-[var(--md-error)]' : 'text-[var(--md-secondary)]'}`}>
         {current}d
       </span>
-      <span className="text-white/30">streak</span>
+      <span className="text-[var(--md-on-surface-variant)]/70">streak</span>
     </div>
   )
 
   return (
-    <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5">
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl p-5">
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Flame size={16} className={current >= 7 ? 'text-plug-red' : 'text-plug-amber'} />
+            <Flame size={16} className={current >= 7 ? 'text-[var(--md-error)]' : 'text-[var(--md-secondary)]'} />
             <span className="font-bold text-sm">Daily Streak</span>
           </div>
-          <p className="text-xs text-white/40">Login and transact daily to keep your streak alive.</p>
+          <p className="text-xs text-[var(--md-on-surface-variant)]">Login and transact daily to keep your streak alive.</p>
         </div>
         {(streak?.freeze_tokens || 0) > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-cyan">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--md-primary)]">
             <Snowflake size={12} />
             <span>{streak.freeze_tokens} freeze token{streak.freeze_tokens !== 1 ? 's' : ''}</span>
           </div>
@@ -111,15 +111,15 @@ export function StreakWidget({ userId, compact = false }) {
           className="flex items-end gap-2"
         >
           <span className={`text-5xl font-black font-mono leading-none ${
-            current >= 30 ? 'text-plug-red' :
-            current >= 14 ? 'text-plug-amber' :
-            current >= 7  ? 'text-plug-green' : 'text-white/60'
+            current >= 30 ? 'text-[var(--md-error)]' :
+            current >= 14 ? 'text-[var(--md-secondary)]' :
+            current >= 7  ? 'text-[var(--md-primary)]' : 'text-[var(--md-on-surface)]/70'
           }`}>{current}</span>
-          <span className="text-lg text-white/40 mb-1">day{current !== 1 ? 's' : ''}</span>
+          <span className="text-lg text-[var(--md-on-surface-variant)] mb-1">day{current !== 1 ? 's' : ''}</span>
         </motion.div>
         {longest > current && (
-          <div className="mb-1 text-xs text-white/30">
-            Best: <span className="text-white/50 font-mono">{longest}d</span>
+          <div className="mb-1 text-xs text-[var(--md-on-surface-variant)]/70">
+            Best: <span className="text-[var(--md-on-surface)]/70 font-mono">{longest}d</span>
           </div>
         )}
       </div>
@@ -127,14 +127,14 @@ export function StreakWidget({ userId, compact = false }) {
       {/* Progress to next milestone */}
       <div className="mb-4">
         <div className="flex justify-between text-xs mb-1.5">
-          <span className="text-white/40">Next milestone: {nextMilestone} days</span>
-          <span className="text-white/40">{nextMilestone - current} more to go</span>
+          <span className="text-[var(--md-on-surface-variant)]">Next milestone: {nextMilestone} days</span>
+          <span className="text-[var(--md-on-surface-variant)]">{nextMilestone - current} more to go</span>
         </div>
-        <div className="h-2 bg-obsidian-300 rounded-full overflow-hidden">
+        <div className="h-2 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden">
           <motion.div
             className={`h-full rounded-full ${
-              current >= 30 ? 'bg-gradient-to-r from-plug-red to-plug-amber' :
-              'bg-gradient-to-r from-plug-amber to-plug-green'
+              current >= 30 ? 'bg-[var(--md-error)]' :
+              'bg-[var(--md-primary)]'
             }`}
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
@@ -150,8 +150,8 @@ export function StreakWidget({ userId, compact = false }) {
             key={m}
             className={`flex-1 py-2 rounded-xl text-center border transition-all ${
               current >= m
-                ? 'bg-plug-amber/15 border-plug-amber/30 text-plug-amber'
-                : 'bg-obsidian-300 border-obsidian-500 text-white/20'
+                ? 'bg-[var(--md-secondary)]/15 border-[var(--md-secondary)]/30 text-[var(--md-secondary)]'
+                : 'bg-[var(--md-surface-container-high)] border-[var(--md-outline-variant)] text-[var(--md-on-surface-variant)]/50'
             }`}
           >
             {current >= m ? <Trophy size={12} className="mx-auto mb-0.5" /> : null}
@@ -161,7 +161,7 @@ export function StreakWidget({ userId, compact = false }) {
       </div>
 
       {/* Milestone bonuses explainer */}
-      <div className="mt-3 text-xs text-white/25 text-center">
+      <div className="mt-3 text-xs text-[var(--md-on-surface-variant)]/60 text-center">
         Reach 7d, 14d, 30d, 60d, 100d for PlugScore bonuses
       </div>
     </div>

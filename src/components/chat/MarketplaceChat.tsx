@@ -58,7 +58,7 @@ function SystemMessage({ body }: { body: string }) {
   const isDispute = body.includes('Dispute') || body.includes('dispute') || body.includes('🚨')
   const isComplete = body.includes('complete') || body.includes('Released') || body.includes('✅')
   const isLocked = body.includes('locked') || body.includes('🔐')
-  const cls = isDispute ? 'border-plug-red/30 bg-plug-red/5 text-plug-red/80' : isComplete ? 'border-plug-green/30 bg-plug-green/5 text-plug-green/80' : isLocked ? 'border-cyan/30 bg-cyan/5 text-cyan/80' : 'border-obsidian-500 bg-obsidian-300 text-white/40'
+  const cls = isDispute ? 'border-plug-red/30 bg-plug-red/5 text-plug-red/80' : isComplete ? 'border-plug-green/30 bg-plug-green/5 text-plug-green/80' : isLocked ? 'border-cyan/30 bg-cyan/5 text-[var(--md-primary)]/80' : 'border-obsidian-500 bg-[var(--md-surface-container-high)] text-[var(--md-on-surface-variant)]'
   return <div className={`mx-auto my-2 max-w-xs rounded-xl border px-4 py-2 text-center text-xs font-medium ${cls}`}>{body}</div>
 }
 
@@ -66,15 +66,15 @@ function TrustGuardWarning({ result, onDismiss }: any) {
   if (!result || result.clean) return null
   const critical = result.blocked
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} className={`mx-4 mb-2 rounded-xl border p-3 ${critical ? 'border-plug-red/40 bg-plug-red/10' : 'border-plug-amber/30 bg-plug-amber/8'}`}>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} className={`mx-4 mb-2 rounded-xl border p-3 ${critical ? 'border-[var(--md-error)]\/40 bg-[var(--md-error-container)]' : 'border-[var(--md-secondary)]\/40 bg-[var(--md-secondary-container)]\/30'}`}>
       <div className="flex items-start gap-2.5">
         <div className="mt-0.5 shrink-0">{critical ? <AlertTriangle size={14} className="text-plug-red" /> : <Shield size={14} className="text-plug-amber" />}</div>
         <div className="min-w-0 flex-1">
           <div className={`mb-0.5 text-xs font-bold ${critical ? 'text-plug-red' : 'text-plug-amber'}`}>{critical ? '🚨 Trust Guard: Escrow Protection at Risk' : '⚠️ Trust Guard Warning'}</div>
-          <div className="text-xs leading-relaxed text-white/60">{result.message}</div>
-          <div className="mt-1.5 text-xs italic text-white/40">Stay in-app to keep your PlugPay protection and PlugScore bonuses active.</div>
+          <div className="text-xs leading-relaxed text-[var(--md-on-surface-variant)]">{result.message}</div>
+          <div className="mt-1.5 text-xs italic text-[var(--md-on-surface-variant)]">Stay in-app to keep your PlugPay protection and PlugScore bonuses active.</div>
         </div>
-        {!critical && <button onClick={onDismiss} className="shrink-0 text-white/20 hover:text-white/50"><X size={12} /></button>}
+        {!critical && <button onClick={onDismiss} className="shrink-0 text-[var(--md-on-surface-variant)] hover:text-white/50"><X size={12} /></button>}
       </div>
     </motion.div>
   )
@@ -106,20 +106,20 @@ function MessageBubble({ message, isOwn, onEdit, onDelete }: MessageBubbleProps)
       <div className="max-w-[72%]">
         {editing ? (
           <div className="flex items-end gap-2">
-            <textarea className="resize-none rounded-xl border border-cyan/40 bg-obsidian-300 px-3 py-2 text-sm text-white outline-none" rows={2} value={editText} onChange={e => setEditText(e.target.value)} autoFocus />
+            <textarea className="resize-none rounded-xl border border-[var(--md-primary)] bg-[var(--md-surface-container-high)] px-3 py-2 text-sm text-white outline-none" rows={2} value={editText} onChange={e => setEditText(e.target.value)} autoFocus />
             <div className="flex flex-col gap-1">
               <button onClick={handleSaveEdit} disabled={saving} className="rounded-lg bg-plug-green/20 p-1.5 text-plug-green hover:bg-plug-green/30 disabled:opacity-50"><Check size={13} /></button>
-              <button onClick={() => { setEditing(false); setEditText(message.content) }} className="rounded-lg bg-obsidian-300 p-1.5 text-white/40 hover:text-white"><X size={13} /></button>
+              <button onClick={() => { setEditing(false); setEditText(message.content) }} className="rounded-lg bg-[var(--md-surface-container-high)] p-1.5 text-[var(--md-on-surface-variant)] hover:text-white"><X size={13} /></button>
             </div>
           </div>
         ) : (
-          <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isOwn ? 'rounded-br-sm bg-cyan font-medium text-obsidian' : 'rounded-bl-sm border border-obsidian-500 bg-obsidian-400 text-white/90'} ${isDeleted ? 'italic opacity-40' : ''}`}>{message.content}</div>
+          <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isOwn ? 'rounded-br-sm bg-cyan font-medium text-obsidian' : 'rounded-bl-sm border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] text-[var(--md-on-surface)]'} ${isDeleted ? 'italic opacity-40' : ''}`}>{message.content}</div>
         )}
         <div className={`mt-0.5 flex items-center gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}>
           <div className="text-[10px] text-white/25">{new Date(message.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}{isOwn && <span className="ml-1">{message.read ? '✓✓' : '✓'}</span>}</div>
           {isOwn && !isDeleted && !editing && !message.isOptimistic && <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-            {canEdit && <button onClick={() => setEditing(true)} className="flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 text-[9px] text-white/30 transition-colors hover:bg-cyan/10 hover:text-cyan" title={`Edit (${editSecs}s remaining)`}><Pencil size={9} /> {editSecs}s</button>}
-            {canEdit && <button onClick={() => onDelete(message.id, message.content)} className="rounded p-0.5 text-white/20 transition-colors hover:bg-plug-red/10 hover:text-plug-red" title="Delete (within 60s)"><Trash2 size={10} /></button>}
+            {canEdit && <button onClick={() => setEditing(true)} className="flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 text-[9px] text-[var(--md-on-surface-variant)] transition-colors hover:bg-cyan/10 hover:text-[var(--md-primary)]" title={`Edit (${editSecs}s remaining)`}><Pencil size={9} /> {editSecs}s</button>}
+            {canEdit && <button onClick={() => onDelete(message.id, message.content)} className="rounded p-0.5 text-[var(--md-on-surface-variant)] transition-colors hover:bg-plug-red/10 hover:text-plug-red" title="Delete (within 60s)"><Trash2 size={10} /></button>}
           </div>}
           {message.isOptimistic && <span className={`font-mono text-[9px] ${message.scanStatus === 'pending' ? 'text-yellow-400' : 'text-red-400'}`}>{message.scanStatus === 'pending' ? 'SENDING...' : message.scanStatus === 'flagged' ? 'FLAGGED' : 'FAILED'}</span>}
         </div>
@@ -132,7 +132,7 @@ function DateSep({ date }: { date: string }) {
   const d = new Date(date), today = new Date()
   const diff = Math.floor((today.getTime() - d.getTime()) / 86400000)
   const label = diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : d.toLocaleDateString('en-NG', { weekday: 'long', month: 'short', day: 'numeric' })
-  return <div className="my-3 flex items-center gap-3 px-4"><div className="h-px flex-1 bg-obsidian-500" /><span className="text-[10px] font-medium text-white/30">{label}</span><div className="h-px flex-1 bg-obsidian-500" /></div>
+  return <div className="my-3 flex items-center gap-3 px-4"><div className="h-px flex-1 bg-obsidian-500" /><span className="text-[10px] font-medium text-[var(--md-on-surface-variant)]">{label}</span><div className="h-px flex-1 bg-obsidian-500" /></div>
 }
 
 export default function MarketplaceChat({ currentUserId, otherUserId, transactionId }: MarketplaceChatProps) {
@@ -225,19 +225,19 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   const otherUserInitials = otherUser?.username?.slice(0, 2).toUpperCase() || '??'
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-obsidian-500 bg-obsidian-400 font-sans">
-      <div className="flex shrink-0 items-center justify-between border-b border-obsidian-500 bg-obsidian-400 px-4 py-3">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] font-sans">
+      <div className="flex shrink-0 items-center justify-between border-b border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-cyan to-purple text-sm font-black text-obsidian">{otherUser?.avatar_url ? <img src={otherUser.avatar_url} alt="" className="h-full w-full rounded-full object-cover" /> : otherUserInitials}</div>
           <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-white">{otherUser?.full_name || otherUser?.username || 'Unknown User'}</div><div className="flex items-center gap-1 text-[10px] font-semibold text-plug-green"><Shield size={9} />PlugPay Protected · 60s edit window</div></div>
         </div>
-        {transactionId && <div className="flex items-center gap-1 font-mono text-[10px] text-white/30"><Lock size={9} />Evidence log</div>}
+        {transactionId && <div className="flex items-center gap-1 font-mono text-[10px] text-[var(--md-on-surface-variant)]"><Lock size={9} />Evidence log</div>}
       </div>
-      {transactionId && <div className="flex items-center gap-2 border-b border-cyan/10 bg-cyan/5 px-4 py-2"><Info size={11} className="shrink-0 text-cyan" /><span className="text-[10px] text-cyan/70">Chat linked to transaction {transactionId.slice(0, 8).toUpperCase()}. Messages are preserved as dispute evidence.</span></div>}
-      {securityWarning.show && <div className={`flex items-start gap-2.5 border-b p-3 ${securityWarning.severity === 'high' || securityWarning.severity === 'critical' ? 'border-plug-red/40 bg-plug-red/10 text-plug-red' : 'border-plug-amber/30 bg-plug-amber/8 text-plug-amber'}`}>{securityWarning.severity === 'high' || securityWarning.severity === 'critical' ? <AlertTriangle size={14} className="mt-0.5 shrink-0" /> : <Shield size={14} className="mt-0.5 shrink-0" />}<div className="flex-1"><div className="text-xs font-bold uppercase">Trust Guard Alert</div><div className="mt-0.5 text-xs leading-relaxed text-white/70">{securityWarning.message}</div></div><button onClick={() => setSecurityWarning({ show: false, message: '', severity: 'medium' })} className="text-white/20 hover:text-white/50"><X size={12} /></button></div>}
-      <div className="flex-1 overflow-y-auto bg-obsidian-400/20 py-3">{loading ? <div className="flex h-full flex-col items-center justify-center gap-2 text-white/30"><Loader size={20} className="animate-spin text-cyan" /><span className="font-mono text-xs">LOADING MESSAGES...</span></div> : messages.length === 0 ? <div className="py-12 text-center text-white/30"><Shield size={28} className="mx-auto mb-3 text-cyan opacity-30" /><p className="text-sm">Start the conversation</p><p className="mt-1 text-xs">Keep communication here to ensure transaction protection.</p></div> : Object.entries(grouped).map(([day, msgs]: [string, any]) => <div key={day}><DateSep date={msgs[0].created_at} />{msgs.map((msg: OptimisticMessage) => <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_id === currentUserId} onEdit={handleEdit} onDelete={handleDelete} />)}</div>)}<div ref={bottomRef} /></div>
+      {transactionId && <div className="flex items-center gap-2 border-b border-[var(--md-outline-variant)] bg-[var(--md-primary-container)]\/20 px-4 py-2"><Info size={11} className="shrink-0 text-[var(--md-primary)]" /><span className="text-[10px] text-[var(--md-primary)]/70">Chat linked to transaction {transactionId.slice(0, 8).toUpperCase()}. Messages are preserved as dispute evidence.</span></div>}
+      {securityWarning.show && <div className={`flex items-start gap-2.5 border-b p-3 ${securityWarning.severity === 'high' || securityWarning.severity === 'critical' ? 'border-[var(--md-error)]\/40 bg-[var(--md-error-container)] text-plug-red' : 'border-[var(--md-secondary)]\/40 bg-[var(--md-secondary-container)]\/30 text-plug-amber'}`}>{securityWarning.severity === 'high' || securityWarning.severity === 'critical' ? <AlertTriangle size={14} className="mt-0.5 shrink-0" /> : <Shield size={14} className="mt-0.5 shrink-0" />}<div className="flex-1"><div className="text-xs font-bold uppercase">Trust Guard Alert</div><div className="mt-0.5 text-xs leading-relaxed text-white/70">{securityWarning.message}</div></div><button onClick={() => setSecurityWarning({ show: false, message: '', severity: 'medium' })} className="text-[var(--md-on-surface-variant)] hover:text-white/50"><X size={12} /></button></div>}
+      <div className="flex-1 overflow-y-auto bg-[var(--md-surface)] py-3">{loading ? <div className="flex h-full flex-col items-center justify-center gap-2 text-[var(--md-on-surface-variant)]"><Loader size={20} className="animate-spin text-[var(--md-primary)]" /><span className="font-mono text-xs">LOADING MESSAGES...</span></div> : messages.length === 0 ? <div className="py-12 text-center text-[var(--md-on-surface-variant)]"><Shield size={28} className="mx-auto mb-3 text-[var(--md-primary)] opacity-30" /><p className="text-sm">Start the conversation</p><p className="mt-1 text-xs">Keep communication here to ensure transaction protection.</p></div> : Object.entries(grouped).map(([day, msgs]: [string, any]) => <div key={day}><DateSep date={msgs[0].created_at} />{msgs.map((msg: OptimisticMessage) => <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_id === currentUserId} onEdit={handleEdit} onDelete={handleDelete} />)}</div>)}<div ref={bottomRef} /></div>
       <AnimatePresence>{scanResult && !scanResult.clean && !warnDismissed && <TrustGuardWarning result={scanResult} onDismiss={() => setWarnDismissed(true)} />}</AnimatePresence>
-      <div className="shrink-0 border-t border-obsidian-500 bg-obsidian-400 p-3"><div className="flex items-end gap-2"><textarea ref={inputRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown} placeholder={scanResult?.blocked ? 'Remove payment/contact details to send...' : 'Type a message...'} rows={1} disabled={sending} className={`max-h-28 flex-1 resize-none rounded-xl border bg-obsidian-300 px-4 py-2.5 text-sm text-white outline-none transition-colors placeholder-white/20 ${scanResult?.blocked ? 'border-plug-red/50 focus:border-plug-red/70' : scanResult ? 'border-plug-amber/40 focus:border-plug-amber/60' : 'border-obsidian-500 focus:border-cyan/50'}`} /><motion.button onClick={handleSendMessage} disabled={!input.trim() || sending || !!scanResult?.blocked} whileTap={{ scale: 0.92 }} className={`shrink-0 rounded-xl p-2.5 transition-all ${input.trim() && !scanResult?.blocked ? 'bg-cyan text-obsidian shadow-cyan' : 'cursor-not-allowed bg-obsidian-300 text-white/20'}`}><Send size={16} /></motion.button></div><div className="mt-1.5 text-center text-[10px] text-white/20">Enter to send · Editable for 60 seconds after sending</div></div>
+      <div className="shrink-0 border-t border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3"><div className="flex items-end gap-2"><textarea ref={inputRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown} placeholder={scanResult?.blocked ? 'Remove payment/contact details to send...' : 'Type a message...'} rows={1} disabled={sending} className={`max-h-28 flex-1 resize-none rounded-xl border bg-[var(--md-surface-container-high)] px-4 py-2.5 text-sm text-white outline-none transition-colors placeholder-white/20 ${scanResult?.blocked ? 'border-plug-red/50 focus:border-plug-red/70' : scanResult ? 'border-plug-amber/40 focus:border-plug-amber/60' : 'border-obsidian-500 focus:border-cyan/50'}`} /><motion.button onClick={handleSendMessage} disabled={!input.trim() || sending || !!scanResult?.blocked} whileTap={{ scale: 0.92 }} className={`shrink-0 rounded-xl p-2.5 transition-all ${input.trim() && !scanResult?.blocked ? 'bg-[var(--md-primary)] text-[var(--md-on-primary)] shadow-cyan' : 'cursor-not-allowed bg-[var(--md-surface-container-high)] text-[var(--md-on-surface-variant)]'}`}><Send size={16} /></motion.button></div><div className="mt-1.5 text-center text-[10px] text-[var(--md-on-surface-variant)]">Enter to send · Editable for 60 seconds after sending</div></div>
     </div>
   )
 }

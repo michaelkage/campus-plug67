@@ -12,23 +12,30 @@ export default function OfflineSyncBanner() {
     const timer = window.setInterval(() => {
       try { setPending(Number(localStorage.getItem('cp-offline-pending') || '0')) } catch { setPending(0) }
     }, 1000)
-    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); window.clearInterval(timer) }
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+      window.clearInterval(timer)
+    }
   }, [])
 
   if (online && pending === 0) return null
 
+  const warning = online
   return (
-    <div className={`fixed top-0 left-0 right-0 z-[100] border-b px-4 py-2.5 text-xs shadow-lg backdrop-blur-md ${online ? 'bg-plug-amber/10 border-plug-amber/30 text-plug-amber' : 'bg-plug-red/10 border-plug-red/30 text-white'}`}>
-      <div className="max-w-7xl mx-auto flex items-center gap-3">
-        {online ? <Cloud size={15} className="text-plug-amber flex-shrink-0" /> : <CloudOff size={15} className="text-plug-red flex-shrink-0" />}
-        <div className="flex-1 min-w-0">
+    <div className="fixed inset-x-0 top-0 z-[100] border-b border-[var(--md-outline-variant)] bg-[var(--md-surface-container-high)] text-[var(--md-on-surface)] shadow-[var(--md-elevation-2)]">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 text-xs sm:text-sm">
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${warning ? 'bg-[var(--md-secondary-container)] text-[var(--md-on-secondary-container)]' : 'bg-[var(--md-error-container)] text-[var(--md-on-error-container)]'}`}>
+          {warning ? <Cloud size={16} /> : <CloudOff size={16} />}
+        </span>
+        <div className="min-w-0 flex-1 leading-5">
           {!online ? (
-            <><strong>Offline Mode:</strong> your changes are saved locally when supported. Keep this tab open until network returns so pending campus updates can publish.</>
+            <><strong className="font-semibold">Offline mode:</strong> your changes are saved locally when supported. Keep this tab open until the network returns so pending campus updates can publish.</>
           ) : (
-            <><strong>Sync in progress:</strong> {pending} campus update{pending === 1 ? '' : 's'} waiting to publish.</>
+            <><strong className="font-semibold">Sync in progress:</strong> {pending} campus update{pending === 1 ? '' : 's'} waiting to publish.</>
           )}
         </div>
-        {pending > 0 && <RefreshCw size={13} className="animate-spin text-plug-amber flex-shrink-0" />}
+        {pending > 0 && <RefreshCw size={16} className="shrink-0 animate-spin text-[var(--md-primary)]" />}
       </div>
     </div>
   )

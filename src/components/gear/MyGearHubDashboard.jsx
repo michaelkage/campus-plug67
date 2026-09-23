@@ -121,59 +121,59 @@ async function fetchUserInventory(userId) {
 const ESCROW_STATE = {
   pending: {
     label:  'AWAITING PAYMENT',
-    border: 'border-white/10',
+    border: 'border-[var(--md-outline-variant)]',
     bg:     'bg-white/3',
     dot:    'bg-white/30',
-    text:   'text-white/40',
+    text:   'text-[var(--md-on-surface-variant)]',
   },
   locked: {
     label:  'FUNDS LOCKED',
-    border: 'border-cyan/40',
-    bg:     'bg-cyan/5',
-    dot:    'bg-cyan animate-pulse',
-    text:   'text-cyan',
+    border: 'border-[var(--md-primary)]/40',
+    bg:     'bg-[var(--md-primary)]/5',
+    dot:    'bg-[var(--md-primary)] animate-pulse',
+    text:   'text-[var(--md-primary)]',
   },
   meetup_initiated: {
     label:  'MEETUP ACTIVE',
     border: 'border-plug-green/40',
-    bg:     'bg-plug-green/5',
-    dot:    'bg-plug-green animate-pulse',
-    text:   'text-plug-green',
+    bg:     'bg-[var(--md-primary)]/5',
+    dot:    'bg-[var(--md-primary)] animate-pulse',
+    text:   'text-[var(--md-primary)]',
   },
   release_requested: {
     label:  'RELEASE REQUESTED',
     border: 'border-plug-amber/40',
     bg:     'bg-plug-amber/5',
     dot:    'bg-plug-amber animate-pulse',
-    text:   'text-plug-amber',
+    text:   'text-[var(--md-secondary)]',
   },
   released: {
     label:  'RELEASED',
     border: 'border-plug-green/30',
-    bg:     'bg-plug-green/5',
-    dot:    'bg-plug-green',
-    text:   'text-plug-green',
+    bg:     'bg-[var(--md-primary)]/5',
+    dot:    'bg-[var(--md-primary)]',
+    text:   'text-[var(--md-primary)]',
   },
   disputed: {
     label:  'UNDER DISPUTE',
     border: 'border-plug-red/50',
     bg:     'bg-plug-red/5',
     dot:    'bg-plug-red animate-pulse',
-    text:   'text-plug-red',
+    text:   'text-[var(--md-error)]',
   },
   cancelled: {
     label:  'CANCELLED',
-    border: 'border-white/10',
+    border: 'border-[var(--md-outline-variant)]',
     bg:     'bg-white/3',
     dot:    'bg-white/20',
-    text:   'text-white/30',
+    text:   'text-[var(--md-on-surface-variant)]',
   },
 }
 
 const URGENCY_STYLE = {
-  ok:      { bar: 'bg-plug-green', label: 'text-plug-green',  icon: Clock,         text: 'ON TIME'      },
-  grace:   { bar: 'bg-plug-amber', label: 'text-plug-amber',  icon: AlertTriangle, text: 'GRACE PERIOD' },
-  penalty: { bar: 'bg-plug-red',   label: 'text-plug-red',    icon: Flame,         text: 'PENALTY ZONE' },
+  ok:      { bar: 'bg-[var(--md-primary)]', label: 'text-[var(--md-primary)]',  icon: Clock,         text: 'ON TIME'      },
+  grace:   { bar: 'bg-plug-amber', label: 'text-[var(--md-secondary)]',  icon: AlertTriangle, text: 'GRACE PERIOD' },
+  penalty: { bar: 'bg-plug-red',   label: 'text-[var(--md-error)]',    icon: Flame,         text: 'PENALTY ZONE' },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -234,7 +234,7 @@ function ClockUnit({ value, label, style }) {
       <span className={`text-2xl font-black font-mono leading-none ${style.label}`}>
         {String(value).padStart(2, '0')}
       </span>
-      <span className="text-[9px] text-white/30 font-bold tracking-widest">{label}</span>
+      <span className="text-[9px] text-[var(--md-on-surface-variant)] font-bold tracking-widest">{label}</span>
     </div>
   )
 }
@@ -256,25 +256,25 @@ function EscrowProgressBar({ status }) {
           <div key={step.key} className="flex items-center flex-1">
             <div className={`flex flex-col items-center gap-1 flex-shrink-0 ${ahead ? 'opacity-25' : ''}`}>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[9px] font-bold transition-all
-                ${done    ? 'border-plug-green bg-plug-green text-obsidian' :
-                  current ? 'border-cyan bg-cyan/20 text-cyan' :
-                            'border-white/15 bg-transparent text-white/20'}`}>
+                ${done    ? 'border-plug-green bg-[var(--md-primary)] text-obsidian' :
+                  current ? 'border-cyan bg-[var(--md-primary)]/20 text-[var(--md-primary)]' :
+                            'border-white/15 bg-transparent text-[var(--md-on-surface)]/20'}`}>
                 {done ? <Check size={10} /> : idx + 1}
               </div>
               <span className={`text-[8px] uppercase tracking-wider font-bold whitespace-nowrap
-                ${current ? 'text-cyan' : done ? 'text-plug-green' : 'text-white/20'}`}>
+                ${current ? 'text-[var(--md-primary)]' : done ? 'text-[var(--md-primary)]' : 'text-[var(--md-on-surface)]/20'}`}>
                 {step.label}
               </span>
             </div>
             {idx < TX_STEPS.length - 1 && (
               <div className={`flex-1 h-px mx-1 transition-colors
-                ${done ? 'bg-plug-green' : current ? 'bg-cyan/30' : 'bg-white/10'}`} />
+                ${done ? 'bg-[var(--md-primary)]' : current ? 'bg-[var(--md-primary)]/30' : 'bg-white/10'}`} />
             )}
           </div>
         )
       })}
       {isError && (
-        <div className="flex items-center gap-1 ml-2 text-plug-red text-xs font-bold">
+        <div className="flex items-center gap-1 ml-2 text-[var(--md-error)] text-xs font-bold">
           <AlertOctagon size={12} />
           {status === 'disputed' ? 'DISPUTED' : 'VOID'}
         </div>
@@ -344,29 +344,29 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
       <div className="p-4">
         <div className="flex items-start gap-3">
           {/* Item thumbnail */}
-          <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-obsidian-300">
+          <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-[var(--md-surface-container-high)]">
             {tx.listing?.images?.[0]
               ? <img src={tx.listing.images[0]} alt={tx.listing.title}
                      className="w-full h-full object-cover" />
-              : <Package size={22} className="m-auto text-white/20 mt-3" />
+              : <Package size={22} className="m-auto text-[var(--md-on-surface)]/20 mt-3" />
             }
           </div>
 
           <div className="flex-1 min-w-0">
             {/* Title + amount */}
             <div className="flex items-start justify-between gap-2 mb-1">
-              <h3 className="font-bold text-sm text-white leading-tight line-clamp-1">
+              <h3 className="font-bold text-sm text-[var(--md-on-surface)] leading-tight line-clamp-1">
                 {tx.listing?.title ?? 'Listing'}
               </h3>
-              <span className="font-mono font-black text-cyan text-sm flex-shrink-0">
+              <span className="font-mono font-black text-[var(--md-primary)] text-sm flex-shrink-0">
                 {formatNaira(tx.amount)}
               </span>
             </div>
 
             {/* Role + counterpart */}
-            <p className="text-[10px] text-white/40 mb-2">
+            <p className="text-[10px] text-[var(--md-on-surface-variant)] mb-2">
               {isSeller ? 'You are selling to' : 'You are buying from'}{' '}
-              <span className="text-white/70 font-semibold">
+              <span className="text-[var(--md-on-surface)] font-semibold">
                 {counterpart?.full_name ?? '—'}
               </span>
             </p>
@@ -381,7 +381,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
               </div>
               <button
                 onClick={() => setExpanded(v => !v)}
-                className="text-white/30 hover:text-white transition-colors"
+                className="text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)] transition-colors"
                 aria-label={expanded ? 'Collapse' : 'Expand'}
               >
                 {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -416,8 +416,8 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
 
               {/* Full heartbeat clock */}
               {tx.listing?.expires_at && !['released','cancelled'].includes(status) && (
-                <div className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-3">
+                <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-4">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)] mb-3">
                     RETURN DEADLINE
                   </p>
                   <HeartbeatClock expiresAt={tx.listing.expires_at} />
@@ -426,18 +426,18 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
 
               {/* Escrow ID + timestamps */}
               <div className="grid grid-cols-2 gap-2 text-[10px]">
-                <div className="bg-obsidian-400 rounded-lg p-2">
-                  <span className="text-white/30 block">Escrow ID</span>
-                  <span className="text-white font-mono">{tx.id.slice(0,8).toUpperCase()}</span>
+                <div className="bg-[var(--md-surface-container)] rounded-lg p-2">
+                  <span className="text-[var(--md-on-surface-variant)] block">Escrow ID</span>
+                  <span className="text-[var(--md-on-surface)] font-mono">{tx.id.slice(0,8).toUpperCase()}</span>
                 </div>
-                <div className="bg-obsidian-400 rounded-lg p-2">
-                  <span className="text-white/30 block">Started</span>
-                  <span className="text-white">{timeAgo(tx.created_at)}</span>
+                <div className="bg-[var(--md-surface-container)] rounded-lg p-2">
+                  <span className="text-[var(--md-on-surface-variant)] block">Started</span>
+                  <span className="text-[var(--md-on-surface)]">{timeAgo(tx.created_at)}</span>
                 </div>
                 {tx.paystack_ref && (
-                  <div className="bg-obsidian-400 rounded-lg p-2 col-span-2">
-                    <span className="text-white/30 block">Payment Ref</span>
-                    <span className="text-white font-mono text-[11px]">{tx.paystack_ref}</span>
+                  <div className="bg-[var(--md-surface-container)] rounded-lg p-2 col-span-2">
+                    <span className="text-[var(--md-on-surface-variant)] block">Payment Ref</span>
+                    <span className="text-[var(--md-on-surface)] font-mono text-[11px]">{tx.paystack_ref}</span>
                   </div>
                 )}
               </div>
@@ -460,7 +460,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
               {/* BUYER: Release funds with QR code */}
               {escrow.can.release && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)]">
                     SELLER'S RELEASE CODE
                   </label>
                   <div className="flex gap-2">
@@ -500,7 +500,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
               {/* BUYER: File dispute within 48h window */}
               {escrow.can.dispute && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-plug-red/70">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--md-error)]/70">
                     FILE A DISPUTE
                   </label>
                   <textarea
@@ -535,8 +535,8 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
 
               {/* Auto-release countdown (release_requested state) */}
               {status === 'release_requested' && escrow.countdown.label && (
-                <div className="flex items-center gap-2 bg-plug-amber/10 border border-plug-amber/25
-                                rounded-lg px-3 py-2 text-xs text-plug-amber">
+                <div className="flex items-center gap-2 bg-[var(--md-secondary)]/10 border border-plug-amber/25
+                                rounded-lg px-3 py-2 text-xs text-[var(--md-secondary)]">
                   <Timer size={12} />
                   Auto-release in: <span className="font-mono font-bold ml-1">
                     {escrow.countdown.label}
@@ -555,10 +555,10 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
 // 7. ACTION BUTTON (shared sub-component)
 // ─────────────────────────────────────────────────────────────────────────────
 const COLOR_MAP = {
-  cyan:  'bg-cyan/10 border-cyan/30 text-cyan hover:bg-cyan/20',
-  green: 'bg-plug-green/10 border-plug-green/30 text-plug-green hover:bg-plug-green/20',
-  amber: 'bg-plug-amber/10 border-plug-amber/30 text-plug-amber hover:bg-plug-amber/20',
-  red:   'bg-plug-red/10 border-plug-red/30 text-plug-red hover:bg-plug-red/20',
+  cyan:  'bg-[var(--md-primary)]/10 border-[var(--md-primary)]/30 text-[var(--md-primary)] hover:bg-[var(--md-primary)]/20',
+  green: 'bg-[var(--md-primary)]/10 border-plug-green/30 text-[var(--md-primary)] hover:bg-[var(--md-primary)]/20',
+  amber: 'bg-[var(--md-secondary)]/10 border-[var(--md-secondary)]/30 text-[var(--md-secondary)] hover:bg-[var(--md-secondary)]/20',
+  red:   'bg-[var(--md-error)]/10 border-[var(--md-error)]/30 text-[var(--md-error)] hover:bg-[var(--md-error)]/20',
 }
 
 function ActionButton({ icon: Icon, label, description, color, loading, disabled, onClick, compact = false }) {
@@ -596,16 +596,16 @@ function InventoryCard({ listing }) {
   const style   = URGENCY_STYLE[urgency]
 
   return (
-    <div className={`bg-obsidian-400 border rounded-xl overflow-hidden transition-colors
+    <div className={`bg-[var(--md-surface-container)] border rounded-xl overflow-hidden transition-colors
                      ${urgency === 'penalty' ? 'border-plug-red/40'
-                       : urgency === 'grace' ? 'border-plug-amber/30'
-                       : 'border-obsidian-500'}`}>
+                       : urgency === 'grace' ? 'border-[var(--md-secondary)]/30'
+                       : 'border-[var(--md-outline-variant)]'}`}>
       {/* Image */}
-      <div className="aspect-video bg-obsidian-300 relative overflow-hidden">
+      <div className="aspect-video bg-[var(--md-surface-container-high)] relative overflow-hidden">
         {listing.images?.[0]
           ? <img src={listing.images[0]} alt={listing.title}
                  className="w-full h-full object-cover" />
-          : <Package size={28} className="absolute inset-0 m-auto text-white/15" />
+          : <Package size={28} className="absolute inset-0 m-auto text-[var(--md-on-surface)]/15" />
         }
         {/* Urgency strip */}
         {cd && (
@@ -624,14 +624,14 @@ function InventoryCard({ listing }) {
       </div>
 
       <div className="p-3 space-y-2">
-        <h3 className="font-bold text-sm text-white line-clamp-1">{listing.title}</h3>
+        <h3 className="font-bold text-sm text-[var(--md-on-surface)] line-clamp-1">{listing.title}</h3>
 
         <div className="flex items-center justify-between">
-          <span className="font-mono font-black text-cyan text-sm">{formatNaira(listing.price)}</span>
+          <span className="font-mono font-black text-[var(--md-primary)] text-sm">{formatNaira(listing.price)}</span>
           <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full
                             border ${listing.status === 'active'
-                              ? 'border-plug-green/30 text-plug-green bg-plug-green/10'
-                              : 'border-white/10 text-white/30'}`}>
+                              ? 'border-plug-green/30 text-[var(--md-primary)] bg-[var(--md-primary)]/10'
+                              : 'border-[var(--md-outline-variant)] text-[var(--md-on-surface-variant)]'}`}>
             {listing.status}
           </span>
         </div>
@@ -641,7 +641,7 @@ function InventoryCard({ listing }) {
           <HeartbeatClock expiresAt={listing.expires_at} compact />
         )}
 
-        <div className="flex items-center justify-between text-[10px] text-white/30">
+        <div className="flex items-center justify-between text-[10px] text-[var(--md-on-surface-variant)]">
           <span>{listing.category}</span>
           <span>{listing.view_count ?? 0} views</span>
         </div>
@@ -744,7 +744,7 @@ export default function MyGearHubDashboard() {
       </div>
 
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 bg-obsidian-400 border border-obsidian-500 rounded-xl p-1">
+      <div className="flex gap-1 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-1">
         {TABS.map(t => (
           <button
             key={t.id}
@@ -752,13 +752,13 @@ export default function MyGearHubDashboard() {
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg
                         text-xs font-bold uppercase tracking-widest transition-all
                         ${tab === t.id
-                          ? 'bg-cyan text-obsidian shadow-sm'
-                          : 'text-white/40 hover:text-white'}`}
+                          ? 'bg-[var(--md-primary)] text-obsidian shadow-sm'
+                          : 'text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)]'}`}
           >
             {t.label}
             {t.count > 0 && (
               <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold
-                                ${tab === t.id ? 'bg-obsidian/20 text-obsidian' : 'bg-white/10 text-white/50'}`}>
+                                ${tab === t.id ? 'bg-obsidian/20 text-obsidian' : 'bg-white/10 text-[var(--md-on-surface-variant)]'}`}>
                 {t.count}
               </span>
             )}
@@ -768,8 +768,8 @@ export default function MyGearHubDashboard() {
 
       {/* ── Error banner ──────────────────────────────────────────────────── */}
       {txError && (
-        <div className="flex items-center gap-2 bg-plug-red/10 border border-plug-red/30
-                        rounded-xl p-3 text-sm text-plug-red">
+        <div className="flex items-center gap-2 bg-[var(--md-error)]/10 border border-[var(--md-error)]/30
+                        rounded-xl p-3 text-sm text-[var(--md-error)]">
           <AlertTriangle size={14} />
           Failed to load transactions. Check your connection.
         </div>
@@ -788,7 +788,7 @@ export default function MyGearHubDashboard() {
             {loadingTxns ? (
               <div className="space-y-3">
                 {[0, 1, 2].map(i => (
-                  <div key={i} className="h-24 bg-obsidian-400 border border-obsidian-500
+                  <div key={i} className="h-24 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)]
                                           rounded-xl animate-pulse" />
                 ))}
               </div>
@@ -824,7 +824,7 @@ export default function MyGearHubDashboard() {
             {loadingInv ? (
               <div className="grid grid-cols-2 gap-3">
                 {[0, 1, 2, 3].map(i => (
-                  <div key={i} className="h-48 bg-obsidian-400 border border-obsidian-500
+                  <div key={i} className="h-48 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)]
                                           rounded-xl animate-pulse" />
                 ))}
               </div>
@@ -853,12 +853,12 @@ export default function MyGearHubDashboard() {
 // ─────────────────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, color, mono = false }) {
   return (
-    <div className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-3">
-      <p className="text-[9px] font-bold uppercase tracking-widest text-white/30 mb-1">{label}</p>
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-3">
+      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)] mb-1">{label}</p>
       <p className={`font-black text-lg leading-none mb-0.5 text-${color} ${mono ? 'font-mono' : ''}`}>
         {value}
       </p>
-      <p className="text-[9px] text-white/25">{sub}</p>
+      <p className="text-[9px] text-[var(--md-on-surface)]/25">{sub}</p>
     </div>
   )
 }
@@ -866,9 +866,9 @@ function StatCard({ label, value, sub, color, mono = false }) {
 function EmptyState({ icon: Icon, title, sub }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <Icon size={36} className="text-white/10 mb-4" />
-      <p className="font-bold text-white/40 text-sm">{title}</p>
-      <p className="text-xs text-white/20 mt-1 max-w-xs">{sub}</p>
+      <Icon size={36} className="text-[var(--md-on-surface)]/10 mb-4" />
+      <p className="font-bold text-[var(--md-on-surface-variant)] text-sm">{title}</p>
+      <p className="text-xs text-[var(--md-on-surface)]/20 mt-1 max-w-xs">{sub}</p>
     </div>
   )
 }

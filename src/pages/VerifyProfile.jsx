@@ -68,11 +68,11 @@ export default function VerifyProfile() {
   return (
     <div className="min-h-screen bg-obsidian">
       {/* Verification header */}
-      <div className="bg-gradient-to-r from-plug-green/20 to-cyan/10 border-b border-plug-green/30 py-4 px-4">
+      <div className="bg-[var(--md-primary)]/6 border-b border-plug-green/30 py-4 px-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <CheckCircle size={20} className="text-plug-green flex-shrink-0" />
+          <CheckCircle size={20} className="text-[var(--md-primary)] flex-shrink-0" />
           <div>
-            <div className="font-bold text-sm text-plug-green">Verified by Campus Plug</div>
+            <div className="font-bold text-sm text-[var(--md-primary)]">Verified by Campus Plug</div>
             <div className="text-xs text-white/40">
               Live data pulled at {verifiedAt} · campusplug.ng
             </div>
@@ -90,7 +90,7 @@ export default function VerifyProfile() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-obsidian-400 border border-obsidian-500 rounded-3xl p-6"
+          className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-3xl p-6"
         >
           <div className="flex items-start gap-5">
             <div className="w-16 h-16 rounded-3xl bg-[var(--md-primary-container)]
@@ -139,7 +139,7 @@ export default function VerifyProfile() {
 
           {/* Badges */}
           {stats.badges?.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap mt-4 pt-4 border-t border-obsidian-500">
+            <div className="flex gap-1.5 flex-wrap mt-4 pt-4 border-t border-[var(--md-outline-variant)]">
               {stats.badges.map(b => (
                 <span key={b} className="tag tag-amber text-[10px]">
                   {BADGE_EMOJI[b] || '🎖️'} {b}
@@ -157,12 +157,12 @@ export default function VerifyProfile() {
           className="grid grid-cols-2 sm:grid-cols-4 gap-3"
         >
           {[
-            { label: 'Completed Sales',    val: stats.total_sales,                   icon: Package,    color: 'text-cyan' },
-            { label: 'Total Earnings',     val: formatNaira(stats.total_earnings),   icon: TrendingUp, color: 'text-plug-green' },
-            { label: 'Avg. Rating',        val: stats.avg_rating > 0 ? `${stats.avg_rating} ★` : 'N/A', icon: Star, color: 'text-plug-amber' },
+            { label: 'Completed Sales',    val: stats.total_sales,                   icon: Package,    color: 'text-[var(--md-primary)]' },
+            { label: 'Total Earnings',     val: formatNaira(stats.total_earnings),   icon: TrendingUp, color: 'text-[var(--md-primary)]' },
+            { label: 'Avg. Rating',        val: stats.avg_rating > 0 ? `${stats.avg_rating} ★` : 'N/A', icon: Star, color: 'text-[var(--md-secondary)]' },
             { label: 'Verified Uploads',   val: stats.verified_uploads,              icon: Shield,     color: 'text-[var(--md-secondary)]' },
           ].map(({ label, val, icon: Icon, color }) => (
-            <div key={label} className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4 text-center">
+            <div key={label} className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-4 text-center">
               <Icon size={16} className={`${color} mx-auto mb-2`} />
               <div className={`text-lg font-black font-mono ${color}`}>{val}</div>
               <div className="text-[10px] text-white/40 mt-0.5 leading-snug">{label}</div>
@@ -175,11 +175,11 @@ export default function VerifyProfile() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-obsidian-400 border border-plug-green/20 rounded-xl p-5"
+          className="bg-[var(--md-surface-container)] border border-[var(--md-primary)]/20 rounded-xl p-5"
         >
           <div className="flex items-center gap-2 mb-3">
-            <CheckCircle size={16} className="text-plug-green" />
-            <span className="font-bold text-sm text-plug-green">Verification Statement</span>
+            <CheckCircle size={16} className="text-[var(--md-primary)]" />
+            <span className="font-bold text-sm text-[var(--md-primary)]">Verification Statement</span>
           </div>
           <p className="text-sm text-white/60 leading-relaxed">
             Campus Plug confirms that <strong className="text-white">{stats.full_name}</strong> is a
@@ -187,12 +187,12 @@ export default function VerifyProfile() {
             verified campus email. The statistics above reflect real, completed transactions on the
             Campus Plug platform as of {verifiedAt}. This data is pulled live and cannot be manipulated.
           </p>
-          <div className="mt-4 pt-4 border-t border-obsidian-500 flex items-center justify-between flex-wrap gap-2">
+          <div className="mt-4 pt-4 border-t border-[var(--md-outline-variant)] flex items-center justify-between flex-wrap gap-2">
             <div className="text-xs text-white/30 font-mono">
               Profile ID: {profileId}
             </div>
             <a href="https://campusplug.ng" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-cyan hover:underline">
+              className="flex items-center gap-1 text-xs text-[var(--md-primary)] hover:underline">
               <ExternalLink size={11} /> campusplug.ng
             </a>
           </div>
@@ -204,16 +204,16 @@ export default function VerifyProfile() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-5"
+            className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-5"
           >
             <h3 className="font-bold text-sm mb-4">Client Reviews</h3>
             <div className="flex items-center gap-4">
               <div className="text-center">
-                <div className="text-3xl font-black text-plug-amber font-mono">{stats.avg_rating}</div>
+                <div className="text-3xl font-black text-[var(--md-secondary)] font-mono">{stats.avg_rating}</div>
                 <div className="flex items-center gap-0.5 mt-1">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} size={12}
-                      className={i < Math.round(stats.avg_rating) ? 'text-plug-amber fill-plug-amber' : 'text-white/20'} />
+                      className={i < Math.round(stats.avg_rating) ? 'text-[var(--md-secondary)] fill-plug-amber' : 'text-white/20'} />
                   ))}
                 </div>
                 <div className="text-xs text-white/30 mt-1">{stats.rating_count} reviews</div>
@@ -222,7 +222,7 @@ export default function VerifyProfile() {
                 {[5, 4, 3, 2, 1].map(star => (
                   <div key={star} className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-white/40 w-2">{star}</span>
-                    <div className="flex-1 h-1.5 bg-obsidian-300 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden">
                       <div className="h-full bg-plug-amber rounded-full"
                         style={{ width: `${star === Math.round(stats.avg_rating) ? 70 : star > Math.round(stats.avg_rating) ? 15 : 10}%` }} />
                     </div>

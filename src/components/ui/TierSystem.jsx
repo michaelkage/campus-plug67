@@ -9,9 +9,9 @@ export const TIERS = {
     emoji:       '🎓',
     icon:        Shield,
     color:       'text-white/60',
-    bg:          'bg-obsidian-300',
-    border:      'border-obsidian-500',
-    gradient:    'from-white/10 to-white/5',
+    bg:          'bg-[var(--md-surface-container-high)]',
+    border:      'border-[var(--md-outline-variant)]',
+    gradient:    'from-[var(--md-on-surface)]/10 to-[var(--md-on-surface)]/5',
     minScore:    0,
     nextScore:   650,
     privileges:  [
@@ -31,10 +31,10 @@ export const TIERS = {
     label:       'Trusted Seller',
     emoji:       '⭐',
     icon:        Star,
-    color:       'text-cyan',
-    bg:          'bg-cyan/10',
-    border:      'border-cyan/30',
-    gradient:    'from-cyan/20 to-cyan/5',
+    color:       'text-[var(--md-primary)]',
+    bg:          'bg-[var(--md-primary)]/10',
+    border:      'border-[var(--md-primary)]/30',
+    gradient:    'from-[var(--md-primary)]/20 to-[var(--md-primary)]/5',
     minScore:    650,
     nextScore:   800,
     privileges:  [
@@ -53,10 +53,10 @@ export const TIERS = {
     label:       'Campus Elite',
     emoji:       '👑',
     icon:        Crown,
-    color:       'text-plug-amber',
-    bg:          'bg-plug-amber/10',
-    border:      'border-plug-amber/30',
-    gradient:    'from-plug-amber/20 to-plug-amber/5',
+    color:       'text-[var(--md-secondary)]',
+    bg:          'bg-[var(--md-secondary)]/10',
+    border:      'border-[var(--md-secondary)]/30',
+    gradient:    'from-[var(--md-secondary)]/20 to-[var(--md-secondary)]/5',
     minScore:    800,
     nextScore:   1000,
     privileges:  [
@@ -106,7 +106,7 @@ export function TierCard({ profile }) {
   const Icon = t.icon
 
   return (
-    <div className={`bg-obsidian-400 border rounded-2xl overflow-hidden ${t.border}`}>
+    <div className={`bg-[var(--md-surface-container)] border rounded-2xl overflow-hidden ${t.border}`}>
       {/* Header */}
       <div className={`bg-gradient-to-r ${t.gradient} px-6 py-5 border-b ${t.border}`}>
         <div className="flex items-center justify-between mb-3">
@@ -138,11 +138,11 @@ export function TierCard({ profile }) {
               <span className="text-white/40">Progress to {nextTier.label}</span>
               <span className="text-white/40">{nextTier.minScore - score} pts needed</span>
             </div>
-            <div className="h-2 bg-black/20 rounded-full overflow-hidden">
+            <div className="h-2 bg-[var(--md-scrim)]/20 rounded-full overflow-hidden">
               <motion.div
                 className={`h-full rounded-full ${
-                  tier === 'citizen' ? 'bg-gradient-to-r from-cyan to-purple'
-                  : 'bg-gradient-to-r from-plug-amber to-plug-red'
+                  tier === 'citizen' ? 'bg-gradient-to-r from-[var(--md-primary)] to-[var(--md-secondary)]'
+                  : 'bg-gradient-to-r from-[var(--md-secondary)] to-[var(--md-error)]'
                 }`}
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
@@ -153,7 +153,7 @@ export function TierCard({ profile }) {
         )}
 
         {tier === 'elite' && (
-          <div className="text-xs text-plug-amber/70 mt-2">
+          <div className="text-xs text-[var(--md-secondary)]/70 mt-2">
             🏆 Maximum tier reached. You are Campus Elite.
           </div>
         )}
@@ -165,7 +165,7 @@ export function TierCard({ profile }) {
         <div className="space-y-2 mb-4">
           {t.privileges.map(p => (
             <div key={p} className="flex items-center gap-2 text-sm text-white/70">
-              <div className="w-1.5 h-1.5 rounded-full bg-plug-green flex-shrink-0" />
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--md-primary)] flex-shrink-0" />
               {p}
             </div>
           ))}
@@ -234,8 +234,8 @@ export function EliteBadge({ tier }) {
       transition={{ duration: 2.5, repeat: Infinity }}
       className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black border ${
         isElite
-          ? 'bg-plug-amber/20 text-plug-amber border-plug-amber/40'
-          : 'bg-cyan/15 text-cyan border-cyan/30'
+          ? 'bg-plug-amber/20 text-[var(--md-secondary)] border-plug-amber/40'
+          : 'bg-[var(--md-primary)]/15 text-[var(--md-primary)] border-[var(--md-primary)]/30'
       }`}
     >
       {isElite ? '👑' : '⭐'} {isElite ? 'ELITE' : 'TRUSTED'}

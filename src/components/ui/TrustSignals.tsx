@@ -67,30 +67,30 @@ export function HighConfidenceBadge({ transaction, profile }: { transaction?: an
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="group relative bg-plug-green/8 border border-plug-green/30 rounded-xl px-4 py-3
+      className="group relative bg-[var(--md-primary)]/8 border border-[var(--md-primary)]/30 rounded-xl px-4 py-3
                  flex items-center gap-3 cursor-help"
     >
-      <div className="w-8 h-8 rounded-lg bg-plug-green/20 flex items-center justify-center flex-shrink-0">
-        <Shield size={16} className="text-plug-green" />
+      <div className="w-8 h-8 rounded-lg bg-[var(--md-primary)]/15 flex items-center justify-center flex-shrink-0">
+        <Shield size={16} className="text-[var(--md-primary)]" />
       </div>
       <div>
-        <div className="text-xs font-bold text-plug-green">High Confidence Trade</div>
-        <div className="text-[10px] text-white/40 mt-0.5">
+        <div className="text-xs font-bold text-[var(--md-primary)]">High Confidence Trade</div>
+        <div className="text-[10px] text-[var(--md-on-surface-variant)] mt-0.5">
           Based on verified behavior and successful transactions.
         </div>
       </div>
       <div className="ml-auto">
-        <div className="text-sm font-black text-plug-green font-mono">{confidencePct}%</div>
+        <div className="text-sm font-black text-[var(--md-primary)] font-mono">{confidencePct}%</div>
       </div>
 
       {/* Tooltip on hover */}
-      <div className="absolute bottom-full left-0 mb-2 w-56 p-3 bg-obsidian-400 border border-obsidian-500
+      <div className="absolute bottom-full left-0 mb-2 w-56 p-3 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)]
                       rounded-xl shadow-card invisible group-hover:visible transition-all z-20">
         <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider mb-2">Confidence Factors</div>
         {criteria.map(c => (
           <div key={c.label} className="flex items-center gap-2 text-[11px] mb-1">
-            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${c.met ? 'bg-plug-green' : 'bg-white/15'}`} />
-            <span className={c.met ? 'text-white/70' : 'text-white/25'}>{c.label}</span>
+            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${c.met ? 'bg-plug-green' : 'bg-[var(--md-on-surface)]/15'}`} />
+            <span className={c.met ? 'text-[var(--md-on-surface)]' : 'text-[var(--md-on-surface-variant)]'}>{c.label}</span>
           </div>
         ))}
       </div>
@@ -133,10 +133,10 @@ export function CampusShieldNudge({ onDismiss }: { onDismiss?: () => void }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
-      className="flex items-start gap-3 p-4 bg-cyan/6 border border-cyan/20 rounded-xl"
+      className="flex items-start gap-3 p-4 bg-[var(--md-primary)]/6 border border-[var(--md-primary)]/20 rounded-xl"
     >
       <Lock size={14} className="text-cyan flex-shrink-0 mt-0.5" />
-      <div className="flex-1 text-xs text-white/70 leading-relaxed">
+      <div className="flex-1 text-xs text-[var(--md-on-surface)] leading-relaxed">
         <span className="text-cyan font-bold">🔐 Campus Shield: </span>
         Stay in-app to keep your escrow protection and PlugScore bonuses active.
         Moving off-platform voids your safety guarantee.
@@ -177,28 +177,18 @@ export function SuccessMoment({ type, data }: { type: keyof typeof MICRO_COPY; d
           exit={{ opacity: 0, scale: 0.97, y: -4 }}
           className={`relative overflow-hidden rounded-2xl border p-5 ${
             isSuccess
-              ? 'border-plug-green/30 bg-plug-green/8'
-              : 'border-cyan/20 bg-cyan/5'
+              ? 'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/8'
+              : 'border-[var(--md-primary)]/20 bg-[var(--md-primary)]/5'
           }`}
         >
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
-            animate={isSuccess ? {
-              background: [
-                'radial-gradient(circle at 20% 50%, rgba(0,255,136,0.03), transparent)',
-                'radial-gradient(circle at 80% 50%, rgba(0,255,136,0.06), transparent)',
-                'radial-gradient(circle at 20% 50%, rgba(0,255,136,0.03), transparent)',
-              ]
-            } : {}}
-            transition={{ duration: 3, repeat: Infinity }}
-          />
+          
           <div className="relative z-10 flex items-start gap-3">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
-              isSuccess ? 'bg-plug-green/20' : 'bg-cyan/10'
+              isSuccess ? 'bg-[var(--md-primary)]/15' : 'bg-[var(--md-primary)]/10'
             }`}>
               {isSuccess ? '🤝' : '🔐'}
             </div>
-            <p className={`text-sm leading-relaxed flex-1 ${isSuccess ? 'text-white/80' : 'text-white/70'}`}>
+            <p className={`text-sm leading-relaxed flex-1 ${isSuccess ? 'text-white/80' : 'text-[var(--md-on-surface)]'}`}>
               {copy}
             </p>
             <button onClick={() => setVisible(false)} className="text-white/20 hover:text-white/50 flex-shrink-0 text-lg leading-none">×</button>
@@ -238,13 +228,13 @@ export function PWAOverlay({ onDismiss }: { onDismiss: () => void }) {
         transition={{ type: 'spring', stiffness: 300, damping: 32 }}
         className="fixed bottom-20 md:bottom-6 left-4 right-4 z-50 max-w-sm mx-auto"
       >
-        <div className="bg-obsidian-400 border border-cyan/30 rounded-2xl overflow-hidden shadow-cyan">
+        <div className="bg-[var(--md-surface-container)] border border-[var(--md-primary)]/30 rounded-2xl overflow-hidden shadow-md">
           {/* Glow stripe */}
-          <div className="h-1 bg-gradient-to-r from-cyan to-purple" />
+          <div className="h-1 bg-[var(--md-primary)]" />
 
           <div className="p-5">
             <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan to-purple flex items-center justify-center text-obsidian font-black text-xl flex-shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-[var(--md-primary-container)] flex items-center justify-center text-obsidian font-black text-xl flex-shrink-0">
                 ⚡
               </div>
               <div>
@@ -261,7 +251,7 @@ export function PWAOverlay({ onDismiss }: { onDismiss: () => void }) {
                 { icon: Shield,      label: 'Offline capable'    },
                 { icon: TrendingUp,  label: 'Home screen'        },
               ].map(({ icon: Icon, label }) => (
-                <div key={label} className="bg-obsidian-300 rounded-xl p-2.5 text-center">
+                <div key={label} className="bg-[var(--md-surface-container-high)] rounded-xl p-2.5 text-center">
                   <Icon size={14} className="text-cyan mx-auto mb-1" />
                   <div className="text-[10px] text-white/50">{label}</div>
                 </div>

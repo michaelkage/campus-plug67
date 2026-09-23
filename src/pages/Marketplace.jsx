@@ -90,7 +90,7 @@ function CreateListingModal({ onClose, profile }) {
       if (error) throw error
       if (tokenOverride) await consumeEmergencyToken(tokenOverride, listing.id)
       for (let i = 0; i < images.length; i++) if (images[i].exif && uploadedUrls[i]) await saveExifFlags(listing.id, uploadedUrls[i], images[i].exif)
-      await supabase.from('activity_feed').insert({ actor_name: profile.full_name, actor_id: profile.id, action: 'listed a new item', subject: form.title, amount: toKobo(form.price), emoji: '🛍️', university: profile.university })
+      const{error:activityError}=await supabase.from('activity_feed').insert({ actor_name: profile.full_name, actor_id: profile.id, action: 'listed a new item', subject: form.title, amount: toKobo(form.price), emoji: '🛍️', university: profile.university }); if(activityError) console.warn('Activity feed update failed after listing publish:', activityError)
       toast.success('Listing published! 🎉'); qc.invalidateQueries({ queryKey: ['listings'] }); qc.invalidateQueries({ queryKey: ['recent-listings'] }); onClose()
     } catch (err) { toast.error(err.message || 'Failed to publish listing') } finally { setSubmitting(false) }
   }

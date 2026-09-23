@@ -124,23 +124,19 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="relative overflow-hidden rounded-xl border border-plug-green/40 bg-plug-green/8 p-4"
+            className="relative overflow-hidden rounded-xl border border-[var(--md-primary)]/40 bg-[var(--md-primary-container)]/40 p-4"
           >
-            <motion.div
-              className="absolute inset-0"
-              animate={{ boxShadow: ['inset 0 0 0 0 rgba(0,255,136,0)', 'inset 0 0 40px 0 rgba(0,255,136,0.06)', 'inset 0 0 0 0 rgba(0,255,136,0)'] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
+            
             <div className="flex items-center gap-3">
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 0.4 }}
               >
-                <CheckCircle2 size={20} className="text-plug-green" />
+                <CheckCircle2 size={20} className="text-[var(--md-primary)]" />
               </motion.div>
               <div>
-                <div className="font-bold text-sm text-plug-green">Both Parties Arrived!</div>
-                <div className="text-xs text-white/50">QR scan is now unlocked. Complete your exchange.</div>
+                <div className="font-bold text-sm text-[var(--md-primary)]">Both Parties Arrived!</div>
+                <div className="text-xs text-[var(--md-on-surface-variant)]">QR scan is now unlocked. Complete your exchange.</div>
               </div>
             </div>
           </motion.div>
@@ -152,16 +148,16 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
         {/* My status */}
         <div className={`border rounded-xl p-3 text-center transition-all ${
           myArrived
-            ? 'border-plug-green/40 bg-plug-green/8'
-            : 'border-obsidian-500 bg-obsidian-400'
+            ? 'border-[var(--md-primary)]/40 bg-[var(--md-primary-container)]/40'
+            : 'border-[var(--md-outline-variant)] bg-[var(--md-surface-container)]'
         }`}>
-          <div className={`text-xs font-bold mb-1 ${myArrived ? 'text-plug-green' : 'text-white/40'}`}>
+          <div className={`text-xs font-bold mb-1 ${myArrived ? 'text-[var(--md-primary)]' : 'text-[var(--md-on-surface-variant)]'}`}>
             {roleLabel} (You)
           </div>
           <div className="text-lg">
             {myArrived ? '✅' : '⏳'}
           </div>
-          <div className={`text-[10px] mt-0.5 ${myArrived ? 'text-plug-green/70' : 'text-white/25'}`}>
+          <div className={`text-[10px] mt-0.5 ${myArrived ? 'text-[var(--md-primary)]/70' : 'text-[var(--md-on-surface-variant)]/70'}`}>
             {myArrived ? 'Arrived' : 'Not yet'}
           </div>
         </div>
@@ -169,16 +165,16 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
         {/* Other party status */}
         <div className={`border rounded-xl p-3 text-center transition-all ${
           otherArrived
-            ? 'border-plug-green/40 bg-plug-green/8'
-            : 'border-obsidian-500 bg-obsidian-400'
+            ? 'border-[var(--md-primary)]/40 bg-[var(--md-primary-container)]/40'
+            : 'border-[var(--md-outline-variant)] bg-[var(--md-surface-container)]'
         }`}>
-          <div className={`text-xs font-bold mb-1 ${otherArrived ? 'text-plug-green' : 'text-white/40'}`}>
+          <div className={`text-xs font-bold mb-1 ${otherArrived ? 'text-[var(--md-primary)]' : 'text-[var(--md-on-surface-variant)]'}`}>
             {otherLabel}
           </div>
           <div className="text-lg">
             {otherArrived ? '✅' : '⏳'}
           </div>
-          <div className={`text-[10px] mt-0.5 ${otherArrived ? 'text-plug-green/70' : 'text-white/25'}`}>
+          <div className={`text-[10px] mt-0.5 ${otherArrived ? 'text-[var(--md-primary)]/70' : 'text-[var(--md-on-surface-variant)]/70'}`}>
             {otherArrived ? 'Arrived' : 'Waiting'}
           </div>
         </div>
@@ -186,20 +182,20 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
 
       {/* Nearest safe zone */}
       {safeZones.length > 0 && (
-        <div className="bg-obsidian-300 rounded-xl p-3 space-y-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-white/40 uppercase tracking-wider">
+        <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-[var(--md-on-surface-variant)] uppercase tracking-wider">
             <Shield size={11} />
             Safe Exchange Zones
           </div>
           {safeZones.slice(0, 3).map(zone => (
             <div key={zone.id} className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 text-white/60">
-                <MapPin size={10} className="text-cyan flex-shrink-0" />
+                <MapPin size={10} className="text-[var(--md-primary)] flex-shrink-0" />
                 {zone.name}
               </div>
               {distanceM != null && nearestZone?.id === zone.id && (
                 <div className={`font-mono font-bold text-[10px] ${
-                  distanceM <= zone.radius_m ? 'text-plug-green' : 'text-white/30'
+                  distanceM <= zone.radius_m ? 'text-[var(--md-primary)]' : 'text-white/30'
                 }`}>
                   {distanceM <= zone.radius_m ? '✓ Within range' : `${distanceM}m away`}
                 </div>
@@ -217,7 +213,7 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
             onClick={() => handleArrive(false)}
             disabled={gettingLocation}
             className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2
-                       bg-cyan text-obsidian hover:shadow-cyan transition-all disabled:opacity-50"
+                       bg-[var(--md-primary)] text-[var(--md-on-primary)] hover:shadow-md transition-all disabled:opacity-50"
           >
             {gettingLocation ? (
               <>
@@ -235,8 +231,8 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
           <button
             onClick={() => handleArrive(true)}
             disabled={gettingLocation}
-            className="w-full py-2 rounded-xl text-xs font-semibold text-white/40
-                       hover:text-white/60 border border-obsidian-500 hover:border-obsidian-400
+            className="w-full py-2 rounded-xl text-xs font-semibold text-[var(--md-on-surface-variant)]
+                       hover:text-white/60 border border-[var(--md-outline-variant)] hover:border-[var(--md-outline)]
                        transition-colors disabled:opacity-30"
           >
             No GPS — Mark as arrived manually
@@ -245,7 +241,7 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
       )}
 
       {myArrived && !bothArrived && (
-        <div className="flex items-center gap-2 text-xs text-white/40 justify-center py-1">
+        <div className="flex items-center gap-2 text-xs text-[var(--md-on-surface-variant)] justify-center py-1">
           <Clock size={11} />
           Waiting for {otherLabel.toLowerCase()} to check in...
         </div>

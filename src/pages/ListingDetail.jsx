@@ -144,11 +144,20 @@ export default function ListingDetail() {
     setBuying(true)
     try {
       const ref = `CP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`
-      const rawPrice = Number(listing.price)
-      const amountInKobo = rawPrice < 100000 ? Math.round(rawPrice * 100) : Math.round(rawPrice)
+      const amountInKobo = Number(listing.price)
+      if (!Number.isSafeInteger(amountInKobo) || amountInKobo <= 0) throw new Error('This listing has an invalid price.')
+      const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
+      if (!publicKey) throw new Error('Payment service is not configured. Please try again later.')
       const { data: tx, error } = await supabase.from('transactions').insert({ listing_id: listing.id, buyer_id: user.id, seller_id: listing.seller_id, amount: amountInKobo, status: 'pending', paystack_ref: ref }).select().single()
       if (error) throw error
-      await initPaystack({ email: user.email, amount: amountInKobo, ref, publicKey: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY, metadata: { type: 'marketplace_escrow', transaction_id: tx.id, listing_id: listing.id } })
+      try {
+        await initPaystack({ email: user.email, amount: amountInKobo, ref, publicKey, metadata: { type: 'marketplace_escrow', transaction_id: tx.id, listing_id: listing.id } })
+      } catch (paymentError) {
+        if (paymentError?.message === 'Payment cancelled') {
+          await supabase.from('transactions').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', tx.id).eq('buyer_id', user.id)
+        }
+        throw paymentError
+      }
       qc.invalidateQueries({ queryKey: ['transaction', id, user.id] })
     } catch (e) {
       if (e.message !== 'Payment cancelled') toast.error(e.message)

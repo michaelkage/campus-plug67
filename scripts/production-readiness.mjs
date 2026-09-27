@@ -89,5 +89,6 @@ if (!recovery.includes('Recovery Status')) fail('Production readiness: recovery 
 
 // 10. Required production secrets cannot be inspected through the repository API.
 // The workflow itself is the authoritative runtime check; never invent secret values in source.
-console.log(`Production readiness checks passed: ${versions.size} unique migrations, ${functions.length} Edge Functions, CI/deploy/maintenance gates present.`);
+if (!read('supabase/migrations/062_platform_integrity_ledger_observability.sql').includes('payment_events')) fail('Production readiness: platform integrity migration is incomplete');
+console.log(`Production readiness checks passed: ${versions.size} unique migrations, ${functions.length} Edge Functions, CI/deploy/maintenance gates present, platform integrity foundation present.`);
 console.log('Runtime-only checks remain: GitHub secret presence, real staging authorization tests, and backup restoration.');

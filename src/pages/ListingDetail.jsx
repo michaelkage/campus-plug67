@@ -154,7 +154,7 @@ export default function ListingDetail() {
         await initPaystack({ email: user.email, amount: amountInKobo, ref, publicKey, metadata: { type: 'marketplace_escrow', transaction_id: tx.id, listing_id: listing.id } })
       } catch (paymentError) {
         if (paymentError?.message === 'Payment cancelled') {
-          await supabase.from('transactions').update({ status: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', tx.id).eq('buyer_id', user.id)
+          await supabase.rpc('cancel_pending_transaction', { p_transaction_id: tx.id })
         }
         throw paymentError
       }

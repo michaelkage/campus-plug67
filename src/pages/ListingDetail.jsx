@@ -152,6 +152,13 @@ export default function ListingDetail() {
       if (error) throw error
       try {
         await initPaystack({ email: user.email, amount: amountInKobo, ref, publicKey, metadata: { type: 'marketplace_escrow', transaction_id: tx.id, listing_id: listing.id } })
+        const { data: verification, error: verificationError } = await supabase.functions.invoke('verify-payment', {
+          body: { transaction_id: tx.id },
+        })
+        if (verificationError) throw verificationError
+        if (!verification?.success && !verification?.already_verified) {
+          throw new Error('Payment was not confirmed by the payment provider. Your transaction remains pending.')
+        }
       } catch (paymentError) {
         if (paymentError?.message === 'Payment cancelled') {
           await supabase.rpc('cancel_pending_transaction', { p_transaction_id: tx.id })

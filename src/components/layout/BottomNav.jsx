@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Home, ShoppingBag, MessageCircle, Users, User } from 'lucide-react'
+import { Home, ShoppingBag, MessageCircle, Users, User, WalletCards } from 'lucide-react'
 
 const tabs = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/marketplace', icon: ShoppingBag, label: 'Market' },
   { to: '/chat', icon: MessageCircle, label: 'Chat' },
   { to: '/study-pools', icon: Users, label: 'Pools' },
+  { to: '/wallet', icon: WalletCards, label: 'Wallet' },
   { to: '/profile', icon: User, label: 'Me' },
 ]
 

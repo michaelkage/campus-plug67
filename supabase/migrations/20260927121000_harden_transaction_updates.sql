@@ -20,6 +20,7 @@ REVOKE ALL ON FUNCTION public.cancel_pending_transaction(uuid) FROM PUBLIC,anon,
 GRANT EXECUTE ON FUNCTION public.cancel_pending_transaction(uuid) TO authenticated;
 
 DROP POLICY IF EXISTS "Parties update own transaction metadata" ON public.transactions;
+DROP POLICY IF EXISTS "Parties update safe transaction metadata" ON public.transactions;
 CREATE POLICY "Parties update safe transaction metadata" ON public.transactions
 FOR UPDATE TO authenticated
 USING (auth.uid() = buyer_id OR auth.uid() = seller_id)

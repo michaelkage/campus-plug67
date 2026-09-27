@@ -16,6 +16,8 @@ const protectedRoutes = [
   '/reviews',
   '/war-room',
   '/workspace',
+  '/settings',
+  '/admin',
 ]
 
 test('public auth shell loads', async ({ page }) => {

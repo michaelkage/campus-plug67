@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bell, Check, MonitorCog, Moon, Smartphone, Sparkles, Volume2 } from 'lucide-react'
+import { Bell, Check, Monitor, Moon, Smartphone, Sparkles, Volume2 } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'

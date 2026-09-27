@@ -197,3 +197,8 @@ table td, table th { vertical-align: middle; }
 ::-webkit-scrollbar-track { background: var(--md-surface-container); }
 ::-webkit-scrollbar-thumb { background: var(--md-outline-variant); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--md-outline); }
+
+
+@media (prefers-reduced-motion: reduce), html[data-reduced-motion="true"] { *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
+html[data-compact="true"] .surface, html[data-compact="true"] .stat-card { padding: .8rem; }
+html[data-theme="amoled"], html[data-theme="amoled"] body { --md-surface:#000; --md-surface-container:#080808; --md-surface-container-high:#101010; --md-surface-container-highest:#171717; }

@@ -32,6 +32,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run test:transaction-state
+      - run: npm run test:platform-integrity
       - run: npm run test:security
       - run: npm run test:security:supabase
       - run: npm run test:production-readiness

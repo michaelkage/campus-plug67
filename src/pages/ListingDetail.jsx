@@ -120,13 +120,14 @@ export default function ListingDetail() {
   const { data: existingTx } = useQuery({
     queryKey: ['transaction', id, user?.id],
     queryFn: async () => {
+      const partyColumn = listing.seller_id === user.id ? 'seller_id' : 'buyer_id'
       const { data } = await supabase.from('transactions').select('*')
-        .eq('listing_id', id).eq('buyer_id', user.id)
+        .eq('listing_id', id).eq(partyColumn, user.id)
         .not('status', 'eq', 'cancelled')
         .order('created_at', { ascending: false }).limit(1).maybeSingle()
       return data
     },
-    enabled: !!user && !!listing && listing.seller_id !== user.id,
+    enabled: !!user && !!listing,
   })
 
   useTransactionStatus(existingTx?.id, (updated) => {
@@ -157,7 +158,11 @@ export default function ListingDetail() {
         })
         if (verificationError) throw verificationError
         if (!verification?.success && !verification?.already_verified) {
-          throw new Error('Payment was not confirmed by the payment provider. Your transaction remains pending.')
+          qc.invalidateQueries({ queryKey: ['transaction', id, user.id] })
+          toast('Payment received. We are confirming it with Paystack; your transaction will update automatically.', {
+            icon: '⏳',
+          })
+          return
         }
       } catch (paymentError) {
         if (paymentError?.message === 'Payment cancelled') {

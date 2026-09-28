@@ -52,6 +52,31 @@ serve(async (req: Request) => {
   if (!transactionId) return jsonResponse({ error: "Missing transaction_id" }, 400, {}, req);
   if (action === "release" && deviceType(req) !== "mobile") return jsonResponse({ error: "Physical QR release must be completed on a phone with GPS. Scan the Transfer-to-Mobile QR to continue.", code: "MOBILE_REQUIRED" }, 403, {}, req);
 
+  if (action === "release") {
+    const lat = typeof record.lat === "number" ? record.lat : Number(record.lat);
+    const lng = typeof record.lng === "number" ? record.lng : Number(record.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return jsonResponse({ error: "Fresh phone location is required before QR release.", code: "LOCATION_REQUIRED" }, 400, {}, req);
+    }
+
+    const { data: arrival, error: arrivalError } = await admin.rpc("record_safe_arrival_v2", {
+      p_transaction_id: transactionId,
+      p_role: "buyer",
+      p_lat: lat,
+      p_lng: lng,
+      p_user_id: user.id,
+      p_device_type: "mobile",
+    });
+    if (arrivalError) return jsonResponse({ error: arrivalError.message }, 400, {}, req);
+    if (!arrival?.success) {
+      return jsonResponse({
+        error: arrival?.message || "You must be inside an approved Safe Swap Zone.",
+        code: "SAFE_ZONE_REQUIRED",
+        ...arrival,
+      }, 403, {}, req);
+    }
+  }
+
   if (action === "duress") {
     const code = typeof record.duress_code === "string" ? record.duress_code : null;
     const panicToken = typeof record.panic_token === "string" ? record.panic_token : null;

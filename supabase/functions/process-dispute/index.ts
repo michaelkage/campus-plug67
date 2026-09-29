@@ -55,6 +55,39 @@ async function assignJurors(caseId: string, required: number, excludeIds: string
 }
 
 async function executeVerdict(juryCase: DisputeCase, verdict: string) {
+  if (verdict === "claimant") {
+    const { data: tx, error: txError } = await admin.from("transactions")
+      .select("id,amount,payment_method,paystack_ref,refund_status")
+      .eq("id", juryCase.transaction_id).single();
+    if (txError || !tx) throw txError ?? new Error("Transaction not found");
+    if ((tx.payment_method ?? "paystack") !== "campus_wallet") {
+      if (!tx.paystack_ref) throw new Error("Paystack reference missing; dispute refund cannot be initiated safely");
+      if (!["pending","processing","processed"].includes(tx.refund_status ?? "")) {
+        const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+        if (!secret) throw new Error("Paystack refund service is not configured");
+        const response = await fetch("https://api.paystack.co/refund", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transaction: tx.paystack_ref,
+            amount: tx.amount,
+            customer_note: `Campus Plug dispute refund for ${tx.paystack_ref}`,
+            merchant_note: `Campus Plug dispute refund for transaction ${tx.id}`,
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.status) throw new Error(payload?.message || "Paystack rejected the dispute refund");
+        const refund = payload.data ?? {};
+        await admin.from("transactions").update({
+          refund_status: typeof refund.status === "string" ? refund.status : "pending",
+          paystack_refund_id: refund.id != null ? String(refund.id) : null,
+          refund_initiated_at: new Date().toISOString(),
+          refund_failure_reason: null,
+        }).eq("id", tx.id);
+      }
+    }
+  }
+
   const { data, error } = await admin.rpc("resolve_dispute_verdict", { p_case_id: juryCase.id, p_verdict: verdict, p_admin_override: false });
   if (error) throw error;
   const messages: Record<string, string> = { claimant: "⚖️ The cross-campus jury found in your favour. Your escrow protection is restored.", respondent: "⚖️ The cross-campus jury found against you. The escrow has been released." };

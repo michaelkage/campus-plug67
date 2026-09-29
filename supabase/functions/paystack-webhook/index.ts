@@ -58,6 +58,25 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Invalid JSON payload" }, 400, {}, req);
   }
 
+  if (event.event?.startsWith("refund.")) {
+    const data = event.data as Record<string, unknown> | undefined;
+    const transactionReference = typeof data?.transaction_reference === "string" ? data.transaction_reference : null;
+    const status = typeof data?.status === "string" ? data.status : null;
+    const refundReference = typeof data?.refund_reference === "string" ? data.refund_reference : null;
+    if (!transactionReference || !status) return jsonResponse({ ok: true }, 200, {}, req);
+
+    const patch: Record<string, unknown> = { refund_status: status };
+    if (refundReference) patch.paystack_refund_id = refundReference;
+    if (status === "processed") patch.refund_processed_at = new Date().toISOString();
+    if (status === "failed") patch.refund_failure_reason = "Paystack reported refund.failed";
+    const { error } = await admin.from("transactions").update(patch).eq("paystack_ref", transactionReference);
+    if (error) {
+      console.error("Paystack refund state update failed", error.message);
+      return jsonResponse({ error: error.message }, 500, {}, req);
+    }
+    return jsonResponse({ ok: true }, 200, {}, req);
+  }
+
   if (event.event !== "charge.success") return jsonResponse({ ok: true }, 200, {}, req);
   const reference = event.data?.reference;
   const amount = Number(event.data?.amount);

@@ -59,22 +59,8 @@ serve(async (req: Request) => {
       return jsonResponse({ error: "Fresh phone location is required before QR release.", code: "LOCATION_REQUIRED" }, 400, {}, req);
     }
 
-    const { data: arrival, error: arrivalError } = await admin.rpc("record_safe_arrival_v2", {
-      p_transaction_id: transactionId,
-      p_role: "buyer",
-      p_lat: lat,
-      p_lng: lng,
-      p_user_id: user.id,
-      p_device_type: "mobile",
-    });
-    if (arrivalError) return jsonResponse({ error: arrivalError.message }, 400, {}, req);
-    if (!arrival?.success) {
-      return jsonResponse({
-        error: arrival?.message || "You must be inside an approved Safe Swap Zone.",
-        code: "SAFE_ZONE_REQUIRED",
-        ...arrival,
-      }, 403, {}, req);
-    }
+    // Arrival verification is intentionally handled by the canonical safe-arrival
+    // endpoint. Release only consumes the fresh, server-recorded buyer GPS state.
   }
 
   if (action === "duress") {

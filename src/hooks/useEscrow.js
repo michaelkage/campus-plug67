@@ -5,7 +5,7 @@
  * Handles the complete state machine:
  *
  *   pending → locked → meetup_initiated → release_requested → released
- *                                                           ↘ disputed
+ *                                      ↘ released              ↘ disputed
  *
  * Features:
  * - Real-time transaction status updates via Supabase Realtime
@@ -160,8 +160,8 @@ export function useEscrow({
   // ── State machine actions ──────────────────────────────────────────────────
 
   /**
-   * BUYER: Release funds immediately by providing the seller's QR secret.
-   * Triggers: meetup_initiated → released
+   * BUYER: Release funds by providing the seller's QR secret.
+   * Triggers: meetup_initiated/release_requested → released
    */
   const release = useCallback((qrSecret) => {
     if (!qrSecret?.trim()) {
@@ -172,9 +172,9 @@ export function useEscrow({
   }, [edgeCall])
 
   /**
-   * SELLER or BUYER: Confirm the physical meetup has started.
+   * SELLER: Confirm the physical meetup has started.
    * Triggers: locked → meetup_initiated
-   * Starts the 24-hour QR scan window.
+   * Starts the 24-hour release gate.
    */
   const initiateMeetup = useCallback((meetupSpot = null) => {
     return edgeCall('initiate_meetup', {
@@ -222,8 +222,8 @@ export function useEscrow({
 
   // Which actions are available for the current user + status
   const canInitiateMeetup  = isSeller  && status === 'locked'
-  const canShowQR          = isSeller  && status === 'meetup_initiated'
-  const canRelease         = !isSeller && status === 'meetup_initiated'
+  const canShowQR          = isSeller  && ['meetup_initiated', 'release_requested'].includes(status)
+  const canRelease         = !isSeller && ['meetup_initiated', 'release_requested'].includes(status)
   const canRequestRelease  = isSeller  && status === 'meetup_initiated'
   const canDispute         = !isSeller && status === 'release_requested'
   const isTerminal         = status === 'released' || status === 'cancelled'

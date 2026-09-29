@@ -22,34 +22,10 @@ import { supabase, callEdgeFunction, formatNaira } from '@/lib/supabase'
 import { useTransactionStatus } from './useRealtime'
 
 // ── Status metadata ────────────────────────────────────────────────────────────
-export const TX_STATUS = {
-  PENDING:           'pending',
-  LOCKED:            'locked',
-  MEETUP_INITIATED:  'meetup_initiated',
-  RELEASE_REQUESTED: 'release_requested',
-  RELEASED:          'released',
-  DISPUTED:          'disputed',
-  CANCELLED:         'cancelled',
-}
+import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'
 
-export const TX_STATUS_META = {
-  pending:           { label: 'Awaiting Payment',        icon: '⏳', color: 'amber', step: 0 },
-  locked:            { label: 'Funds Locked in Escrow',  icon: '🔐', color: 'cyan',  step: 1 },
-  meetup_initiated:  { label: 'Meetup Confirmed',        icon: '📍', color: 'cyan',  step: 2 },
-  release_requested: { label: 'Release Requested',       icon: '⏰', color: 'amber', step: 3 },
-  released:          { label: 'Exchange Complete',       icon: '✅', color: 'green', step: 4 },
-  disputed:          { label: 'Under Dispute Review',    icon: '🚨', color: 'red',   step: -1 },
-  cancelled:         { label: 'Transaction Cancelled',   icon: '❌', color: 'red',   step: -1 },
-}
+export { TX_STATUS, TX_STATUS_META, TX_STEPS }
 
-// Step labels for progress bar
-export const TX_STEPS = [
-  { key: 'pending',           label: 'Pay'     },
-  { key: 'locked',            label: 'Locked'  },
-  { key: 'meetup_initiated',  label: 'Meetup'  },
-  { key: 'release_requested', label: 'Release' },
-  { key: 'released',          label: 'Done'    },
-]
 
 // Toast messages per transition
 const TRANSITION_TOASTS = {

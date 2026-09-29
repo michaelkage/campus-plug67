@@ -20,7 +20,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { supabase, callEdgeFunction, formatNaira } from '@/lib/supabase'
 import { useTransactionStatus } from './useRealtime'
-import { formatCountdown, getReleaseRemainingMs, isReleaseGateOpen } from '@/lib/escrowTiming'
+import { getReleaseRemainingMs, isReleaseGateOpen } from '@/lib/escrowTiming'
 
 // ── Status metadata ────────────────────────────────────────────────────────────
 import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'
@@ -272,11 +272,6 @@ export function useEscrow({
     isTerminal,
     isDisputed,
     isSeller,
-    meetupRelease: {
-      remainingMs: meetupReleaseRemainingMs,
-      open: meetupReleaseOpen,
-      label: meetupReleaseRemainingMs != null ? formatCountdown(meetupReleaseRemainingMs) : null,
-    },
 
     // ── Actions ────────────────────────────────────────────────────────────
     actions: {

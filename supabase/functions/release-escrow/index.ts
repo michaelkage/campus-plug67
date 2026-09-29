@@ -52,16 +52,9 @@ serve(async (req: Request) => {
   if (!transactionId) return jsonResponse({ error: "Missing transaction_id" }, 400, {}, req);
   if (action === "release" && deviceType(req) !== "mobile") return jsonResponse({ error: "Physical QR release must be completed on a phone with GPS. Scan the Transfer-to-Mobile QR to continue.", code: "MOBILE_REQUIRED" }, 403, {}, req);
 
-  if (action === "release") {
-    const lat = typeof record.lat === "number" ? record.lat : Number(record.lat);
-    const lng = typeof record.lng === "number" ? record.lng : Number(record.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      return jsonResponse({ error: "Fresh phone location is required before QR release.", code: "LOCATION_REQUIRED" }, 400, {}, req);
-    }
-
-    // Arrival verification is intentionally handled by the canonical safe-arrival
-    // endpoint. Release only consumes the fresh, server-recorded buyer GPS state.
-  }
+  // Safe-arrival is the canonical GPS/zone recording path. The release RPC
+  // validates that the buyer's recorded location is still fresh and inside an
+  // approved zone before changing escrow state.
 
   if (action === "duress") {
     const code = typeof record.duress_code === "string" ? record.duress_code : null;

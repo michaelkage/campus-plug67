@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { getDeviceType } from '@/lib/device'
+import { formatCountdown, getReleaseRemainingMs, isReleaseGateOpen } from '@/lib/escrowTiming'
 import { saveLocalTransaction, removeLocalTransaction, getLocalTransaction } from '@/lib/transactionState'
 import MobileMeetupMode from '@/components/meetup/MobileMeetupMode'
 import { ShieldCheck, MapPin, Navigation, LockKeyhole, CheckCircle2, AlertTriangle, WalletCards, Smartphone, Clock3 } from 'lucide-react'
@@ -45,10 +46,8 @@ export default function SafeSwapZone(){
   }, [profile?.university, transactionId]);
 
   useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer)},[]);
-  const releaseAt=tx?.meetup_initiated_at?new Date(tx.meetup_initiated_at).getTime()+24*60*60*1000:null;
-  const releaseRemaining=releaseAt?Math.max(0,releaseAt-now):null;
-  const releaseUnlocked=releaseAt!==null&&releaseRemaining===0;
-  const formatCountdown=(ms:number)=>{const total=Math.ceil(ms/1000);const h=Math.floor(total/3600);const m=Math.floor((total%3600)/60);const s=total%60;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`};
+  const releaseRemaining=getReleaseRemainingMs(tx?.meetup_initiated_at,now);
+  const releaseUnlocked=isReleaseGateOpen(tx?.meetup_initiated_at,now);
   const nearest=useMemo(()=>{if(!position||!zones.length)return null;return zones.map(zone=>({zone,distance:Math.round(distanceM(position,zone))})).sort((a,b)=>a.distance-b.distance)[0]},[position,zones]);const isInside=nearest?nearest.distance<=50:false;
   const startGps=()=>{if(device!=='mobile'){setError('This device cannot provide a trustworthy meetup GPS fix. Scan the desktop Transfer-to-Mobile QR and continue on your phone.');return}if(!navigator.geolocation){setError('This browser does not provide GPS.');return}setError(null);navigator.geolocation.getCurrentPosition(pos=>setPosition(pos.coords),err=>setError(err.message||'Unable to read your location.'),{enableHighAccuracy:true,timeout:12000,maximumAge:3000})}
   const confirmArrival=async()=>{if(device!=='mobile'){toast.error('Meetup verification is phone-only.');return}if(!user||!transactionId||!position)return;setChecking(true);await saveLocalTransaction({id:`safe-arrival:${transactionId}`,ownerId:user.id,kind:'safe-arrival',payload:{transactionId,role:tx?.buyer_id===user.id?'buyer':tx?.seller_id===user.id?'seller':null,lat:position.latitude,lng:position.longitude},status:'syncing',updatedAt:Date.now()}).catch(()=>{});try{const role=tx?.buyer_id===user.id?'buyer':tx?.seller_id===user.id?'seller':null;if(!role)throw new Error('You are not a participant in this transaction.');const {data,error:rpcError}=await supabase.functions.invoke('safe-arrival',{body:{transaction_id:transactionId,role,lat:position.latitude,lng:position.longitude}});if(rpcError)throw rpcError;if(!data?.success)throw new Error(data?.message||'You are outside the approved Safe Swap Zone.');await removeLocalTransaction(`safe-arrival:${transactionId}`).catch(()=>{});setLocalDraft(false);toast.success(`${data.zone_name} verified — mobile QR release zone confirmed.`);setTx(prev=>prev?({...prev,...(role==='buyer'?{buyer_safe_zone_id:data.zone_id}:{seller_safe_zone_id:data.zone_id})}):prev)}catch(err){await saveLocalTransaction({id:`safe-arrival:${transactionId}`,ownerId:user.id,kind:'safe-arrival',payload:{transactionId},status:'failed',updatedAt:Date.now(),error:err instanceof Error?err.message:'Verification failed'}).catch(()=>{});setLocalDraft(true);toast.error(err instanceof Error?err.message:'Safe-zone verification failed')}finally{setChecking(false)}}

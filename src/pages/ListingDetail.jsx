@@ -28,17 +28,8 @@ function initPaystack({ email, amount, ref, metadata, publicKey }) {
   })
 }
 
-const STEPS = ['pending','locked','meetup_initiated','release_requested','released']
-const STEP_LABELS = { pending:'Pay', locked:'Locked', meetup_initiated:'Meetup', release_requested:'Req.Release', released:'Done' }
-const STATUS_META = {
-  pending:           { color:'amber', icon:'⏳', label:'Awaiting Payment' },
-  locked:            { color:'cyan',  icon:'🔐', label:'Funds Locked — Arrange Meetup' },
-  meetup_initiated:  { color:'cyan',  icon:'📍', label:'Meetup Initiated' },
-  release_requested: { color:'amber', icon:'⏰', label:'Release Requested' },
-  disputed:          { color:'red',   icon:'🚨', label:'Under Dispute Review' },
-  released:          { color:'green', icon:'✅', label:'Exchange Complete' },
-  cancelled:         { color:'red',   icon:'❌', label:'Cancelled' },
-}
+import { TX_STATUS, TX_STEPS, TX_STATUS_META } from '@/lib/escrowState'
+
 const COLOR_CLASS = {
   amber: 'border-[var(--md-secondary)]/30 bg-[var(--md-secondary)]/5',
   cyan:  'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/5',
@@ -72,8 +63,8 @@ function EscrowPanel({ tx, isSeller, onRefresh }) {
     finally { setLoading(null) }
   }
 
-  const meta = STATUS_META[tx.status] || STATUS_META.pending
-  const stepIdx = STEPS.indexOf(tx.status)
+  const meta = TX_STATUS_META[tx.status] || TX_STATUS_META.pending
+  const stepIdx = TX_STEPS.findIndex(step => step.key === tx.status)
   const releaseGateOpen = isReleaseGateOpen(tx.meetup_initiated_at)
   const autoReleaseMs = tx.auto_release_at ? Math.max(0, new Date(tx.auto_release_at) - Date.now()) : null
   const hoursLeft = autoReleaseMs != null ? Math.floor(autoReleaseMs / 3_600_000) : null
@@ -85,7 +76,7 @@ function EscrowPanel({ tx, isSeller, onRefresh }) {
       transition={{ duration: 0.2 }}
     >
       <div className="flex items-center gap-3 mb-4"><span className="text-2xl">{meta.icon}</span><div><div className="font-bold text-sm">{meta.label}</div><div className="text-xs text-white/30">PlugPay Escrow</div></div></div>
-      <div className="flex items-center gap-1 mb-5 overflow-x-auto pb-1">{STEPS.map((s, i) => { const active = i <= stepIdx && !['disputed','cancelled'].includes(tx.status); return <div key={s} className="flex items-center gap-1 flex-shrink-0"><div className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${active ? 'bg-cyan text-obsidian' : 'bg-[var(--md-surface-container-high)] text-white/25'}`}>{STEP_LABELS[s]}</div>{i < STEPS.length - 1 && <div className={`w-3 h-px ${i < stepIdx ? 'bg-cyan' : 'bg-obsidian-500'}`} />}</div> })}</div>
+      <div className="flex items-center gap-1 mb-5 overflow-x-auto pb-1">{TX_STEPS.map((step, i) => { const active = i <= stepIdx && !['disputed','cancelled'].includes(tx.status); return <div key={step.key} className="flex items-center gap-1 flex-shrink-0"><div className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${active ? 'bg-cyan text-obsidian' : 'bg-[var(--md-surface-container-high)] text-white/25'}`}>{step.label}</div>{i < STEPS.length - 1 && <div className={`w-3 h-px ${i < stepIdx ? 'bg-cyan' : 'bg-obsidian-500'}`} />}</div> })}</div>
       {tx.status === 'release_requested' && hoursLeft != null && <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--md-surface-container-high)] text-sm mb-4"><Clock size={13} className="text-[var(--md-secondary)]" /><span className="text-white/50">Auto-releases in </span><span className="font-mono font-bold text-[var(--md-secondary)]">{hoursLeft}h {minsLeft}m</span></div>}
       {isSeller && tx.status === 'locked' && <div className="space-y-3"><p className="text-xs text-white/50">Payment received and locked. Arrange your campus meetup, then confirm below.</p><button onClick={() => edge('initiate_meetup')} disabled={loading === 'initiate_meetup'} className="btn-primary w-full text-sm disabled:opacity-50">{loading === 'initiate_meetup' ? 'Confirming...' : '📍 Confirm Meetup Started'}</button></div>}
       {isSeller && tx.status === 'meetup_initiated' && <div className="space-y-3"><p className="text-xs text-white/50">Show this QR code to the buyer to release your funds instantly.</p><div className="flex justify-center"><div className="p-3 bg-white rounded-2xl"><QRCodeSVG value={tx.qr_secret} size={172} bgColor="#fff" fgColor="#080B0F" level="M" /></div></div><p className="text-[10px] font-mono text-white/20 text-center break-all">{tx.qr_secret}</p><button onClick={() => edge('request_release')} disabled={loading === 'request_release' || !releaseGateOpen} className="w-full py-2.5 rounded-lg text-sm font-semibold border border-[var(--md-secondary)]/30 text-[var(--md-secondary)] hover:bg-[var(--md-secondary)]/10 transition-colors disabled:opacity-40">{loading === 'request_release' ? 'Requesting...' : releaseGateOpen ? '⏰ Request Release' : '⏳ Release unlocks 24h after meetup'}</button></div>}

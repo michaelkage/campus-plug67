@@ -20,6 +20,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { supabase, callEdgeFunction, formatNaira } from '@/lib/supabase'
 import { useTransactionStatus } from './useRealtime'
+import { formatCountdown, getReleaseRemainingMs, isReleaseGateOpen } from '@/lib/escrowTiming'
 
 // ── Status metadata ────────────────────────────────────────────────────────────
 import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'
@@ -234,6 +235,8 @@ export function useEscrow({
   const autoReleaseHours   = autoReleaseMs != null ? Math.floor(autoReleaseMs / 3_600_000) : null
   const autoReleaseMins    = autoReleaseMs != null ? Math.floor((autoReleaseMs % 3_600_000) / 60_000) : null
   const autoReleaseExpired = tx?.auto_release_at ? new Date(tx.auto_release_at) < new Date() : false
+  const meetupReleaseRemainingMs = getReleaseRemainingMs(tx?.meetup_initiated_at)
+  const meetupReleaseOpen = isReleaseGateOpen(tx?.meetup_initiated_at)
 
   return {
     // ── State ─────────────────────────────────────────────────────────────
@@ -269,6 +272,11 @@ export function useEscrow({
     isTerminal,
     isDisputed,
     isSeller,
+    meetupRelease: {
+      remainingMs: meetupReleaseRemainingMs,
+      open: meetupReleaseOpen,
+      label: meetupReleaseRemainingMs != null ? formatCountdown(meetupReleaseRemainingMs) : null,
+    },
 
     // ── Actions ────────────────────────────────────────────────────────────
     actions: {

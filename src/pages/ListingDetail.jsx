@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, formatNaira } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { isReleaseGateOpen } from '@/lib/escrowTiming'
 import { useTransactionStatus } from '@/hooks/useRealtime'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Shield, MapPin, Trash2, QrCode, Clock, AlertTriangle } from 'lucide-react'
@@ -73,8 +74,7 @@ function EscrowPanel({ tx, isSeller, onRefresh }) {
 
   const meta = STATUS_META[tx.status] || STATUS_META.pending
   const stepIdx = STEPS.indexOf(tx.status)
-  const meetupReadyAt = tx.meetup_initiated_at ? new Date(tx.meetup_initiated_at).getTime() + 24 * 60 * 60 * 1000 : null
-  const releaseGateOpen = meetupReadyAt != null && meetupReadyAt <= Date.now()
+  const releaseGateOpen = isReleaseGateOpen(tx.meetup_initiated_at)
   const autoReleaseMs = tx.auto_release_at ? Math.max(0, new Date(tx.auto_release_at) - Date.now()) : null
   const hoursLeft = autoReleaseMs != null ? Math.floor(autoReleaseMs / 3_600_000) : null
   const minsLeft  = autoReleaseMs != null ? Math.floor((autoReleaseMs % 3_600_000) / 60_000) : null

@@ -61,8 +61,9 @@ async function executeVerdict(juryCase: DisputeCase, verdict: string) {
       .eq("id", juryCase.transaction_id).single();
     if (txError || !tx) throw txError ?? new Error("Transaction not found");
     if ((tx.payment_method ?? "paystack") !== "campus_wallet") {
-      if (!tx.paystack_ref) throw new Error("Paystack reference missing; dispute refund cannot be initiated safely");
-      if (!["pending","processing","processed"].includes(tx.refund_status ?? "")) {
+      const { data: claim, error: claimError } = await admin.rpc("claim_paystack_refund", { p_transaction_id: tx.id });
+      if (claimError) throw claimError;
+      if (claim?.claimed) {
         const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
         if (!secret) throw new Error("Paystack refund service is not configured");
         const response = await fetch("https://api.paystack.co/refund", {
@@ -76,7 +77,11 @@ async function executeVerdict(juryCase: DisputeCase, verdict: string) {
           }),
         });
         const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.status) throw new Error(payload?.message || "Paystack rejected the dispute refund");
+        if (!response.ok || !payload?.status) {
+          const message = payload?.message || "Paystack rejected the dispute refund";
+          await admin.from("transactions").update({ refund_status: "failed", refund_failure_reason: message }).eq("id", tx.id);
+          throw new Error(message);
+        }
         const refund = payload.data ?? {};
         await admin.from("transactions").update({
           refund_status: typeof refund.status === "string" ? refund.status : "pending",
@@ -84,6 +89,8 @@ async function executeVerdict(juryCase: DisputeCase, verdict: string) {
           refund_initiated_at: new Date().toISOString(),
           refund_failure_reason: null,
         }).eq("id", tx.id);
+      } else if (claim?.status === "processing" && !claim?.refund_id) {
+        throw new Error("A Paystack refund is already being initiated for this transaction; dispute settlement will retry after reconciliation");
       }
     }
   }

@@ -32,10 +32,21 @@ serve(async (req: Request) => {
   }
 
   if (!tx.paystack_ref) return jsonResponse({ error: "Paystack reference is missing; refund cannot be initiated safely" }, 409, {}, req);
-  if (tx.refund_status && ["pending","processing","processed"].includes(tx.refund_status)) return jsonResponse({ error: "A Paystack refund is already in progress", refund_status: tx.refund_status, refund_id: tx.paystack_refund_id }, 409, {}, req);
+
+  const { data: claim, error: claimError } = await admin.rpc("claim_paystack_refund", { p_transaction_id: tx.id });
+  if (claimError) return jsonResponse({ error: claimError.message }, 409, {}, req);
+  if (!claim?.claimed) {
+    if (claim?.status === "processing" && !claim?.refund_id) {
+      return jsonResponse({ error: "A Paystack refund is already being initiated for this transaction; reconcile it before retrying" }, 409, {}, req);
+    }
+    return jsonResponse({ error: "A Paystack refund is already in progress", refund_status: claim?.status, refund_id: claim?.refund_id }, 409, {}, req);
+  }
 
   const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (!secret) return jsonResponse({ error: "Paystack refund service is not configured" }, 500, {}, req);
+  if (!secret) {
+    await admin.from("transactions").update({ refund_status: "failed", refund_failure_reason: "Paystack refund service is not configured" }).eq("id", tx.id);
+    return jsonResponse({ error: "Paystack refund service is not configured" }, 500, {}, req);
+  }
 
   const response = await fetch("https://api.paystack.co/refund", {
     method: "POST",

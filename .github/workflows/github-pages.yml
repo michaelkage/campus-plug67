@@ -18,6 +18,7 @@ env:
   VITE_BASE_PATH: /campus-plug67/
   VITE_SUPABASE_URL: https://etwsfdovcgofhqseejjo.supabase.co
   VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+  VITE_PAYSTACK_PUBLIC_KEY: pk_test_d0adce3d7bf1083e76a765ee414999d68516bc96
 
 jobs:
   build:

@@ -183,7 +183,26 @@ export default function ListingDetail() {
           {listing.description && <div className="surface p-5"><h3 className="font-bold text-sm mb-3">Description</h3><p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{listing.description}</p></div>}
         </div>
         <div className="md:col-span-2 space-y-4">
-          <div className="surface rounded-2xl p-5"><div className="flex items-start justify-between gap-3 mb-3"><span className="tag tag-cyan">{listing.category}</span>{isSeller && <button type="button" onClick={async () => { if (window.confirm('Delete listing?')) { const { error } = await supabase.from('listings').update({status:'deleted'}).eq('id',id); if (error) { toast.error(error.message); return } toast.success('Listing removed'); navigate('/marketplace') } }} className="icon-button h-9 w-9 text-[var(--md-error)]/50 hover:text-[var(--md-error)]" aria-label="Delete listing"><Trash2 size={15} /></button>}</div><h1 className="text-xl font-black tracking-tight mb-2">{listing.title}</h1><motion.div className="text-3xl font-black text-[var(--md-primary)] font-mono" animate={activeTx?.status === 'locked' ? { color: ['#00F2FF','#00FF88','#00F2FF'] } : { color: '#00F2FF' }} transition={{ duration: 2.5, repeat: activeTx?.status === 'locked' ? Infinity : 0 }}>{formatNaira(listing.price)}</motion.div><div className="flex items-center gap-1.5 mt-1 text-xs text-white/30"><MapPin size={11}/>{listing.university}</div></div>
+          <div className="surface rounded-2xl p-5"><div className="flex items-start justify-between gap-3 mb-3"><span className="tag tag-cyan">{listing.category}</span>{isSeller && <button type="button" onClick={async () => {
+            if (!window.confirm('Remove this listing from the marketplace?')) return
+            try {
+              const { data, error } = await supabase
+                .from('listings')
+                .update({ status: 'deleted' })
+                .eq('id', id)
+                .eq('seller_id', user.id)
+                .select('id,status')
+                .maybeSingle()
+              if (error) throw error
+              if (!data) throw new Error('Listing could not be removed. It may already be sold or unavailable.')
+              qc.removeQueries({ queryKey: ['listing', id] })
+              qc.invalidateQueries({ queryKey: ['listings'] })
+              toast.success('Listing removed')
+              navigate('/marketplace', { replace: true })
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : 'Failed to remove listing')
+            }
+          }} className="icon-button h-9 w-9 text-[var(--md-error)]/50 hover:text-[var(--md-error)]" aria-label="Delete listing"><Trash2 size={15} /></button>}</div><h1 className="text-xl font-black tracking-tight mb-2">{listing.title}</h1><motion.div className="text-3xl font-black text-[var(--md-primary)] font-mono" animate={activeTx?.status === 'locked' ? { color: ['#00F2FF','#00FF88','#00F2FF'] } : { color: '#00F2FF' }} transition={{ duration: 2.5, repeat: activeTx?.status === 'locked' ? Infinity : 0 }}>{formatNaira(listing.price)}</motion.div><div className="flex items-center gap-1.5 mt-1 text-xs text-white/30"><MapPin size={11}/>{listing.university}</div></div>
           <Link to={`/profile/${listing.seller_id}`} className="surface surface-interactive flex items-center gap-3 p-4"><div className="w-10 h-10 rounded-full bg-[var(--md-primary-container)] flex items-center justify-center text-obsidian font-bold flex-shrink-0">{listing.profiles?.full_name?.[0]?.toUpperCase()}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-1.5 font-semibold text-sm">{listing.profiles?.full_name}{listing.profiles?.is_verified && <span className="inline-flex items-center gap-1 rounded-full bg-[var(--md-primary)]/10 px-1.5 py-0.5 text-[9px] font-bold text-[var(--md-primary)]"><Shield size={9} /> Verified</span>}</div><div className="text-xs text-white/40">{listing.profiles?.total_sales} sales · PlugScore {listing.profiles?.plug_score}</div></div><span className="text-white/20">→</span></Link>
           <div className="surface p-4"><div className="flex items-center gap-2 mb-1"><Shield size={13} className="text-[var(--md-primary)]"/><span className="text-xs font-bold text-[var(--md-primary)] uppercase tracking-wider">PlugPay Escrow + Dispute Protection</span></div><p className="text-xs text-white/40">Funds locked until QR handshake. 48h dispute window on every transaction.</p></div>
           {!isSeller && listing.status === 'active' && !activeTx && <button onClick={handleBuy} disabled={buying} className="btn-primary w-full text-base disabled:opacity-50">{buying ? 'Opening Paystack...' : `Buy Now — ${formatNaira(listing.price)}`}</button>}

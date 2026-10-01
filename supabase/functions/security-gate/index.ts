@@ -66,8 +66,9 @@ serve(async (req: Request) => {
     }
     if (!limit.allowed) return jsonResponse({ error: "Rate limit exceeded" }, 429, {}, req);
   } catch (rateError) {
-    console.error("[security-gate] rate limit service unavailable", rateError);
-    return jsonResponse({ error: "Rate limit service unavailable" }, 503, {}, req);
+    // Rate limiting is defense-in-depth. It must not take authentication
+    // offline when the limiter's database path is temporarily unavailable.
+    console.error("[security-gate] rate limit service unavailable; continuing with security checks", rateError);
   }
 
   if (action === "register" && !user) return jsonResponse({ error: "Unauthorized" }, 401, {}, req);

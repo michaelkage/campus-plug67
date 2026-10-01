@@ -71,29 +71,54 @@ serve(async (req: Request) => {
   }
 
   if (action === "register" && !user) return jsonResponse({ error: "Unauthorized" }, 401, {}, req);
-  if (!admin) return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
 
-  const { data: banHit, error: banError } = await admin.rpc("check_device_ban", {
-    p_server_fingerprint: serverFingerprint,
-    p_ip: ip === "unknown" ? null : ip,
-    p_client_fingerprint: clientFingerprint,
-  });
+  // Prefer the privileged client when available, but do not make the
+  // user-facing security gate depend on a custom service-key alias.
+  const scopedClient = user && token
+    ? createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        auth: { persistSession: false },
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      })
+    : null;
 
-  if (banError) {
-    const { data: banned, error: bannedError } = await admin.from("banned_devices")
+  let banHit: { banned?: boolean; reason?: string } | null = null;
+  if (admin) {
+    const { data, error: banError } = await admin.rpc("check_device_ban", {
+      p_server_fingerprint: serverFingerprint,
+      p_ip: ip === "unknown" ? null : ip,
+      p_client_fingerprint: clientFingerprint,
+    });
+    if (!banError) banHit = data;
+  }
+
+  // Read-only fallback: banned_devices is intentionally readable for this
+  // gate, so registration can continue safely when the privileged RPC is
+  // temporarily unavailable.
+  if (!banHit) {
+    const client = scopedClient ?? createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { auth: { persistSession: false } },
+    );
+    const { data: banned, error: bannedError } = await client.from("banned_devices")
       .select("ban_reason,reason")
       .eq("server_fingerprint", serverFingerprint)
       .eq("active", true)
       .maybeSingle();
-    if (bannedError) return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
+    if (bannedError) {
+      console.error("[security-gate] ban lookup failed", bannedError);
+      return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
+    }
     if (banned) return jsonResponse({ error: `DEVICE_BANNED: ${banned.ban_reason || banned.reason || "This device has been restricted."}` }, 403, {}, req);
-  } else if (banHit?.banned) {
+  } else if (banHit.banned) {
     return jsonResponse({ error: `DEVICE_BANNED: ${banHit.reason || "This device has been restricted."}` }, 403, {}, req);
   }
 
   if (user) {
     const deviceHash = clientFingerprint || serverFingerprint;
-    const { error } = await admin.from("user_security").upsert({
+    const securityClient = admin ?? scopedClient;
+    if (!securityClient) return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
+    const { error } = await securityClient.from("user_security").upsert({
       user_id: user.id,
       device_hash: deviceHash,
       server_fingerprint: serverFingerprint,
@@ -104,8 +129,11 @@ serve(async (req: Request) => {
       last_seen_at: new Date().toISOString(),
       last_risk_check_at: new Date().toISOString(),
     }, { onConflict: "user_id,device_hash" });
-    if (error) return jsonResponse({ error: "Unable to register security context" }, 503, {}, req);
+    if (error) {
+      console.error("[security-gate] security context write failed", error);
+      return jsonResponse({ error: "Unable to register security context" }, 503, {}, req);
+    }
   }
 
-  return jsonResponse({ success: true }, 200, {}, req);
+  return jsonResponse({ success: true, server_fingerprint: serverFingerprint }, 200, {}, req);
 });

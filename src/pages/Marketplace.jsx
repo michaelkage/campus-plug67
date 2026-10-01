@@ -92,10 +92,38 @@ function CreateListingModal({ onClose, profile }) {
         floor_override: !!tokenOverride, emergency_token_id: tokenOverride || null,
       }).select().single()
       if (error) throw error
-      if (tokenOverride) await consumeEmergencyToken(tokenOverride, listing.id)
-      for (let i = 0; i < images.length; i++) if (images[i].exif && uploadedUrls[i]) await saveExifFlags(listing.id, uploadedUrls[i], images[i].exif)
-      const{error:activityError}=await supabase.from('activity_feed').insert({ actor_name: profile.full_name, actor_id: profile.id, action: 'listed a new item', subject: form.title, amount: toKobo(form.price), emoji: '🛍️', university: profile.university }); if(activityError) console.warn('Activity feed update failed after listing publish:', activityError)
-      toast.success('Listing published! 🎉'); qc.invalidateQueries({ queryKey: ['listings'] }); qc.invalidateQueries({ queryKey: ['recent-listings'] }); onClose()
+
+      // The listing row is the publish transaction. Once it exists, close the
+      // form and show success; secondary trust/social work must never make a
+      // successful listing look like a failed publish.
+      toast.success('Listing published! 🎉')
+      qc.invalidateQueries({ queryKey: ['listings'] })
+      qc.invalidateQueries({ queryKey: ['recent-listings'] })
+      onClose()
+
+      void (async () => {
+        if (tokenOverride) {
+          const consumed = await consumeEmergencyToken(tokenOverride, listing.id).catch(() => false)
+          if (!consumed) console.warn('Emergency token could not be consumed after listing publish:', listing.id)
+        }
+        for (let i = 0; i < images.length; i++) {
+          if (images[i].exif && uploadedUrls[i]) {
+            await saveExifFlags(listing.id, uploadedUrls[i], images[i].exif).catch(error =>
+              console.warn('Server image verification request failed after listing publish:', error)
+            )
+          }
+        }
+        const { error: activityError } = await supabase.from('activity_feed').insert({
+          actor_name: profile.full_name,
+          actor_id: profile.id,
+          action: 'listed a new item',
+          subject: form.title,
+          amount: toKobo(form.price),
+          emoji: '🛍️',
+          university: profile.university,
+        })
+        if (activityError) console.warn('Activity feed update failed after listing publish:', activityError.message)
+      })()
     } catch (err) { toast.error(err.message || 'Failed to publish listing') } finally { setSubmitting(false) }
   }
 

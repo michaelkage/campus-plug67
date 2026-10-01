@@ -188,10 +188,10 @@ export default function ListingDetail() {
             try {
               const { data, error } = await supabase
                 .from('listings')
-                .update({ status: 'deleted' })
+                .delete()
                 .eq('id', id)
                 .eq('seller_id', user.id)
-                .select('id,status')
+                .select('id')
                 .maybeSingle()
               if (error) throw error
               if (!data) throw new Error('Listing could not be removed. It may already be sold or unavailable.')

@@ -96,10 +96,17 @@ function CreateListingModal({ onClose, profile }) {
       // The listing row is the publish transaction. Once it exists, close the
       // form and show success; secondary trust/social work must never make a
       // successful listing look like a failed publish.
-      toast.success('Listing published! 🎉')
-      qc.invalidateQueries({ queryKey: ['listings'] })
-      qc.invalidateQueries({ queryKey: ['recent-listings'] })
+      // Close the composer immediately after the listing row is confirmed.
+      // Cache refresh and trust/social side-effects are secondary and must never
+      // keep the successful publish UI open or turn it into a false failure.
       onClose()
+      toast.success('Listing published! 🎉')
+      void qc.invalidateQueries({ queryKey: ['listings'] }).catch(error =>
+        console.warn('Marketplace cache refresh failed after listing publish:', error)
+      )
+      void qc.invalidateQueries({ queryKey: ['recent-listings'] }).catch(error =>
+        console.warn('Recent listings cache refresh failed after listing publish:', error)
+      )
 
       void (async () => {
         if (tokenOverride) {

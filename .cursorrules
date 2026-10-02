@@ -17,3 +17,4 @@
 - Do not introduce live network/payment/database dependencies into structural CI regression tests.
 - Before changing schema-dependent code, inspect `.ai-context/schema-dump.sql` and the relevant Supabase migrations.
 - Run typecheck, build, tests, and security regression checks before declaring a change complete.
+- Commit completed work to `main` without waiting to be asked. Split by concern, keep the repo imperative-mood, and push.

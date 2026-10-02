@@ -8,7 +8,9 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 describe('gpsWeight', () => {
-  beforeEach(() => vi.resetModules())
+  beforeEach(() => {
+    vi.resetModules()
+  })
 
   it('keeps clean users at full trust', async () => {
     const { gpsWeight } = await import('@/lib/gpsSpoof')

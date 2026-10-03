@@ -17,21 +17,77 @@
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
-    --md-primary: #a8c7fa;
-    --md-on-primary: #062e6f;
-    --md-primary-container: #234a7d;
-    --md-on-primary-container: #d7e7ff;
-    --md-secondary: #bec6d7;
-    --md-on-secondary: #283141;
-    --md-surface: #111318;
-    --md-surface-container: #1d1f24;
-    --md-surface-container-high: #282a2f;
-    --md-surface-container-highest: #33353a;
-    --md-on-surface: #e3e2e6;
-    --md-on-surface-variant: #c3c6d0;
-    --md-outline: #8d9199;
-    --md-outline-variant: #44474e;
-    --md-error: #ffb4ab;
+
+    /* Tactical Material You Palette */
+    --md-primary: #00F2FF;             /* Neon Cyan */
+    --md-on-primary: #00363B;
+    --md-primary-container: #004D52;
+    --md-on-primary-container: #B2FBFF;
+    --md-secondary: #00FF88;           /* Acid Green */
+    --md-on-secondary: #00391B;
+    --md-secondary-container: #00522E;
+    --md-on-secondary-container: #C1FFD7;
+    --md-tertiary: #C084FC;            /* Electric Purple */
+    --md-on-tertiary: #3B0057;
+    --md-tertiary-container: #4B2A65;
+    --md-on-tertiary-container: #EBDDFF;
+    
+    --md-surface: #0A0A0A;             /* Obsidian Root */
+    --md-surface-container: #141414;   /* Tonal Surface 1 */
+    --md-surface-container-high: #1E1E1E; /* Tonal Surface 2 */
+    --md-surface-container-highest: #2A2A2A; /* Tonal Surface 3 */
+    --md-on-surface: #E3E2E6;
+    --md-on-surface-variant: #C3C6D0;
+    --md-outline: #8D9199;
+    --md-outline-variant: #44474E;
+    --md-error: #FFB4AB;
+    
+    /* Tactical Overlays */
+    --md-glass: rgba(20, 20, 20, 0.7);
+    --md-blur: blur(12px);
+    --md-glow: 0 0 15px color-mix(in srgb, var(--md-primary) 30%, transparent);
+  }
+
+  @layer components {
+    .btn-primary {
+      @apply rounded-2xl px-5 py-3 font-bold transition-all active:scale-95;
+      background: var(--md-primary);
+      color: var(--md-on-primary);
+      box-shadow: var(--md-glow);
+    }
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 0 20px color-mix(in srgb, var(--md-primary) 50%, transparent);
+    }
+
+    .btn-secondary {
+      @apply rounded-2xl px-5 py-3 font-bold transition-all active:scale-95 border;
+      border-color: var(--md-outline-variant);
+      background: var(--md-surface-container);
+      color: var(--md-on-surface);
+    }
+    .btn-secondary:hover {
+      border-color: var(--md-primary);
+      background: var(--md-surface-container-high);
+    }
+
+    .card-tactical {
+      @apply rounded-3xl p-5 transition-all border;
+      background: var(--md-glass);
+      backdrop-filter: var(--md-blur);
+      border-color: var(--md-outline-variant);
+      color: var(--md-on-surface);
+    }
+    .card-tactical:hover {
+      border-color: var(--md-primary);
+      box-shadow: var(--md-glow);
+    }
+
+    .tag-neon {
+      @apply px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider;
+      background: var(--md-primary-container);
+      color: var(--md-on-primary-container);
+    }
   }
 
   html { min-height: 100%; background: var(--md-surface); scroll-behavior: smooth; }

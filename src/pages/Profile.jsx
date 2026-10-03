@@ -455,7 +455,7 @@ export default function Profile() {
           </div>
 
           {/* Verification QR */}
-          <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl p-5 flex flex-col items-center justify-center gap-4">
+          <div className="card-tactical p-5 flex flex-col items-center justify-center gap-4" style={{ padding: 28 }}>
             <div className="text-xs font-bold text-white/40 uppercase tracking-wider text-center">Live Verify QR</div>
             <div className="p-3 bg-white rounded-2xl">
               <QRCodeSVG value={verifyUrl} size={120} bgColor="#fff" fgColor="#080B0F" level="M" />

@@ -1,0 +1,143 @@
+{
+  "$comment": "Single source of truth for the Campus Plug Material 3 design system. Consumed by src/theme/themeEngine.ts at runtime. Do not hand-edit the generated tokens in src/index.css - they are overwritten on boot.",
+  "brand": {
+    "name": "Campus Plug",
+    "tagline": "Tactical-aesthetic student marketplace",
+    "product": "web"
+  },
+
+  "color": {
+    "$comment": "`seed` drives the whole HCT palette via @material/material-color-utilities. Change this one value to rebrand the entire app.",
+    "seed": "#00F2FF",
+    "specVersion": "2021",
+    "scheme": "tonalSpot",
+    "contrastLevel": {
+      "light": 0,
+      "dark": 0,
+      "amoled": 0
+    },
+    "modes": {
+      "light": {
+        "seed": "#006782",
+        "$comment": "Light mode uses a desaturated deep-teal seed. Neon cyan at full chroma fails contrast on a light surface, so the light palette is seeded from a darker key colour."
+      },
+      "dark": {
+        "seed": "#00F2FF"
+      },
+      "amoled": {
+        "seed": "#00F2FF",
+        "$comment": "AMOLED keeps the dark palette but flattens the surface ramp to true black to drive OLED pixels off.",
+        "overrides": {
+          "surface": "#000000",
+          "surface-container": "#080808",
+          "surface-container-low": "#040404",
+          "surface-container-high": "#101010",
+          "surface-container-highest": "#171717"
+        }
+      }
+    }
+  },
+
+  "spacing": {
+    "$comment": "Material 3 8dp baseline grid. All padding, margin and gap values must resolve to one of these.",
+    "base": 8,
+    "scale": {
+      "0": "0",
+      "1": "4px",
+      "2": "8px",
+      "3": "12px",
+      "4": "16px",
+      "5": "24px",
+      "6": "32px",
+      "7": "40px",
+      "8": "48px",
+      "9": "56px",
+      "10": "64px",
+      "11": "80px",
+      "12": "96px"
+    },
+    "gutter": {
+      "compact": "16px",
+      "medium": "24px",
+      "expanded": "32px"
+    },
+    "minTouchTarget": "48px"
+  },
+
+  "typography": {
+    "fontFamily": {
+      "brand": "'Roboto Flex', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
+      "icon": "'Material Symbols Outlined'"
+    },
+    "base": {
+      "displaySmall": { "size": "36px", "lineHeight": "44px", "weight": 400, "tracking": "0" },
+      "headlineMedium": { "size": "28px", "lineHeight": "36px", "weight": 500, "tracking": "0" },
+      "headlineSmall": { "size": "24px", "lineHeight": "32px", "weight": 500, "tracking": "0" },
+      "titleLarge": { "size": "22px", "lineHeight": "28px", "weight": 500, "tracking": "0" },
+      "titleMedium": { "size": "16px", "lineHeight": "24px", "weight": 600, "tracking": "0.15px" },
+      "titleSmall": { "size": "14px", "lineHeight": "20px", "weight": 600, "tracking": "0.1px" },
+      "bodyLarge": { "size": "16px", "lineHeight": "24px", "weight": 400, "tracking": "0.5px" },
+      "bodyMedium": { "size": "14px", "lineHeight": "20px", "weight": 400, "tracking": "0.25px" },
+      "bodySmall": { "size": "12px", "lineHeight": "16px", "weight": 400, "tracking": "0.4px" },
+      "labelLarge": { "size": "14px", "lineHeight": "20px", "weight": 600, "tracking": "0.1px" },
+      "labelMedium": { "size": "12px", "lineHeight": "16px", "weight": 600, "tracking": "0.5px" },
+      "labelSmall": { "size": "11px", "lineHeight": "16px", "weight": 600, "tracking": "0.5px" }
+    },
+    "responsive": {
+      "$comment": "Applied on top of `base` per breakpoint. Page titles step down on small viewports.",
+      "breakpoints": { "compact": "0px", "medium": "600px", "expanded": "1024px" },
+      "scale": {
+        "compact": {
+          "displaySmall": { "size": "30px", "lineHeight": "38px" },
+          "headlineMedium": { "size": "24px", "lineHeight": "32px" },
+          "pageTitle": { "size": "24px", "lineHeight": "32px" }
+        },
+        "medium": {
+          "pageTitle": { "size": "28px", "lineHeight": "36px" }
+        },
+        "expanded": {
+          "pageTitle": { "size": "30px", "lineHeight": "38px" }
+        }
+      }
+    }
+  },
+
+  "radius": {
+    "none": "0px",
+    "extraSmall": "4px",
+    "small": "8px",
+    "medium": "12px",
+    "large": "16px",
+    "extraLarge": "28px",
+    "full": "9999px"
+  },
+
+  "elevation": {
+    "$comment": "Material 3 level 0-5 shadow pairs.",
+    "level0": "none",
+    "level1": "0 1px 2px 0 rgba(0,0,0,.30), 0 1px 3px 1px rgba(0,0,0,.15)",
+    "level2": "0 1px 2px 0 rgba(0,0,0,.30), 0 2px 6px 2px rgba(0,0,0,.15)",
+    "level3": "0 4px 8px 3px rgba(0,0,0,.15), 0 1px 3px 0 rgba(0,0,0,.30)",
+    "level4": "0 6px 10px 4px rgba(0,0,0,.15), 0 2px 3px 0 rgba(0,0,0,.30)",
+    "level5": "0 8px 12px 6px rgba(0,0,0,.15), 0 4px 4px 0 rgba(0,0,0,.30)"
+  },
+
+  "state": {
+    "$comment": "Material 3 state layer opacities, applied with color-mix() over the base role.",
+    "hover": "0.08",
+    "focus": "0.12",
+    "pressed": "0.12",
+    "selected": "0.12",
+    "dragged": "0.16",
+    "disabled": "0.38",
+    "disabledContent": "0.38"
+  },
+
+  "motion": {
+    "short": "100ms",
+    "medium": "180ms",
+    "long": "300ms",
+    "easingStandard": "cubic-bezier(0.2, 0, 0, 1)",
+    "easingEmphasized": "cubic-bezier(0.2, 0, 0, 1)"
+  }
+}

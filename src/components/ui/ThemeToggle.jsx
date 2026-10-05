@@ -35,8 +35,23 @@ export default ThemeToggle
 export function ThemeCard() {
   const { theme, setTheme } = useTheme()
   const themes = [
-    { key: 'dark', label: 'Dark', desc: 'Material dark surfaces', bg: '#111318', surface: '#1d1f24', accent: '#a8c7fa' },
-    { key: 'amoled', label: 'AMOLED', desc: 'True black — OLED optimized', bg: '#000000', surface: '#111111', accent: '#a8c7fa', badge: '🔋' },
+    {
+      key: 'dark',
+      label: 'Dark',
+      desc: 'Material dark surfaces',
+      bg: 'var(--md-surface)',
+      surface: 'var(--md-surface-container)',
+      accent: 'var(--md-secondary)',
+    },
+    {
+      key: 'amoled',
+      label: 'AMOLED',
+      desc: 'True black — OLED optimized',
+      bg: 'var(--md-surface)',
+      surface: 'var(--md-surface)',
+      accent: 'var(--md-secondary)',
+      badge: '🔋',
+    },
   ]
 
   return (

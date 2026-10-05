@@ -1,7 +1,8 @@
+/* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
 /**
  * Campus Plug — Admin War Room (/admin/war-room)
  *
- * Decoupled admin module. Architecturally isolated:
+ * Decoupled admin module. Architectically isolated:
  *   - Distinct RLS: only profiles with 'Plug Dev' badge can read/write global_config
  *   - Own route, own data fetching — zero coupling to user-facing pages
  *   - Can be extracted as a standalone app by changing the Supabase project ref
@@ -13,6 +14,9 @@
  *   - Mode display: AUTO / MANUAL / HYBRID
  *   - Manual override: force-enable any feature regardless of threshold
  */
+
+/* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
+
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'

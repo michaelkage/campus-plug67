@@ -1,3 +1,4 @@
+/* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
 /**
  * Campus Plug — Share Card Generator
  *

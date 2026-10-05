@@ -1,6 +1,7 @@
 import tsParser from '@typescript-eslint/parser'
 import tsPlugin from '@typescript-eslint/eslint-plugin'
 import reactHooks from 'eslint-plugin-react-hooks'
+import noHardcodedColors from './eslint.rules/no-hardcoded-colors.js'
 
 const sharedRules = {
   'no-console': 'off',
@@ -11,6 +12,7 @@ const sharedRules = {
   '@typescript-eslint/no-unsafe-return': 'off',
   'react-hooks/exhaustive-deps': 'off',
   'react-hooks/rules-of-hooks': 'error',
+  'no-hardcoded-colors/no-hardcoded-colors': 'error',
 }
 
 export default [
@@ -30,6 +32,7 @@ export default [
     plugins: {
       '@typescript-eslint': tsPlugin,
       'react-hooks': reactHooks,
+      'no-hardcoded-colors': noHardcodedColors,
     },
     rules: sharedRules,
   },
@@ -48,6 +51,7 @@ export default [
     plugins: {
       '@typescript-eslint': tsPlugin,
       'react-hooks': reactHooks,
+      'no-hardcoded-colors': noHardcodedColors,
     },
     rules: sharedRules,
   },

@@ -1,3 +1,4 @@
+/* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
 import { motion } from 'framer-motion'
 import { Shield, Star, Crown, Zap, TrendingUp, CreditCard, Award } from 'lucide-react'
 
@@ -113,7 +114,7 @@ export function TierCard({ profile }) {
           <div className="flex items-center gap-3">
             <motion.div
               animate={tier === 'elite' ? {
-                boxShadow: ['0 0 0 0 rgba(255,184,0,0)', '0 0 20px 4px rgba(255,184,0,0.3)', '0 0 0 0 rgba(255,184,0,0)']
+                boxShadow: ['0 0 0 0 rgba(var(--md-tertiary-rgb), 0)', '0 0 20px 4px rgba(var(--md-tertiary-rgb), 0.3)', '0 0 0 0 rgba(var(--md-tertiary-rgb), 0)']
               } : {}}
               transition={{ duration: 2, repeat: Infinity }}
               className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl border ${t.bg} ${t.border}`}

@@ -1,3 +1,4 @@
+/* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'

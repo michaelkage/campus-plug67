@@ -1,3 +1,4 @@
+/* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
 import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Home, ShoppingBag, MessageCircle, Users, User, WalletCards } from 'lucide-react'

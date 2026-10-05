@@ -1,0 +1,32 @@
+# Campus Plug — Agent Workspace Rules
+
+## Baseline rule (authoritative)
+
+> CRITICAL WORKSPACE RULE: Never write custom layout blocks, raw margins, or ad-hoc component styles. Always check the official imports in @material/web or @mui/material to see if a pre-built layout, container, or component exists first. Restrict designs completely to Material 3 design tokens.
+
+## How this is enforced in this repo
+
+- **Official components live in `@material/web`** (`<md-filled-button>`, `<md-outlined-text-field>`,
+  `<md-card>`, `<md-icon>`, `<md-navigation-bar>`). Import them from there. Do not hand-roll an
+  equivalent `<button class="...">` or `<input class="...">`.
+- **Every colour resolves through a generated token.** No raw hex or `rgb()` literals in markup or
+  component stylesheets. Use `var(--md-sys-color-*)` (or the Tailwind role aliases in
+  `tailwind.config.js`). This is machine-checked — see "Automated enforcement".
+- **Do not edit `src/index.css` token values by hand.** The palette is generated at runtime from
+  the seed in `src/theme/theme.tokens.json` by `src/theme/themeEngine.ts`. Hand edits there are
+  overwritten on boot.
+- **Spacing is on the 8dp grid.** Layout tokens live in `theme.tokens.json` under `spacing.scale`.
+
+## Automated enforcement
+
+- `eslint.config.js` defines the `no-hardcoded-colors` rule, which errors on hex/`rgb()`/`hsl()`
+  literals in `.tsx`/`.jsx`/`.ts` sources. Only `src/index.css` and `src/theme/**` are exempt
+  (the token layer itself).
+- Run `npm run lint` (uses `--max-warnings 0`), `npm run typecheck`, `npm run build` and
+  `npm run test:security:all` before declaring any change complete.
+
+## Precedence
+
+`.cursorrules` holds the full CP-67 engineering standards (escrow state engine, RLS, geofencing,
+session handoff, session-token handling). Those security rules take precedence over the visual
+baseline above and must never be weakened to satisfy a styling request.

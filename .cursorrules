@@ -5,7 +5,7 @@
 - All pricing and values must use Nigerian Naira (NGN, ₦).
 - When altering transaction files, never weaken, expose, or repurpose session handoff keys/tokens.
 - Session handoff tokens must remain short-lived, single-use, opaque, and server-validated.
-- Do not use component UI libraries (e.g. shadcn) unless explicitly directed. Use raw, responsive mobile-first Tailwind CSS utility classes.
+- Use official Material components from `@material/web` for UI primitives; do not use third-party kits (e.g. shadcn) or hand-rolled equivalents. Keep Tailwind for layout utilities only.
 - Treat browser/device fingerprints as correlation signals, never authoritative identity proof.
 - Physical meetup verification and escrow release must remain server-authoritative and mobile-gated.
 - Never trust client-supplied GPS, EXIF, device type, transaction state, wallet balance, or PlugScore as authoritative.
@@ -18,3 +18,11 @@
 - Before changing schema-dependent code, inspect `.ai-context/schema-dump.sql` and the relevant Supabase migrations.
 - Run typecheck, build, tests, and security regression checks before declaring a change complete.
 - Commit completed work to `main` without waiting to be asked. Split by concern, keep the repo imperative-mood, and push.
+
+# Material 3 baseline
+
+CRITICAL WORKSPACE RULE: Never write custom layout blocks, raw margins, or ad-hoc component styles. Always check the official imports in @material/web or @mui/material to see if a pre-built layout, container, or component exists first. Restrict designs completely to Material 3 design tokens.
+
+- Colours resolve only through generated tokens (`var(--md-sys-color-*)`). Raw hex/`rgb()` literals in markup or component styles are a lint error.
+- The palette is generated at runtime from the seed in `src/theme/theme.tokens.json` via `src/theme/themeEngine.ts`; never hand-edit token values in `src/index.css`.
+- Full workspace rules live in `.clinerules`. The CP-67 security rules above always outrank styling requests.

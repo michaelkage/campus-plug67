@@ -17,11 +17,12 @@ const BADGE_EMOJI = {
 function CreditRing({ score, max = 1000 }) {
   const pct = Math.min(score / max, 1)
   const r = 52, cx = 60, cy = 60, circ = 2 * Math.PI * r
-  const color = score >= 750 ? '#00FF88' : score >= 500 ? '#00F2FF' : '#FFB800'
+  // Map score tiers to the live-generated palette colours.
+  const color = score >= 750 ? 'var(--md-secondary)' : score >= 500 ? 'var(--md-primary)' : 'var(--md-tertiary)'
   return (
     <div className="relative inline-flex items-center justify-center">
       <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1A2332" strokeWidth="8" />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--md-on-surface-variant)" strokeWidth="8" />
         <motion.circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="8"
           strokeLinecap="round" transform="rotate(-90 60 60)"
           initial={{ strokeDasharray: `0 ${circ}` }}
@@ -457,8 +458,8 @@ export default function Profile() {
           {/* Verification QR */}
           <div className="card-tactical p-5 flex flex-col items-center justify-center gap-4" style={{ padding: 28 }}>
             <div className="text-xs font-bold text-white/40 uppercase tracking-wider text-center">Live Verify QR</div>
-            <div className="p-3 bg-white rounded-2xl">
-              <QRCodeSVG value={verifyUrl} size={120} bgColor="#fff" fgColor="#080B0F" level="M" />
+            <div className="p-3 bg-[var(--md-surface-container)] rounded-2xl">
+              <QRCodeSVG value={verifyUrl} size={120} bgColor="var(--md-on-surface)" fgColor="var(--md-surface)" level="M" />
             </div>
             <div className="text-center">
               <div className="text-[9px] text-white/25 font-mono break-all">{verifyUrl}</div>

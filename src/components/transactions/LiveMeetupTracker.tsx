@@ -100,13 +100,13 @@ function ArrivalBadge({
   return (
     <motion.div
       layout
-      animate={arrived ? { borderColor: '#34d399' } : { borderColor: '#262626' }}
+      animate={arrived ? { borderColor: 'var(--md-secondary)' } : { borderColor: 'var(--md-outline-variant)' }}
       className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors
-                  ${arrived ? 'bg-primary-container' : 'bg-surface-container-high'}`}
+                  ${arrived ? 'bg-secondary-container' : 'bg-surface-container-high'}`}
     >
       <div className="flex items-center gap-2.5">
         <motion.span
-          animate={arrived ? { scale: [1, 1.4, 1], backgroundColor: '#34d399' } : { backgroundColor: '#404040' }}
+          animate={arrived ? { scale: [1, 1.4, 1], backgroundColor: 'var(--md-secondary)' } : { backgroundColor: 'var(--md-outline-variant)' }}
           transition={{ duration: 0.4 }}
           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
         />
@@ -543,8 +543,8 @@ export default function LiveMeetupTracker({
           <div className="flex items-center gap-2">
             <motion.span
               animate={isTracking
-                ? { opacity: [1, 0.3, 1], backgroundColor: '#34d399' }
-                : { backgroundColor: '#525252' }}
+                ? { opacity: [1, 0.3, 1], backgroundColor: 'var(--md-secondary)' }
+                : { backgroundColor: 'var(--md-outline-variant)' }}
               transition={isTracking ? { duration: 1.2, repeat: Infinity } : {}}
               className="w-2 h-2 rounded-full flex-shrink-0"
             />

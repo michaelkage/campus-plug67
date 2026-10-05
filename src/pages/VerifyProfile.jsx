@@ -62,8 +62,8 @@ export default function VerifyProfile() {
     </div>
   )
 
-  const scoreColor = stats.plug_score >= 750 ? '#00FF88'
-    : stats.plug_score >= 500 ? '#00F2FF' : '#FFB800'
+  const scoreColor = stats.plug_score >= 750 ? 'var(--md-secondary)'
+    : stats.plug_score >= 500 ? 'var(--md-primary)' : 'var(--md-tertiary)'
 
   return (
     <div className="min-h-screen bg-surface">
@@ -119,7 +119,7 @@ export default function VerifyProfile() {
             <div className="text-center flex-shrink-0">
               <div className="relative w-16 h-16">
                 <svg viewBox="0 0 64 64" width="64" height="64">
-                  <circle cx="32" cy="32" r="26" fill="none" stroke="#1A2332" strokeWidth="5" />
+                  <circle cx="32" cy="32" r="26" fill="none" stroke="var(--md-on-surface-variant)" strokeWidth="5" />
                   <circle
                     cx="32" cy="32" r="26" fill="none"
                     stroke={scoreColor} strokeWidth="5" strokeLinecap="round"

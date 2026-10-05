@@ -31,7 +31,7 @@ function Badge({ name }) {
 function RankMedal({ rank }) {
   if (rank === 1) return <span className="text-[var(--md-secondary)] text-xl font-black font-mono">1</span>
   if (rank === 2) return <span className="text-white/60 text-xl font-black font-mono">2</span>
-  if (rank === 3) return <span className="text-[#CD7F32] text-xl font-black font-mono">3</span>
+  if (rank === 3) return <span className="text-[var(--md-tertiary)] text-xl font-black font-mono">3</span>
   return <span className="text-white/30 text-xl font-black font-mono">{rank}</span>
 }
 

@@ -1,4 +1,17 @@
--- Paystack refund lifecycle hardening.\n-- The live functions below were verified after deployment.\nALTER TABLE public.transactions\n  ADD COLUMN IF NOT EXISTS refund_status text,\n  ADD COLUMN IF NOT EXISTS paystack_refund_id text,\n  ADD COLUMN IF NOT EXISTS refund_initiated_at timestamptz,\n  ADD COLUMN IF NOT EXISTS refund_processed_at timestamptz,\n  ADD COLUMN IF NOT EXISTS refund_failure_reason text;\n\nALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_refund_status_check;\nALTER TABLE public.transactions ADD CONSTRAINT transactions_refund_status_check CHECK (refund_status IS NULL OR refund_status IN ('pending','processing','needs-attention','processed','failed'));\nCREATE UNIQUE INDEX IF NOT EXISTS transactions_paystack_refund_id_uq ON public.transactions(paystack_refund_id) WHERE paystack_refund_id IS NOT NULL;\n\nCREATE OR REPLACE FUNCTION public.process_escrow_action(p_transaction_id uuid, p_action text, p_qr_secret text DEFAULT NULL::text, p_reason text DEFAULT NULL::text)
+-- Paystack refund lifecycle hardening.
+-- The live functions below were verified after deployment.
+ALTER TABLE public.transactions
+  ADD COLUMN IF NOT EXISTS refund_status text,
+  ADD COLUMN IF NOT EXISTS paystack_refund_id text,
+  ADD COLUMN IF NOT EXISTS refund_initiated_at timestamptz,
+  ADD COLUMN IF NOT EXISTS refund_processed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS refund_failure_reason text;
+
+ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_refund_status_check;
+ALTER TABLE public.transactions ADD CONSTRAINT transactions_refund_status_check CHECK (refund_status IS NULL OR refund_status IN ('pending','processing','needs-attention','processed','failed'));
+CREATE UNIQUE INDEX IF NOT EXISTS transactions_paystack_refund_id_uq ON public.transactions(paystack_refund_id) WHERE paystack_refund_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.process_escrow_action(p_transaction_id uuid, p_action text, p_qr_secret text DEFAULT NULL::text, p_reason text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -87,7 +100,9 @@ begin
   return jsonb_build_object('success',true,'transaction_id',tx.id,'action',p_action);
 end;
 $function$
-\n\nCREATE OR REPLACE FUNCTION public.resolve_dispute_verdict(p_case_id uuid, p_verdict text, p_admin_override boolean DEFAULT false)
+
+
+CREATE OR REPLACE FUNCTION public.resolve_dispute_verdict(p_case_id uuid, p_verdict text, p_admin_override boolean DEFAULT false)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -132,5 +147,4 @@ begin
     jsonb_build_object('verdict',p_verdict,'transaction_id',v_tx.id,'amount',v_tx.amount,'recipient',v_recipient,'refund_status',v_tx.refund_status));
   return jsonb_build_object('success',true,'case_id',v_case.id,'transaction_id',v_tx.id,'verdict',p_verdict,'recipient',v_recipient,'amount',v_tx.amount);
 end;
-$function$
-\n
+$function$;

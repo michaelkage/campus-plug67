@@ -234,7 +234,7 @@ export function EliteBadge({ tier }) {
       transition={{ duration: 2.5, repeat: Infinity }}
       className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black border ${
         isElite
-          ? 'bg-plug-amber/20 text-[var(--md-secondary)] border-plug-amber/40'
+          ? 'bg-tertiary/20 text-[var(--md-secondary)] border-tertiary/40'
           : 'bg-[var(--md-primary)]/15 text-[var(--md-primary)] border-[var(--md-primary)]/30'
       }`}
     >

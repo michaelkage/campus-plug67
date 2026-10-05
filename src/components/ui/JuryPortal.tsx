@@ -67,7 +67,7 @@ function ReviewTimer({ required, onReady }: { required: boolean; onReady: () => 
           {ready ? 'Review Complete — You May Vote' : `High-Value Case: Review for ${20 - elapsed}s more`}
         </div>
         <div className="h-1 mt-1.5 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden">
-          <motion.div className={`h-full rounded-full ${ready ? 'bg-plug-green' : 'bg-plug-amber'}`}
+          <motion.div className={`h-full rounded-full ${ready ? 'bg-primary' : 'bg-tertiary'}`}
             animate={{ width: `${Math.min(elapsed / 20 * 100, 100)}%` }}
             transition={{ duration: 0.5 }} />
         </div>
@@ -180,8 +180,8 @@ function CaseView({ juryCase, onVoted }: any) {
         <div className="text-xs font-bold text-[var(--md-on-surface-variant)] uppercase tracking-wider mb-3">Your Verdict</div>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { key:'claimant',   label:'Claimant Wins',   desc:'Dispute is valid',     color:'text-[var(--md-primary)] border-[var(--md-primary)]/30 bg-plug-green/10' },
-            { key:'split',      label:'Split Decision',  desc:'Both at fault',         color:'text-[var(--md-secondary)] border-[var(--md-secondary)]/30 bg-plug-amber/10' },
+            { key:'claimant',   label:'Claimant Wins',   desc:'Dispute is valid',     color:'text-[var(--md-primary)] border-[var(--md-primary)]/30 bg-primary/10' },
+            { key:'split',      label:'Split Decision',  desc:'Both at fault',         color:'text-[var(--md-secondary)] border-[var(--md-secondary)]/30 bg-tertiary/10' },
             { key:'respondent', label:'Respondent Wins', desc:'Dispute unfounded',     color:'text-[var(--md-secondary)] border-[var(--md-secondary)]/30 bg-[var(--md-secondary)]/10' },
           ].map(v => (
             <button key={v.key} onClick={() => setVerdict(v.key)}

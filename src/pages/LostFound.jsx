@@ -27,7 +27,7 @@ function TagInput({ tags, setTags }) {
         {tags.map(t => (
           <span key={t} className="flex items-center gap-1 tag tag-cyan text-[11px]">
             #{t}
-            <button onClick={() => remove(t)} className="hover:text-plug-red transition-colors">
+            <button onClick={() => remove(t)} className="hover:text-error transition-colors">
               <X size={10} />
             </button>
           </span>
@@ -157,7 +157,7 @@ function ReportModal({ onClose, profile }) {
           </div>
 
           <div>
-            <label className="label">Tags <span className="text-plug-red">*</span></label>
+            <label className="label">Tags <span className="text-error">*</span></label>
             <TagInput tags={tags} setTags={setTags} />
             <p className="text-xs text-white/30 mt-1">
               Tags are used by AI matching to connect lost & found reports.
@@ -183,7 +183,7 @@ function ItemCard({ item }) {
   }
   return (
     <div className={`bg-surface-container-high border rounded-xl p-4 transition-all hover:-translate-y-0.5 ${
-      isLost ? 'border-plug-red/20 hover:border-plug-red/40' : 'border-cyan/20 hover:border-cyan/40'
+      isLost ? 'border-error/20 hover:border-error/40' : 'border-cyan/20 hover:border-cyan/40'
     }`}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
@@ -330,7 +330,7 @@ export default function LostFound() {
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
           { label: 'Open Reports', val: items.length, color: 'text-white' },
-          { label: 'Lost Items',   val: items.filter(i => i.type === 'lost').length,  color: 'text-plug-red'  },
+          { label: 'Lost Items',   val: items.filter(i => i.type === 'lost').length,  color: 'text-error'  },
           { label: 'Found Items',  val: items.filter(i => i.type === 'found').length, color: 'text-cyan'      },
         ].map(({ label, val, color }) => (
           <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">

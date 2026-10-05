@@ -71,7 +71,7 @@ export function MarketPulse({ category, university, currentPrice, className = ''
     : null
 
   const demandConfig = {
-    high:   { color: 'text-[var(--md-primary)]', bg: 'bg-[var(--md-primary)]/10 border-plug-green/20', label: '🔥 High Demand', icon: TrendingUp  },
+    high:   { color: 'text-[var(--md-primary)]', bg: 'bg-[var(--md-primary)]/10 border-primary/20', label: '🔥 High Demand', icon: TrendingUp  },
     medium: { color: 'text-[var(--md-secondary)]', bg: 'bg-[var(--md-secondary)]/10 border-[var(--md-secondary)]/20', label: '📊 Medium Demand', icon: BarChart3  },
     low:    { color: 'text-[var(--md-on-surface-variant)]',   bg: 'bg-[var(--md-surface-container-high)] border-[var(--md-outline-variant)]',   label: '📉 Low Demand',   icon: TrendingDown },
   }

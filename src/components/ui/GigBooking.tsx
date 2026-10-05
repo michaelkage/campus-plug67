@@ -31,7 +31,7 @@ export function GigPerformanceStats({ gig, compact = false }) {
       </span>
       {gig.avg_rating > 0 && (
         <span className="flex items-center gap-1">
-          <Star size={10} className="text-[var(--md-secondary)] fill-plug-amber" />
+          <Star size={10} className="text-[var(--md-secondary)] fill-tertiary" />
           {gig.avg_rating}
         </span>
       )}

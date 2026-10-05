@@ -49,7 +49,7 @@ export function FlashDealTimer({ expiresAt, compact = false, onExpire }) {
       transition={{ duration: 1, repeat: isUrgent ? Infinity : 0 }}
       className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
         isUrgent
-          ? 'bg-[var(--md-error)]/20 text-[var(--md-error)] border-plug-red/40'
+          ? 'bg-[var(--md-error)]/20 text-[var(--md-error)] border-error/40'
           : 'bg-[var(--md-secondary)]/15 text-[var(--md-secondary)] border-[var(--md-secondary)]/30'
       }`}
     >
@@ -65,7 +65,7 @@ export function FlashDealTimer({ expiresAt, compact = false, onExpire }) {
       className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
         isUrgent
           ? 'bg-[var(--md-error)]/10 border-[var(--md-error)]/30'
-          : 'bg-plug-amber/8 border-[var(--md-secondary)]/20'
+          : 'bg-tertiary/8 border-[var(--md-secondary)]/20'
       }`}
     >
       <div className="flex items-center gap-1.5">
@@ -110,7 +110,7 @@ export function FlashDealToggle({ value, onChange }) {
   return (
     <div className={`border rounded-xl p-4 cursor-pointer transition-all duration-200 ${
       value
-        ? 'border-plug-amber/40 bg-plug-amber/5'
+        ? 'border-tertiary/40 bg-tertiary/5'
         : 'border-[var(--md-outline-variant)] bg-transparent hover:border-[var(--md-secondary)]/20'
     }`} onClick={() => onChange(!value)}>
       <div className="flex items-center justify-between">
@@ -126,7 +126,7 @@ export function FlashDealToggle({ value, onChange }) {
           </div>
         </div>
         <div className={`w-10 h-6 rounded-full relative transition-colors duration-200 ${
-          value ? 'bg-plug-amber' : 'bg-[var(--md-surface-container-high)]'
+          value ? 'bg-tertiary' : 'bg-[var(--md-surface-container-high)]'
         }`}>
           <motion.div
             animate={{ x: value ? 18 : 2 }}
@@ -178,7 +178,7 @@ export function FlashDealBadge({ expiresAt }) {
     <motion.div
       animate={{ scale: [1, 1.03, 1] }}
       transition={{ duration: 2, repeat: Infinity }}
-      className="flex items-center gap-1 bg-plug-amber/90 text-on-primary px-2 py-0.5 rounded-full text-[10px] font-black"
+      className="flex items-center gap-1 bg-tertiary/90 text-on-primary px-2 py-0.5 rounded-full text-[10px] font-black"
     >
       <Zap size={8} />
       {timeLeft}

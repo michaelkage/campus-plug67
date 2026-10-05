@@ -154,7 +154,7 @@ function BudgetBar({ budgetKobo, ceilingKobo = 50_000_00 }) {
   const pct = Math.min(100, Math.round((budgetKobo / ceilingKobo) * 100))
   const color =
     pct > 70 ? 'bg-emerald-400' :
-    pct > 35 ? 'bg-[var(--md-primary)]'        : 'bg-plug-amber'
+    pct > 35 ? 'bg-[var(--md-primary)]'        : 'bg-tertiary'
 
   return (
     <div className="space-y-1">
@@ -704,7 +704,7 @@ export default function BeaconBroadcastSystem() {
             {/* Feed error */}
             {feedError && (
               <div className="flex items-center gap-2 text-xs text-[var(--md-error)]
-                              bg-plug-red/5 border border-[var(--md-error)]/20 rounded-xl px-4 py-3">
+                              bg-error/5 border border-[var(--md-error)]/20 rounded-xl px-4 py-3">
                 <AlertTriangle size={13} />
                 Failed to load feed. Check your connection.
               </div>

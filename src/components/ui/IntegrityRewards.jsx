@@ -55,7 +55,7 @@ export function PowerUserBadge({ badges }) {
 export function AchievementToast({ badge, description, reward, onDismiss }) {
   const [visible, setVisible] = useState(true)
   useState(() => { const t = setTimeout(() => { setVisible(false); setTimeout(onDismiss, 300) }, 4000); return () => clearTimeout(t) })
-  const cfg = { 'Integrity Streak': { emoji: '🛡️', color: 'text-[var(--md-primary)]', border: 'border-plug-green/30' }, 'Power User': { emoji: '⚡', color: 'text-[var(--md-secondary)]', border: 'border-[var(--md-secondary)]/30' } }
+  const cfg = { 'Integrity Streak': { emoji: '🛡️', color: 'text-[var(--md-primary)]', border: 'border-primary/30' }, 'Power User': { emoji: '⚡', color: 'text-[var(--md-secondary)]', border: 'border-[var(--md-secondary)]/30' } }
   const c = cfg[badge] || { emoji: '🎖️', color: 'text-[var(--md-secondary)]', border: 'border-[var(--md-secondary)]/30' }
   return (
     <AnimatePresence>

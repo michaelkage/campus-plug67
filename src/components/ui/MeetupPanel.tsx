@@ -207,7 +207,7 @@ function OMWTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => 
       </div>
       <div className="h-2 bg-surface-container rounded-full overflow-hidden">
         <motion.div
-          className={`h-full rounded-full ${urgent ? 'bg-plug-red' : 'bg-plug-amber'}`}
+          className={`h-full rounded-full ${urgent ? 'bg-error' : 'bg-tertiary'}`}
           animate={{ width: `${pct}%` }} transition={{ duration: 0.5 }}
         />
       </div>
@@ -310,7 +310,7 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
     <div className="bg-secondary-container border border-outline-variant rounded-2xl p-5 space-y-4">
       <div className="flex items-center gap-3">
         <motion.div animate={{ scale: [1, 1.12, 1] }} transition={{ duration: 2, repeat: Infinity }}
-          className="w-10 h-10 rounded-full bg-plug-amber/20 flex items-center justify-center text-lg">
+          className="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center text-lg">
           🟡
         </motion.div>
         <div>
@@ -330,7 +330,7 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
         <div className="text-center py-3">
           <div className="text-xs text-on-surface-variant mb-2">Confirming you're really here…</div>
           <motion.div
-            className="w-12 h-12 mx-auto rounded-full border-2 border-outline-variant border-t-plug-amber"
+            className="w-12 h-12 mx-auto rounded-full border-2 border-outline-variant border-t-tertiary"
             animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           />
         </div>
@@ -348,7 +348,7 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
         <div className="space-y-2 text-center">
           <div className="text-sm text-on-surface/60">✓ Your presence confirmed.</div>
           <div className="flex items-center justify-center gap-2 text-xs text-on-surface-variant">
-            <motion.div className="w-2 h-2 rounded-full bg-plug-amber"
+            <motion.div className="w-2 h-2 rounded-full bg-tertiary"
               animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
             Waiting…
             {bufMs != null && bufMs > 0 && (
@@ -390,7 +390,7 @@ function OverrideModal({ onConfirm, onCancel }: any) {
           {opts.map(o => (
             <button key={o.k} onClick={() => setR(o.k)}
               className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
-                r === o.k ? 'border-plug-amber/50 bg-secondary-container' : 'border-outline-variant hover:border-plug-amber/20'
+                r === o.k ? 'border-tertiary/50 bg-secondary-container' : 'border-outline-variant hover:border-tertiary/20'
               }`}>
               <span className="text-xl">{o.i}</span>
               <div>
@@ -436,7 +436,7 @@ function FallbackProgress({ step }: { step: 'gps_poor' | 'trying_ssid' | 'ssid_f
         return (
           <div key={s.key} className={`flex items-center gap-3 text-xs ${done ? 'text-on-surface-variant' : active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
             <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-              done ? 'bg-plug-red/20' : active ? 'bg-primary/20' : 'bg-surface-container-high'
+              done ? 'bg-error/20' : active ? 'bg-primary/20' : 'bg-surface-container-high'
             }`}>
               {done
                 ? <span className="text-on-error-container text-[10px]">✗</span>
@@ -683,7 +683,7 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
     <div className="space-y-4">
       {/* Spoof notice */}
       {spoof && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-secondary-container border border-plug-amber/20 rounded-xl text-xs text-secondary">
+        <div className="flex items-center gap-2 px-3 py-2 bg-secondary-container border border-tertiary/20 rounded-xl text-xs text-secondary">
           <AlertTriangle size={12} /> GPS anomaly flagged — your transaction continues normally.
         </div>
       )}

@@ -89,7 +89,7 @@ export function HighConfidenceBadge({ transaction, profile }: { transaction?: an
         <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider mb-2">Confidence Factors</div>
         {criteria.map(c => (
           <div key={c.label} className="flex items-center gap-2 text-[11px] mb-1">
-            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${c.met ? 'bg-plug-green' : 'bg-[var(--md-on-surface)]/15'}`} />
+            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${c.met ? 'bg-primary' : 'bg-[var(--md-on-surface)]/15'}`} />
             <span className={c.met ? 'text-[var(--md-on-surface)]' : 'text-[var(--md-on-surface-variant)]'}>{c.label}</span>
           </div>
         ))}

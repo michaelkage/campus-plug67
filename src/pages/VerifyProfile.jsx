@@ -68,7 +68,7 @@ export default function VerifyProfile() {
   return (
     <div className="min-h-screen bg-surface">
       {/* Verification header */}
-      <div className="bg-[var(--md-primary)]/6 border-b border-plug-green/30 py-4 px-4">
+      <div className="bg-[var(--md-primary)]/6 border-b border-primary/30 py-4 px-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <CheckCircle size={20} className="text-[var(--md-primary)] flex-shrink-0" />
           <div>
@@ -213,7 +213,7 @@ export default function VerifyProfile() {
                 <div className="flex items-center gap-0.5 mt-1">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} size={12}
-                      className={i < Math.round(stats.avg_rating) ? 'text-[var(--md-secondary)] fill-plug-amber' : 'text-white/20'} />
+                      className={i < Math.round(stats.avg_rating) ? 'text-[var(--md-secondary)] fill-tertiary' : 'text-white/20'} />
                   ))}
                 </div>
                 <div className="text-xs text-white/30 mt-1">{stats.rating_count} reviews</div>
@@ -223,7 +223,7 @@ export default function VerifyProfile() {
                   <div key={star} className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-white/40 w-2">{star}</span>
                     <div className="flex-1 h-1.5 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden">
-                      <div className="h-full bg-plug-amber rounded-full"
+                      <div className="h-full bg-tertiary rounded-full"
                         style={{ width: `${star === Math.round(stats.avg_rating) ? 70 : star > Math.round(stats.avg_rating) ? 15 : 10}%` }} />
                     </div>
                   </div>

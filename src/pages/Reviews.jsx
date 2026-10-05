@@ -7,9 +7,9 @@ import { Star, Bug, Zap, MessageSquare, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const CATEGORIES = [
-  { key: 'Bug',        icon: Bug,         color: 'text-plug-red',   bg: 'bg-plug-red/10 border-plug-red/25'    },
+  { key: 'Bug',        icon: Bug,         color: 'text-error',   bg: 'bg-error/10 border-error/25'    },
   { key: 'Feature',    icon: Zap,         color: 'text-cyan',       bg: 'bg-cyan/10 border-cyan/25'            },
-  { key: 'Experience', icon: MessageSquare,color: 'text-plug-amber', bg: 'bg-plug-amber/10 border-plug-amber/25'},
+  { key: 'Experience', icon: MessageSquare,color: 'text-tertiary', bg: 'bg-tertiary/10 border-tertiary/25'},
 ]
 
 export default function Reviews() {
@@ -76,7 +76,7 @@ export default function Reviews() {
         <div className="flex gap-1">
           {[1,2,3,4,5].map(s => (
             <button key={s} onClick={() => setRating(s)}>
-              <Star size={24} className={s <= rating ? 'text-plug-amber fill-plug-amber' : 'text-white/20'} />
+              <Star size={24} className={s <= rating ? 'text-tertiary fill-tertiary' : 'text-white/20'} />
             </button>
           ))}
         </div>
@@ -100,7 +100,7 @@ export default function Reviews() {
               <div className="flex items-center gap-2">
                 <span className="tag tag-cyan text-[10px]">{r.context}</span>
                 <div className="flex">
-                  {[1,2,3,4,5].map(s => <Star key={s} size={11} className={s <= r.rating ? 'text-plug-amber fill-plug-amber' : 'text-white/15'} />)}
+                  {[1,2,3,4,5].map(s => <Star key={s} size={11} className={s <= r.rating ? 'text-tertiary fill-tertiary' : 'text-white/15'} />)}
                 </div>
               </div>
               <span className="text-[10px] text-white/30">{new Date(r.created_at).toLocaleDateString('en-NG')}</span>

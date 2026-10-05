@@ -75,16 +75,16 @@ export default function Auth() {
   }
 
   return (
-    <main className="min-h-screen bg-[#080B10] text-white selection:bg-cyan/30">
+    <main className="min-h-screen bg-surface text-white selection:bg-cyan/30">
       <div className="min-h-screen lg:grid lg:grid-cols-[minmax(360px,0.95fr)_minmax(520px,1.05fr)]">
         {/* Brand panel */}
-        <section className="relative hidden overflow-hidden border-r border-white/[0.07] bg-[#0C1017] lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-14">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(0,229,255,0.10),transparent_30%),radial-gradient(circle_at_85%_85%,rgba(168,85,247,0.08),transparent_32%)]" />
+        <section className="relative hidden overflow-hidden border-r border-white/[0.07] bg-surface-container lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-14">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(var(--md-primary-rgb),0.10),transparent_30%),radial-gradient(circle_at_85%_85%,rgba(var(--md-tertiary-rgb),0.08),transparent_32%)]" />
           <div className="absolute inset-0 opacity-[0.035] [background-image:linear-gradient(rgba(255,255,255,1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,1)_1px,transparent_1px)] [background-size:44px_44px]" />
 
           <div className="relative z-10">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan text-[#061014] shadow-[0_0_30px_rgba(0,229,255,0.16)]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan text-on-primary shadow-[0_0_30px_rgba(var(--md-primary-rgb),0.16)]">
                 <Zap size={20} strokeWidth={2.5} />
               </div>
               <span className="text-xl font-black tracking-tight">Campus<span className="text-cyan">Plug</span></span>
@@ -118,7 +118,7 @@ export default function Auth() {
           </div>
 
           <div className="relative z-10 flex items-center gap-2 text-xs text-white/25">
-            <span className="h-1.5 w-1.5 rounded-full bg-plug-green shadow-[0_0_10px_rgba(0,255,136,0.5)]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--md-primary-rgb),0.5)]" />
             Built for students, by Campus Plug
           </div>
         </section>
@@ -136,7 +136,7 @@ export default function Auth() {
           >
             <div className="mb-8 lg:hidden">
               <div className="mb-7 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan text-[#061014]">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan text-on-primary">
                   <Zap size={20} strokeWidth={2.5} />
                 </div>
                 <span className="text-xl font-black tracking-tight">Campus<span className="text-cyan">Plug</span></span>
@@ -162,7 +162,7 @@ export default function Auth() {
                 type="button"
                 onClick={() => switchMode('signin')}
                 aria-pressed={mode === 'signin'}
-                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-white text-[#090C11] shadow-sm' : 'text-white/40 hover:text-white/70'}`}
+                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-white text-inverse-on-surface shadow-sm' : 'text-white/40 hover:text-white/70'}`}
               >
                 Sign in
               </button>
@@ -170,15 +170,15 @@ export default function Auth() {
                 type="button"
                 onClick={() => switchMode('signup')}
                 aria-pressed={mode === 'signup'}
-                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-white text-[#090C11] shadow-sm' : 'text-white/40 hover:text-white/70'}`}
+                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-white text-inverse-on-surface shadow-sm' : 'text-white/40 hover:text-white/70'}`}
               >
                 Create account
               </button>
             </div>
 
-            <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.25)] sm:p-7">
+            <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(var(--md-scrim-rgb),0.25)] sm:p-7">
               <div className="mb-6 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-black/10 px-3.5 py-3">
-                <ShieldCheck size={17} className="shrink-0 text-plug-green" />
+                <ShieldCheck size={17} className="shrink-0 text-primary" />
                 <div>
                   <p className="text-xs font-bold text-white/70">Secure student access</p>
                   <p className="mt-0.5 text-[11px] leading-4 text-white/30">Your credentials are protected and your university identity is verified.</p>
@@ -257,7 +257,7 @@ export default function Auth() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-plug-green px-4 font-black text-[#06110B] transition-all hover:bg-[#1AFF9A] hover:shadow-[0_8px_30px_rgba(0,255,136,0.14)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-black text-on-primary transition-all hover:bg-primary/90 hover:shadow-[0_8px_30px_rgba(var(--md-primary-rgb),0.14)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
                   {!submitting && <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />}

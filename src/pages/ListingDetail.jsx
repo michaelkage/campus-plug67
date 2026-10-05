@@ -33,8 +33,8 @@ import { TX_STATUS, TX_STEPS, TX_STATUS_META } from '@/lib/escrowState'
 const COLOR_CLASS = {
   amber: 'border-[var(--md-secondary)]/30 bg-[var(--md-secondary)]/5',
   cyan:  'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/5',
-  green: 'border-plug-green/30 bg-[var(--md-primary)]/5',
-  red:   'border-[var(--md-error)]/30 bg-plug-red/5',
+  green: 'border-primary/30 bg-[var(--md-primary)]/5',
+  red:   'border-[var(--md-error)]/30 bg-error/5',
 }
 
 function EscrowPanel({ tx, isSeller, onRefresh }) {

@@ -27,7 +27,7 @@ export default function ClassDetailAlertHub() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="surface p-6">
-        <h1 className="text-2xl font-black text-white flex items-center gap-3"><Book className="text-plug-green" /> CSC 301: Data Structures</h1>
+        <h1 className="text-2xl font-black text-white flex items-center gap-3"><Book className="text-primary" /> CSC 301: Data Structures</h1>
         <div className="flex items-center gap-2 mt-2 text-white/60 text-sm"><MapPin size={14} /> LT1, Faculty of Science</div>
         <button className="mt-4 flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm text-white transition"><Bell size={14} /> Set Class Alert</button>
       </div>
@@ -40,8 +40,8 @@ export default function ClassDetailAlertHub() {
         </div>
 
         <div className="surface p-6">
-          <h2 className="font-bold text-white mb-4 flex items-center gap-2"><Book size={16} className="text-plug-amber" /> Note Marketplace</h2>
-          <div className="space-y-3"><div className="bg-surface-container-highest p-3 rounded-lg border border-white/5 flex justify-between items-center"><div><p className="text-sm font-semibold text-white">Midterm Summary Notes</p><p className="text-xs text-white/40">Shared by a student</p></div><span className="text-plug-green font-bold text-sm">₦500</span></div><div className="bg-surface-container-highest p-3 rounded-lg border border-white/5 flex justify-between items-center"><div><p className="text-sm font-semibold text-white">Past Questions (2020-2024)</p><p className="text-xs text-white/40">Shared by a student</p></div><span className="text-plug-green font-bold text-sm">₦1000</span></div></div>
+          <h2 className="font-bold text-white mb-4 flex items-center gap-2"><Book size={16} className="text-tertiary" /> Note Marketplace</h2>
+          <div className="space-y-3"><div className="bg-surface-container-highest p-3 rounded-lg border border-white/5 flex justify-between items-center"><div><p className="text-sm font-semibold text-white">Midterm Summary Notes</p><p className="text-xs text-white/40">Shared by a student</p></div><span className="text-primary font-bold text-sm">₦500</span></div><div className="bg-surface-container-highest p-3 rounded-lg border border-white/5 flex justify-between items-center"><div><p className="text-sm font-semibold text-white">Past Questions (2020-2024)</p><p className="text-xs text-white/40">Shared by a student</p></div><span className="text-primary font-bold text-sm">₦1000</span></div></div>
         </div>
       </div>
 

@@ -46,9 +46,6 @@ export default {
 
         'campus-dark': '#0a0a0a', 'campus-gray': '#1a1a1a', 'campus-green': '#00ff88',
         'campus-red': '#ff4444', 'campus-yellow': '#ffaa00', 'campus-blue': '#00aaff',
-        'plug-green': { DEFAULT: '#a8c7fa', 50: '#eaf2ff', 100: '#d7e7ff', 500: '#a8c7fa', 600: '#8fb8f2', 700: '#719edc', 900: '#234a7d' },
-        'plug-red': { DEFAULT: '#ffb4ab', 500: '#ffb4ab', 600: '#ff897d' },
-        'plug-amber': { DEFAULT: '#e6c35a', 500: '#e6c35a', 600: '#c7a642' },
         obsidian: {
           DEFAULT: '#111318', 100: '#1d1f24', 300: '#282a2f', 400: '#1d1f24',
           500: '#33353a', 800: '#1d1f24', 900: '#111318', 950: '#0b0d10',

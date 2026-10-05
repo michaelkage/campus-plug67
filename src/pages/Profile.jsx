@@ -217,7 +217,7 @@ function PasskeyManager({ userId }) {
             </div>
           </div>
           <button onClick={() => handleRemove(pk.credential_id)}
-            className="p-1.5 text-plug-red/40 hover:text-plug-red hover:bg-plug-red/10 rounded-lg transition-colors">
+            className="p-1.5 text-error/40 hover:text-error hover:bg-error/10 rounded-lg transition-colors">
             <Trash2 size={13} />
           </button>
         </div>
@@ -378,7 +378,7 @@ export default function Profile() {
               {ratings?.avg_rating > 0 && (
                 <div className="flex items-center gap-1.5 mb-3">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} size={12} className={i < Math.round(ratings.avg_rating) ? 'text-plug-amber fill-plug-amber' : 'text-white/20'} />
+                    <Star key={i} size={12} className={i < Math.round(ratings.avg_rating) ? 'text-tertiary fill-tertiary' : 'text-white/20'} />
                   ))}
                   <span className="text-xs text-white/40">{ratings.avg_rating} ({ratings.rating_count})</span>
                 </div>
@@ -407,8 +407,8 @@ export default function Profile() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label:'Sales',    val: profile.total_sales,           icon: Package,    c:'text-cyan'        },
-          { label:'Earnings', val: formatNaira(profile.total_earnings), icon: TrendingUp, c:'text-plug-green' },
-          { label:'Score',    val: profile.plug_score,            icon: Star,       c:'text-plug-amber'  },
+          { label:'Earnings', val: formatNaira(profile.total_earnings), icon: TrendingUp, c:'text-primary' },
+          { label:'Score',    val: profile.plug_score,            icon: Star,       c:'text-tertiary'  },
         ].map(({ label, val, icon: Icon, c }) => (
           <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
             <Icon size={16} className={`${c} mx-auto mb-2`} />
@@ -505,7 +505,7 @@ export default function Profile() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold">{viewingOwn ? 'My Listings' : `${profile.full_name?.split(' ')[0]}'s Listings`}</h2>
           <div className="text-xs text-white/40">
-            <span className="text-plug-green font-semibold">{listings.filter(l=>l.status==='active').length} active</span>
+            <span className="text-primary font-semibold">{listings.filter(l=>l.status==='active').length} active</span>
             {' · '}{listings.filter(l=>l.status==='sold').length} sold
           </div>
         </div>

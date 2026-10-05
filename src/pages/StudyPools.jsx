@@ -149,7 +149,7 @@ function PoolCard({ pool, myId, onJoin }) {
 
   const statusColor = {
     open:      'border-cyan/20 hover:border-cyan/40',
-    locked:    'border-plug-green/20 hover:border-plug-green/40',
+    locked:    'border-primary/20 hover:border-primary/40',
     completed: 'border-outline-variant opacity-60',
     cancelled: 'border-outline-variant opacity-40',
   }
@@ -179,7 +179,7 @@ function PoolCard({ pool, myId, onJoin }) {
           <div className="text-lg font-black text-cyan font-mono">{formatNaira(pool.unit_price)}</div>
           <div className="text-xs text-white/40">per person</div>
           {savingsPct > 0 && (
-            <div className="text-[10px] text-plug-green font-bold mt-0.5">~{savingsPct}% cheaper</div>
+            <div className="text-[10px] text-primary font-bold mt-0.5">~{savingsPct}% cheaper</div>
           )}
         </div>
       </div>
@@ -195,13 +195,13 @@ function PoolCard({ pool, myId, onJoin }) {
             <Users size={11} />
             <span>{pool.current_count}/{pool.max_capacity} joined</span>
           </div>
-          <span className={`font-bold ${spotsLeft <= 2 ? 'text-plug-red' : 'text-white/40'}`}>
+          <span className={`font-bold ${spotsLeft <= 2 ? 'text-error' : 'text-white/40'}`}>
             {pool.status === 'locked' ? 'Full!' : `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`}
           </span>
         </div>
         <div className="h-2 bg-surface-container-highest rounded-full overflow-hidden">
           <motion.div
-            className={`h-full rounded-full ${pool.status === 'locked' ? 'bg-plug-green' : 'bg-[var(--md-primary)]'}`}
+            className={`h-full rounded-full ${pool.status === 'locked' ? 'bg-primary' : 'bg-[var(--md-primary)]'}`}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -243,14 +243,14 @@ function PoolCard({ pool, myId, onJoin }) {
 
       {(isMember || isOrganizer) && pool.status === 'open' && (
         <div className="w-full py-2.5 rounded-lg text-sm font-semibold text-center
-                        bg-plug-green/10 text-plug-green border border-plug-green/20">
+                        bg-primary/10 text-primary border border-primary/20">
           ✓ You're In{isOrganizer ? ' (Organizer)' : ''}
         </div>
       )}
 
       {pool.status === 'locked' && isMember && (
         <div className="w-full py-2.5 rounded-lg text-sm font-semibold text-center
-                        bg-plug-green/10 text-plug-green border border-plug-green/20">
+                        bg-primary/10 text-primary border border-primary/20">
           🔒 Pool Full — Purchase Pending
         </div>
       )}
@@ -262,7 +262,7 @@ function PoolCard({ pool, myId, onJoin }) {
       )}
 
       {expired && pool.status === 'open' && (
-        <div className="w-full py-2.5 rounded-lg text-sm text-center text-plug-red/60">
+        <div className="w-full py-2.5 rounded-lg text-sm text-center text-error/60">
           Pool expired
         </div>
       )}
@@ -424,7 +424,7 @@ export default function StudyPools() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <div className="plug-dot" />
-                <span className="text-sm font-bold text-plug-green">Open Pools ({openPools.length})</span>
+                <span className="text-sm font-bold text-primary">Open Pools ({openPools.length})</span>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
                 {openPools.map(p => <PoolCard key={p.id} pool={p} myId={user?.id} onJoin={handleJoin} />)}
@@ -434,7 +434,7 @@ export default function StudyPools() {
 
           {lockedPools.length > 0 && (
             <div>
-              <div className="text-sm font-bold text-plug-amber mb-4">🔒 Full Pools ({lockedPools.length})</div>
+              <div className="text-sm font-bold text-tertiary mb-4">🔒 Full Pools ({lockedPools.length})</div>
               <div className="grid sm:grid-cols-2 gap-4">
                 {lockedPools.map(p => <PoolCard key={p.id} pool={p} myId={user?.id} onJoin={handleJoin} />)}
               </div>

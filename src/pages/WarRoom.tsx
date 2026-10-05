@@ -27,8 +27,8 @@ import {
 import toast from 'react-hot-toast'
 
 const MODE_COLORS = {
-  AUTO:   'text-plug-green  bg-plug-green/10  border-plug-green/25',
-  MANUAL: 'text-plug-amber  bg-plug-amber/10  border-plug-amber/25',
+  AUTO:   'text-primary  bg-primary/10  border-primary/25',
+  MANUAL: 'text-tertiary  bg-tertiary/10  border-tertiary/25',
   HYBRID: 'text-cyan        bg-cyan/10        border-cyan/25',
 }
 
@@ -49,16 +49,16 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
       transition={{ duration: 2.5, repeat: canApprove ? Infinity : 0 }}
       className={`border rounded-2xl overflow-hidden transition-all ${
         feature.is_enabled
-          ? 'border-plug-green/25 bg-plug-green/3'
+          ? 'border-primary/25 bg-primary/3'
           : canApprove
-          ? 'border-plug-amber/40 bg-plug-amber/4'
+          ? 'border-tertiary/40 bg-tertiary/4'
           : 'border-outline-variant bg-surface-container-high'
       }`}
     >
       {/* Header */}
       <div className="flex items-center gap-4 px-5 py-4">
         <div className={`text-2xl w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-          feature.is_enabled ? 'bg-plug-green/15' : 'bg-surface-container-highest'
+          feature.is_enabled ? 'bg-primary/15' : 'bg-surface-container-highest'
         }`}>
           {feature.icon || '⚡'}
         </div>
@@ -70,7 +70,7 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
               {feature.mode}
             </span>
             {feature.is_enabled && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-plug-green/30 bg-plug-green/10 text-plug-green">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary">
                 ✓ LIVE
               </span>
             )}
@@ -85,7 +85,7 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
               whileTap={{ scale: 0.92 }}
               onClick={() => onToggle(feature.key, !feature.is_enabled)}
               className={`w-11 h-6 rounded-full relative transition-colors ${
-                feature.is_enabled ? 'bg-plug-green' : 'bg-surface-container-highest'
+                feature.is_enabled ? 'bg-primary' : 'bg-surface-container-highest'
               }`}
             >
               <motion.div
@@ -96,7 +96,7 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
             </motion.button>
           )}
           {isAuto && (
-            <div className="flex items-center gap-1 text-[10px] text-plug-green font-semibold">
+            <div className="flex items-center gap-1 text-[10px] text-primary font-semibold">
               <Zap size={10} /> Auto
             </div>
           )}
@@ -111,14 +111,14 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
               {feature.current_value.toLocaleString()} / {feature.threshold_value.toLocaleString()} {feature.key === 'trending_engine' ? 'transactions' : 'events'}
             </span>
             <span className={`font-mono font-bold ${
-              pct >= 100 ? 'text-plug-green' : pct >= 60 ? 'text-plug-amber' : 'text-white/40'
+              pct >= 100 ? 'text-primary' : pct >= 60 ? 'text-tertiary' : 'text-white/40'
             }`}>{pct}%</span>
           </div>
           <div className="h-2 bg-surface-container-highest rounded-full overflow-hidden">
             <motion.div
               className={`h-full rounded-full ${
-                pct >= 100 ? 'bg-plug-green' :
-                pct >= 60  ? 'bg-plug-amber' : 'bg-cyan'
+                pct >= 100 ? 'bg-primary' :
+                pct >= 60  ? 'bg-tertiary' : 'bg-cyan'
               }`}
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
@@ -137,15 +137,15 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 pt-1 border-t border-plug-amber/20">
+            <div className="px-5 pb-5 pt-1 border-t border-tertiary/20">
               <div className="flex items-center gap-3">
-                <div className="text-xs text-plug-amber flex-1">
+                <div className="text-xs text-tertiary flex-1">
                   ✅ Threshold reached — awaiting manual approval to go live.
                 </div>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onForceEnable(feature.key)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-plug-amber text-on-primary flex-shrink-0"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-tertiary text-on-primary flex-shrink-0"
                 >
                   <Unlock size={12} />
                   Approve Cloak Release
@@ -263,7 +263,7 @@ export default function WarRoom() {
           <div className="flex items-center gap-2">
             <Shield size={16} className="text-cyan" />
             <h1 className="font-black text-sm tracking-tight">
-              Campus Plug <span className="text-plug-amber">War Room</span>
+              Campus Plug <span className="text-tertiary">War Room</span>
             </h1>
           </div>
           <div className="ml-auto flex items-center gap-3">
@@ -288,8 +288,8 @@ export default function WarRoom() {
         {/* Summary stats */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Features Live',    val: liveCount,    color: 'text-plug-green', icon: '✅' },
-            { label: 'Ready to Approve', val: readyCount,   color: 'text-plug-amber', icon: '🔓' },
+            { label: 'Features Live',    val: liveCount,    color: 'text-primary', icon: '✅' },
+            { label: 'Ready to Approve', val: readyCount,   color: 'text-tertiary', icon: '🔓' },
             { label: 'Still Building',   val: pendingCount, color: 'text-white/40',   icon: '⏳' },
           ].map(({ label, val, color, icon }) => (
             <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
@@ -328,7 +328,7 @@ export default function WarRoom() {
             {/* Live features first */}
             {features.filter(f => f.is_enabled).length > 0 && (
               <div>
-                <div className="text-[10px] font-bold text-plug-green uppercase tracking-widest mb-2 flex items-center gap-2">
+                <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2 flex items-center gap-2">
                   <div className="plug-dot scale-75" /> Live
                 </div>
                 {features.filter(f => f.is_enabled).map(f => (
@@ -340,7 +340,7 @@ export default function WarRoom() {
             {/* Ready to approve */}
             {features.filter(f => f.criteria_met && !f.is_enabled).length > 0 && (
               <div className="mt-4">
-                <div className="text-[10px] font-bold text-plug-amber uppercase tracking-widest mb-2 flex items-center gap-2">
+                <div className="text-[10px] font-bold text-tertiary uppercase tracking-widest mb-2 flex items-center gap-2">
                   🔓 Ready to Approve
                 </div>
                 {features.filter(f => f.criteria_met && !f.is_enabled).map(f => (

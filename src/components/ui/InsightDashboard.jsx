@@ -14,9 +14,9 @@ function fmtMs(ms) {
 
 function Card({ label, value, sub, trend, alert, Icon, color = 'text-[var(--md-primary)]' }) {
   return (
-    <div className={`bg-[var(--md-surface-container)] border rounded-xl p-4 ${alert ? 'border-plug-red/40' : 'border-[var(--md-outline-variant)]'}`}>
+    <div className={`bg-[var(--md-surface-container)] border rounded-xl p-4 ${alert ? 'border-error/40' : 'border-[var(--md-outline-variant)]'}`}>
       <div className="flex items-start justify-between mb-3">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${alert ? 'bg-plug-red/15' : 'bg-[var(--md-surface-container-high)]'}`}>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${alert ? 'bg-error/15' : 'bg-[var(--md-surface-container-high)]'}`}>
           <Icon size={14} className={alert ? 'text-[var(--md-error)]' : color} />
         </div>
         {trend != null && trend !== 0 && (
@@ -89,7 +89,7 @@ export function InsightDashboard() {
 
       {friction && (
         <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}}
-          className="flex items-start gap-3 p-4 bg-plug-red/8 border border-[var(--md-error)]/30 rounded-xl">
+          className="flex items-start gap-3 p-4 bg-error/8 border border-[var(--md-error)]/30 rounded-xl">
           <AlertTriangle size={16} className="text-[var(--md-error)] flex-shrink-0 mt-0.5"/>
           <div>
             <div className="font-bold text-sm text-[var(--md-error)] mb-1">⚠️ Friction Alert — Review Meetup Flow</div>

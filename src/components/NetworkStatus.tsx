@@ -34,7 +34,7 @@ export default function NetworkStatus() {
   if (online && !slow) return null
 
   return (
-    <div role="status" aria-live="polite" className={`fixed left-1/2 top-3 z-[100] -translate-x-1/2 rounded-full border px-4 py-2 shadow-xl backdrop-blur-xl ${online ? 'border-plug-amber/25 bg-[var(--md-secondary)]/10 text-[var(--md-secondary)]' : 'border-plug-red/25 bg-[var(--md-error)]/10 text-[var(--md-error)]'}`}>
+    <div role="status" aria-live="polite" className={`fixed left-1/2 top-3 z-[100] -translate-x-1/2 rounded-full border px-4 py-2 shadow-xl backdrop-blur-xl ${online ? 'border-tertiary/25 bg-[var(--md-secondary)]/10 text-[var(--md-secondary)]' : 'border-error/25 bg-[var(--md-error)]/10 text-[var(--md-error)]'}`}>
       <div className="flex items-center gap-2 text-xs font-bold">
         {online ? <Wifi size={14} /> : <WifiOff size={14} />}
         <span>{online ? 'Poor network — reconnecting gently' : 'Offline — changes will resume when connected'}</span>

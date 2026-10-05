@@ -135,30 +135,30 @@ const ESCROW_STATE = {
   },
   meetup_initiated: {
     label:  'MEETUP ACTIVE',
-    border: 'border-plug-green/40',
+    border: 'border-primary/40',
     bg:     'bg-[var(--md-primary)]/5',
     dot:    'bg-[var(--md-primary)] animate-pulse',
     text:   'text-[var(--md-primary)]',
   },
   release_requested: {
     label:  'RELEASE REQUESTED',
-    border: 'border-plug-amber/40',
-    bg:     'bg-plug-amber/5',
-    dot:    'bg-plug-amber animate-pulse',
+    border: 'border-tertiary/40',
+    bg:     'bg-tertiary/5',
+    dot:    'bg-tertiary animate-pulse',
     text:   'text-[var(--md-secondary)]',
   },
   released: {
     label:  'RELEASED',
-    border: 'border-plug-green/30',
+    border: 'border-primary/30',
     bg:     'bg-[var(--md-primary)]/5',
     dot:    'bg-[var(--md-primary)]',
     text:   'text-[var(--md-primary)]',
   },
   disputed: {
     label:  'UNDER DISPUTE',
-    border: 'border-plug-red/50',
-    bg:     'bg-plug-red/5',
-    dot:    'bg-plug-red animate-pulse',
+    border: 'border-error/50',
+    bg:     'bg-error/5',
+    dot:    'bg-error animate-pulse',
     text:   'text-[var(--md-error)]',
   },
   cancelled: {
@@ -172,8 +172,8 @@ const ESCROW_STATE = {
 
 const URGENCY_STYLE = {
   ok:      { bar: 'bg-[var(--md-primary)]', label: 'text-[var(--md-primary)]',  icon: Clock,         text: 'ON TIME'      },
-  grace:   { bar: 'bg-plug-amber', label: 'text-[var(--md-secondary)]',  icon: AlertTriangle, text: 'GRACE PERIOD' },
-  penalty: { bar: 'bg-plug-red',   label: 'text-[var(--md-error)]',    icon: Flame,         text: 'PENALTY ZONE' },
+  grace:   { bar: 'bg-tertiary', label: 'text-[var(--md-secondary)]',  icon: AlertTriangle, text: 'GRACE PERIOD' },
+  penalty: { bar: 'bg-error',   label: 'text-[var(--md-error)]',    icon: Flame,         text: 'PENALTY ZONE' },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ function EscrowProgressBar({ status }) {
           <div key={step.key} className="flex items-center flex-1">
             <div className={`flex flex-col items-center gap-1 flex-shrink-0 ${ahead ? 'opacity-25' : ''}`}>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[9px] font-bold transition-all
-                ${done    ? 'border-plug-green bg-[var(--md-primary)] text-on-primary' :
+                ${done    ? 'border-primary bg-[var(--md-primary)] text-on-primary' :
                   current ? 'border-cyan bg-[var(--md-primary)]/20 text-[var(--md-primary)]' :
                             'border-white/15 bg-transparent text-[var(--md-on-surface)]/20'}`}>
                 {done ? <Check size={10} /> : idx + 1}
@@ -535,7 +535,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
 
               {/* Auto-release countdown (release_requested state) */}
               {status === 'release_requested' && escrow.countdown.label && (
-                <div className="flex items-center gap-2 bg-[var(--md-secondary)]/10 border border-plug-amber/25
+                <div className="flex items-center gap-2 bg-[var(--md-secondary)]/10 border border-tertiary/25
                                 rounded-lg px-3 py-2 text-xs text-[var(--md-secondary)]">
                   <Timer size={12} />
                   Auto-release in: <span className="font-mono font-bold ml-1">
@@ -556,7 +556,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
 // ─────────────────────────────────────────────────────────────────────────────
 const COLOR_MAP = {
   cyan:  'bg-[var(--md-primary)]/10 border-[var(--md-primary)]/30 text-[var(--md-primary)] hover:bg-[var(--md-primary)]/20',
-  green: 'bg-[var(--md-primary)]/10 border-plug-green/30 text-[var(--md-primary)] hover:bg-[var(--md-primary)]/20',
+  green: 'bg-[var(--md-primary)]/10 border-primary/30 text-[var(--md-primary)] hover:bg-[var(--md-primary)]/20',
   amber: 'bg-[var(--md-secondary)]/10 border-[var(--md-secondary)]/30 text-[var(--md-secondary)] hover:bg-[var(--md-secondary)]/20',
   red:   'bg-[var(--md-error)]/10 border-[var(--md-error)]/30 text-[var(--md-error)] hover:bg-[var(--md-error)]/20',
 }
@@ -597,7 +597,7 @@ function InventoryCard({ listing }) {
 
   return (
     <div className={`bg-[var(--md-surface-container)] border rounded-xl overflow-hidden transition-colors
-                     ${urgency === 'penalty' ? 'border-plug-red/40'
+                     ${urgency === 'penalty' ? 'border-error/40'
                        : urgency === 'grace' ? 'border-[var(--md-secondary)]/30'
                        : 'border-[var(--md-outline-variant)]'}`}>
       {/* Image */}
@@ -630,7 +630,7 @@ function InventoryCard({ listing }) {
           <span className="font-mono font-black text-[var(--md-primary)] text-sm">{formatNaira(listing.price)}</span>
           <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full
                             border ${listing.status === 'active'
-                              ? 'border-plug-green/30 text-[var(--md-primary)] bg-[var(--md-primary)]/10'
+                              ? 'border-primary/30 text-[var(--md-primary)] bg-[var(--md-primary)]/10'
                               : 'border-[var(--md-outline-variant)] text-[var(--md-on-surface-variant)]'}`}>
             {listing.status}
           </span>
@@ -732,14 +732,14 @@ export default function MyGearHubDashboard() {
           label="TOTAL LOCKED"
           value={formatNaira(escrowTotal)}
           sub="in custody"
-          color="plug-green"
+          color="primary"
           mono
         />
         <StatCard
           label="OVERDUE"
           value={overdueCount}
           sub={overdueCount > 0 ? 'need attention' : 'all on time'}
-          color={overdueCount > 0 ? 'plug-red' : 'plug-green'}
+          color={overdueCount > 0 ? 'error' : 'primary'}
         />
       </div>
 

@@ -23,7 +23,7 @@ export function TrendingBadge({ listingId, isPreloaded = false }) {
   if (activeTrending && activeTrending.views_1h < 5) return null
   const isHot = activeTrending?.views_1h >= 20 || (activeTrending?.score || 0) >= 40
   return (
-    <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black border ${isHot ? 'bg-[var(--md-error)]/20 text-[var(--md-error)] border-plug-red/40' : 'bg-[var(--md-secondary)]/15 text-[var(--md-secondary)] border-[var(--md-secondary)]/30'}`}>
+    <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black border ${isHot ? 'bg-[var(--md-error)]/20 text-[var(--md-error)] border-error/40' : 'bg-[var(--md-secondary)]/15 text-[var(--md-secondary)] border-[var(--md-secondary)]/30'}`}>
       <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 1, repeat: Infinity, repeatDelay: 1.5 }}><Flame size={9} /></motion.span>
       {isHot ? 'HOT' : 'TRENDING'}
     </motion.div>
@@ -145,8 +145,8 @@ export function DemandPulse({ listingId, listing }) {
 // ── TRUST BADGE ────────────────────────────────────────────────────────────────
 export function PlugPayBadge({ protected: isProtected }) {
   if (isProtected === undefined) return null
-  return <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${isProtected ? 'bg-[var(--md-primary)]/10 text-[var(--md-primary)] border-[var(--md-primary)]/25' : 'bg-[var(--md-error)]/10 text-[var(--md-error)] border-plug-red/25'}`}>
-    <div className={`w-1.5 h-1.5 rounded-full ${isProtected ? 'bg-[var(--md-primary)]' : 'bg-plug-red'}`} />
+  return <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${isProtected ? 'bg-[var(--md-primary)]/10 text-[var(--md-primary)] border-[var(--md-primary)]/25' : 'bg-[var(--md-error)]/10 text-[var(--md-error)] border-error/25'}`}>
+    <div className={`w-1.5 h-1.5 rounded-full ${isProtected ? 'bg-[var(--md-primary)]' : 'bg-error'}`} />
     {isProtected ? 'PlugPay Protected' : 'Protection Void'}
   </div>
 }

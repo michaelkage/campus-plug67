@@ -13,7 +13,7 @@ export default function OnboardingComplete() {
   }, [navigate])
 
   return (
-    <div className="min-h-screen bg-obsidian flex items-center justify-center">
+    <div className="min-h-screen bg-surface flex items-center justify-center">
       <div className="text-center">
         <div className="text-5xl mb-4 animate-bounce">⚡</div>
         <p className="text-white/40 text-sm">Plugging you in...</p>

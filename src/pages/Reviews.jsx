@@ -59,14 +59,14 @@ export default function Reviews() {
       </div>
 
       {/* Submit form */}
-      <div className="bg-obsidian-400 border border-obsidian-500 rounded-3xl p-6 space-y-5">
+      <div className="bg-surface-container-high border border-outline-variant rounded-3xl p-6 space-y-5">
         <div className="text-sm font-bold">Submit Feedback</div>
 
         <div className="flex gap-2">
           {CATEGORIES.map(({ key, icon: Icon, color, bg }) => (
             <button key={key} onClick={() => setCategory(key)}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                category === key ? bg + ' ' + color : 'border-obsidian-500 text-white/40 hover:border-[var(--md-outline-variant)]'
+                category === key ? bg + ' ' + color : 'border-outline-variant text-white/40 hover:border-[var(--md-outline-variant)]'
               }`}>
               <Icon size={12} /> {key}
             </button>
@@ -95,7 +95,7 @@ export default function Reviews() {
       <div className="space-y-3">
         {reviews.map(r => (
           <motion.div key={r.id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
-            className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4">
+            className="bg-surface-container-high border border-outline-variant rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="tag tag-cyan text-[10px]">{r.context}</span>

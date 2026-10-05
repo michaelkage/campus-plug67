@@ -234,7 +234,7 @@ export function PWAOverlay({ onDismiss }: { onDismiss: () => void }) {
 
           <div className="p-5">
             <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-[var(--md-primary-container)] flex items-center justify-center text-obsidian font-black text-xl flex-shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-[var(--md-primary-container)] flex items-center justify-center text-on-primary font-black text-xl flex-shrink-0">
                 ⚡
               </div>
               <div>

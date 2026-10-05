@@ -104,7 +104,7 @@ export default function Notifications() {
 
       {isLoading ? (
         Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4 mb-3 animate-pulse h-20" />
+          <div key={i} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 mb-3 animate-pulse h-20" />
         ))
       ) : notifications.length === 0 ? (
         <div className="text-center py-20 text-white/30">
@@ -120,11 +120,11 @@ export default function Notifications() {
               onClick={() => markRead(notif.id)}
               className={`w-full text-left flex gap-4 p-4 rounded-xl border transition-all hover:border-cyan/20 ${
                 notif.read
-                  ? 'bg-obsidian-400 border-obsidian-500 opacity-60'
-                  : 'bg-obsidian-400 border-cyan/20 shadow-[0_0_0_1px_rgba(0,242,255,0.06)]'
+                  ? 'bg-surface-container-high border-outline-variant opacity-60'
+                  : 'bg-surface-container-high border-cyan/20 shadow-[0_0_0_1px_rgba(0,242,255,0.06)]'
               }`}
             >
-              <div className="w-10 h-10 rounded-full bg-obsidian-300 flex items-center justify-center
+              <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center
                               text-xl flex-shrink-0">
                 {TYPE_ICON[notif.type] || '🔔'}
               </div>

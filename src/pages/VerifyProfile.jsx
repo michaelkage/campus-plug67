@@ -42,7 +42,7 @@ export default function VerifyProfile() {
   })
 
   if (isLoading) return (
-    <div className="min-h-screen bg-obsidian flex items-center justify-center">
+    <div className="min-h-screen bg-surface flex items-center justify-center">
       <div className="text-center">
         <div className="text-4xl mb-4 animate-bounce">⚡</div>
         <p className="text-white/40 text-sm">Fetching live data...</p>
@@ -51,7 +51,7 @@ export default function VerifyProfile() {
   )
 
   if (error || !stats) return (
-    <div className="min-h-screen bg-obsidian flex items-center justify-center p-4">
+    <div className="min-h-screen bg-surface flex items-center justify-center p-4">
       <div className="text-center max-w-sm">
         <div className="text-5xl mb-4">🔍</div>
         <h2 className="text-xl font-bold mb-2">Profile Not Found</h2>
@@ -66,7 +66,7 @@ export default function VerifyProfile() {
     : stats.plug_score >= 500 ? '#00F2FF' : '#FFB800'
 
   return (
-    <div className="min-h-screen bg-obsidian">
+    <div className="min-h-screen bg-surface">
       {/* Verification header */}
       <div className="bg-[var(--md-primary)]/6 border-b border-plug-green/30 py-4 px-4">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
@@ -78,7 +78,7 @@ export default function VerifyProfile() {
             </div>
           </div>
           <div className="ml-auto">
-            <div className="w-8 h-8 rounded-lg bg-[var(--md-primary-container)] flex items-center justify-center text-obsidian font-black text-sm">
+            <div className="w-8 h-8 rounded-lg bg-[var(--md-primary-container)] flex items-center justify-center text-on-primary font-black text-sm">
               ⚡
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function VerifyProfile() {
         >
           <div className="flex items-start gap-5">
             <div className="w-16 h-16 rounded-3xl bg-[var(--md-primary-container)]
-                            flex items-center justify-center text-obsidian font-black text-2xl flex-shrink-0">
+                            flex items-center justify-center text-on-primary font-black text-2xl flex-shrink-0">
               {stats.full_name?.[0]?.toUpperCase() || '?'}
             </div>
             <div className="flex-1">

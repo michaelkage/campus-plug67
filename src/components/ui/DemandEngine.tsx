@@ -171,14 +171,14 @@ export function DemandBroadcastForm() {
       <h3 className="font-bold text-[var(--md-on-surface)] mb-2 flex items-center gap-2"><TrendingUp className="text-[var(--md-primary)]" size={16}/> Broadcast a Demand</h3>
       <p className="text-xs text-[var(--md-on-surface-variant)] mb-4">Looking for something specific? Alert all campus sellers instantly.</p>
       <div className="space-y-3">
-        <input type="text" placeholder="What are you looking for?" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-obsidian-500 border border-[var(--md-outline-variant)] rounded px-3 py-2 text-sm text-[var(--md-on-surface)]" />
+        <input type="text" placeholder="What are you looking for?" value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-surface-container-highest border border-[var(--md-outline-variant)] rounded px-3 py-2 text-sm text-[var(--md-on-surface)]" />
         <div className="flex gap-2">
-          <input type="number" placeholder="Max Budget (₦)" value={budget} onChange={e => setBudget(e.target.value)} className="w-1/2 bg-obsidian-500 border border-[var(--md-outline-variant)] rounded px-3 py-2 text-sm text-[var(--md-on-surface)]" />
-          <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="w-1/2 bg-obsidian-500 border border-[var(--md-outline-variant)] rounded px-3 py-2 text-sm text-[var(--md-on-surface)]">
+          <input type="number" placeholder="Max Budget (₦)" value={budget} onChange={e => setBudget(e.target.value)} className="w-1/2 bg-surface-container-highest border border-[var(--md-outline-variant)] rounded px-3 py-2 text-sm text-[var(--md-on-surface)]" />
+          <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="w-1/2 bg-surface-container-highest border border-[var(--md-outline-variant)] rounded px-3 py-2 text-sm text-[var(--md-on-surface)]">
             <option value="">Category</option><option value="1">Electronics</option><option value="2">Textbooks</option><option value="3">Furniture</option>
           </select>
         </div>
-        <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !title || !budget} className="w-full bg-[var(--md-primary)] text-obsidian font-bold rounded py-2 text-sm flex justify-center items-center gap-2 hover:bg-[var(--md-primary)]/80 transition disabled:opacity-50">
+        <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !title || !budget} className="w-full bg-[var(--md-primary)] text-on-primary font-bold rounded py-2 text-sm flex justify-center items-center gap-2 hover:bg-[var(--md-primary)]/80 transition disabled:opacity-50">
           {mutation.isPending ? 'Broadcasting...' : <><Send size={14}/> Broadcast Request</>}
         </button>
       </div>

@@ -81,7 +81,7 @@ export function JurorTutorial({ onComplete }) {
               : <div />
             }
             <motion.button whileTap={{ scale: 0.96 }} onClick={isLast ? finish : () => setSlide(s => s + 1)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--md-primary)] text-obsidian font-bold text-sm">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--md-primary)] text-on-primary font-bold text-sm">
               {isLast ? <><CheckCircle2 size={15} /> I Understand</> : <>Next <ChevronRight size={15} /></>}
             </motion.button>
           </div>

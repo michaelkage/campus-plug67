@@ -178,7 +178,7 @@ export function FlashDealBadge({ expiresAt }) {
     <motion.div
       animate={{ scale: [1, 1.03, 1] }}
       transition={{ duration: 2, repeat: Infinity }}
-      className="flex items-center gap-1 bg-plug-amber/90 text-obsidian px-2 py-0.5 rounded-full text-[10px] font-black"
+      className="flex items-center gap-1 bg-plug-amber/90 text-on-primary px-2 py-0.5 rounded-full text-[10px] font-black"
     >
       <Zap size={8} />
       {timeLeft}

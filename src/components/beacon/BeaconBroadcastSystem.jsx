@@ -188,7 +188,7 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
       className={`rounded-xl border-2 p-4 space-y-3 transition-colors
                   ${isMine
                     ? 'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/3'
-                    : 'border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] hover:border-obsidian-400'}`}
+                    : 'border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] hover:border-outline-variant'}`}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
@@ -430,14 +430,14 @@ function DemandForm({ onSuccess, onCancel, profile }) {
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl
                    font-bold text-sm tracking-wide transition-all
                    disabled:opacity-40 disabled:cursor-not-allowed
-                   bg-[var(--md-primary)] text-obsidian hover:bg-[var(--md-primary)]/90"
+                   bg-[var(--md-primary)] text-on-primary hover:bg-[var(--md-primary)]/90"
       >
         {mutation.isPending ? (
           <>
             <motion.span
               animate={{ rotate: 360 }}
               transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-              className="block w-4 h-4 border-2 border-obsidian border-t-transparent rounded-full"
+              className="block w-4 h-4 border-2 border-outline-variant border-t-transparent rounded-full"
             />
             BROADCASTING…
           </>
@@ -595,7 +595,7 @@ export default function BeaconBroadcastSystem() {
                       transition-all self-start mt-1
                       ${showForm
                         ? 'bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] text-[var(--md-on-surface-variant)]'
-                        : 'bg-[var(--md-primary)] text-obsidian hover:bg-[var(--md-primary)]/90'}`}
+                        : 'bg-[var(--md-primary)] text-on-primary hover:bg-[var(--md-primary)]/90'}`}
         >
           {showForm ? <X size={14} /> : <Plus size={14} />}
           {showForm ? 'CANCEL' : 'POST DEMAND'}
@@ -654,14 +654,14 @@ export default function BeaconBroadcastSystem() {
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg
                         text-xs font-bold uppercase tracking-widest transition-all
                         ${tab === t.id
-                          ? 'bg-[var(--md-primary)] text-obsidian'
+                          ? 'bg-[var(--md-primary)] text-on-primary'
                           : 'text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)]'}`}
           >
             {t.label}
             {t.count > 0 && (
               <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold
                                 ${tab === t.id
-                                  ? 'bg-obsidian/20 text-obsidian'
+                                  ? 'bg-surface/20 text-on-primary'
                                   : 'bg-white/10 text-[var(--md-on-surface-variant)]'}`}>
                 {t.count}
               </span>

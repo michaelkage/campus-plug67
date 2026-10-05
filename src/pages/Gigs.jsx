@@ -12,7 +12,7 @@ const ACADEMIC_GIGS = ['GST 101/102 Summary Notes', 'Engineering Drawing Board R
 function GigCard({ gig, onBook }) {
   return <div className="surface surface-interactive relative p-5">
     <div className="absolute right-4 top-4"><span className="tag tag-green text-[9px]">0% FEE</span></div>
-    <div className="mb-4 flex items-center gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--md-secondary-container)] text-sm font-bold text-obsidian">{gig.profiles?.full_name?.[0]?.toUpperCase() || '?'}</div><div className="min-w-0"><div className="truncate text-sm font-semibold">{gig.profiles?.full_name}</div><div className="truncate text-xs text-white/40">{gig.profiles?.university}</div></div></div>
+    <div className="mb-4 flex items-center gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--md-secondary-container)] text-sm font-bold text-on-primary">{gig.profiles?.full_name?.[0]?.toUpperCase() || '?'}</div><div className="min-w-0"><div className="truncate text-sm font-semibold">{gig.profiles?.full_name}</div><div className="truncate text-xs text-white/40">{gig.profiles?.university}</div></div></div>
     <h3 className="mb-2 font-bold">{gig.title}</h3><p className="mb-4 line-clamp-2 text-sm text-white/50">{gig.description}</p>
     <div className="flex items-center justify-between gap-3"><span className="font-mono text-sm font-black text-[var(--md-primary)]">{formatNaira(gig.starting_price)}</span><span className="tag tag-purple text-[10px]">{gig.category}</span></div>
     <button onClick={()=>onBook(gig)} className="btn-primary mt-4 w-full"><CalendarDays size={14}/> Book this skill</button>

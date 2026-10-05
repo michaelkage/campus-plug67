@@ -51,7 +51,7 @@ function TagInput({ tags, setTags }) {
             key={p}
             type="button"
             onClick={() => add(p)}
-            className="text-[11px] px-2 py-0.5 rounded-full border border-obsidian-500
+            className="text-[11px] px-2 py-0.5 rounded-full border border-outline-variant
                        text-white/40 hover:border-cyan/30 hover:text-cyan transition-colors"
           >
             #{p}
@@ -112,14 +112,14 @@ function ReportModal({ onClose, profile }) {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
          onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg bg-obsidian-400 border border-obsidian-500 rounded-3xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-obsidian-500">
+      <div className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-3xl overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-outline-variant">
           <h2 className="font-bold">Report an Item</h2>
           <button onClick={onClose} className="text-white/30 hover:text-white"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Lost / Found toggle */}
-          <div className="flex bg-obsidian-300 rounded-xl p-1">
+          <div className="flex bg-surface-container-highest rounded-xl p-1">
             {[
               { val: 'lost',  label: '🔍 I Lost Something',  },
               { val: 'found', label: '📦 I Found Something', },
@@ -129,7 +129,7 @@ function ReportModal({ onClose, profile }) {
                 type="button"
                 onClick={() => setType(val)}
                 className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  type === val ? 'bg-cyan text-obsidian' : 'text-white/40 hover:text-white/70'
+                  type === val ? 'bg-cyan text-on-primary' : 'text-white/40 hover:text-white/70'
                 }`}
               >
                 {label}
@@ -182,7 +182,7 @@ function ItemCard({ item }) {
     claimed:  'tag-green',
   }
   return (
-    <div className={`bg-obsidian-400 border rounded-xl p-4 transition-all hover:-translate-y-0.5 ${
+    <div className={`bg-surface-container-high border rounded-xl p-4 transition-all hover:-translate-y-0.5 ${
       isLost ? 'border-plug-red/20 hover:border-plug-red/40' : 'border-cyan/20 hover:border-cyan/40'
     }`}>
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -216,7 +216,7 @@ function ItemCard({ item }) {
       <div className="flex flex-wrap gap-1">
         {item.tags?.map(tag => (
           <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full
-                                     bg-obsidian-300 text-white/40 border border-obsidian-500 font-mono">
+                                     bg-surface-container-highest text-white/40 border border-outline-variant font-mono">
             #{tag}
           </span>
         ))}
@@ -316,8 +316,8 @@ export default function LostFound() {
               onClick={() => setFilter(val)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
                 filter === val
-                  ? 'bg-cyan text-obsidian border-cyan'
-                  : 'bg-transparent text-white/40 border-obsidian-500 hover:border-cyan/30'
+                  ? 'bg-cyan text-on-primary border-cyan'
+                  : 'bg-transparent text-white/40 border-outline-variant hover:border-cyan/30'
               }`}
             >
               {label}
@@ -333,7 +333,7 @@ export default function LostFound() {
           { label: 'Lost Items',   val: items.filter(i => i.type === 'lost').length,  color: 'text-plug-red'  },
           { label: 'Found Items',  val: items.filter(i => i.type === 'found').length, color: 'text-cyan'      },
         ].map(({ label, val, color }) => (
-          <div key={label} className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4 text-center">
+          <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
             <div className={`text-2xl font-black font-mono ${color}`}>{val}</div>
             <div className="text-xs text-white/40 mt-0.5">{label}</div>
           </div>
@@ -344,7 +344,7 @@ export default function LostFound() {
       {isLoading ? (
         <div className="grid sm:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4 animate-pulse h-32" />
+            <div key={i} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 animate-pulse h-32" />
           ))}
         </div>
       ) : filtered.length === 0 ? (

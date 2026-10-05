@@ -4,8 +4,8 @@ import { Shield, ArrowLeft } from 'lucide-react'
 
 export default function Terms() {
   return (
-    <div className="min-h-screen bg-obsidian">
-      <div className="border-b border-obsidian-500 bg-obsidian-400 sticky top-0 z-10">
+    <div className="min-h-screen bg-surface">
+      <div className="border-b border-outline-variant bg-surface-container-high sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link to="/" className="text-white/40 hover:text-white transition-colors"><ArrowLeft size={18} /></Link>
           <div className="flex items-center gap-2"><Shield size={16} className="text-cyan" /><h1 className="font-bold text-sm">Terms of Service</h1></div>
@@ -32,12 +32,12 @@ export default function Terms() {
           { title: '12. Governing Law', body: 'These Terms are governed by the laws of the Federal Republic of Nigeria. Contact: legal@campusplug.ng' },
         ].map(({ title, body }) => (
           <section key={title}>
-            <h2 className="text-base font-black text-white mb-3 pb-2 border-b border-obsidian-500">{title}</h2>
+            <h2 className="text-base font-black text-white mb-3 pb-2 border-b border-outline-variant">{title}</h2>
             <p className="text-sm text-white/60 leading-relaxed">{body}</p>
           </section>
         ))}
 
-        <div className="border-t border-obsidian-500 pt-6 flex items-center justify-between text-xs text-white/30">
+        <div className="border-t border-outline-variant pt-6 flex items-center justify-between text-xs text-white/30">
           <span>Campus Plug Technologies Ltd · 2025</span>
           <Link to="/privacy" className="text-cyan hover:underline">Privacy Policy →</Link>
         </div>

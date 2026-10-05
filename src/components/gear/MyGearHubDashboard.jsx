@@ -256,7 +256,7 @@ function EscrowProgressBar({ status }) {
           <div key={step.key} className="flex items-center flex-1">
             <div className={`flex flex-col items-center gap-1 flex-shrink-0 ${ahead ? 'opacity-25' : ''}`}>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[9px] font-bold transition-all
-                ${done    ? 'border-plug-green bg-[var(--md-primary)] text-obsidian' :
+                ${done    ? 'border-plug-green bg-[var(--md-primary)] text-on-primary' :
                   current ? 'border-cyan bg-[var(--md-primary)]/20 text-[var(--md-primary)]' :
                             'border-white/15 bg-transparent text-[var(--md-on-surface)]/20'}`}>
                 {done ? <Check size={10} /> : idx + 1}
@@ -752,13 +752,13 @@ export default function MyGearHubDashboard() {
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg
                         text-xs font-bold uppercase tracking-widest transition-all
                         ${tab === t.id
-                          ? 'bg-[var(--md-primary)] text-obsidian shadow-sm'
+                          ? 'bg-[var(--md-primary)] text-on-primary shadow-sm'
                           : 'text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)]'}`}
           >
             {t.label}
             {t.count > 0 && (
               <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold
-                                ${tab === t.id ? 'bg-obsidian/20 text-obsidian' : 'bg-white/10 text-[var(--md-on-surface-variant)]'}`}>
+                                ${tab === t.id ? 'bg-surface/20 text-on-primary' : 'bg-white/10 text-[var(--md-on-surface-variant)]'}`}>
                 {t.count}
               </span>
             )}

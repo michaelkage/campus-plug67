@@ -52,13 +52,13 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
           ? 'border-plug-green/25 bg-plug-green/3'
           : canApprove
           ? 'border-plug-amber/40 bg-plug-amber/4'
-          : 'border-obsidian-500 bg-obsidian-400'
+          : 'border-outline-variant bg-surface-container-high'
       }`}
     >
       {/* Header */}
       <div className="flex items-center gap-4 px-5 py-4">
         <div className={`text-2xl w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-          feature.is_enabled ? 'bg-plug-green/15' : 'bg-obsidian-300'
+          feature.is_enabled ? 'bg-plug-green/15' : 'bg-surface-container-highest'
         }`}>
           {feature.icon || '⚡'}
         </div>
@@ -85,7 +85,7 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
               whileTap={{ scale: 0.92 }}
               onClick={() => onToggle(feature.key, !feature.is_enabled)}
               className={`w-11 h-6 rounded-full relative transition-colors ${
-                feature.is_enabled ? 'bg-plug-green' : 'bg-obsidian-300'
+                feature.is_enabled ? 'bg-plug-green' : 'bg-surface-container-highest'
               }`}
             >
               <motion.div
@@ -114,7 +114,7 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
               pct >= 100 ? 'text-plug-green' : pct >= 60 ? 'text-plug-amber' : 'text-white/40'
             }`}>{pct}%</span>
           </div>
-          <div className="h-2 bg-obsidian-300 rounded-full overflow-hidden">
+          <div className="h-2 bg-surface-container-highest rounded-full overflow-hidden">
             <motion.div
               className={`h-full rounded-full ${
                 pct >= 100 ? 'bg-plug-green' :
@@ -145,7 +145,7 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => onForceEnable(feature.key)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-plug-amber text-obsidian flex-shrink-0"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs bg-plug-amber text-on-primary flex-shrink-0"
                 >
                   <Unlock size={12} />
                   Approve Cloak Release
@@ -252,9 +252,9 @@ export default function WarRoom() {
   if (!isAdmin) return null
 
   return (
-    <div className="min-h-screen bg-obsidian">
+    <div className="min-h-screen bg-surface">
       {/* Header */}
-      <div className="border-b border-obsidian-500 bg-obsidian-400 sticky top-0 z-10">
+      <div className="border-b border-outline-variant bg-surface-container-high sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <button onClick={() => navigate('/')}
             className="text-white/40 hover:text-white transition-colors">
@@ -292,7 +292,7 @@ export default function WarRoom() {
             { label: 'Ready to Approve', val: readyCount,   color: 'text-plug-amber', icon: '🔓' },
             { label: 'Still Building',   val: pendingCount, color: 'text-white/40',   icon: '⏳' },
           ].map(({ label, val, color, icon }) => (
-            <div key={label} className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4 text-center">
+            <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
               <div className="text-xl mb-1">{icon}</div>
               <div className={`text-2xl font-black font-mono ${color}`}>{val}</div>
               <div className="text-[10px] text-white/40 mt-0.5">{label}</div>
@@ -320,7 +320,7 @@ export default function WarRoom() {
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-24 bg-obsidian-400 border border-obsidian-500 rounded-2xl animate-pulse" />
+              <div key={i} className="h-24 bg-surface-container-high border border-outline-variant rounded-2xl animate-pulse" />
             ))}
           </div>
         ) : (

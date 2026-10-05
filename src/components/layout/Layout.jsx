@@ -7,7 +7,7 @@ import NotificationBanner from '@/components/ui/NotificationBanner'
 export default function Layout() {
   const location = useLocation()
   return (
-    <div className="app-shell flex min-h-screen flex-col bg-obsidian text-white">
+    <div className="app-shell flex min-h-screen flex-col bg-surface text-white">
       <div className="app-ambient" aria-hidden="true" />
       <TopNav />
       <NotificationBanner />

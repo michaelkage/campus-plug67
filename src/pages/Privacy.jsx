@@ -4,8 +4,8 @@ import { Lock, ArrowLeft } from 'lucide-react'
 
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-obsidian">
-      <div className="border-b border-obsidian-500 bg-obsidian-400 sticky top-0 z-10">
+    <div className="min-h-screen bg-surface">
+      <div className="border-b border-outline-variant bg-surface-container-high sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link to="/" className="text-white/40 hover:text-white"><ArrowLeft size={18} /></Link>
           <div className="flex items-center gap-2"><Lock size={16} className="text-cyan" /><h1 className="font-bold text-sm">Privacy Policy</h1></div>
@@ -18,11 +18,11 @@ export default function Privacy() {
         </div>
 
         <section>
-          <h2 className="text-base font-black mb-3 pb-2 border-b border-obsidian-500">Data We Collect</h2>
-          <div className="border border-obsidian-500 rounded-xl overflow-hidden">
+          <h2 className="text-base font-black mb-3 pb-2 border-b border-outline-variant">Data We Collect</h2>
+          <div className="border border-outline-variant rounded-xl overflow-hidden">
             <table className="w-full text-xs">
-              <thead><tr className="bg-obsidian-300"><th className="text-left px-4 py-2.5 text-white/60 font-bold">Data</th><th className="text-left px-4 py-2.5 text-white/60 font-bold">Purpose</th><th className="text-left px-4 py-2.5 text-white/60 font-bold">Retention</th></tr></thead>
-              <tbody className="divide-y divide-obsidian-500">
+              <thead><tr className="bg-surface-container-highest"><th className="text-left px-4 py-2.5 text-white/60 font-bold">Data</th><th className="text-left px-4 py-2.5 text-white/60 font-bold">Purpose</th><th className="text-left px-4 py-2.5 text-white/60 font-bold">Retention</th></tr></thead>
+              <tbody className="divide-y divide-outline-variant">
                 {[
                   ['University email', 'Account verification', 'Account lifetime + 2 years'],
                   ['Full name, matric', 'Profile identity', 'Account lifetime'],
@@ -34,7 +34,7 @@ export default function Privacy() {
                   ['IP address', 'Security monitoring', '90 days rolling'],
                   ['Terms acceptance log', 'Legal compliance', 'Permanent'],
                 ].map(([d, p, r]) => (
-                  <tr key={d} className="hover:bg-obsidian-300/30">
+                  <tr key={d} className="hover:bg-surface-container-highest/30">
                     <td className="px-4 py-2.5 text-white/70 font-medium">{d}</td>
                     <td className="px-4 py-2.5 text-white/50">{p}</td>
                     <td className="px-4 py-2.5 text-white/40">{r}</td>
@@ -55,12 +55,12 @@ export default function Privacy() {
           { title: 'Security', body: 'All data transmitted over HTTPS/TLS 1.3. Row Level Security on every database table. Passwords hashed by Supabase Auth. Passkey private keys never leave your device. HMAC-SHA512 verification on all payment webhooks. Immutable audit logging at database rule level.' },
         ].map(({ title, body }) => (
           <section key={title}>
-            <h2 className="text-base font-black mb-3 pb-2 border-b border-obsidian-500">{title}</h2>
+            <h2 className="text-base font-black mb-3 pb-2 border-b border-outline-variant">{title}</h2>
             <p className="text-sm text-white/60 leading-relaxed">{body}</p>
           </section>
         ))}
 
-        <div className="border-t border-obsidian-500 pt-6 flex items-center justify-between text-xs text-white/30">
+        <div className="border-t border-outline-variant pt-6 flex items-center justify-between text-xs text-white/30">
           <span>Campus Plug Technologies Ltd · 2025</span>
           <Link to="/terms" className="text-cyan hover:underline">Terms of Service →</Link>
         </div>

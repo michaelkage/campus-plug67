@@ -208,7 +208,7 @@ export function TierGate({ requiredTier, userTier, children, featureName }) {
         {children}
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center
-                      bg-obsidian/60 backdrop-blur-sm rounded-xl">
+                      bg-surface/60 backdrop-blur-sm rounded-xl">
         <div className={`text-2xl mb-2`}>{required.emoji}</div>
         <div className={`font-bold text-sm ${required.color}`}>{required.label} Required</div>
         <div className="text-xs text-white/40 mt-1 text-center px-4">

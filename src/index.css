@@ -250,20 +250,12 @@
   .content-width { @apply mx-auto w-full max-w-7xl; }
 }
 
-.bg-obsidian-400.border.border-obsidian-500.rounded-xl,
-.bg-obsidian-400.border.border-obsidian-500.rounded-2xl,
-.bg-obsidian-400.border.border-obsidian-500.rounded-lg {
-  border-color: var(--md-outline-variant);
-  background: var(--md-surface-container);
-  box-shadow: none;
-  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
-}
 .fixed.inset-0.z-50 > .relative.z-10.max-w-lg,
 .fixed.inset-0.z-50 > .relative.z-10.max-w-xl,
 .fixed.inset-0.z-50 > .relative.z-10.max-w-md,
-.fixed.inset-0.z-50 > div[class*="max-w-lg"][class*="bg-obsidian"],
-.fixed.inset-0.z-50 > div[class*="max-w-xl"][class*="bg-obsidian"],
-.fixed.inset-0.z-50 > div[class*="max-w-md"][class*="bg-obsidian"] {
+.fixed.inset-0.z-50 > div[class*="max-w-lg"][class*="bg-surface"],
+.fixed.inset-0.z-50 > div[class*="max-w-xl"][class*="bg-surface"],
+.fixed.inset-0.z-50 > div[class*="max-w-md"][class*="bg-surface"] {
   box-shadow: 0 16px 40px rgba(0,0,0,.42);
 }
 table th { font-weight: 700; letter-spacing: .02em; color: var(--md-on-surface-variant); }

@@ -41,7 +41,7 @@ export default function ClassDetailAlertHub() {
 
         <div className="surface p-6">
           <h2 className="font-bold text-white mb-4 flex items-center gap-2"><Book size={16} className="text-plug-amber" /> Note Marketplace</h2>
-          <div className="space-y-3"><div className="bg-obsidian-300 p-3 rounded-lg border border-white/5 flex justify-between items-center"><div><p className="text-sm font-semibold text-white">Midterm Summary Notes</p><p className="text-xs text-white/40">Shared by a student</p></div><span className="text-plug-green font-bold text-sm">₦500</span></div><div className="bg-obsidian-300 p-3 rounded-lg border border-white/5 flex justify-between items-center"><div><p className="text-sm font-semibold text-white">Past Questions (2020-2024)</p><p className="text-xs text-white/40">Shared by a student</p></div><span className="text-plug-green font-bold text-sm">₦1000</span></div></div>
+          <div className="space-y-3"><div className="bg-surface-container-highest p-3 rounded-lg border border-white/5 flex justify-between items-center"><div><p className="text-sm font-semibold text-white">Midterm Summary Notes</p><p className="text-xs text-white/40">Shared by a student</p></div><span className="text-plug-green font-bold text-sm">₦500</span></div><div className="bg-surface-container-highest p-3 rounded-lg border border-white/5 flex justify-between items-center"><div><p className="text-sm font-semibold text-white">Past Questions (2020-2024)</p><p className="text-xs text-white/40">Shared by a student</p></div><span className="text-plug-green font-bold text-sm">₦1000</span></div></div>
         </div>
       </div>
 

@@ -91,7 +91,7 @@ export default function Leaderboard() {
           </div>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-[var(--md-secondary-container)]
-                            flex items-center justify-center text-obsidian font-black text-2xl flex-shrink-0">
+                            flex items-center justify-center text-on-primary font-black text-2xl flex-shrink-0">
               {monthStar.avatar_url ? (
                 <img src={monthStar.avatar_url} className="w-full h-full rounded-full object-cover" />
               ) : (
@@ -179,7 +179,7 @@ export default function Leaderboard() {
                 </div>
 
                 <div className="w-10 h-10 rounded-full bg-[var(--md-primary-container)]
-                                flex items-center justify-center text-obsidian font-bold text-sm flex-shrink-0">
+                                flex items-center justify-center text-on-primary font-bold text-sm flex-shrink-0">
                   {leader.avatar_url ? (
                     <img src={leader.avatar_url} className="w-full h-full rounded-full object-cover" />
                   ) : (

@@ -13,7 +13,7 @@ const tabs = [
 
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.07] bg-obsidian-950/95 shadow-[0_-12px_40px_rgba(0,0,0,.28)] backdrop-blur-2xl md:hidden" style={{paddingBottom:'env(safe-area-inset-bottom, 8px)'}} aria-label="Primary navigation">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.07] bg-surface/95 shadow-[0_-12px_40px_rgba(0,0,0,.28)] backdrop-blur-2xl md:hidden" style={{paddingBottom:'env(safe-area-inset-bottom, 8px)'}} aria-label="Primary navigation">
       <div className="mx-auto flex max-w-lg items-end justify-around px-1 pt-1.5 pb-1">
         {tabs.map(({to,icon:Icon,label})=><NavLink key={to} to={to} end={to==='/' } className="min-h-12 min-w-11 flex-1" aria-label={label}>
           {({isActive})=><motion.div className="relative flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1" whileTap={{scale:.94}}>

@@ -204,7 +204,7 @@ function PasskeyManager({ userId }) {
         <div className="text-xs text-white/30">No passkeys registered. Add one for biometric sign-in.</div>
       )}
       {passkeys.map(pk => (
-        <div key={pk.id} className="flex items-center justify-between p-3 bg-obsidian-300 rounded-xl">
+        <div key={pk.id} className="flex items-center justify-between p-3 bg-surface-container-highest rounded-xl">
           <div className="flex items-center gap-2">
             <Fingerprint size={14} className="text-cyan" />
             <div>
@@ -302,8 +302,8 @@ export default function Profile() {
 
   if (isLoading) return (
     <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse space-y-4">
-      <div className="h-40 bg-obsidian-400 rounded-2xl" />
-      <div className="h-32 bg-obsidian-400 rounded-2xl" />
+      <div className="h-40 bg-surface-container-high rounded-2xl" />
+      <div className="h-32 bg-surface-container-high rounded-2xl" />
     </div>
   )
   if (!profile) return (
@@ -315,15 +315,15 @@ export default function Profile() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       {/* Profile header */}
-      <div className="bg-obsidian-400 border border-obsidian-500 rounded-2xl overflow-hidden">
+      <div className="bg-surface-container-high border border-outline-variant rounded-2xl overflow-hidden">
         <div className="h-24 bg-[var(--md-surface-container-high)] relative">
           <div className="absolute inset-0 cyber-grid opacity-30" />
         </div>
         <div className="px-6 pb-6 -mt-10">
           <div className="flex items-end justify-between mb-4">
             <motion.div whileHover={{ scale: 1.05 }}
-              className="w-20 h-20 rounded-2xl bg-[var(--md-primary-container)] border-4 border-obsidian-400
-                         flex items-center justify-center text-obsidian font-black text-3xl shadow-md">
+              className="w-20 h-20 rounded-2xl bg-[var(--md-primary-container)] border-4 border-outline-variant
+                         flex items-center justify-center text-on-primary font-black text-3xl shadow-md">
               {profile.avatar_url
                 ? <img src={profile.avatar_url} className="w-full h-full rounded-xl object-cover" />
                 : profile.full_name?.[0]?.toUpperCase() || '?'}
@@ -395,7 +395,7 @@ export default function Profile() {
           <AnimatePresence>
             {showPasskeys && viewingOwn && (
               <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }}
-                exit={{ opacity:0, height:0 }} className="overflow-hidden mt-4 pt-4 border-t border-obsidian-500">
+                exit={{ opacity:0, height:0 }} className="overflow-hidden mt-4 pt-4 border-t border-outline-variant">
                 <PasskeyManager userId={user?.id} />
               </motion.div>
             )}
@@ -410,7 +410,7 @@ export default function Profile() {
           { label:'Earnings', val: formatNaira(profile.total_earnings), icon: TrendingUp, c:'text-plug-green' },
           { label:'Score',    val: profile.plug_score,            icon: Star,       c:'text-plug-amber'  },
         ].map(({ label, val, icon: Icon, c }) => (
-          <div key={label} className="bg-obsidian-400 border border-obsidian-500 rounded-xl p-4 text-center">
+          <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
             <Icon size={16} className={`${c} mx-auto mb-2`} />
             <div className={`text-lg font-black font-mono ${c}`}>{val}</div>
             <div className="text-xs text-white/40 mt-0.5">{label}</div>
@@ -422,7 +422,7 @@ export default function Profile() {
       {viewingOwn && (
         <div className="grid md:grid-cols-3 gap-4">
           {/* Resume Builder */}
-          <div className="md:col-span-2 bg-obsidian-400 border border-obsidian-500 rounded-2xl p-6">
+          <div className="md:col-span-2 bg-surface-container-high border border-outline-variant rounded-2xl p-6">
             <p className="section-label">Career Layer</p>
             <h2 className="font-black text-lg mb-1">Verified Resume + QR</h2>
             <p className="text-xs text-white/40 mb-4 leading-relaxed">
@@ -439,7 +439,7 @@ export default function Profile() {
                     <span className="text-white/60">{label}</span>
                     <span className="text-cyan font-mono font-bold">{Math.round(pct)}%</span>
                   </div>
-                  <div className="h-1.5 bg-obsidian-300 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
                     <motion.div className="h-full rounded-full bg-[var(--md-primary)]"
                       initial={{ width:0 }} animate={{ width:`${Math.max(pct,2)}%` }}
                       transition={{ duration:0.9, ease:'easeOut', delay:0.2 }} />
@@ -470,7 +470,7 @@ export default function Profile() {
 
       {/* PlugCredit */}
       {viewingOwn && (
-        <div className="bg-obsidian-400 border border-[var(--md-secondary)]/30 rounded-2xl p-6">
+        <div className="bg-surface-container-high border border-[var(--md-secondary)]/30 rounded-2xl p-6">
           <p className="section-label" style={{ color:'var(--md-secondary)' }}>PlugCredit</p>
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <CreditRing score={profile.plug_score} />
@@ -481,7 +481,7 @@ export default function Profile() {
               <div className="text-xs text-white/40 mb-4">Available Credit Limit</div>
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {[{l:'Interest',v:'0%'},{l:'Payback',v:'60d'},{l:'Approval',v:'Instant'}].map(({l,v})=>(
-                  <div key={l} className="bg-obsidian-300 rounded-lg p-2.5 text-center">
+                  <div key={l} className="bg-surface-container-highest rounded-lg p-2.5 text-center">
                     <div className="text-sm font-black text-purple font-mono">{v}</div>
                     <div className="text-[10px] text-white/40 mt-0.5">{l}</div>
                   </div>
@@ -491,7 +491,7 @@ export default function Profile() {
                 className={`px-6 py-2.5 rounded-lg text-sm font-bold border transition-all ${
                   profile.plug_score >= 600
                     ? 'bg-[var(--md-secondary)] text-[var(--md-on-secondary)] border-[var(--md-secondary)] hover:opacity-90'
-                    : 'bg-transparent text-white/30 border-obsidian-500 cursor-not-allowed'
+                    : 'bg-transparent text-white/30 border-outline-variant cursor-not-allowed'
                 }`}>
                 {profile.plug_score >= 600 ? 'Apply for PlugCredit' : `Unlock at 600 pts (${600-profile.plug_score} more)`}
               </button>
@@ -510,15 +510,15 @@ export default function Profile() {
           </div>
         </div>
         {listings.length === 0 ? (
-          <div className="text-center py-12 text-white/30 bg-obsidian-400 border border-obsidian-500 rounded-xl">
+          <div className="text-center py-12 text-white/30 bg-surface-container-high border border-outline-variant rounded-xl">
             <Package size={32} className="mx-auto mb-3 opacity-30"/><p className="text-sm">No listings yet</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {listings.map(l => (
               <a key={l.id} href={`/marketplace/${l.id}`}
-                className="bg-obsidian-400 border border-obsidian-500 rounded-xl overflow-hidden hover:border-cyan/30 transition-colors group">
-                <div className="aspect-square bg-obsidian-300 overflow-hidden">
+                className="bg-surface-container-high border border-outline-variant rounded-xl overflow-hidden hover:border-cyan/30 transition-colors group">
+                <div className="aspect-square bg-surface-container-highest overflow-hidden">
                   {l.images?.[0]
                     ? <img src={l.images[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     : <div className="w-full h-full flex items-center justify-center text-3xl">📦</div>}

@@ -75,7 +75,7 @@ export default function Auth() {
   }
 
   return (
-    <main className="min-h-screen bg-surface text-white selection:bg-cyan/30">
+    <main className="min-h-screen bg-surface text-white selection:bg-primary/30">
       <div className="min-h-screen lg:grid lg:grid-cols-[minmax(360px,0.95fr)_minmax(520px,1.05fr)]">
         {/* Brand panel */}
         <section className="relative hidden overflow-hidden border-r border-white/[0.07] bg-surface-container lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-14">
@@ -84,14 +84,14 @@ export default function Auth() {
 
           <div className="relative z-10">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan text-on-primary shadow-[0_0_30px_rgba(var(--md-primary-rgb),0.16)]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-on-primary shadow-[0_0_30px_rgba(var(--md-primary-rgb),0.16)]">
                 <Zap size={20} strokeWidth={2.5} />
               </div>
-              <span className="text-xl font-black tracking-tight">Campus<span className="text-cyan">Plug</span></span>
+              <span className="text-xl font-black tracking-tight">Campus<span className="text-primary">Plug</span></span>
             </div>
 
             <div className="mt-24 max-w-xl">
-              <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-cyan/70">The student network</p>
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.22em] text-primary/70">The student network</p>
               <h2 className="text-4xl font-black leading-[1.08] tracking-[-0.03em] xl:text-5xl">
                 Campus life,
                 <br />
@@ -105,7 +105,7 @@ export default function Auth() {
             <div className="mt-14 space-y-5">
               {features.map((feature, index) => (
                 <div key={feature.title} className="flex gap-4">
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--md-outline-variant)] bg-white/[0.03] text-xs font-bold text-cyan">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--md-outline-variant)] bg-white/[0.03] text-xs font-bold text-primary">
                     0{index + 1}
                   </div>
                   <div>
@@ -125,8 +125,8 @@ export default function Auth() {
 
         {/* Auth panel */}
         <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-8 sm:px-8 lg:min-h-0 lg:px-12 xl:px-20">
-          <div className="pointer-events-none absolute -left-32 top-1/3 h-72 w-72 rounded-full bg-cyan/[0.035] blur-3xl" />
-          <div className="pointer-events-none absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-purple/[0.035] blur-3xl" />
+          <div className="pointer-events-none absolute -left-32 top-1/3 h-72 w-72 rounded-full bg-primary/[0.035] blur-3xl" />
+          <div className="pointer-events-none absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-tertiary/[0.035] blur-3xl" />
 
           <motion.div
             className="relative z-10 w-full max-w-[460px]"
@@ -136,15 +136,15 @@ export default function Auth() {
           >
             <div className="mb-8 lg:hidden">
               <div className="mb-7 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan text-on-primary">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-on-primary">
                   <Zap size={20} strokeWidth={2.5} />
                 </div>
-                <span className="text-xl font-black tracking-tight">Campus<span className="text-cyan">Plug</span></span>
+                <span className="text-xl font-black tracking-tight">Campus<span className="text-primary">Plug</span></span>
               </div>
             </div>
 
             <header className="mb-7">
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan/70">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary/70">
                 {mode === 'signin' ? 'Welcome back' : 'Get started'}
               </p>
               <h1 className="text-3xl font-black tracking-[-0.03em] sm:text-[34px]">
@@ -276,7 +276,7 @@ export default function Auth() {
                     onClick={handlePasskey}
                     disabled={passkeyLoading || !form.email}
                     whileTap={{ scale: 0.985 }}
-                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/[0.09] bg-white/[0.025] text-sm font-bold text-white/70 transition-colors hover:border-cyan/25 hover:bg-cyan/[0.04] hover:text-cyan disabled:cursor-not-allowed disabled:opacity-35"
+                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/[0.09] bg-white/[0.025] text-sm font-bold text-white/70 transition-colors hover:border-primary/25 hover:bg-primary/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-35"
                   >
                     <Fingerprint size={17} className={passkeyLoading ? 'animate-pulse' : ''} />
                     {passkeyLoading ? 'Verifying…' : 'Use Face ID or fingerprint'}

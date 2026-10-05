@@ -730,7 +730,7 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
       {!synced && !omwActive && (
         <motion.button whileTap={{ scale: 0.97 }} onClick={toggleOMW}
           disabled={omwLoading || overrideActive}
-          className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-primary text-on-primary hover:shadow-cyan disabled:opacity-40 transition-all">
+          className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-primary text-on-primary hover:shadow-primary disabled:opacity-40 transition-all">
           <Navigation size={15} />
           {omwLoading ? 'Updating…' : isSeller ? "I'm On My Way ➜" : "I'm Heading There ➜"}
         </motion.button>

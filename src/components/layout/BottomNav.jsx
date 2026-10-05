@@ -17,11 +17,11 @@ export default function BottomNav() {
       <div className="mx-auto flex max-w-lg items-end justify-around px-1 pt-1.5 pb-1">
         {tabs.map(({to,icon:Icon,label})=><NavLink key={to} to={to} end={to==='/' } className="min-h-12 min-w-11 flex-1" aria-label={label}>
           {({isActive})=><motion.div className="relative flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1" whileTap={{scale:.94}}>
-            <motion.div className={`relative rounded-xl p-2 transition-colors ${isActive?'bg-cyan/12':'bg-transparent'}`} animate={{scale:isActive?1.04:1}}>
-              <Icon size={18} strokeWidth={isActive?2.5:1.7} className={isActive?'text-cyan':'text-white/35'} />
-              {isActive&&<motion.div layoutId="nav-dot" className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-cyan" />}
+            <motion.div className={`relative rounded-xl p-2 transition-colors ${isActive?'bg-primary/12':'bg-transparent'}`} animate={{scale:isActive?1.04:1}}>
+              <Icon size={18} strokeWidth={isActive?2.5:1.7} className={isActive?'text-primary':'text-white/35'} />
+              {isActive&&<motion.div layoutId="nav-dot" className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />}
             </motion.div>
-            <span className={`text-[9px] font-semibold tracking-wide transition-colors ${isActive?'text-cyan':'text-white/30'}`}>{label}</span>
+            <span className={`text-[9px] font-semibold tracking-wide transition-colors ${isActive?'text-primary':'text-white/30'}`}>{label}</span>
           </motion.div>}
         </NavLink>)}
       </div>

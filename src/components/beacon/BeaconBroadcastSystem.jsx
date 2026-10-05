@@ -137,7 +137,7 @@ function KeywordTag({ text, onRemove }) {
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.8, opacity: 0 }}
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
-                 bg-[var(--md-primary)]/10 border border-cyan/25 text-[var(--md-primary)] text-xs font-semibold"
+                 bg-[var(--md-primary)]/10 border border-primary/25 text-[var(--md-primary)] text-xs font-semibold"
     >
       {text}
       {onRemove && (
@@ -612,7 +612,7 @@ export default function BeaconBroadcastSystem() {
             exit={{ opacity: 0, y: -6 }}
             onClick={() => setTab('mine')}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl
-                       bg-[var(--md-primary)]/5 border border-cyan/20 text-left"
+                       bg-[var(--md-primary)]/5 border border-primary/20 text-left"
           >
             <motion.span
               animate={{ opacity: [1, 0.3, 1] }}

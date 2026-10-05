@@ -35,8 +35,8 @@ export default function ClassDetailAlertHub() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="surface p-6">
           <h2 className="font-bold text-white mb-4">Required Materials</h2>
-          <ul className="space-y-3 text-sm text-white/70">{materials.map(m => <li key={m} className="flex items-center gap-2"><input type="checkbox" className="accent-cyan" /> {m}</li>)}</ul>
-          <Link to="/marketplace" className="mt-4 flex items-center justify-center gap-2 w-full bg-cyan/10 text-cyan py-2 rounded-lg text-xs font-bold uppercase hover:bg-cyan/20">Search Campus Catalog <ArrowRight size={13}/></Link>
+          <ul className="space-y-3 text-sm text-white/70">{materials.map(m => <li key={m} className="flex items-center gap-2"><input type="checkbox" className="accent-primary" /> {m}</li>)}</ul>
+          <Link to="/marketplace" className="mt-4 flex items-center justify-center gap-2 w-full bg-primary/10 text-primary py-2 rounded-lg text-xs font-bold uppercase hover:bg-primary/20">Search Campus Catalog <ArrowRight size={13}/></Link>
         </div>
 
         <div className="surface p-6">
@@ -46,8 +46,8 @@ export default function ClassDetailAlertHub() {
       </div>
 
       <div className="surface p-6">
-        <div className="flex items-center justify-between mb-4"><div><p className="section-label">Smart recommendations</p><h2 className="font-bold">Get what this class needs</h2></div><ShoppingBag size={18} className="text-cyan"/></div>
-        {recommendations.length === 0 ? <p className="text-sm text-white/35">No matching campus listings yet. Campus Plug will surface relevant listings here as students add them.</p> : <div className="grid gap-3 sm:grid-cols-2">{recommendations.map((item:any)=><Link key={item.id} to={`/marketplace/${item.id}`} className="surface-interactive rounded-xl border border-white/5 bg-white/[.02] p-3"><div className="flex gap-3"><div className="h-14 w-14 overflow-hidden rounded-lg bg-white/5">{item.images?.[0]&&<img src={item.images[0]} alt="" className="h-full w-full object-cover"/>}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-bold">{item.title}</div><div className="mt-1 text-xs text-white/35">{item.category}</div><div className="mt-2 text-sm font-black text-cyan">{formatNaira(item.price)}</div></div></div></Link>)}</div>}
+        <div className="flex items-center justify-between mb-4"><div><p className="section-label">Smart recommendations</p><h2 className="font-bold">Get what this class needs</h2></div><ShoppingBag size={18} className="text-primary"/></div>
+        {recommendations.length === 0 ? <p className="text-sm text-white/35">No matching campus listings yet. Campus Plug will surface relevant listings here as students add them.</p> : <div className="grid gap-3 sm:grid-cols-2">{recommendations.map((item:any)=><Link key={item.id} to={`/marketplace/${item.id}`} className="surface-interactive rounded-xl border border-white/5 bg-white/[.02] p-3"><div className="flex gap-3"><div className="h-14 w-14 overflow-hidden rounded-lg bg-white/5">{item.images?.[0]&&<img src={item.images[0]} alt="" className="h-full w-full object-cover"/>}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-bold">{item.title}</div><div className="mt-1 text-xs text-white/35">{item.category}</div><div className="mt-2 text-sm font-black text-primary">{formatNaira(item.price)}</div></div></div></Link>)}</div>}
       </div>
     </div>
   )

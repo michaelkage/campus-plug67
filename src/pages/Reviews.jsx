@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 
 const CATEGORIES = [
   { key: 'Bug',        icon: Bug,         color: 'text-error',   bg: 'bg-error/10 border-error/25'    },
-  { key: 'Feature',    icon: Zap,         color: 'text-cyan',       bg: 'bg-cyan/10 border-cyan/25'            },
+  { key: 'Feature',    icon: Zap,         color: 'text-primary',       bg: 'bg-primary/10 border-primary/25'            },
   { key: 'Experience', icon: MessageSquare,color: 'text-tertiary', bg: 'bg-tertiary/10 border-tertiary/25'},
 ]
 

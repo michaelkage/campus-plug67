@@ -257,7 +257,7 @@ function EscrowProgressBar({ status }) {
             <div className={`flex flex-col items-center gap-1 flex-shrink-0 ${ahead ? 'opacity-25' : ''}`}>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[9px] font-bold transition-all
                 ${done    ? 'border-primary bg-[var(--md-primary)] text-on-primary' :
-                  current ? 'border-cyan bg-[var(--md-primary)]/20 text-[var(--md-primary)]' :
+                  current ? 'border-primary bg-[var(--md-primary)]/20 text-[var(--md-primary)]' :
                             'border-white/15 bg-transparent text-[var(--md-on-surface)]/20'}`}>
                 {done ? <Check size={10} /> : idx + 1}
               </div>

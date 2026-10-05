@@ -8,12 +8,12 @@ export default function Terms() {
       <div className="border-b border-outline-variant bg-surface-container-high sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link to="/" className="text-white/40 hover:text-white transition-colors"><ArrowLeft size={18} /></Link>
-          <div className="flex items-center gap-2"><Shield size={16} className="text-cyan" /><h1 className="font-bold text-sm">Terms of Service</h1></div>
+          <div className="flex items-center gap-2"><Shield size={16} className="text-primary" /><h1 className="font-bold text-sm">Terms of Service</h1></div>
           <span className="ml-auto text-xs text-white/30">v1.0 · January 1, 2025</span>
         </div>
       </div>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto px-4 py-10 pb-20 space-y-8">
-        <div className="bg-cyan/5 border border-cyan/20 rounded-2xl p-6">
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6">
           <p className="text-sm text-white/70 leading-relaxed">These Terms govern your use of Campus Plug, operated by <strong className="text-white">Campus Plug Technologies Ltd</strong>. By creating an account you agree to these terms. Effective: <strong className="text-white">January 1, 2025</strong>.</p>
         </div>
 
@@ -39,7 +39,7 @@ export default function Terms() {
 
         <div className="border-t border-outline-variant pt-6 flex items-center justify-between text-xs text-white/30">
           <span>Campus Plug Technologies Ltd · 2025</span>
-          <Link to="/privacy" className="text-cyan hover:underline">Privacy Policy →</Link>
+          <Link to="/privacy" className="text-primary hover:underline">Privacy Policy →</Link>
         </div>
       </motion.div>
     </div>

@@ -251,7 +251,7 @@ export function BookGig({ gig, onClose }) {
                   onClick={() => setSelectedSlot({ time })}
                   className={`py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                     taken  ? 'border-[var(--md-outline-variant)] text-[var(--md-on-surface)]/20 cursor-not-allowed line-through' :
-                    active ? 'border-cyan bg-[var(--md-primary)]/15 text-[var(--md-primary)]' :
+                    active ? 'border-primary bg-[var(--md-primary)]/15 text-[var(--md-primary)]' :
                              'border-[var(--md-outline-variant)] text-[var(--md-on-surface)]/70 hover:border-[var(--md-primary)]/40'
                   }`}
                 >

@@ -271,7 +271,7 @@ export function JuryPortal() {
   return (
     <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--md-outline-variant)] bg-cyan/5">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--md-outline-variant)] bg-primary/5">
         <div className="flex items-center gap-2">
           <Scale size={16} className="text-[var(--md-primary)]" />
           <span className="font-bold text-sm">Jury Portal</span>
@@ -333,8 +333,8 @@ export function JuryPortal() {
                 <motion.button key={c.id} whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}
                   onClick={() => setActiveCase(c)}
                   className="w-full flex items-center gap-3 p-4 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)]
-                             rounded-xl mb-3 text-left hover:border-cyan/30 transition-all">
-                  <div className="w-8 h-8 rounded-lg bg-cyan/10 border border-cyan/20 flex items-center justify-center flex-shrink-0">
+                             rounded-xl mb-3 text-left hover:border-primary/30 transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
                     <Scale size={14} className="text-[var(--md-primary)]" />
                   </div>
                   <div className="flex-1 min-w-0">

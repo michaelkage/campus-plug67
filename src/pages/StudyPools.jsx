@@ -79,8 +79,8 @@ function CreatePoolModal({ onClose, profile }) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="bg-[var(--md-primary)]/5 border border-cyan/20 rounded-xl p-4 text-sm text-white/60">
-            <strong className="text-cyan">How pools work:</strong> Set a group buy deal.
+          <div className="bg-[var(--md-primary)]/5 border border-primary/20 rounded-xl p-4 text-sm text-white/60">
+            <strong className="text-primary">How pools work:</strong> Set a group buy deal.
             Students join and pay their share. When full, the pool locks and you purchase together at the bulk price.
           </div>
 
@@ -148,7 +148,7 @@ function PoolCard({ pool, myId, onJoin }) {
   const expired     = new Date(pool.expires_at) < new Date()
 
   const statusColor = {
-    open:      'border-cyan/20 hover:border-cyan/40',
+    open:      'border-primary/20 hover:border-primary/40',
     locked:    'border-primary/20 hover:border-primary/40',
     completed: 'border-outline-variant opacity-60',
     cancelled: 'border-outline-variant opacity-40',
@@ -176,7 +176,7 @@ function PoolCard({ pool, myId, onJoin }) {
           <p className="text-xs text-white/50 mt-0.5">{pool.item_name}</p>
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="text-lg font-black text-cyan font-mono">{formatNaira(pool.unit_price)}</div>
+          <div className="text-lg font-black text-primary font-mono">{formatNaira(pool.unit_price)}</div>
           <div className="text-xs text-white/40">per person</div>
           {savingsPct > 0 && (
             <div className="text-[10px] text-primary font-bold mt-0.5">~{savingsPct}% cheaper</div>
@@ -399,7 +399,7 @@ export default function StudyPools() {
         ].map(({ val, label }) => (
           <button key={val} onClick={() => setFilter(val)}
             className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
-              filter === val ? 'bg-[var(--md-primary)] text-on-primary border-cyan' : 'bg-transparent text-white/40 border-outline-variant hover:border-cyan/30'
+              filter === val ? 'bg-[var(--md-primary)] text-on-primary border-primary' : 'bg-transparent text-white/40 border-outline-variant hover:border-primary/30'
             }`}>
             {label}
           </button>

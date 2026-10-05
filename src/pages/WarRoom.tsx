@@ -29,7 +29,7 @@ import toast from 'react-hot-toast'
 const MODE_COLORS = {
   AUTO:   'text-primary  bg-primary/10  border-primary/25',
   MANUAL: 'text-tertiary  bg-tertiary/10  border-tertiary/25',
-  HYBRID: 'text-cyan        bg-cyan/10        border-cyan/25',
+  HYBRID: 'text-primary        bg-primary/10        border-primary/25',
 }
 
 function FeatureRow({ feature, onToggle, onForceEnable }) {
@@ -118,7 +118,7 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
             <motion.div
               className={`h-full rounded-full ${
                 pct >= 100 ? 'bg-primary' :
-                pct >= 60  ? 'bg-tertiary' : 'bg-cyan'
+                pct >= 60  ? 'bg-tertiary' : 'bg-primary'
               }`}
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
@@ -261,7 +261,7 @@ export default function WarRoom() {
             <ArrowLeft size={18} />
           </button>
           <div className="flex items-center gap-2">
-            <Shield size={16} className="text-cyan" />
+            <Shield size={16} className="text-primary" />
             <h1 className="font-black text-sm tracking-tight">
               Campus Plug <span className="text-tertiary">War Room</span>
             </h1>

@@ -119,7 +119,7 @@ export function VerifiedInteractionBadge({ listingId, sellerId }: { listingId: s
   if (!data || data.trades < 3 || data.flags > 2) return null
 
   return (
-    <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan">
+    <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
       <CheckCircle2 size={12} />
       Verified Interaction Pattern
     </div>
@@ -135,9 +135,9 @@ export function CampusShieldNudge({ onDismiss }: { onDismiss?: () => void }) {
       exit={{ opacity: 0, y: -4 }}
       className="flex items-start gap-3 p-4 bg-[var(--md-primary)]/6 border border-[var(--md-primary)]/20 rounded-xl"
     >
-      <Lock size={14} className="text-cyan flex-shrink-0 mt-0.5" />
+      <Lock size={14} className="text-primary flex-shrink-0 mt-0.5" />
       <div className="flex-1 text-xs text-[var(--md-on-surface)] leading-relaxed">
-        <span className="text-cyan font-bold">🔐 Campus Shield: </span>
+        <span className="text-primary font-bold">🔐 Campus Shield: </span>
         Stay in-app to keep your escrow protection and PlugScore bonuses active.
         Moving off-platform voids your safety guarantee.
       </div>
@@ -252,7 +252,7 @@ export function PWAOverlay({ onDismiss }: { onDismiss: () => void }) {
                 { icon: TrendingUp,  label: 'Home screen'        },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="bg-[var(--md-surface-container-high)] rounded-xl p-2.5 text-center">
-                  <Icon size={14} className="text-cyan mx-auto mb-1" />
+                  <Icon size={14} className="text-primary mx-auto mb-1" />
                   <div className="text-[10px] text-white/50">{label}</div>
                 </div>
               ))}

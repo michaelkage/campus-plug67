@@ -95,7 +95,7 @@ export default function Notifications() {
         </div>
         {unread > 0 && (
           <button onClick={markAllRead}
-            className="flex items-center gap-2 text-xs text-cyan hover:text-cyan/80 transition-colors font-semibold">
+            className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors font-semibold">
             <CheckCheck size={14} />
             Mark all read
           </button>
@@ -118,10 +118,10 @@ export default function Notifications() {
             <button
               key={notif.id}
               onClick={() => markRead(notif.id)}
-              className={`w-full text-left flex gap-4 p-4 rounded-xl border transition-all hover:border-cyan/20 ${
+              className={`w-full text-left flex gap-4 p-4 rounded-xl border transition-all hover:border-primary/20 ${
                 notif.read
                   ? 'bg-surface-container-high border-outline-variant opacity-60'
-                  : 'bg-surface-container-high border-cyan/20 shadow-[0_0_0_1px_rgba(0,242,255,0.06)]'
+                  : 'bg-surface-container-high border-primary/20 shadow-[0_0_0_1px_rgba(0,242,255,0.06)]'
               }`}
             >
               <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center
@@ -132,7 +132,7 @@ export default function Notifications() {
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-sm">{notif.title}</p>
                   {!notif.read && (
-                    <div className="w-2 h-2 rounded-full bg-cyan flex-shrink-0 mt-1" />
+                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
                   )}
                 </div>
                 {notif.body && (

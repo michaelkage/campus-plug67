@@ -206,7 +206,7 @@ function PasskeyManager({ userId }) {
       {passkeys.map(pk => (
         <div key={pk.id} className="flex items-center justify-between p-3 bg-surface-container-highest rounded-xl">
           <div className="flex items-center gap-2">
-            <Fingerprint size={14} className="text-cyan" />
+            <Fingerprint size={14} className="text-primary" />
             <div>
               <div className="text-xs font-semibold">{pk.device_label || 'Unknown Device'}</div>
               <div className="text-[10px] text-white/30">
@@ -336,7 +336,7 @@ export default function Profile() {
                   PDF + QR
                 </button>
                 <button onClick={() => setShowPasskeys(v => !v)}
-                  className={`btn-ghost flex items-center gap-1.5 text-xs ${showPasskeys ? 'text-cyan border-cyan/30 bg-[var(--md-primary)]/5' : ''}`}>
+                  className={`btn-ghost flex items-center gap-1.5 text-xs ${showPasskeys ? 'text-primary border-primary/30 bg-[var(--md-primary)]/5' : ''}`}>
                   <Fingerprint size={13} /> Passkeys
                 </button>
                 <button onClick={() => { setForm({ full_name: profile.full_name, bio: profile.bio, department: profile.department, level: profile.level }); setEditMode(v => !v) }}
@@ -406,7 +406,7 @@ export default function Profile() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label:'Sales',    val: profile.total_sales,           icon: Package,    c:'text-cyan'        },
+          { label:'Sales',    val: profile.total_sales,           icon: Package,    c:'text-primary'        },
           { label:'Earnings', val: formatNaira(profile.total_earnings), icon: TrendingUp, c:'text-primary' },
           { label:'Score',    val: profile.plug_score,            icon: Star,       c:'text-tertiary'  },
         ].map(({ label, val, icon: Icon, c }) => (
@@ -437,7 +437,7 @@ export default function Profile() {
                 <div key={label}>
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-white/60">{label}</span>
-                    <span className="text-cyan font-mono font-bold">{Math.round(pct)}%</span>
+                    <span className="text-primary font-mono font-bold">{Math.round(pct)}%</span>
                   </div>
                   <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
                     <motion.div className="h-full rounded-full bg-[var(--md-primary)]"
@@ -482,7 +482,7 @@ export default function Profile() {
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {[{l:'Interest',v:'0%'},{l:'Payback',v:'60d'},{l:'Approval',v:'Instant'}].map(({l,v})=>(
                   <div key={l} className="bg-surface-container-highest rounded-lg p-2.5 text-center">
-                    <div className="text-sm font-black text-purple font-mono">{v}</div>
+                    <div className="text-sm font-black text-tertiary font-mono">{v}</div>
                     <div className="text-[10px] text-white/40 mt-0.5">{l}</div>
                   </div>
                 ))}
@@ -517,7 +517,7 @@ export default function Profile() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {listings.map(l => (
               <a key={l.id} href={`/marketplace/${l.id}`}
-                className="bg-surface-container-high border border-outline-variant rounded-xl overflow-hidden hover:border-cyan/30 transition-colors group">
+                className="bg-surface-container-high border border-outline-variant rounded-xl overflow-hidden hover:border-primary/30 transition-colors group">
                 <div className="aspect-square bg-surface-container-highest overflow-hidden">
                   {l.images?.[0]
                     ? <img src={l.images[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -526,7 +526,7 @@ export default function Profile() {
                 <div className="p-3">
                   <div className="text-xs font-semibold truncate mb-1">{l.title}</div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-cyan font-mono">{formatNaira(l.price)}</span>
+                    <span className="text-xs font-black text-primary font-mono">{formatNaira(l.price)}</span>
                     <span className={`tag text-[9px] ${l.status==='active'?'tag-green':l.status==='sold'?'tag-purple':'tag-amber'}`}>{l.status}</span>
                   </div>
                 </div>

@@ -41,7 +41,7 @@ export default function TransactionTimeline({ transactionId, admin=false }) {
     {events.length===0 ? <div className="py-8 text-center text-sm text-white/35">No server-side events recorded yet.</div> :
       <ol className="relative ml-2 border-l border-[var(--md-outline-variant)]">
         {events.map((event,i)=>{const Icon=event.kind==='payment'?CreditCard:iconFor(event.to_state);return <li key={`${event.kind}-${event.id||i}`} className="relative pl-7 pb-6 last:pb-0">
-          <span className="absolute -left-[13px] top-0 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)]"><Icon size={12} className="text-cyan"/></span>
+          <span className="absolute -left-[13px] top-0 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)]"><Icon size={12} className="text-primary"/></span>
           <div className="flex flex-wrap items-center gap-2"><strong className="text-sm">{event.kind==='payment'?event.event_type:event.action}</strong>{event.to_state&&<span className="tag tag-purple text-[9px]">{event.to_state}</span>}</div>
           <div className="mt-1 text-[11px] text-white/40">{new Date(event.at).toLocaleString()}</div>
           {event.failure_reason&&<div className="mt-2 text-xs text-[var(--md-error)]" role="alert">{event.failure_reason}</div>}

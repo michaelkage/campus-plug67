@@ -111,14 +111,14 @@ export function ReferralCard({ profile }) {
             <button
               onClick={copy}
               className="p-3 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl
-                         hover:border-cyan/30 transition-colors"
+                         hover:border-primary/30 transition-colors"
             >
               {copied ? <Check size={16} className="text-[var(--md-primary)]" /> : <Copy size={16} className="text-white/40" />}
             </button>
             <button
               onClick={share}
               className="p-3 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl
-                         hover:border-cyan/30 transition-colors"
+                         hover:border-primary/30 transition-colors"
             >
               <Share2 size={16} className="text-white/40" />
             </button>

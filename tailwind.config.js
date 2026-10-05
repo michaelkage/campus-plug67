@@ -43,15 +43,6 @@ export default {
         scrim: token('scrim'),
         'inverse-surface': token('inverse-surface'),
         'inverse-on-surface': token('inverse-on-surface'),
-
-        'campus-dark': '#0a0a0a', 'campus-gray': '#1a1a1a', 'campus-green': '#00ff88',
-        'campus-red': '#ff4444', 'campus-yellow': '#ffaa00', 'campus-blue': '#00aaff',
-        obsidian: {
-          DEFAULT: '#111318', 100: '#1d1f24', 300: '#282a2f', 400: '#1d1f24',
-          500: '#33353a', 800: '#1d1f24', 900: '#111318', 950: '#0b0d10',
-        },
-        cyan: { DEFAULT: '#a8c7fa', 400: '#d7e7ff', 500: '#a8c7fa', 600: '#8fb8f2' },
-        purple: { DEFAULT: '#bec6d7', 400: '#dbe2f2', 500: '#bec6d7', 600: '#a5adbe' },
       },
       fontFamily: {
         mono: ['"JetBrains Mono"', 'monospace'], sans: ['"Inter"', 'sans-serif'],

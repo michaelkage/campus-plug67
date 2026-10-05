@@ -52,7 +52,7 @@ function TagInput({ tags, setTags }) {
             type="button"
             onClick={() => add(p)}
             className="text-[11px] px-2 py-0.5 rounded-full border border-outline-variant
-                       text-white/40 hover:border-cyan/30 hover:text-cyan transition-colors"
+                       text-white/40 hover:border-primary/30 hover:text-primary transition-colors"
           >
             #{p}
           </button>
@@ -129,7 +129,7 @@ function ReportModal({ onClose, profile }) {
                 type="button"
                 onClick={() => setType(val)}
                 className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  type === val ? 'bg-cyan text-on-primary' : 'text-white/40 hover:text-white/70'
+                  type === val ? 'bg-primary text-on-primary' : 'text-white/40 hover:text-white/70'
                 }`}
               >
                 {label}
@@ -183,7 +183,7 @@ function ItemCard({ item }) {
   }
   return (
     <div className={`bg-surface-container-high border rounded-xl p-4 transition-all hover:-translate-y-0.5 ${
-      isLost ? 'border-error/20 hover:border-error/40' : 'border-cyan/20 hover:border-cyan/40'
+      isLost ? 'border-error/20 hover:border-error/40' : 'border-primary/20 hover:border-primary/40'
     }`}>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
@@ -286,7 +286,7 @@ export default function LostFound() {
       </div>
 
       {/* How it works */}
-      <div className="bg-purple/5 border border-[var(--md-outline-variant)] rounded-xl p-5 mb-6">
+      <div className="bg-tertiary/5 border border-[var(--md-outline-variant)] rounded-xl p-5 mb-6">
         <div className="flex items-center gap-2 mb-2">
           <span>🤖</span>
           <span className="text-xs font-bold text-[var(--md-secondary)] uppercase tracking-wider">AI Matching Active</span>
@@ -316,8 +316,8 @@ export default function LostFound() {
               onClick={() => setFilter(val)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
                 filter === val
-                  ? 'bg-cyan text-on-primary border-cyan'
-                  : 'bg-transparent text-white/40 border-outline-variant hover:border-cyan/30'
+                  ? 'bg-primary text-on-primary border-primary'
+                  : 'bg-transparent text-white/40 border-outline-variant hover:border-primary/30'
               }`}
             >
               {label}
@@ -331,7 +331,7 @@ export default function LostFound() {
         {[
           { label: 'Open Reports', val: items.length, color: 'text-white' },
           { label: 'Lost Items',   val: items.filter(i => i.type === 'lost').length,  color: 'text-error'  },
-          { label: 'Found Items',  val: items.filter(i => i.type === 'found').length, color: 'text-cyan'      },
+          { label: 'Found Items',  val: items.filter(i => i.type === 'found').length, color: 'text-primary'      },
         ].map(({ label, val, color }) => (
           <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
             <div className={`text-2xl font-black font-mono ${color}`}>{val}</div>

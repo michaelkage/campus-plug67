@@ -6,7 +6,7 @@ const STORAGE_KEY = 'cp_jury_tutorial_seen'
 
 const SLIDES = [
   {
-    Icon: Scale, color: 'text-[var(--md-primary)]', bg: 'bg-[var(--md-primary)]/15 border-cyan/25',
+    Icon: Scale, color: 'text-[var(--md-primary)]', bg: 'bg-[var(--md-primary)]/15 border-primary/25',
     title: 'Your Role as a Juror', subtitle: 'Anonymous. Accountable. Fair.',
     bullets: ['You review anonymised disputes — no real names, no bias', 'You see the full sanitized chat history as evidence', 'Your verdict is 1 of 3–5 votes needed to resolve', 'Correct verdicts earn +20 PlugScore + ₦100 PlugCredit'],
     note: 'Your identity is never revealed to the disputing parties.', NoteIcon: Shield, noteColor: 'text-[var(--md-primary)]',

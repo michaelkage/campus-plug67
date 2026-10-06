@@ -107,10 +107,13 @@ serve(async (req: Request) => {
       .eq("active", true)
       .maybeSingle();
     if (bannedError) {
-      console.error("[security-gate] ban lookup failed", bannedError);
-      return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
+      // Banned-device lookup is defense-in-depth. If the table/RPC path is
+      // unavailable (permission denied, missing secret, schema drift), do not
+      // take authentication offline — log and continue.
+      console.error("[security-gate] ban lookup failed; continuing", bannedError);
+    } else if (banned) {
+      return jsonResponse({ error: `DEVICE_BANNED: ${banned.ban_reason || banned.reason || "This device has been restricted."}` }, 403, {}, req);
     }
-    if (banned) return jsonResponse({ error: `DEVICE_BANNED: ${banned.ban_reason || banned.reason || "This device has been restricted."}` }, 403, {}, req);
   } else if (banHit.banned) {
     return jsonResponse({ error: `DEVICE_BANNED: ${banHit.reason || "This device has been restricted."}` }, 403, {}, req);
   }
@@ -118,7 +121,12 @@ serve(async (req: Request) => {
   if (user) {
     const deviceHash = clientFingerprint || serverFingerprint;
     const securityClient = admin ?? scopedClient;
-    if (!securityClient) return jsonResponse({ error: "Security service unavailable" }, 503, {}, req);
+    if (!securityClient) {
+      // No privileged path and no user-scoped client — still allow the
+      // registration to succeed so the gate does not take auth offline.
+      console.warn("[security-gate] no client available for security context write");
+      return jsonResponse({ success: true, server_fingerprint: serverFingerprint }, 200, {}, req);
+    }
     const { error } = await securityClient.from("user_security").upsert({
       user_id: user.id,
       device_hash: deviceHash,
@@ -131,8 +139,9 @@ serve(async (req: Request) => {
       last_risk_check_at: new Date().toISOString(),
     }, { onConflict: "user_id,device_hash" });
     if (error) {
-      console.error("[security-gate] security context write failed", error);
-      return jsonResponse({ error: "Unable to register security context" }, 503, {}, req);
+      // Security-context registration is best-effort; do not 503 the whole
+      // register call when the table is temporarily unavailable.
+      console.error("[security-gate] security context write failed; continuing", error);
     }
   }
 

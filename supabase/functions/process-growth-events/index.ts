@@ -29,9 +29,14 @@ const bad = (req: Request, message: string, status = 400) => jsonResponse({ erro
 async function getUser(req: Request) {
   const token = getBearerToken(req);
   if (!token || !admin) return null;
-  const { data: { user }, error } = await admin.auth.getUser(token);
-  if (error) return null;
-  return user;
+  try {
+    const { data: { user }, error } = await admin.auth.getUser(token);
+    if (error) return null;
+    return user;
+  } catch (e) {
+    console.error("[process-growth-events] getUser failed", e);
+    return null;
+  }
 }
 
 function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -135,6 +140,11 @@ serve(async (req: Request) => {
     return bad(req, `Unknown action: ${action}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected growth service error";
+    console.error("[process-growth-events] handler exception", error);
+    if (error instanceof TypeError && message.includes("Cannot read properties of null")) {
+      return bad(req, "Growth service unavailable: missing privileged credentials", 503);
+    }
     return bad(req, `process-growth-events exception: ${message}`, 500);
+  }
   }
 });

@@ -146,5 +146,4 @@ serve(async (req: Request) => {
     }
     return bad(req, `process-growth-events exception: ${message}`, 500);
   }
-  }
 });

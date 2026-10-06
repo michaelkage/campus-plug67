@@ -179,7 +179,8 @@ export default function Marketplace() {
     enabled: Boolean(profile?.id),
     queryFn: async () => {
       let q = supabase.from('listings').select('*, profiles!listings_seller_id_fkey(full_name, university, avatar_url, is_verified)').eq('status', 'active')
-      if (profile?.university) q = q.eq('university', profile.university)
+      // Do not hard-filter by university: keep same-campus listings prominent,
+      // but allow other listings to appear (ranked below same-campus ones).
       q = q.order('created_at', { ascending: false })
       if (category) q = q.eq('category', category); if (hostel) q = q.eq('hostel', hostel); if (myOnly) q = q.eq('seller_id', profile?.id); if (verifiedOnly) q = q.eq('metadata_verified', true)
       const { data, error } = await q; if (error) throw error; return data || []
@@ -191,6 +192,10 @@ export default function Marketplace() {
     .sort((a, b) => {
       if (sort === 'price-low') return Number(a.price) - Number(b.price)
       if (sort === 'price-high') return Number(b.price) - Number(a.price)
+      // Same university first, then newest/oldest within each group.
+      const aLocal = profile?.university && a.university === profile.university ? 1 : 0
+      const bLocal = profile?.university && b.university === profile.university ? 1 : 0
+      if (aLocal !== bLocal) return bLocal - aLocal
       if (sort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })

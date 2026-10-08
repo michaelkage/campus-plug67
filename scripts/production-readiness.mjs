@@ -14,7 +14,7 @@ for (const file of [
   '.github/workflows/production-validation.yml',
   '.github/workflows/maintenance.yml',
   '.github/workflows/deploy-supabase.yml',
-  'RECOVERY_PLAN.md',
+  'docs/phase/RECOVERY_PLAN.md',
 ]) {
   if (!exists(file)) fail(`Production readiness: required file missing: ${file}`);
 }
@@ -84,7 +84,7 @@ for (const fn of ['passkey-auth', 'paystack-webhook', 'release-escrow', 'calcula
 
 // 9. The recovery plan must not be mistaken for the current source of truth.
 // It is historical documentation, so Phase 18 records the current production state separately.
-const recovery = read('RECOVERY_PLAN.md');
+const recovery = read('docs/phase/RECOVERY_PLAN.md');
 if (!recovery.includes('Recovery Status')) fail('Production readiness: recovery document lost its status marker');
 
 // 10. Required production secrets cannot be inspected through the repository API.

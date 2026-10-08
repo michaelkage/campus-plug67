@@ -16,8 +16,34 @@ alter table public.messages
   add column if not exists content      text,
   add column if not exists message_type text default 'text';
 
+-- Replace the legacy immutability rule. Its `on update do instead`
+-- body recursively re-triggers itself (42P17), so the backfill below
+-- cannot run while it exists. Use a BEFORE UPDATE trigger that rejects
+-- edits to immutable columns instead.
+drop rule if exists messages_no_update on public.messages;
+
 -- Backfill content from legacy body column so historical rows remain readable.
 update public.messages set content = body where content is null and body is not null;
+
+-- Immutability guard: only read-receipt / flag / soft-delete transitions allowed.
+create or replace function public.messages_guard_immutable()
+returns trigger language plpgsql as $$
+begin
+  if old.body is distinct from new.body
+     or old.content is distinct from new.content
+     or old.sender_id is distinct from new.sender_id
+     or old.receiver_id is distinct from new.receiver_id
+     or old.listing_id is distinct from new.listing_id
+     or old.transaction_id is distinct from new.transaction_id then
+    raise exception 'messages: content and participants are immutable';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists messages_guard_immutable on public.messages;
+create trigger messages_guard_immutable
+  before update on public.messages
+  for each row execute function public.messages_guard_immutable();
 
 -- CampusHub join uses upsert; ensure the insert policy allows the acting user
 -- to join themselves (it already does), but the earlier

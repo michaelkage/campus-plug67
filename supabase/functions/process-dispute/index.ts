@@ -5,7 +5,7 @@ import { isServiceRoleRequest, jsonResponse, optionsResponse } from "../_shared/
 type Body = Record<string, unknown>;
 type EvidenceMessage = { sender_id: string; body: string | null; created_at: string; flagged: boolean | null; flag_type: string | null; is_system_msg: boolean | null };
 type Evidence = { role: "[Claimant]" | "[Respondent]"; body: string; created_at: string; is_system: boolean; flagged: boolean };
-type DisputeCase = { id: string; claimant_id: string; respondent_id: string; jurors_assigned: string[] | null; high_value: boolean; required_votes: number; votes_cast: number; created_at: string; dispute_reason: string; status: string; verdict: string | null; dispute_campus: string; escalated_to_admin: boolean };
+type DisputeCase = { id: string; transaction_id: string; claimant_id: string; respondent_id: string; jurors_assigned: string[] | null; high_value: boolean; required_votes: number; votes_cast: number; created_at: string; dispute_reason: string; status: string; verdict: string | null; dispute_campus: string; escalated_to_admin: boolean };
 type TransactionRow = { id: string; buyer_id: string; seller_id: string; amount: number; listings: { title?: string; university?: string | null } | null };
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });

@@ -1,9 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 
 const url = Deno.env.get("SUPABASE_URL") || "";
-const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const serviceKey = Deno.env.get("EDGE_FUNCTION_SERVICE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const legacyServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const paystackSecret = Deno.env.get("PAYSTACK_SECRET_KEY") || "";
-const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+const admin = createClient(url, legacyServiceKey || serviceKey, { auth: { persistSession: false } });
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -16,7 +17,8 @@ function isServiceRequest(req: Request) {
   const auth = req.headers.get("authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "");
   const apiKey = req.headers.get("apikey") || "";
-  return token === serviceKey || apiKey === serviceKey;
+  const validKeys = [serviceKey, legacyServiceKey].filter(Boolean);
+  return validKeys.some((key) => token === key || apiKey === key);
 }
 
 Deno.serve(async (req: Request) => {

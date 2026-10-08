@@ -3,7 +3,7 @@ import { isServiceRoleRequest, jsonResponse, optionsResponse } from "../_shared/
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return optionsResponse(req);
-  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const service = Deno.env.get("EDGE_FUNCTION_SERVICE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   if (!service || !isServiceRoleRequest(req)) return jsonResponse({ error: "Forbidden" }, 403, {}, req);
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405, {}, req);
   const url = Deno.env.get("SUPABASE_URL");

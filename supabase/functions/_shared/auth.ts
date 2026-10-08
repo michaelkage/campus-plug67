@@ -43,13 +43,14 @@ function getSecretKeys(): string[] {
  * compatibility with existing deployments.
  */
 export function isServiceRoleRequest(req: Request): boolean {
-  const serviceKey =
-    Deno.env.get("EDGE_FUNCTION_SERVICE_KEY") ??
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceKeys = [
+    Deno.env.get("EDGE_FUNCTION_SERVICE_KEY"),
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+  ].map((value) => value?.trim()).filter((value): value is string => Boolean(value));
   const bearer = getBearerToken(req);
   const apiKey = getApiKey(req);
 
-  if (serviceKey && (bearer === serviceKey || apiKey === serviceKey)) return true;
+  if (serviceKeys.some((serviceKey) => bearer === serviceKey || apiKey === serviceKey)) return true;
   if (apiKey && getSecretKeys().includes(apiKey)) return true;
   return false;
 }

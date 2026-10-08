@@ -99,7 +99,7 @@ begin
       when 'auto_release' then 'released' else tx.status end));
   return jsonb_build_object('success',true,'transaction_id',tx.id,'action',p_action);
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.resolve_dispute_verdict(p_case_id uuid, p_verdict text, p_admin_override boolean DEFAULT false)

@@ -42,7 +42,7 @@ console.log(`Validated ${versions.size} unique numbered migration versions.`);
 // 1. now() is not immutable and cannot be used in an index predicate.
 // 2. These realtime publication memberships are already established by 001.
 const migration006Path = path.join(root, 'supabase/migrations/006_social_gravity.sql');
-let migration006 = fs.readFileSync(migration006Path, 'utf8');
+let migration006 = fs.readFileSync(migration006Path, 'utf8').replace(/\r\n/g, '\n');
 
 const invalidIndex = `create index ticker_university_idx on public.ticker_events(university, created_at desc)\n  where expires_at > now();`;
 const fixedIndex = `create index ticker_university_idx\n  on public.ticker_events(university, expires_at, created_at desc);`;
@@ -50,8 +50,8 @@ const fixedIndex = `create index ticker_university_idx\n  on public.ticker_event
 if (migration006.includes(invalidIndex)) {
   migration006 = migration006.replace(invalidIndex, fixedIndex);
   console.log('Normalized migration 006: removed volatile now() predicate from ticker_university_idx.');
-} else if (migration006.includes(fixedIndex)) {
-  console.log('Migration 006 ticker index is already normalized.');
+} else if (migration006.includes(fixedIndex) || migration006.includes('create index if not exists ticker_university_idx')) {
+  console.log('Migration 006 ticker index is already normalized or superseded by 045.');
 } else {
   throw new Error('Migration 006 ticker index definition was not found; refusing an unsafe rewrite.');
 }
@@ -74,7 +74,7 @@ fs.writeFileSync(migration006Path, migration006);
 // Keep 009's new objects and realtime memberships; remove only memberships
 // already created by migrations 007/008.
 const migration009Path = path.join(root, 'supabase/migrations/009_v67_integration.sql');
-let migration009 = fs.readFileSync(migration009Path, 'utf8');
+let migration009 = fs.readFileSync(migration009Path, 'utf8').replace(/\\r\\n/g, '\\n');
 
 const duplicatePoliciesRulesAndRealtime = [
   `create policy "Parties see own cases" on public.jury_cases for select\n  using (auth.uid() = claimant_id or auth.uid() = respondent_id);`,

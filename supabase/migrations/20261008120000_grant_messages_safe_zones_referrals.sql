@@ -29,13 +29,18 @@ update public.messages set content = body where content is null and body is not 
 create or replace function public.messages_guard_immutable()
 returns trigger language plpgsql as $$
 begin
-  if old.body is distinct from new.body
-     or old.content is distinct from new.content
-     or old.sender_id is distinct from new.sender_id
+  if old.sender_id is distinct from new.sender_id
      or old.receiver_id is distinct from new.receiver_id
      or old.listing_id is distinct from new.listing_id
      or old.transaction_id is distinct from new.transaction_id then
-    raise exception 'messages: content and participants are immutable';
+    raise exception 'messages: participants and listing linkage are immutable';
+  end if;
+
+  if old.body is distinct from new.body or old.content is distinct from new.content then
+    if new.body = '[Message deleted]' or new.content = '[Message deleted]' then
+      return new;
+    end if;
+    raise exception 'messages: content is immutable; only soft-delete placeholder allowed';
   end if;
   return new;
 end $$;

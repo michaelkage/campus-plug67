@@ -54,3 +54,42 @@ create trigger messages_guard_immutable
 -- to join themselves (it already does), but the earlier
 -- 051 policy replaced the recursive select policy with a non-recursive one
 -- without granting the table privilege. The GRANTs above fix that.
+
+
+-- Edge Functions run with the elevated service_role/secret role. Table grants
+-- are still checked before RLS, so explicitly grant the tables used by the
+-- growth, wallet and security functions.
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.user_security TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.referral_events TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.safe_zones TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.group_chat_members TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.wallet_funding_intents TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.streaks TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.notifications TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.profiles TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.gigs TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.listing_views TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.transactions TO service_role;
+
+-- Keep legacy body and newer content columns synchronized for new messages.
+CREATE OR REPLACE FUNCTION public.sync_message_content_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.content IS NULL AND NEW.body IS NOT NULL THEN
+    NEW.content := NEW.body;
+  ELSIF NEW.body IS NULL AND NEW.content IS NOT NULL THEN
+    NEW.body := NEW.content;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS messages_sync_content_columns ON public.messages;
+CREATE TRIGGER messages_sync_content_columns
+BEFORE INSERT ON public.messages
+FOR EACH ROW EXECUTE FUNCTION public.sync_message_content_columns();
+
+GRANT EXECUTE ON FUNCTION public.sync_message_content_columns() TO service_role;

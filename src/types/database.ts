@@ -578,6 +578,7 @@ export type Database = {
           created_at: string
           updated_at: string
           last_login?: string | null
+          preferences: Json
         }
         Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'id' | 'created_at' | 'updated_at' | 'balance'>
         Update: Partial<Database['public']['Tables']['profiles']['Row']>

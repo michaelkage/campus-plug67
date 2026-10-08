@@ -49,7 +49,7 @@ jobs:
         run: node scripts/normalize-migrations.mjs
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.119.0
       - name: Cache Deno dependencies
         uses: actions/cache@v4
         with:

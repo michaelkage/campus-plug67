@@ -68,5 +68,5 @@ Deno.serve(async (req: Request) => {
   });
 
   if (error) return response(req, { error: error.message }, 409);
-  return response({ ...(data ?? {}), reconciled: true });
+  return response(req, { ...(data ?? {}), reconciled: true });
 });

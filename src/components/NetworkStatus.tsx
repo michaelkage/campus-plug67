@@ -15,7 +15,7 @@ export default function NetworkStatus() {
       if (!navigator.onLine) return
       const started = performance.now()
       try {
-        await fetch('/favicon.svg', { cache: 'no-store', method: 'HEAD' })
+        await fetch(`${import.meta.env.BASE_URL}favicon.svg`, { cache: 'no-store', method: 'HEAD' })
         if (!cancelled) setSlow(performance.now() - started > 1500)
       } catch {
         if (!cancelled) setSlow(true)

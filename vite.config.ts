@@ -18,15 +18,17 @@ export default defineConfig(({ mode }) => ({
       skipWaiting: true,
       clientsClaim: true,
       runtimeCaching: [
+        // Never cache/replay payment or database mutations. This rule must
+        // precede the broad API rule so POST requests cannot be captured by
+        // NetworkFirst (which can cache opaque status-0 responses).
+        {
+          urlPattern: ({ url, request }) => (url.hostname.includes('supabase.co') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/rest/v1/')) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method),
+          handler: 'NetworkOnly',
+        },
         {
           urlPattern: ({ url }) => url.hostname.includes('supabase.co') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/rest/v1/') || url.pathname.startsWith('/auth/v1/'),
           handler: 'NetworkFirst',
-          options: { cacheName: 'api-network-first', networkTimeoutSeconds: 5, expiration: { maxEntries: 64, maxAgeSeconds: 300 }, cacheableResponse: { statuses: [0, 200] } },
-        },
-        {
-          urlPattern: ({ url, request }) => (url.hostname.includes('supabase.co') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/rest/v1/')) && ['POST', 'PUT', 'PATCH'].includes(request.method),
-          handler: 'NetworkOnly',
-          options: { backgroundSync: { name: 'campus-plug-mutations', options: { maxRetentionTime: 24 * 60 } }, },
+          options: { cacheName: 'api-network-first-v2', networkTimeoutSeconds: 5, expiration: { maxEntries: 64, maxAgeSeconds: 300 }, cacheableResponse: { statuses: [200] } },
         },
         {
           urlPattern: ({ request }) => request.destination === 'image',

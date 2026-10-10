@@ -71,7 +71,13 @@ jobs:
           done
       - name: Stop local Supabase
         if: always()
-        run: supabase stop
+        shell: bash
+        run: |
+          if command -v supabase >/dev/null 2>&1; then
+            supabase stop
+          else
+            echo "Supabase CLI was not installed; skipping local cleanup."
+          fi
 
   production-smoke:
     name: Live production path smoke

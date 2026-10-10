@@ -142,7 +142,7 @@ export default function ListingDetail() {
       if (!Number.isSafeInteger(amountInKobo) || amountInKobo <= 0) throw new Error('This listing has an invalid price.')
       const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
       if (!publicKey) throw new Error('Payment service is not configured. Please try again later.')
-      const { data: tx, error } = await supabase.from('transactions').insert({ listing_id: listing.id, buyer_id: user.id, seller_id: listing.seller_id, amount: amountInKobo, status: 'pending', paystack_ref: ref }).select().single()
+      const { data: tx, error } = await supabase.rpc('create_pending_paystack_transaction', { p_listing_id: listing.id, p_paystack_ref: ref })
       if (error) throw error
       try {
         await initPaystack({ email: user.email, amount: amountInKobo, ref, publicKey, metadata: { type: 'marketplace_escrow', transaction_id: tx.id, listing_id: listing.id } })

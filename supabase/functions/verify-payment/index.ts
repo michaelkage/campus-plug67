@@ -44,9 +44,15 @@ Deno.serve(async (req: Request) => {
   const secret = Deno.env.get("PAYSTACK_SECRET_KEY") || "";
   if (!secret) return response(req, { error: "Payment service is not configured" }, 500);
 
-  const paystack = await fetch("https://api.paystack.co/transaction/verify/" + encodeURIComponent(tx.paystack_ref), {
-    headers: { Authorization: `Bearer ${secret}` },
-  });
+  let paystack: Response;
+  try {
+    paystack = await fetch("https://api.paystack.co/transaction/verify/" + encodeURIComponent(tx.paystack_ref), {
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    return response(req, { error: "Could not reach Paystack verification service. Payment state was not changed; retry shortly." }, 502);
+  }
   const payload = await paystack.json().catch(() => null);
 
   if (!paystack.ok || payload?.status !== true || payload?.data?.status !== "success") {

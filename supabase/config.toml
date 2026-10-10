@@ -2,6 +2,7 @@ project_id = "etwsfdovcgofhqseejjo"
 
 [db]
 major_version = 17
+port = 54332
 
 [api]
 port = 54321

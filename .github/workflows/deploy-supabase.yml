@@ -111,7 +111,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ -n "$SUPABASE_ANON_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_ANON_KEY'; exit 1; }
-          functions=(release-escrow join-pool paystack-webhook passkey-auth process-growth-events process-dispute calculate-trending)
+          functions=(release-escrow verify-payment join-pool paystack-webhook passkey-auth process-growth-events process-dispute calculate-trending)
           for fn in "${functions[@]}"; do
             echo "→ Verifying ${fn}..."
             for attempt in 1 2 3; do

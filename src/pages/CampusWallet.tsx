@@ -12,15 +12,16 @@ export default function CampusWallet() {
   const [amount, setAmount] = useState('5000')
   const [loading, setLoading] = useState(true)
   const [funding, setFunding] = useState(false)
+  const userId = user?.id
   const [recoveryReference, setRecoveryReference] = useState(() => {
     try { return sessionStorage.getItem(PENDING_REFERENCE_KEY) ?? '' } catch { return '' }
   })
 
   const refresh = useCallback(async () => {
-    if (!user) { setLoading(false); return }
+    if (!userId) { setLoading(false); return }
     setLoading(true)
     try {
-      const { data, error } = await supabase.from('profiles').select('plug_credit_balance').eq('id', user.id).single()
+      const { data, error } = await supabase.from('profiles').select('plug_credit_balance').eq('id', userId).single()
       if (error) throw error
       setBalance(Number(data?.plug_credit_balance ?? 0))
     } catch (error) {
@@ -28,7 +29,7 @@ export default function CampusWallet() {
     } finally {
       setLoading(false)
     }
-  }, [user?.id])
+  }, [userId])
 
   useEffect(() => { void refresh() }, [refresh])
 
@@ -48,10 +49,11 @@ export default function CampusWallet() {
       { reference, amount_kobo: amountKobo },
     )
     if (result.error) throw new Error(result.error)
-    if (!result.data?.success && !result.data?.already_credited) throw new Error('Payment could not be confirmed. If you were charged, keep the reference and try verification again.')
+    const data = result.data
+    if (!data || (!data.success && !data.already_credited)) throw new Error('Payment could not be confirmed. If you were charged, keep the reference and try verification again.')
     try { sessionStorage.removeItem(PENDING_REFERENCE_KEY) } catch { /* Storage may be disabled. */ }
     setRecoveryReference('')
-    toast.success(result.data.already_credited ? 'This top-up was already credited' : `Campus Wallet funded with ${formatNaira(amountKobo)}`)
+    toast.success(data.already_credited ? 'This top-up was already credited' : `Campus Wallet funded with ${formatNaira(amountKobo)}`)
     await refresh()
   }
 

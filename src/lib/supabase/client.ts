@@ -19,6 +19,7 @@ export interface RpcDefinitions {
   get_market_intelligence:{Args:{p_category:string;p_university:string};Returns:unknown}
   transfer_plug_credit:{Args:{p_recipient_id:string;p_amount:number;p_reason?:string|null};Returns:{success?:boolean;[key:string]:unknown}}
   create_wallet_micro_escrow:{Args:{p_listing_id:string};Returns:{success?:boolean;[key:string]:unknown}}
+  create_pending_paystack_transaction:{Args:{p_listing_id:string;p_paystack_ref:string};Returns:{id:string;listing_id:string;buyer_id:string;seller_id:string;amount:number;status:string;paystack_ref:string}}
   increment_spoof_flag:{Args:{p_user_id:string};Returns:unknown}
   get_department_leaderboard:{Args:{p_university:string};Returns:unknown}
   create_session_handoff:{Args:{p_transaction_id:string};Returns:unknown}

@@ -9,9 +9,7 @@ on:
 permissions:
   contents: read
 
-# Let each validation run finish. Cancelling a run halfway through creates
-# misleading "cancelled" results and prevents us from seeing whether that
-# specific commit is healthy.
+# Keep a validation run intact so each commit gets a trustworthy result.
 concurrency:
   group: production-validation-${{ github.ref }}
   cancel-in-progress: false
@@ -58,7 +56,9 @@ jobs:
           restore-keys: |
             deno-${{ runner.os }}-2.1.4-
       - name: Start local Supabase
-        run: supabase start
+        # Disable Supabase Studio, whose default port 54322 was already
+        # occupied in this runner. The project database itself uses port 54332.
+        run: supabase start --exclude studio
       - name: Apply migrations from a clean database
         run: supabase db reset --local
       - name: Validate Edge Functions compile
@@ -95,9 +95,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # Gitleaks needs the complete commit history to resolve the commit range
-      # supplied by GitHub Actions. A shallow checkout can make that SHA absent
-      # and causes gitleaks to fail before it can scan anything.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0

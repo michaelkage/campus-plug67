@@ -34,7 +34,22 @@ export async function callEdgeFunction<T = unknown>(functionName: AllowedEdgeFun
   if (!token) return { data: null, error: 'Not authenticated' }
   try {
     const { data, error } = await supabase.functions.invoke<T>(functionName, { body, headers: { Authorization: `Bearer ${token}` } })
-    if (error) return { data: null, error: error.message || 'Edge function error' }
+    if (error) {
+      // Supabase FunctionsHttpError stores the HTTP response in context. Read
+      // that response before falling back to the generic SDK message so users
+      // see the server's actionable validation error (e.g. stale GPS / zone).
+      const context = typeof error === 'object' && error !== null && 'context' in error
+        ? (error as { context?: unknown }).context
+        : undefined
+      if (context instanceof Response) {
+        const payload: unknown = await context.clone().json().catch(() => null)
+        if (payload && typeof payload === 'object' && 'error' in payload) {
+          const message = String((payload as { error: unknown }).error)
+          if (message.trim()) return { data: null, error: message }
+        }
+      }
+      return { data: null, error: error.message || 'Edge function error' }
+    }
     return { data, error: null }
   } catch {
     try {

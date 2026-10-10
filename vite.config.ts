@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => ({
         // precede the broad API rule so POST requests cannot be captured by
         // NetworkFirst (which can cache opaque status-0 responses).
         {
-          urlPattern: ({ url, request }) => (url.hostname.includes('supabase.co') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/rest/v1/')) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method),
+          urlPattern: ({ url, request }) => (url.hostname.includes('supabase.co') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/rest/v1/')) && ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].includes(request.method),
           handler: 'NetworkOnly',
         },
         {

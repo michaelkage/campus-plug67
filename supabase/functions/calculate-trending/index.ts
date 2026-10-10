@@ -54,7 +54,7 @@ serve(async (req: Request) => {
     if (candidateError) return bad(req, candidateError.message, 500);
 
     const candidates = (rawCandidates ?? []) as Candidate[];
-    if (!candidates.length) return ok(req, { processed: 0 });
+    if (!candidates.length) return ok(req, { processed: 0, trending: 0, reason: "no_active_listings" });
     const listingIds = candidates.map(c => c.id);
 
     const [views1hRes, totalViewsRes, msgs1hRes] = await Promise.all([
@@ -145,7 +145,7 @@ serve(async (req: Request) => {
       if (error) return bad(req, error.message, 500);
     }
 
-    return ok(req, { trending: trending.length, rookie_slots: rookieTop.length, regular_slots: regTop.length, processed: candidates.length, collusion_flagged: collusionFlaggedSellers.size, ts: now.toISOString() });
+    return ok(req, { trending: trending.length, rookie_slots: rookieTop.length, regular_slots: regTop.length, processed: candidates.length, eligible_candidates: scores.filter(s => s.eligible).length, below_activity_threshold: scores.filter(s => !s.eligible).length, eligibility_rule: "15 unique viewers in 24h and 2 unique non-system message senders in 1h", collusion_flagged: collusionFlaggedSellers.size, ts: now.toISOString() });
   } catch (err) {
     console.error("[calculate-trending v6.4]", err);
     return bad(req, "Internal error: " + (err instanceof Error ? err.message : "Unknown error"), 500);

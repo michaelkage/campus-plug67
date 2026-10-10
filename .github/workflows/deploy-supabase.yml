@@ -94,6 +94,9 @@ jobs:
           set -euo pipefail
           supabase migration repair 011 012 013 014 015 --status reverted --linked
           supabase migration repair 20260608213351 20260910094433 20260912080100 --status reverted --linked
+          # The wallet guard/RPC repair was previously applied through the dashboard as a timestamped migration.
+          # Its source is now versioned in supabase/migrations/0631_repair_wallet_guards_and_paystack_transaction_rpc.sql.
+          supabase migration repair 20261010113353 --status reverted --linked
 
       - name: Apply database migrations
         shell: bash

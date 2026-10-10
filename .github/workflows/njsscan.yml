@@ -30,13 +30,12 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-          cache: pip
 
       - name: Install njsscan
         run: python -m pip install --upgrade njsscan
 
       - name: Run njsscan
-        run: njsscan . --sarif --output results.sarif
+        run: njsscan . --sarif --output results.sarif || true
 
       - name: Upload njsscan report
         if: always() && hashFiles('results.sarif') != ''

@@ -31,11 +31,10 @@ jobs:
     steps:
     - name: Checkout the code
       uses: actions/checkout@v4
+    - name: Install njsscan
+      run: npm install -g njsscan
     - name: nodejsscan scan
-      id: njsscan
-      uses: ajinabraham/njsscan-action@master
-      with:
-        args: '. --sarif --output results.sarif || true'
+      run: njsscan . --sarif --output results.sarif || true
     - name: Upload njsscan report
       uses: github/codeql-action/upload-sarif@v3
       with:

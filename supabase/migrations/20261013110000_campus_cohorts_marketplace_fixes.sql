@@ -66,7 +66,7 @@ $$;
 CREATE UNIQUE INDEX IF NOT EXISTS group_chats_department_cohort_unique
   ON public.group_chats (university, lower(name)) WHERE course_code IS NULL AND is_archived = false;
 CREATE UNIQUE INDEX IF NOT EXISTS group_chats_course_cohort_unique
-  ON public.group_chats (university, lower(course_code)) WHERE course_code IS NOT NULL AND is_archived = false;
+  ON public.group_chats (university, lower(name)) WHERE course_code IS NOT NULL AND is_archived = false;
 
 CREATE OR REPLACE FUNCTION public.sync_student_cohort_groups()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -99,7 +99,7 @@ BEGIN
     INSERT INTO public.group_chats(name, description, university, course_code, creator_id, is_archived)
     VALUES (NEW.university || ' · ' || course_name,
             'Course group for ' || course_name, NEW.university, course_name, NEW.id, false)
-    ON CONFLICT (university, lower(course_code)) WHERE course_code IS NOT NULL AND is_archived = false DO NOTHING;
+    ON CONFLICT (university, lower(name)) WHERE course_code IS NOT NULL AND is_archived = false DO NOTHING;
     SELECT id INTO course_group_id FROM public.group_chats
      WHERE university = NEW.university AND lower(course_code) = lower(course_name)
        AND is_archived = false LIMIT 1;

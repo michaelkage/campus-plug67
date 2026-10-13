@@ -144,28 +144,48 @@ function CreateListingModal({ onClose, profile }) {
       )
 
       void (async () => {
+        const sideEffectFailures = []
         if (tokenOverride) {
-          const consumed = await consumeEmergencyToken(tokenOverride, listing.id).catch(() => false)
-          if (!consumed) console.warn('Emergency token could not be consumed after listing publish:', listing.id)
-        }
-        for (let i = 0; i < images.length; i++) {
-          if (images[i].exif && uploadedUrls[i]) {
-            await saveExifFlags(listing.id, uploadedUrls[i], images[i].exif).catch(error =>
-              console.warn('Server image verification request failed after listing publish:', error)
-            )
+          try {
+            const consumed = await consumeEmergencyToken(tokenOverride, listing.id)
+            if (!consumed) throw new Error('Emergency token was not consumed')
+          } catch (error) {
+            console.error('Emergency token consumption failed after listing publish:', { listingId: listing.id, error })
+            sideEffectFailures.push('emergency token')
           }
         }
-        const { error: activityError } = await supabase.from('activity_feed').insert({
-          actor_name: profile.full_name,
-          actor_id: profile.id,
-          action: 'listed a new item',
-          subject: form.title,
-          amount: toKobo(form.price),
-          emoji: '🛍️',
-          university: profile.university,
-        })
-        if (activityError) console.warn('Activity feed update failed after listing publish:', activityError.message)
-      })()
+        for (let i = 0; i < images.length; i++) {
+          if (!images[i].exif || !uploadedUrls[i]) continue
+          try {
+            await saveExifFlags(listing.id, uploadedUrls[i], images[i].exif)
+          } catch (error) {
+            console.error('Server image verification failed after listing publish:', { listingId: listing.id, imageIndex: i, error })
+            sideEffectFailures.push('image verification')
+          }
+        }
+        try {
+          const { error: activityError } = await supabase.from('activity_feed').insert({
+            actor_name: profile.full_name,
+            actor_id: profile.id,
+            action: 'listed a new item',
+            subject: form.title,
+            amount: toKobo(form.price),
+            emoji: '🛍️',
+            university: profile.university,
+          })
+          if (activityError) throw activityError
+        } catch (error) {
+          console.error('Activity feed update failed after listing publish:', { listingId: listing.id, error })
+          sideEffectFailures.push('activity feed')
+        }
+        if (sideEffectFailures.length) {
+          toast.error(`Listing published, but ${sideEffectFailures.join(", ")} needs attention.`)
+        }
+      })().catch(error => {
+        // Keep unexpected failures from becoming unhandled promise rejections.
+        console.error('Unexpected post-publish side-effect failure:', { listingId: listing.id, error })
+        toast.error('Listing published, but some follow-up checks failed.')
+      })
     } catch (err) { toast.error(err.message || 'Failed to publish listing') } finally { setSubmitting(false) }
   }
 

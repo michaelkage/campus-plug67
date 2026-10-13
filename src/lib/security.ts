@@ -64,6 +64,11 @@ export async function getDeviceHash(): Promise<string> {
         }
         return stored
       })
+      .catch(error => {
+        // Do not permanently cache a rejected fingerprint promise.
+        fingerprintPromise = null
+        throw error
+      })
   }
   return fingerprintPromise
 }
@@ -182,10 +187,17 @@ function sanitizeExif(exif: Record<string, unknown>): Record<string, string | nu
 
 /** Browser EXIF is advisory; authoritative verification is performed server-side. */
 export async function saveExifFlags(listingId: string, _imageUrl: string, _exifResult: ExifResult): Promise<void> {
-  const { error } = await supabase.functions.invoke('verify-listing-images', {
+  const { data, error } = await supabase.functions.invoke<{
+    success?: boolean
+    error?: string
+    message?: string
+  }>('verify-listing-images', {
     body: { listing_id: listingId },
   })
-  if (error) console.warn('Server image verification request failed:', error.message)
+  if (error) throw new Error(error.message || 'Server image verification failed')
+  if (data?.success === false || data?.error) {
+    throw new Error(data.error || data.message || 'Server image verification failed')
+  }
 }
 
 export async function checkPriceFloor(
@@ -211,13 +223,18 @@ export async function checkPriceFloor(
 
   const monthKey = new Date().toISOString().slice(0, 7)
   const { error: provisionError } = await supabase.rpc('provision_my_emergency_tokens')
-  if (provisionError) console.warn('Emergency token provisioning unavailable:', provisionError.message)
+  if (provisionError) {
+    throw new Error('Emergency tokens could not be checked. Please try again.')
+  }
 
-  const { data: tokens } = await supabase.from('emergency_sale_tokens')
+  const { data: tokens, error: tokensError } = await supabase.from('emergency_sale_tokens')
     .select('id, used')
     .eq('user_id', userId)
     .eq('month_year', monthKey)
     .eq('used', false)
+  if (tokensError) {
+    throw new Error('Emergency token availability could not be checked. Please try again.')
+  }
 
   const below_pct = Math.round((1 - priceKobo / floorKobo) * 100)
   return {

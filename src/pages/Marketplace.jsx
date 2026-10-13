@@ -22,6 +22,16 @@ const CATEGORY_GROUPS = [
   { label: 'Services & Other', items: ['Tickets & Events', 'Other'] },
 ]
 const CATEGORIES = CATEGORY_GROUPS.flatMap(g => g.items)
+const SUBCATEGORIES = {
+  Electronics: ['Audio & Speakers', 'Charging & Power', 'Headphones & Earbuds', 'Computer Accessories', 'Phones & Wearables', 'Networking & Smart Home'],
+  Gadgets: ['Audio & Speakers', 'Charging & Power', 'Headphones & Earbuds', 'Smart Home', 'Wearables'],
+  'Phone Accessories': ['Cases & Covers', 'Chargers & Cables', 'Screen Protectors', 'Power Banks'],
+  'Gaming & Consoles': ['Consoles', 'Controllers', 'Games', 'Gaming Accessories'],
+  Textbooks: ['Course Textbooks', 'Course Materials', 'Past Questions & Exam Prep'],
+  'Course Materials': ['Lecture Notes', 'Past Questions & Exam Prep', 'Project Materials'],
+  Clothing: ['Shirts & Tops', 'Trousers & Jeans', 'Traditional Wear'],
+  'Home & Decor': ['Furniture', 'Kitchen & Appliances', 'Bedding', 'Cleaning Supplies'],
+}
 const UNILAG_HOSTELS = ['Akoka', 'Jaja Hall', 'Mariere Hall', 'Moremi Hall', 'Kuti Hall', 'Fagunwa Hall', 'Madam Tinubu Hall', 'Honours Hall', 'Eni-Njoku Hall', 'New Hall']
 
 function PriceFloorWarning({ floorData, onUseToken, onAdjust, using }) {
@@ -170,7 +180,7 @@ function CreateListingModal({ onClose, profile }) {
             <div><label className="label">Category</label><select aria-label="Category" className="input" value={form.category} onChange={handleCategoryChange} required><option value="">Select category</option>{CATEGORY_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.items.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>)}</select></div>
             <div><label className="label">Price (₦)</label><input aria-label="Price (₦)" className="input" type="number" placeholder="0.00" min="1" value={form.price} onChange={handlePriceChange} required /></div>
           </div>
-          <div><label className="label">Subcategory <span className="text-white/30">(optional)</span></label><select aria-label="Subcategory" className="input" value={form.subcategory} onChange={set('subcategory')}><option value="">Select subcategory</option>{(CATEGORY_GROUPS.find(g => g.items.includes(form.category))?.items || []).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+          <div><label className="label">Subcategory <span className="text-white/30">(optional)</span></label><select aria-label="Subcategory" className="input" value={form.subcategory} onChange={set('subcategory')}><option value="">Select subcategory</option>{(SUBCATEGORIES[form.category] || []).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
           <div><label className="label">Hostel / Area</label><select aria-label="Hostel / Area" className="input" value={form.hostel} onChange={set('hostel')}><option value="">Select where the item is</option>{UNILAG_HOSTELS.map(h => <option key={h} value={h}>{h}</option>)}</select><p className="text-[10px] text-white/30 mt-1">Helps nearby students choose low-effort swaps.</p></div>
           <AnimatePresence>{floorData && !tokenOverride && <PriceFloorWarning floorData={floorData} onUseToken={handleUseToken} onAdjust={handleAdjustPrice} using={usingToken} />}</AnimatePresence>
           {tokenOverride && <div className="flex items-center gap-2 text-xs text-tertiary"><Zap size={12} />Emergency token applied — below-floor price allowed</div>}

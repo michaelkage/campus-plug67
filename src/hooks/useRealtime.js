@@ -6,6 +6,13 @@ export function useRealtimeTable({ table, onInsert, onUpdate, onDelete, filter, 
   onInsertRef.current = onInsert; onUpdateRef.current = onUpdate; onDeleteRef.current = onDelete
   useEffect(() => {
     if (!enabled) return
+    // Realtime filters use PostgREST syntax. Restrict values to simple scalar
+    // identifiers so punctuation cannot alter the filter expression.
+    if (filter && (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(filter.column) ||
+      !/^[a-zA-Z0-9_-]+$/.test(String(filter.value)))) {
+      debugWarn('supabase', 'Realtime subscription skipped: unsafe filter value', { table, column: filter.column })
+      return
+    }
     const filterKey = filter ? `${filter.column}=${filter.value}` : 'all'; const channelName = `rt:${table}:${filterKey}`
     const trace = startDebugTrace('realtime.subscribe', { table, filter: filter ? { column: filter.column, value: filter.value } : undefined, batchMs })
     const flushInserts = () => { flushTimerRef.current = null; const batch = pendingInsertsRef.current; pendingInsertsRef.current = []; if (!batch.length || !onInsertRef.current) return; debugInfo('supabase','Realtime INSERT batch flushed',{table,channel:channelName,count:batch.length}); if(batch.length===1) onInsertRef.current(batch[0]); else onInsertRef.current(batch) }
@@ -19,7 +26,7 @@ export function useRealtimeTable({ table, onInsert, onUpdate, onDelete, filter, 
     })
     channelRef.current=channel
     channel.subscribe((status,err)=>{if(status==='SUBSCRIBED'){debugSuccess('supabase','Realtime subscription active',{table,channel:channelName,filter});trace.end('Realtime subscription established',{table,channel:channelName})}else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){debugError('supabase','Realtime subscription failed',{table,channel:channelName,status,error:err});trace.fail(err||status,{table,channel:channelName})}else debugInfo('supabase','Realtime subscription status',{table,channel:channelName,status})})
-    return()=>{if(flushTimerRef.current){clearTimeout(flushTimerRef.current);flushTimerRef.current=null;flushInserts()}channelRef.current=null;debugInfo('supabase','Realtime subscription removed',{table,channel:channelName});void supabase.removeChannel(channel)}
+    return()=>{if(flushTimerRef.current){clearTimeout(flushTimerRef.current);flushTimerRef.current=null}pendingInsertsRef.current=[];channelRef.current=null;debugInfo('supabase','Realtime subscription removed',{table,channel:channelName});void supabase.removeChannel(channel)}
   },[table,filter?.column,filter?.value,enabled,batchMs])
 }
 export function useNotifications(userId,onNotification,{batchMs=200}={}){useRealtimeTable({table:'notifications',filter:userId?{column:'user_id',value:userId}:undefined,onInsert:onNotification,enabled:!!userId,batchMs})}

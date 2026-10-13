@@ -94,7 +94,7 @@ function CreateListingModal({ onClose, profile }) {
     } catch { /* Categorisation is a suggestion; never block listing creation. */ }
   }
   const handleCategoryChange = async (e) => {
-    const cat = e.target.value; setForm(f => ({ ...f, category: cat })); if (!cat || !profile?.university) return
+    const cat = e.target.value; setForm(f => ({ ...f, category: cat, subcategory: '' })); if (!cat || !profile?.university) return
     setLoadingPrice(true); const { data } = await supabase.rpc('get_price_suggestion', { p_category: cat, p_university: profile.university }); setSuggestion(data); setLoadingPrice(false)
   }
   const onDrop = useCallback(async (files) => {

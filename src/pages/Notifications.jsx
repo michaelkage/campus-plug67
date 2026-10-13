@@ -1,5 +1,6 @@
 /* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useNotifications } from '@/hooks/useRealtime'
@@ -14,11 +15,15 @@ const TYPE_ICON = {
   credit_topup:         '💳',
   new_message:          '💬',
   badge_earned:         '🏆',
+  purchase_started:     '🛍️',
+  purchase_request:      '🛒',
+  order_processing:     '📦',
 }
 
 export default function Notifications() {
   const { user } = useAuth()
   const qc = useQueryClient()
+  const navigate = useNavigate()
 
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['notifications', user?.id],
@@ -118,7 +123,13 @@ export default function Notifications() {
           {notifications.map(notif => (
             <button
               key={notif.id}
-              onClick={() => markRead(notif.id)}
+              onClick={async () => {
+                await markRead(notif.id)
+                const listingId = notif.data?.listing_id
+                const transactionId = notif.data?.transaction_id
+                if (listingId) navigate(`/listing/${encodeURIComponent(listingId)}`)
+                else if (transactionId) navigate(`/safe-swap?tx=${encodeURIComponent(transactionId)}`)
+              }}
               className={`w-full text-left flex gap-4 p-4 rounded-xl border transition-all hover:border-primary/20 ${
                 notif.read
                   ? 'bg-surface-container-high border-outline-variant opacity-60'

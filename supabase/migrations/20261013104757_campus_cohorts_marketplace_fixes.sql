@@ -175,7 +175,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$fn$;
 DROP TRIGGER IF EXISTS notify_transaction_parties ON public.transactions;
 CREATE TRIGGER notify_transaction_parties
 AFTER INSERT OR UPDATE OF status ON public.transactions

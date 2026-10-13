@@ -162,12 +162,13 @@ export function BookGig({ gig, onClose }) {
     queryKey: ['gig-bookings', gig.id, selectedDate],
     queryFn:  async () => {
       if (!selectedDate) return []
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('gig_bookings')
         .select('slot_time, status')
         .eq('gig_id', gig.id)
         .eq('slot_date', selectedDate)
         .in('status', ['pending', 'confirmed'])
+      if (error) throw error
       return data || []
     },
     enabled: !!selectedDate,
@@ -192,15 +193,7 @@ export function BookGig({ gig, onClose }) {
       })
       if (error) throw error
 
-      // Notify seller
-      await supabase.from('notifications').insert({
-        user_id: gig.seller_id,
-        type:    'new_booking',
-        title:   '📅 New Booking Request!',
-        body:    `${profile.full_name} wants to book "${gig.title}" on ${selectedDate} at ${selectedSlot.time}`,
-        data:    { gig_id: gig.id, client_id: user.id },
-      })
-
+      // A database trigger creates the seller notification atomically with the booking.
       toast.success('Booking request sent! Seller will confirm shortly.')
       qc.invalidateQueries({ queryKey: ['gig-bookings', gig.id] })
       onClose?.()
@@ -212,7 +205,7 @@ export function BookGig({ gig, onClose }) {
   }
 
   // Generate time slots from the selected day's slot config
-  const dayOfWeek  = selectedDate ? DAYS[new Date(selectedDate).getDay()] : null
+  const dayOfWeek  = selectedDate ? DAYS[(new Date(`${selectedDate}T12:00:00`).getDay() + 6) % 7] : null
   const daySlot    = dayOfWeek ? slots.find(s => s.day === dayOfWeek) : null
   const timeSlots  = daySlot ? generateTimeSlots(daySlot.start, daySlot.end) : []
   const occupied   = existingBookings.map(b => b.slot_time)

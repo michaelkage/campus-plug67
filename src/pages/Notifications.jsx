@@ -60,21 +60,74 @@ export default function Notifications() {
   })
 
   const markAllRead = async () => {
-    await supabase
+    const { error } = await supabase
       .from('notifications')
       .update({ read: true })
       .eq('user_id', user.id)
       .eq('read', false)
-    qc.invalidateQueries({ queryKey: ['notifications'] })
-    qc.invalidateQueries({ queryKey: ['unread-notifications', user?.id] })
+    if (error) {
+      toast.error('Could not mark notifications as read. Please try again.')
+      console.error('Mark all notifications read failed:', error)
+      return
+    }
+    qc.setQueryData(['notifications', user?.id], old => old?.map(n => ({ ...n, read: true })))
+    await qc.invalidateQueries({ queryKey: ['unread-notifications', user?.id] })
   }
 
   const markRead = async (id) => {
-    await supabase.from('notifications').update({ read: true }).eq('id', id)
+    const { error } = await supabase.from('notifications')
+      .update({ read: true })
+      .eq('id', id)
+      .eq('user_id', user.id)
+    if (error) {
+      toast.error('Could not mark this notification as read.')
+      console.error('Mark notification read failed:', error)
+      return false
+    }
     qc.setQueryData(['notifications', user?.id], old =>
       old?.map(n => n.id === id ? { ...n, read: true } : n)
     )
-    qc.invalidateQueries({ queryKey: ['unread-notifications', user?.id] })
+    await qc.invalidateQueries({ queryKey: ['unread-notifications', user?.id] })
+    return true
+  }
+
+  const openNotification = async (notif) => {
+    const marked = notif.read || await markRead(notif.id)
+    if (!marked) return
+    const data = notif.data && typeof notif.data === 'object' ? notif.data : {}
+    const internalPath = data.path || data.url || data.route
+    if (typeof internalPath === 'string' && internalPath.startsWith('/') && !internalPath.startsWith('//')) {
+      navigate(internalPath)
+      return
+    }
+    const listingId = data.listing_id || data.item_id
+    const transactionId = data.transaction_id || data.tx_id
+    const otherUserId = data.sender_id || data.other_user_id || data.user_id
+    switch (notif.type) {
+      case 'lostfound_match':
+      case 'lost_found_match':
+        navigate(listingId ? `/lost-found?item=${encodeURIComponent(listingId)}` : '/lost-found')
+        return
+      case 'new_message':
+        navigate(otherUserId ? `/chat?user_id=${encodeURIComponent(otherUserId)}` : '/chat')
+        return
+      case 'transaction_complete':
+      case 'funds_released':
+      case 'payment_locked':
+      case 'purchase_started':
+      case 'purchase_request':
+      case 'order_processing':
+        navigate(transactionId ? `/safe-swap?tx=${encodeURIComponent(transactionId)}` : '/safe-swap')
+        return
+      case 'credit_topup':
+        navigate('/wallet')
+        return
+      case 'badge_earned':
+        navigate('/profile')
+        return
+      default:
+        navigate(listingId ? `/marketplace/${encodeURIComponent(listingId)}` : transactionId ? `/safe-swap?tx=${encodeURIComponent(transactionId)}` : '/notifications')
+    }
   }
 
   const unread = notifications.filter(n => !n.read).length
@@ -123,13 +176,7 @@ export default function Notifications() {
           {notifications.map(notif => (
             <button
               key={notif.id}
-              onClick={async () => {
-                await markRead(notif.id)
-                const listingId = notif.data?.listing_id
-                const transactionId = notif.data?.transaction_id
-                if (listingId) navigate(`/listing/${encodeURIComponent(listingId)}`)
-                else if (transactionId) navigate(`/safe-swap?tx=${encodeURIComponent(transactionId)}`)
-              }}
+              onClick={() => { void openNotification(notif) }}
               className={`w-full text-left flex gap-4 p-4 rounded-xl border transition-all hover:border-primary/20 ${
                 notif.read
                   ? 'bg-surface-container-high border-outline-variant opacity-60'

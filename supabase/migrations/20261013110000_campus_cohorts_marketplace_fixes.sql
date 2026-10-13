@@ -53,7 +53,7 @@ BEGIN
     matric_number = COALESCE(EXCLUDED.matric_number, public.profiles.matric_number);
   RETURN NEW;
 END;
-$;
+$fn$;
 
 
 -- Expanded categories are accepted by the database, not merely displayed in the UI.

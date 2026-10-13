@@ -289,6 +289,7 @@ export type Database = {
           description: string
           price: number
           category: string
+          subcategory?: string | null
           condition: string
           seller_id: string
           status: 'active' | 'sold' | 'removed' | 'pending'
@@ -559,6 +560,8 @@ export type Database = {
           bio?: string | null
           campus_domain: string
           university?: string | null
+          department?: string | null
+          course?: string | null
           balance: number
           plug_score?: number | null
           plug_credit_balance?: number | null

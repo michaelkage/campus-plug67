@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
+import { DEPARTMENTS, PROGRAMMES } from '@/data/academicOptions'
 import { ArrowRight, Eye, EyeOff, Fingerprint, LockKeyhole, Mail, ShieldCheck, Zap } from 'lucide-react'
 
 const UNIVERSITIES = [
@@ -235,11 +236,17 @@ export default function Auth() {
                       </div>
                       <div>
                         <label className="label" htmlFor="department">Department</label>
-                        <input id="department" className="input" type="text" placeholder="e.g. Computer Engineering" value={form.department} onChange={set('department')} required />
+                        <select id="department" className="input" value={form.department} onChange={set('department')} required>
+                          <option value="">Choose your department</option>
+                          {DEPARTMENTS.map(department => <option key={department} value={department}>{department}</option>)}
+                        </select>
                       </div>
                       <div>
                         <label className="label" htmlFor="course">Course / Programme</label>
-                        <input id="course" className="input" type="text" placeholder="e.g. B.Eng Computer Engineering" value={form.course} onChange={set('course')} required />
+                        <select id="course" className="input" value={form.course} onChange={set('course')} required>
+                          <option value="">Choose your course or programme</option>
+                          {PROGRAMMES.map(programme => <option key={programme} value={programme}>{programme}</option>)}
+                        </select>
                       </div>
                       <div>
                         <label className="label" htmlFor="matric-number">Matric number <span className="font-normal text-white/20">(optional)</span></label>

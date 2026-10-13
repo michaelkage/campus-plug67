@@ -29,7 +29,7 @@ export default function Auth() {
   const [showPass, setShowPass] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
-  const [form, setForm] = useState({ email: '', password: '', fullName: '', university: '', matric: '' })
+  const [form, setForm] = useState({ email: '', password: '', fullName: '', university: '', department: '', course: '', matric: '' })
 
   if (isAuthenticated) return <Navigate to="/" replace />
 
@@ -53,6 +53,8 @@ export default function Auth() {
           password: form.password,
           fullName: form.fullName,
           university: form.university,
+          department: form.department,
+          course: form.course,
           matric: form.matric,
         })
       }
@@ -230,6 +232,14 @@ export default function Auth() {
                           <option value="">Select your university</option>
                           {UNIVERSITIES.map(university => <option key={university} value={university}>{university}</option>)}
                         </select>
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="department">Department</label>
+                        <input id="department" className="input" type="text" placeholder="e.g. Computer Engineering" value={form.department} onChange={set('department')} required />
+                      </div>
+                      <div>
+                        <label className="label" htmlFor="course">Course / Programme</label>
+                        <input id="course" className="input" type="text" placeholder="e.g. B.Eng Computer Engineering" value={form.course} onChange={set('course')} required />
                       </div>
                       <div>
                         <label className="label" htmlFor="matric-number">Matric number <span className="font-normal text-white/20">(optional)</span></label>

@@ -159,33 +159,23 @@ BEGIN
   item_title := coalesce(item_title, 'your item');
   IF TG_OP = 'INSERT' THEN
     INSERT INTO public.notifications(user_id,type,title,body,data) VALUES
-      (NEW.seller_id,'item_purchased','Your item has a new order','A buyer has started a purchase for ' || item_title || '.',
+      (NEW.seller_id,'purchase_request','You have a new purchase request','A buyer has started a purchase for ' || item_title || '.',
        jsonb_build_object('transaction_id',NEW.id,'listing_id',NEW.listing_id,'status',NEW.status)),
       (NEW.buyer_id,'purchase_started','Purchase started','Your order for ' || item_title || ' has been created.',
        jsonb_build_object('transaction_id',NEW.id,'listing_id',NEW.listing_id,'status',NEW.status));
     RETURN NEW;
   END IF;
-  IF NEW.status IS DISTINCT FROM OLD.status THEN
-    IF NEW.status = 'locked' THEN
-      INSERT INTO public.notifications(user_id,type,title,body,data) VALUES
-        (NEW.seller_id,'order_processing','Order ready for processing','Payment is confirmed for ' || item_title || '. You can now process the order.',
-         jsonb_build_object('transaction_id',NEW.id,'listing_id',NEW.listing_id,'status',NEW.status)),
-        (NEW.buyer_id,'order_processing','Your order is being processed','Payment is confirmed. Your order for ' || item_title || ' is now being processed.',
-         jsonb_build_object('transaction_id',NEW.id,'listing_id',NEW.listing_id,'status',NEW.status));
-    ELSIF NEW.status IN ('released','cancelled','disputed') THEN
-      INSERT INTO public.notifications(user_id,type,title,body,data) VALUES
-        (NEW.buyer_id,'order_status','Order status updated','Your order for ' || item_title || ' is now ' || NEW.status || '.',
-         jsonb_build_object('transaction_id',NEW.id,'listing_id',NEW.listing_id,'status',NEW.status)),
-        (NEW.seller_id,'order_status','Order status updated','The order for ' || item_title || ' is now ' || NEW.status || '.',
-         jsonb_build_object('transaction_id',NEW.id,'listing_id',NEW.listing_id,'status',NEW.status));
-    END IF;
+  -- The existing transaction trigger already alerts the seller on escrow lock
+  -- and both parties on release. Only add the buyer-facing processing notice here.
+  IF NEW.status IS DISTINCT FROM OLD.status AND NEW.status = 'locked' THEN
+    INSERT INTO public.notifications(user_id,type,title,body,data)
+    VALUES (NEW.buyer_id,'order_processing','Your order is being processed',
+      'Payment is confirmed. Your order for ' || item_title || ' is now being processed.',
+      jsonb_build_object('transaction_id',NEW.id,'listing_id',NEW.listing_id,'status',NEW.status));
   END IF;
   RETURN NEW;
 END;
 $$;
-DROP TRIGGER IF EXISTS notify_transaction_parties ON public.transactions;
-CREATE TRIGGER notify_transaction_parties AFTER INSERT OR UPDATE OF status ON public.transactions
-FOR EACH ROW EXECUTE FUNCTION public.notify_transaction_parties();
 REVOKE ALL ON FUNCTION public.notify_transaction_parties() FROM PUBLIC, anon, authenticated;
 
 -- Enrol existing profiles with academic data using the same idempotent trigger.

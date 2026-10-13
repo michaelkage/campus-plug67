@@ -151,8 +151,15 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   const subscriptionRef = useRef<any>(null)
 
   useEffect(() => {
-    fetchMessages(); fetchOtherUser(); setupRealtimeSubscription(); markMessagesAsRead()
-    return () => { if (subscriptionRef.current) supabase.removeChannel(subscriptionRef.current) }
+    setupRealtimeSubscription()
+    void (async () => {
+      await fetchOtherUser()
+      // Persist read receipts before loading the conversation so a stale
+      // initial fetch cannot repaint already-read messages as unread.
+      await markMessagesAsRead()
+      await fetchMessages()
+    })()
+    return () => { if (subscriptionRef.current) void supabase.removeChannel(subscriptionRef.current) }
   }, [currentUserId, otherUserId, transactionId])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
@@ -176,14 +183,34 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
       if (!relevant) return
       if (payload.eventType === 'INSERT') {
         setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), { ...newMsg, isOptimistic: false, scanStatus: 'safe' as const }])
-        if (newMsg.sender_id === otherUserId) supabase.from('messages').update({ read: true }).eq('id', newMsg.id).then()
+        if (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId) {
+          void supabase.from('messages').update({ read: true }).eq('id', newMsg.id).eq('receiver_id', currentUserId)
+            .then(({ error }) => {
+              if (error) console.error('Failed to persist incoming message read receipt:', error)
+              else setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, read: true } : m))
+            })
+        }
       } else if (payload.eventType === 'UPDATE') setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...newMsg, isOptimistic: false, scanStatus: 'safe' } : m))
     }).subscribe()
     subscriptionRef.current = subscription
   }
   const markMessagesAsRead = async () => {
-    try { await supabase.from('messages').update({ read: true }).eq('sender_id', otherUserId).eq('receiver_id', currentUserId).eq('read', false) }
-    catch (err) { console.error('Error marking messages as read:', err) }
+    const { error } = await supabase.from('messages')
+      .update({ read: true })
+      .eq('sender_id', otherUserId)
+      .eq('receiver_id', currentUserId)
+      .eq('read', false)
+    if (error) {
+      console.error('Error persisting incoming messages as read:', error)
+      return false
+    }
+    setMessages(prev => prev.map(message =>
+      message.sender_id === otherUserId && message.receiver_id === currentUserId
+        ? { ...message, read: true }
+        : message
+    ))
+    await qc.invalidateQueries({ queryKey: ['unread-messages', currentUserId] })
+    return true
   }
   const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => { const val = e.target.value; setInput(val); setWarnDismissed(false); setScanResult(val.trim().length > 3 ? scanLive(val) : null) }, [])
   const handleSendMessage = async () => {

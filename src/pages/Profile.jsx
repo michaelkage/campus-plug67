@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { QRCodeSVG } from 'qrcode.react'
 import { supabase, formatNaira } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { DEPARTMENTS, PROGRAMMES } from '@/data/academicOptions'
 import { listPasskeys, removePasskey } from '@/lib/passkeys'
 import toast from 'react-hot-toast'
 import { Edit2, Shield, Download, CreditCard, Package, TrendingUp, Star, Loader, Fingerprint, Trash2, Plus } from 'lucide-react'
@@ -353,10 +354,18 @@ export default function Profile() {
               <input className="input" placeholder="Full name" value={form.full_name || ''}
                 onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input className="input" placeholder="Department" value={form.department || ''}
-                  onChange={e => setForm(f => ({ ...f, department: e.target.value }))} />
-                <input className="input" placeholder="Course / Programme" value={form.course || ''}
-                  onChange={e => setForm(f => ({ ...f, course: e.target.value }))} />
+                <select aria-label="Department" className="input" value={form.department || ''}
+                  onChange={e => setForm(f => ({ ...f, department: e.target.value }))}>
+                  <option value="">Select department</option>
+                  {form.department && !DEPARTMENTS.includes(form.department) && <option value={form.department}>{form.department} (current)</option>}
+                  {DEPARTMENTS.map(department => <option key={department} value={department}>{department}</option>)}
+                </select>
+                <select aria-label="Course / Programme" className="input" value={form.course || ''}
+                  onChange={e => setForm(f => ({ ...f, course: e.target.value }))}>
+                  <option value="">Select course or programme</option>
+                  {form.course && !PROGRAMMES.includes(form.course) && <option value={form.course}>{form.course} (current)</option>}
+                  {PROGRAMMES.map(programme => <option key={programme} value={programme}>{programme}</option>)}
+                </select>
                 <select className="input" value={form.level || ''} onChange={e => setForm(f => ({ ...f, level: e.target.value }))}>
                   <option value="">Level</option>
                   {['100','200','300','400','500','PG','Staff'].map(l => <option key={l} value={l}>{l}</option>)}

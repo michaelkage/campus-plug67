@@ -178,5 +178,38 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.notify_transaction_parties() FROM PUBLIC, anon, authenticated;
 
--- Enrol existing profiles with academic data using the same idempotent trigger.
-UPDATE public.profiles SET course = course WHERE university IS NOT NULL AND department IS NOT NULL;
+-- Backfill existing academic profiles without UPDATEing protected profile rows.
+-- Profile mutation guards intentionally reject no-op updates; membership inserts are safe and idempotent.
+INSERT INTO public.group_chats(name, description, university, course_code, creator_id, is_archived)
+SELECT DISTINCT p.university || ' · ' || btrim(p.department) || ' Department',
+       'General department group for ' || btrim(p.department),
+       p.university, NULL, p.id, false
+FROM public.profiles p
+WHERE NULLIF(btrim(p.university),'') IS NOT NULL AND NULLIF(btrim(p.department),'') IS NOT NULL
+ON CONFLICT (university, lower(name)) WHERE course_code IS NULL AND is_archived = false DO NOTHING;
+
+INSERT INTO public.group_chat_members(group_id, user_id, role)
+SELECT g.id, p.id, 'member'
+FROM public.profiles p
+JOIN public.group_chats g ON g.university = p.university
+ AND lower(g.name) = lower(p.university || ' · ' || btrim(p.department) || ' Department')
+ AND g.course_code IS NULL AND g.is_archived = false
+WHERE NULLIF(btrim(p.university),'') IS NOT NULL AND NULLIF(btrim(p.department),'') IS NOT NULL
+ON CONFLICT (group_id, user_id) DO NOTHING;
+
+INSERT INTO public.group_chats(name, description, university, course_code, creator_id, is_archived)
+SELECT DISTINCT p.university || ' · ' || btrim(p.course),
+       'Course group for ' || btrim(p.course),
+       p.university, btrim(p.course), p.id, false
+FROM public.profiles p
+WHERE NULLIF(btrim(p.university),'') IS NOT NULL AND NULLIF(btrim(p.course),'') IS NOT NULL
+ON CONFLICT (university, lower(name)) WHERE course_code IS NOT NULL AND is_archived = false DO NOTHING;
+
+INSERT INTO public.group_chat_members(group_id, user_id, role)
+SELECT g.id, p.id, 'member'
+FROM public.profiles p
+JOIN public.group_chats g ON g.university = p.university
+ AND lower(g.name) = lower(p.university || ' · ' || btrim(p.course))
+ AND lower(g.course_code) = lower(btrim(p.course)) AND g.is_archived = false
+WHERE NULLIF(btrim(p.university),'') IS NOT NULL AND NULLIF(btrim(p.course),'') IS NOT NULL
+ON CONFLICT (group_id, user_id) DO NOTHING;

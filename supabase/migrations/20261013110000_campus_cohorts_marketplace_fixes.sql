@@ -175,7 +175,11 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$;
+DROP TRIGGER IF EXISTS notify_transaction_parties ON public.transactions;
+CREATE TRIGGER notify_transaction_parties
+AFTER INSERT OR UPDATE OF status ON public.transactions
+FOR EACH ROW EXECUTE FUNCTION public.notify_transaction_parties();
 REVOKE ALL ON FUNCTION public.notify_transaction_parties() FROM PUBLIC, anon, authenticated;
 
 -- Backfill existing academic profiles without UPDATEing protected profile rows.

@@ -25,6 +25,37 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS course text;
 CREATE INDEX IF NOT EXISTS profiles_university_department_idx ON public.profiles (university, department);
 CREATE INDEX IF NOT EXISTS profiles_university_course_idx ON public.profiles (university, course);
 
+-- Keep the Auth trigger authoritative: email-confirmation signups must not depend
+-- on a client-side profile UPDATE (which has no authenticated session yet).
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+BEGIN
+  INSERT INTO public.profiles
+    (id, email, full_name, university, department, course, matric_number, is_verified)
+  VALUES
+    (NEW.id,
+     NEW.email,
+     COALESCE(NULLIF(btrim(NEW.raw_user_meta_data->>'full_name'), ''), split_part(NEW.email, '@', 1)),
+     NULLIF(btrim(NEW.raw_user_meta_data->>'university'), ''),
+     NULLIF(btrim(NEW.raw_user_meta_data->>'department'), ''),
+     NULLIF(btrim(NEW.raw_user_meta_data->>'course'), ''),
+     NULLIF(btrim(NEW.raw_user_meta_data->>'matric'), ''),
+     false)
+  ON CONFLICT (id) DO UPDATE SET
+    full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name),
+    university = COALESCE(EXCLUDED.university, public.profiles.university),
+    department = COALESCE(EXCLUDED.department, public.profiles.department),
+    course = COALESCE(EXCLUDED.course, public.profiles.course),
+    matric_number = COALESCE(EXCLUDED.matric_number, public.profiles.matric_number);
+  RETURN NEW;
+END;
+$;
+
+
 -- Expanded categories are accepted by the database, not merely displayed in the UI.
 ALTER TABLE public.listings ADD COLUMN IF NOT EXISTS subcategory text;
 ALTER TABLE public.listings DROP CONSTRAINT IF EXISTS listings_category_check;

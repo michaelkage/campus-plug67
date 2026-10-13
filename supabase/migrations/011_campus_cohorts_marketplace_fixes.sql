@@ -22,6 +22,7 @@ create policy "Sellers delete own gigs" on public.gigs
 
 -- Academic course is separate from department. Existing profiles remain valid.
 alter table public.profiles add column if not exists course text;
+alter table public.listings add column if not exists subcategory text;
 create index if not exists profiles_university_department_idx
   on public.profiles (university, department);
 create index if not exists profiles_university_course_idx
@@ -120,3 +121,63 @@ for each row execute function public.sync_student_cohort_groups();
 -- Existing profiles are backfilled through the same idempotent trigger.
 update public.profiles set department = department where department is not null;
 
+
+-- This function is trigger-only; do not expose its elevated execution to API roles.
+revoke all on function public.sync_student_cohort_groups() from public, anon, authenticated;
+
+-- Purchase and processing notifications are generated from trusted transaction state,
+-- never from browser-supplied notification payloads.
+create or replace function public.notify_transaction_parties()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  item_title text;
+begin
+  select title into item_title from public.listings where id = new.listing_id;
+  item_title := coalesce(item_title, 'your item');
+
+  if tg_op = 'INSERT' then
+    insert into public.notifications(user_id, type, title, body, data)
+    values
+      (new.seller_id, 'item_purchased', 'Your item has a new order',
+       'A buyer has started a purchase for ' || item_title || '.',
+       jsonb_build_object('transaction_id', new.id, 'listing_id', new.listing_id, 'status', new.status)),
+      (new.buyer_id, 'purchase_started', 'Purchase started',
+       'Your order for ' || item_title || ' has been created.',
+       jsonb_build_object('transaction_id', new.id, 'listing_id', new.listing_id, 'status', new.status));
+    return new;
+  end if;
+
+  if new.status is distinct from old.status then
+    if new.status = 'locked' then
+      insert into public.notifications(user_id, type, title, body, data)
+      values
+        (new.seller_id, 'order_processing', 'Order ready for processing',
+         'Payment is confirmed for ' || item_title || '. You can now process the order.',
+         jsonb_build_object('transaction_id', new.id, 'listing_id', new.listing_id, 'status', new.status)),
+        (new.buyer_id, 'order_processing', 'Your order is being processed',
+         'Payment is confirmed. Your order for ' || item_title || ' is now being processed.',
+         jsonb_build_object('transaction_id', new.id, 'listing_id', new.listing_id, 'status', new.status));
+    elsif new.status in ('released', 'cancelled', 'disputed') then
+      insert into public.notifications(user_id, type, title, body, data)
+      values
+        (new.buyer_id, 'order_status', 'Order status updated',
+         'Your order for ' || item_title || ' is now ' || new.status || '.',
+         jsonb_build_object('transaction_id', new.id, 'listing_id', new.listing_id, 'status', new.status)),
+        (new.seller_id, 'order_status', 'Order status updated',
+         'The order for ' || item_title || ' is now ' || new.status || '.',
+         jsonb_build_object('transaction_id', new.id, 'listing_id', new.listing_id, 'status', new.status));
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists notify_transaction_parties on public.transactions;
+create trigger notify_transaction_parties
+after insert or update of status on public.transactions
+for each row execute function public.notify_transaction_parties();
+revoke all on function public.notify_transaction_parties() from public, anon, authenticated;

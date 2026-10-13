@@ -11,16 +11,27 @@ import toast from 'react-hot-toast'
 import { Plus, X, Upload, TrendingUp, Search, AlertTriangle, Shield, Zap, Home } from 'lucide-react'
 
 const CATEGORY_GROUPS = [
-  { label: 'Study & Academics', items: ['Textbooks', 'Lab Equipment', 'Stationery & Supplies', 'Course Materials', 'Study Tools & Calculators'] },
-  { label: 'Electronics & Tech', items: ['Electronics', 'Gadgets', 'Phone Accessories', 'Gaming & Consoles'] },
-  { label: 'Music & Instruments', items: ['Musical Instruments'] },
-  { label: 'Sports & Outdoors', items: ['Sports & Fitness', 'Bicycles & Transport'] },
-  { label: 'Fashion & Lifestyle', items: ['Clothing', 'Home & Decor'] },
-  { label: 'Room & Living', items: ['Hostels', 'Furniture', 'Kitchen & Appliances'] },
-  { label: 'Art & Creative', items: ['Art & Craft Supplies'] },
-  { label: 'Other', items: ['Other'] },
+  { label: 'Study & Academics', items: ['Textbooks', 'Lab Equipment', 'Stationery & Supplies', 'Course Materials', 'Study Tools & Calculators', 'Past Questions & Exam Prep', 'Engineering Tools'] },
+  { label: 'Electronics & Tech', items: ['Electronics', 'Gadgets', 'Phone Accessories', 'Gaming & Consoles', 'Audio & Speakers', 'Charging & Power', 'Headphones & Earbuds', 'Computer Accessories', 'Phones & Wearables', 'Networking & Smart Home'] },
+  { label: 'Music & Instruments', items: ['Musical Instruments', 'Music Accessories'] },
+  { label: 'Sports & Outdoors', items: ['Sports & Fitness', 'Bicycles & Transport', 'Outdoor Gear'] },
+  { label: 'Fashion & Lifestyle', items: ['Clothing', 'Shoes & Sneakers', 'Bags & Accessories', 'Jewellery & Watches', 'Beauty & Personal Care'] },
+  { label: 'Room & Living', items: ['Hostels', 'Furniture', 'Kitchen & Appliances', 'Bedding', 'Cleaning Supplies'] },
+  { label: 'Art & Creative', items: ['Art & Craft Supplies', 'Photography & Video'] },
+  { label: 'Food & Groceries', items: ['Snacks & Drinks', 'Groceries'] },
+  { label: 'Services & Other', items: ['Tickets & Events', 'Other'] },
 ]
 const CATEGORIES = CATEGORY_GROUPS.flatMap(g => g.items)
+const SUBCATEGORIES = {
+  Electronics: ['Audio & Speakers', 'Charging & Power', 'Headphones & Earbuds', 'Computer Accessories', 'Phones & Wearables', 'Networking & Smart Home'],
+  Gadgets: ['Audio & Speakers', 'Charging & Power', 'Headphones & Earbuds', 'Smart Home', 'Wearables'],
+  'Phone Accessories': ['Cases & Covers', 'Chargers & Cables', 'Screen Protectors', 'Power Banks'],
+  'Gaming & Consoles': ['Consoles', 'Controllers', 'Games', 'Gaming Accessories'],
+  Textbooks: ['Course Textbooks', 'Course Materials', 'Past Questions & Exam Prep'],
+  'Course Materials': ['Lecture Notes', 'Past Questions & Exam Prep', 'Project Materials'],
+  Clothing: ['Shirts & Tops', 'Trousers & Jeans', 'Traditional Wear'],
+  'Home & Decor': ['Furniture', 'Kitchen & Appliances', 'Bedding', 'Cleaning Supplies'],
+}
 const UNILAG_HOSTELS = ['Akoka', 'Jaja Hall', 'Mariere Hall', 'Moremi Hall', 'Kuti Hall', 'Fagunwa Hall', 'Madam Tinubu Hall', 'Honours Hall', 'Eni-Njoku Hall', 'New Hall']
 
 function PriceFloorWarning({ floorData, onUseToken, onAdjust, using }) {
@@ -47,7 +58,7 @@ function ExifStatus({ status }) {
 
 function CreateListingModal({ onClose, profile }) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({ title: '', description: '', category: '', price: '', hostel: '' })
+  const [form, setForm] = useState({ title: '', description: '', category: '', subcategory: '', price: '', hostel: '' })
   const [images, setImages] = useState([])
   const [suggestion, setSuggestion] = useState(null)
   const [floorData, setFloorData] = useState(null)
@@ -68,8 +79,22 @@ function CreateListingModal({ onClose, profile }) {
   }
   const handleUseToken = async () => { if (!floorData?.available_token_id) return; setUsingToken(true); setTokenOverride(floorData.available_token_id); setFloorData(null); toast.success('🎟️ Emergency token applied!'); setUsingToken(false) }
   const handleAdjustPrice = () => { if (!floorData?.floor_price) return; setForm(f => ({ ...f, price: (floorData.floor_price / 100).toFixed(0) })); setFloorData(null); setTokenOverride(null) }
+  const handleTitleChange = async (e) => {
+    const title = e.target.value
+    setForm(f => ({ ...f, title }))
+    if (title.trim().length < 3) return
+    try {
+      const { data, error } = await supabase.rpc('campus_plug_suggest_category', { p_title: title })
+      if (error) return
+      const match = Array.isArray(data) ? data[0] : data
+      if (match?.category && match.category !== 'Other') {
+        const category = match.category === 'Electronics & Tech' ? 'Electronics' : match.category
+        setForm(f => ({ ...f, title, category: CATEGORIES.includes(category) ? category : f.category, subcategory: match.subcategory || f.subcategory }))
+      }
+    } catch { /* Categorisation is a suggestion; never block listing creation. */ }
+  }
   const handleCategoryChange = async (e) => {
-    const cat = e.target.value; setForm(f => ({ ...f, category: cat })); if (!cat || !profile?.university) return
+    const cat = e.target.value; setForm(f => ({ ...f, category: cat, subcategory: '' })); if (!cat || !profile?.university) return
     setLoadingPrice(true); const { data } = await supabase.rpc('get_price_suggestion', { p_category: cat, p_university: profile.university }); setSuggestion(data); setLoadingPrice(false)
   }
   const onDrop = useCallback(async (files) => {
@@ -97,7 +122,7 @@ function CreateListingModal({ onClose, profile }) {
     try {
       const uploadedUrls = await Promise.all(images.map(({ file }) => uploadImage(file, 'listings')))
       const { data: listing, error } = await supabase.from('listings').insert({
-        seller_id: profile.id, title: form.title, description: form.description, category: form.category,
+        seller_id: profile.id, title: form.title, description: form.description, category: form.category, subcategory: form.subcategory || null,
         price: toKobo(form.price), images: uploadedUrls, university: profile.university, hostel: form.hostel || null,
         floor_override: !!tokenOverride, emergency_token_id: tokenOverride || null,
       }).select().single()
@@ -150,11 +175,12 @@ function CreateListingModal({ onClose, profile }) {
       <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} className="relative z-10 w-full max-w-xl bg-surface-container-high border border-outline-variant rounded-2xl max-h-[92vh] overflow-y-auto">
         <div className="sticky top-0 bg-surface-container-high border-b border-outline-variant px-6 py-4 flex items-center justify-between"><h2 className="font-bold text-lg">List an Item</h2><button type="button" onClick={onClose} aria-label="Close listing form" className="icon-button h-10 w-10" title="Close"><X size={18} /></button></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <div><label className="label">Title</label><input aria-label="Title" className="input" placeholder="e.g. Stryer's Biochemistry 8th Edition" value={form.title} onChange={set('title')} required maxLength={100} /></div>
+          <div><label className="label">Title</label><input aria-label="Title" className="input" placeholder="e.g. Stryer's Biochemistry 8th Edition" value={form.title} onChange={handleTitleChange} required maxLength={100} /></div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="label">Category</label><select aria-label="Category" className="input" value={form.category} onChange={handleCategoryChange} required><option value="">Select category</option>{CATEGORY_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.items.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>)}</select></div>
             <div><label className="label">Price (₦)</label><input aria-label="Price (₦)" className="input" type="number" placeholder="0.00" min="1" value={form.price} onChange={handlePriceChange} required /></div>
           </div>
+          <div><label className="label">Subcategory <span className="text-white/30">(optional)</span></label><select aria-label="Subcategory" className="input" value={form.subcategory} onChange={set('subcategory')}><option value="">Select subcategory</option>{(SUBCATEGORIES[form.category] || []).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
           <div><label className="label">Hostel / Area</label><select aria-label="Hostel / Area" className="input" value={form.hostel} onChange={set('hostel')}><option value="">Select where the item is</option>{UNILAG_HOSTELS.map(h => <option key={h} value={h}>{h}</option>)}</select><p className="text-[10px] text-white/30 mt-1">Helps nearby students choose low-effort swaps.</p></div>
           <AnimatePresence>{floorData && !tokenOverride && <PriceFloorWarning floorData={floorData} onUseToken={handleUseToken} onAdjust={handleAdjustPrice} using={usingToken} />}</AnimatePresence>
           {tokenOverride && <div className="flex items-center gap-2 text-xs text-tertiary"><Zap size={12} />Emergency token applied — below-floor price allowed</div>}

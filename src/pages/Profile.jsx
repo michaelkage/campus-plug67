@@ -340,7 +340,7 @@ export default function Profile() {
                   className={`btn-ghost flex items-center gap-1.5 text-xs ${showPasskeys ? 'text-primary border-primary/30 bg-[var(--md-primary)]/5' : ''}`}>
                   <Fingerprint size={13} /> Passkeys
                 </button>
-                <button onClick={() => { setForm({ full_name: profile.full_name, bio: profile.bio, department: profile.department, level: profile.level }); setEditMode(v => !v) }}
+                <button onClick={() => { setForm({ full_name: profile.full_name, bio: profile.bio, department: profile.department, course: profile.course, level: profile.level }); setEditMode(v => !v) }}
                   className="btn-ghost flex items-center gap-1.5 text-xs">
                   <Edit2 size={13} /> Edit
                 </button>
@@ -352,9 +352,11 @@ export default function Profile() {
             <div className="space-y-3">
               <input className="input" placeholder="Full name" value={form.full_name || ''}
                 onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input className="input" placeholder="Department" value={form.department || ''}
                   onChange={e => setForm(f => ({ ...f, department: e.target.value }))} />
+                <input className="input" placeholder="Course / Programme" value={form.course || ''}
+                  onChange={e => setForm(f => ({ ...f, course: e.target.value }))} />
                 <select className="input" value={form.level || ''} onChange={e => setForm(f => ({ ...f, level: e.target.value }))}>
                   <option value="">Level</option>
                   {['100','200','300','400','500','PG','Staff'].map(l => <option key={l} value={l}>{l}</option>)}

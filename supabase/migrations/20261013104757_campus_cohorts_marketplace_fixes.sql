@@ -151,7 +151,7 @@ REVOKE ALL ON FUNCTION public.sync_student_cohort_groups() FROM PUBLIC, anon, au
 
 -- Database-owned notifications for new transactions and material order-state transitions.
 CREATE OR REPLACE FUNCTION public.notify_transaction_parties()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $fn$
 DECLARE
   item_title text;
 BEGIN

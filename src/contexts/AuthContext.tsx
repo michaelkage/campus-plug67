@@ -7,9 +7,9 @@ import { registerPasskey, authenticateWithPasskey, browserSupportsWebAuthn } fro
 import type { Database } from '@/types/database'
 import toast from 'react-hot-toast'
 
-type Profile = Database['public']['Tables']['profiles']['Row'] & { magistrate_at?:string|null;juror_streak?:number|null;free_listing_tokens?:number|null;referral_code?:string|null;badges?:string[]|null;department?:string|null;level?:string|null }
+type Profile = Database['public']['Tables']['profiles']['Row'] & { magistrate_at?:string|null;juror_streak?:number|null;free_listing_tokens?:number|null;referral_code?:string|null;badges?:string[]|null;department?:string|null;course?:string|null;level?:string|null }
 type AuthResult={data?:unknown;error?:unknown;success?:boolean}
-type AuthContextValue={session:Session|null;profile:Profile|null;user:User|null;loading:boolean;deviceHash:string|null;isAuthenticated:boolean;passkeySupported:boolean;signUp:(args:{email:string;password:string;fullName:string;university?:string;matric?:string})=>Promise<AuthResult>;signIn:(args:{email:string;password:string})=>Promise<AuthResult>;signInWithPasskey:(email:string)=>Promise<AuthResult>;addPasskey:(deviceLabel:string)=>Promise<AuthResult>;signOut:()=>Promise<void>;updateProfile:(updates:Partial<Profile>)=>Promise<AuthResult|undefined>;refreshProfile:()=>Promise<Profile|null|undefined>}
+type AuthContextValue={session:Session|null;profile:Profile|null;user:User|null;loading:boolean;deviceHash:string|null;isAuthenticated:boolean;passkeySupported:boolean;signUp:(args:{email:string;password:string;fullName:string;university?:string;department?:string;course?:string;matric?:string})=>Promise<AuthResult>;signIn:(args:{email:string;password:string})=>Promise<AuthResult>;signInWithPasskey:(email:string)=>Promise<AuthResult>;addPasskey:(deviceLabel:string)=>Promise<AuthResult>;signOut:()=>Promise<void>;updateProfile:(updates:Partial<Profile>)=>Promise<AuthResult|undefined>;refreshProfile:()=>Promise<Profile|null|undefined>}
 const AuthContext=createContext<AuthContextValue|null>(null)
 function errorMessage(error:unknown,fallback:string){return error instanceof Error?error.message:fallback}
 export function AuthProvider({children}:{children:ReactNode}){

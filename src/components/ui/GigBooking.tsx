@@ -148,7 +148,7 @@ export function BookingSlotEditor({ slots, onChange }) {
  * Shows available slots, lets buyer pick a date/time, and creates booking.
  */
 export function BookGig({ gig, onClose }) {
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const qc = useQueryClient()
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [selectedDate, setSelectedDate] = useState('')
@@ -175,8 +175,20 @@ export function BookGig({ gig, onClose }) {
   })
 
   const handleBook = async () => {
+    if (!user?.id) {
+      toast.error('Sign in before booking a service')
+      return
+    }
+    if (user.id === gig.seller_id) {
+      toast.error('You cannot book your own service')
+      return
+    }
     if (!selectedSlot || !selectedDate) {
       toast.error('Select a date and time slot')
+      return
+    }
+    if (new Date(`${selectedDate}T00:00:00`) < new Date(new Date().toDateString())) {
+      toast.error('Choose today or a future date')
       return
     }
     setBooking(true)

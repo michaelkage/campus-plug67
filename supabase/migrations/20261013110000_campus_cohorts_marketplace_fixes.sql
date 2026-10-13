@@ -32,7 +32,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $
+AS $fn$
 BEGIN
   INSERT INTO public.profiles
     (id, email, full_name, university, department, course, matric_number, is_verified)

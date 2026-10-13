@@ -4,7 +4,7 @@ import { supabase, formatNaira, toKobo } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRealtimeTable } from '@/hooks/useRealtime'
 import toast from 'react-hot-toast'
-import { Plus, X, Zap, GraduationCap, CalendarDays } from 'lucide-react'
+import { Plus, X, Zap, GraduationCap, CalendarDays, CheckCircle, XCircle, ClipboardList } from 'lucide-react'
 
 const GIG_CATEGORIES = ['Tech Repair', 'Tutoring', 'Design', 'Hair & Beauty', 'Food', 'Laundry', 'Errand', 'Writing', 'Other']
 const ACADEMIC_GIGS = ['GST 101/102 Summary Notes', 'Engineering Drawing Board Rental', 'Lab Coat & Safety Goggles', 'Departmental Printing / Binding', 'Past Questions & Revision Packs']
@@ -21,10 +21,37 @@ function GigCard({ gig, onBook }) {
 
 export function Gigs() {
   const { user, profile } = useAuth(); const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false); const [bookingGig, setBookingGig] = useState(null); const [booking, setBooking] = useState({ date:'', time:'', notes:'' }); const [bookingSubmitting, setBookingSubmitting] = useState(false); const [form, setForm] = useState({ title: '', description: '', category: '', starting_price: '' }); const [filter, setFilter] = useState(''); const [submitting, setSubmitting] = useState(false)
+  const [showCreate, setShowCreate] = useState(false); const [bookingGig, setBookingGig] = useState(null); const [booking, setBooking] = useState({ date:'', time:'', notes:'' }); const [bookingSubmitting, setBookingSubmitting] = useState(false); const [bookingActionId, setBookingActionId] = useState(null); const [form, setForm] = useState({ title: '', description: '', category: '', starting_price: '' }); const [filter, setFilter] = useState(''); const [submitting, setSubmitting] = useState(false)
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const { data: gigs = [], isLoading } = useQuery({ queryKey: ['gigs', filter, profile?.university], enabled: Boolean(profile?.university), queryFn: async () => { let q = supabase.from('gigs').select('*, profiles(full_name, university)').eq('active', true).eq('university', profile?.university).order('created_at', { ascending: false }); if (filter) q = q.eq('category', filter); const { data, error } = await q; if (error) throw error; return data || [] } })
   useRealtimeTable({ table: 'gigs', onInsert: g => { if (g.university === profile?.university) qc.setQueryData(['gigs', filter, profile?.university], old => [g, ...(old || [])]) } })
+  const { data: myBookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ['gig-bookings', profile?.id],
+    enabled: Boolean(profile?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('gig_bookings')
+        .select('*, gigs(title)')
+        .or(`client_id.eq.${profile.id},seller_id.eq.${profile.id}`)
+        .order('created_at', { ascending: false })
+        .limit(30)
+      if (error) throw error
+      return data || []
+    },
+  })
+  const updateBooking = async (bookingRow, status) => {
+    setBookingActionId(bookingRow.id)
+    try {
+      const { error } = await supabase.from('gig_bookings').update({ status }).eq('id', bookingRow.id)
+      if (error) throw error
+      toast.success(status === 'confirmed' ? 'Booking confirmed' : status === 'completed' ? 'Booking marked complete' : 'Booking cancelled')
+      await qc.invalidateQueries({ queryKey: ['gig-bookings'] })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update booking')
+    } finally {
+      setBookingActionId(null)
+    }
+  }
   const handleSubmit = async e => { e.preventDefault(); setSubmitting(true); try { const { error } = await supabase.from('gigs').insert({ seller_id: profile.id, title: form.title, description: form.description, category: form.category, starting_price: toKobo(form.starting_price), university: profile.university, active: true }); if (error) throw error; await supabase.from('activity_feed').insert({ actor_name: profile.full_name, actor_id: profile.id, action: 'listed a new gig', subject: form.title, emoji: '⚡', university: profile.university }); toast.success('Gig listed! 🎉'); qc.invalidateQueries({ queryKey: ['gigs'] }); setShowCreate(false) } catch (err) { toast.error(err.message) } finally { setSubmitting(false) } }
   const book = async () => {
     if (!user?.id || !profile?.id) return toast.error('Sign in and complete your profile before booking')
@@ -59,6 +86,23 @@ export function Gigs() {
     <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="section-label">Gig Economy</p><h1 className="text-2xl font-black tracking-tight">Student Services</h1><div className="mt-1 flex items-center gap-2"><Zap size={12} className="text-[var(--md-primary)]" /><span className="text-xs font-semibold text-[var(--md-primary)]">Zero commission for student sellers. Always.</span></div></div><button onClick={() => setShowCreate(true)} className="btn-primary self-start"><Plus size={16} /> List a Service</button></div>
     <div className="mb-5 rounded-3xl border border-[var(--md-secondary)]/20 bg-tertiary/5 p-4"><div className="mb-3 flex items-center gap-2"><GraduationCap size={15} className="text-[var(--md-secondary)]" /><span className="text-xs font-black uppercase tracking-widest text-[var(--md-secondary)]">Academic Emergency Plug</span></div><div className="flex flex-wrap gap-2">{ACADEMIC_GIGS.map(c => <button key={c} onClick={() => setFilter(filter === c ? '' : c)} className={`min-h-10 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${filter === c ? 'border-tertiary bg-tertiary text-white' : 'border-[var(--md-outline-variant)] bg-white/[0.03] text-white/60 hover:border-tertiary/40 hover:text-white'}`}>{c}</button>)}</div></div>
     <div className="mb-6 flex flex-wrap gap-2">{['', ...GIG_CATEGORIES].map(c => <button key={c || 'all'} onClick={() => setFilter(c)} className={`min-h-10 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${filter === c ? 'border-tertiary bg-tertiary text-white' : 'border-[var(--md-outline-variant)] bg-white/[0.03] text-white/50 hover:border-tertiary/30 hover:text-white/80'}`}>{c || 'All Services'}</button>)}</div>
+    {profile?.id && <section className="surface mb-6 p-5">
+      <div className="mb-4 flex items-center gap-2"><ClipboardList size={17} className="text-[var(--md-primary)]"/><h2 className="font-bold">My Service Bookings</h2><span className="ml-auto text-xs text-white/40">{myBookings.length}</span></div>
+      {bookingsLoading ? <p className="text-sm text-white/40">Loading bookings…</p> : myBookings.length === 0 ? <p className="text-sm text-white/45">Your booking requests and service appointments will appear here.</p> : <div className="space-y-3">{myBookings.map(b => {
+        const isSeller = b.seller_id === profile.id
+        const statusLabel = ({pending:'Awaiting confirmation',confirmed:'Confirmed',completed:'Completed',cancelled:'Cancelled'})[b.status] || b.status
+        return <div key={b.id} className="rounded-xl border border-[var(--md-outline-variant)] p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1"><p className="font-semibold">{b.gigs?.title || 'Student service'}</p><p className="mt-1 text-xs text-white/45">{isSeller ? 'Customer booking' : 'Your booking'} · {b.slot_date} at {b.slot_time}</p><p className="mt-1 text-xs text-white/60">Status: <span className="font-semibold">{statusLabel}</span></p>{b.notes && <p className="mt-2 text-sm text-white/50">{b.notes}</p>}</div>
+            <div className="flex flex-wrap gap-2">
+              {isSeller && b.status === 'pending' && <button className="btn-primary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'confirmed')}><CheckCircle size={13}/> Confirm</button>}
+              {isSeller && b.status === 'confirmed' && <button className="btn-primary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'completed')}><CheckCircle size={13}/> Mark complete</button>}
+              {((isSeller && ['pending','confirmed'].includes(b.status)) || (!isSeller && b.status === 'pending')) && <button className="btn-secondary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'cancelled')}><XCircle size={13}/> Cancel</button>}
+            </div>
+          </div>
+        </div>
+      })}</div>}
+    </section>}
     {isLoading ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-44" />)}</div> : gigs.length === 0 ? <div className="surface flex min-h-64 flex-col items-center justify-center p-8 text-center text-white/30"><div className="mb-4 text-4xl">⚡</div><p className="font-semibold">No gigs listed yet</p><p className="mt-1 text-sm">Be the first to offer a service!</p></div> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{gigs.map(gig => <GigCard key={gig.id} gig={gig} onBook={setBookingGig} />)}</div>}
     {showCreate && <div className="modal-backdrop"><div className="absolute inset-0" onClick={() => setShowCreate(false)} /><div className="modal-panel"><div className="modal-header"><h2 className="font-bold">List a Service</h2><button onClick={() => setShowCreate(false)} className="icon-button -mr-2" aria-label="Close dialog"><X size={18} /></button></div><form onSubmit={handleSubmit} className="space-y-4 p-5"><div><label className="label">Service Title</label><input className="input" placeholder="e.g. GST 101 summary notes" value={form.title} onChange={set('title')} required /></div><div className="grid gap-3 sm:grid-cols-2"><div><label className="label">Category</label><select className="input" value={form.category} onChange={set('category')} required><option value="">Select category</option>{[...GIG_CATEGORIES, ...ACADEMIC_GIGS].map(c => <option key={c} value={c}>{c}</option>)}</select></div><div><label className="label">Starting Price (₦)</label><input className="input" type="number" min="0" placeholder="0" value={form.starting_price} onChange={set('starting_price')} required /></div></div><div><label className="label">Description</label><textarea className="input resize-none" rows={3} placeholder="What do you offer? Turnaround, what's included, etc." value={form.description} onChange={set('description')} /></div><button type="submit" disabled={submitting} className="btn-primary w-full">{submitting ? 'Listing...' : 'Publish Gig'}</button></form></div></div>}
     {bookingGig && <div className="modal-backdrop"><div className="absolute inset-0" onClick={()=>setBookingGig(null)}/><div className="modal-panel"><div className="modal-header"><div><h2 className="font-bold">Book {bookingGig.title}</h2><p className="text-xs text-white/35">Request a time from the student provider.</p></div><button className="icon-button" onClick={()=>setBookingGig(null)}><X size={17}/></button></div><div className="space-y-4 p-5"><div className="grid grid-cols-2 gap-3"><div><label className="label">Date</label><input className="input" type="date" min={new Date().toLocaleDateString("en-CA")} value={booking.date} onChange={e=>setBooking(b=>({...b,date:e.target.value}))}/></div><div><label className="label">Time</label><input className="input" type="time" value={booking.time} onChange={e=>setBooking(b=>({...b,time:e.target.value}))}/></div></div><textarea className="input" rows={3} placeholder="What do you need?" value={booking.notes} onChange={e=>setBooking(b=>({...b,notes:e.target.value}))}/><button className="btn-primary w-full" onClick={book} disabled={bookingSubmitting || !booking.date || !booking.time}>{bookingSubmitting ? "Sending request…" : "Send booking request"}</button></div></div></div>}

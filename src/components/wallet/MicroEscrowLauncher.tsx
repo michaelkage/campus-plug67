@@ -36,7 +36,7 @@ export default function MicroEscrowLauncher() {
       const { data, error } = await (supabase.rpc as any)('create_wallet_micro_escrow', { p_listing_id: listing.id })
       if (error) throw error
       const result = data as WalletRpcResult | null
-      if (!result?.success) throw new Error('Campus Wallet purchase failed')
+      if (!result?.success) throw new Error(result?.message || 'This listing already has an active purchase. Refresh the listing and check your transactions.')
       toast.success('🔐 Wallet escrow locked — no Paystack checkout needed.')
       navigate(`/marketplace/${listing.id}`)
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Campus Wallet purchase failed') }

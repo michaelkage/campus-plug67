@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { DEPARTMENTS, PROGRAMMES, getProgrammesForDepartment } from '@/data/academicOptions'
+import { DEPARTMENTS, getProgrammesForDepartment } from '@/data/academicOptions'
 import { ArrowRight, Eye, EyeOff, Fingerprint, LockKeyhole, Mail, ShieldCheck, Zap } from 'lucide-react'
 
 const UNIVERSITIES = [

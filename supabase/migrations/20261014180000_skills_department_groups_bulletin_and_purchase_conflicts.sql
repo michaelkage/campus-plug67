@@ -83,8 +83,20 @@ CREATE POLICY "Trusted campus moderators publish bulletins" ON public.campus_bul
 DROP POLICY IF EXISTS "Bulletin authors update own posts" ON public.campus_bulletins;
 CREATE POLICY "Bulletin authors update own posts" ON public.campus_bulletins
   FOR UPDATE TO authenticated
-  USING (created_by = (SELECT auth.uid()))
-  WITH CHECK (created_by = (SELECT auth.uid()));
+  USING (
+    created_by = (SELECT auth.uid())
+    AND university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
+  )
+  WITH CHECK (
+    created_by = (SELECT auth.uid())
+    AND university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
+    AND EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = (SELECT auth.uid())
+        AND (COALESCE(p.badges, ARRAY[]::text[]) @> ARRAY['Plug Dev']
+          OR COALESCE(p.badges, ARRAY[]::text[]) @> ARRAY['Community Hero'])
+    )
+  );
 DROP POLICY IF EXISTS "Bulletin authors delete own posts" ON public.campus_bulletins;
 CREATE POLICY "Bulletin authors delete own posts" ON public.campus_bulletins
   FOR DELETE TO authenticated USING (created_by = (SELECT auth.uid()));

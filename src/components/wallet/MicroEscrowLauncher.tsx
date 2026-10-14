@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 
 const LIMIT_KOBO = 1_000_000
 type MicroListing = { id: string; title: string; price: number; seller_id: string; status: string }
-type WalletRpcResult = { success?: boolean; transaction_id?: string }
+type WalletRpcResult = { success?: boolean; transaction_id?: string; message?: string }
 
 export default function MicroEscrowLauncher() {
   const { user } = useAuth(); const location = useLocation(); const navigate = useNavigate()
@@ -36,7 +36,7 @@ export default function MicroEscrowLauncher() {
       const { data, error } = await (supabase.rpc as any)('create_wallet_micro_escrow', { p_listing_id: listing.id })
       if (error) throw error
       const result = data as WalletRpcResult | null
-      if (!result?.success) throw new Error('Campus Wallet purchase failed')
+      if (!result?.success) throw new Error(result?.message || 'This listing already has an active purchase. Refresh the listing and check your transactions.')
       toast.success('🔐 Wallet escrow locked — no Paystack checkout needed.')
       navigate(`/marketplace/${listing.id}`)
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Campus Wallet purchase failed') }

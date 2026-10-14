@@ -19,6 +19,7 @@ export default function NewsBulletin() {
     queryKey:['campus-bulletins',profile?.university],
     enabled:Boolean(profile?.university),
     queryFn:async()=>{
+      if (!profile?.university) return []
       const {data,error}=await supabase.from('campus_bulletins').select('*, profiles:created_by(full_name)').eq('university',profile.university).order('is_pinned',{ascending:false}).order('created_at',{ascending:false}).limit(100)
       if(error) throw error
       return (data||[]) as Bulletin[]

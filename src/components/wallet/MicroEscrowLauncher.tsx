@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 
 const LIMIT_KOBO = 1_000_000
 type MicroListing = { id: string; title: string; price: number; seller_id: string; status: string }
-type WalletRpcResult = { success?: boolean; transaction_id?: string }
+type WalletRpcResult = { success?: boolean; transaction_id?: string; message?: string }
 
 export default function MicroEscrowLauncher() {
   const { user } = useAuth(); const location = useLocation(); const navigate = useNavigate()

@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
-const links = [['/','Home'],['/marketplace','Market'],['/study-pools','Pools'],['/gigs','Skills'],['/lost-found','Lost & Found'],['/chat','Chat'],['/campus-hub','Campus Hub'],['/safe-swap','Safe Swap'],['/wallet','Wallet']]
+const links = [['/','Home'],['/marketplace','Market'],['/study-pools','Pools'],['/gigs','Skills'],['/lost-found','Lost & Found'],['/chat','Chat'],['/campus-hub','Campus Hub'],['/news','News'],['/safe-swap','Safe Swap'],['/wallet','Wallet']]
 
 export default function TopNav(){
   const {user,profile,signOut}=useAuth()

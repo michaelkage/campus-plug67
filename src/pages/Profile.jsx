@@ -363,7 +363,7 @@ export default function Profile() {
                 <select aria-label="Course / Programme" className="input" value={form.course || ''}
                   onChange={e => setForm(f => ({ ...f, course: e.target.value }))}>
                   <option value="">Choose a department first</option>
-                  {form.course && !PROGRAMMES.includes(form.course) && <option value={form.course}>{form.course} (current)</option>}
+                  {form.course && !getProgrammesForDepartment(form.department).includes(form.course) && <option value={form.course}>{form.course} (current)</option>}
                   {getProgrammesForDepartment(form.department).map(programme => <option key={programme} value={programme}>{programme}</option>)}
                 </select>
                 <select className="input" value={form.level || ''} onChange={e => setForm(f => ({ ...f, level: e.target.value }))}>

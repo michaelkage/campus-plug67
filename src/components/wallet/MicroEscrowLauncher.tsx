@@ -39,8 +39,7 @@ export default function MicroEscrowLauncher() {
       if (!result?.success) {
         if (result?.code === 'active_transaction_exists') {
           toast.error(result.message || 'This listing already has an active purchase.')
-          if (result.transaction_id) navigate(`/transactions/${result.transaction_id}`)
-          else navigate(`/marketplace/${listing.id}`)
+          navigate(`/marketplace/${listing.id}`)
           return
         }
         if (result?.code === 'listing_unavailable') {

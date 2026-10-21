@@ -106,11 +106,11 @@ BEGIN
   INSERT INTO public.wallet_escrow_holds (transaction_id, buyer_id, seller_id, amount_kobo)
   VALUES (v_tx.id, v_buyer, v_listing.seller_id, v_amount);
 
-  -- Match Paystack's existing convention: a locked purchase is no longer for sale.
+  -- Match the existing locked-purchase convention: reserve it until escrow resolves.
   -- This is in the same transaction as the debit/hold, so any later error rolls back
   -- the transaction, ledger write, hold, balance trigger, and listing state together.
   UPDATE public.listings
-     SET status = 'sold', updated_at = now()
+     SET status = 'reserved', updated_at = now()
    WHERE id = p_listing_id
      AND status = 'active';
 
@@ -329,7 +329,7 @@ BEGIN
     UPDATE public.listings l
        SET status = 'active', updated_at = now()
      WHERE l.id = v_listing_id
-       AND l.status = 'sold'
+       AND l.status = 'reserved'
        AND NOT EXISTS (
          SELECT 1
            FROM public.transactions t

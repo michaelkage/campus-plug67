@@ -22,6 +22,8 @@ const resolve = extractFunction(migration, 'resolve_wallet_micro_escrow');
 const integrity = read('supabase/migrations/20260926131500_protect_listing_purchase_integrity.sql');
 const listingDetail = read('src/pages/ListingDetail.jsx');
 const walletLauncher = read('src/components/wallet/MicroEscrowLauncher.tsx');
+const databaseTypes = read('src/types/database.ts');
+const rpcTypes = read('src/lib/supabase/client.ts');
 
 const activeStatuses = "'pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed'";
 
@@ -74,6 +76,8 @@ if (!(wallet.indexOf('INSERT INTO public.wallet_escrow_holds') < wallet.indexOf(
 assertIncludes(listingDetail, 'tx?.success === false', 'Paystack client must handle structured RPC conflicts');
 assertIncludes(listingDetail, "['listings']", 'Paystack conflict handling must refresh marketplace results');
 assertIncludes(listingDetail, "listing.status === 'reserved'", 'Marketplace detail must explain reserved listings');
+assertIncludes(databaseTypes, "status: 'active' | 'reserved' | 'sold' | 'removed' | 'pending'", 'Listing database types must include the reserved state');
+assertIncludes(rpcTypes, "code?:string;message?:string;transaction_id?:string", 'Paystack RPC types must model structured conflict responses');
 assertIncludes(walletLauncher, "['listings']", 'Wallet success must refresh marketplace results');
 assertIncludes(walletLauncher, "['transaction', listing.id, user.id]", 'Wallet success must refresh transaction state');
 

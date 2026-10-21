@@ -145,6 +145,13 @@ export default function ListingDetail() {
       if (!publicKey) throw new Error('Payment service is not configured. Please try again later.')
       const { data: tx, error } = await supabase.rpc('create_pending_paystack_transaction', { p_listing_id: listing.id, p_paystack_ref: ref })
       if (error) throw error
+      if (tx?.success === false) {
+        qc.invalidateQueries({ queryKey: ['listing', id] })
+        qc.invalidateQueries({ queryKey: ['listings'] })
+        qc.invalidateQueries({ queryKey: ['transaction', id, user.id] })
+        throw new Error(tx.message || 'This listing is no longer available.')
+      }
+      if (!tx?.id) throw new Error('The payment service did not create a transaction. Please try again.')
       try {
         await initPaystack({ email: user.email, amount: amountInKobo, ref, publicKey, metadata: { type: 'marketplace_escrow', transaction_id: tx.id, listing_id: listing.id } })
         const { data: verification, error: verificationError } = await supabase.functions.invoke('verify-payment', {

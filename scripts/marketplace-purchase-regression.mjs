@@ -42,21 +42,22 @@ assertIncludes(paystack, 'WHEN unique_violation', 'Paystack must handle a last-r
 assertIncludes(paystack, "v_constraint_name = 'transactions_one_active_per_listing'",
   'Paystack must map the unique-index race to active_transaction_exists');
 
-// Listing visibility must match the established Paystack convention: locked purchases
-// leave the active marketplace. All writes occur inside one PostgreSQL function call.
+// Listing visibility must follow the established state machine: locked purchases are
+// reserved; release marks them sold. All writes occur inside one PostgreSQL function call.
 const txInsert = wallet.indexOf('INSERT INTO public.transactions');
 const ledgerInsert = wallet.indexOf('INSERT INTO public.plug_credit_ledger');
 const holdInsert = wallet.indexOf('INSERT INTO public.wallet_escrow_holds');
-const listingSold = wallet.indexOf("SET status = 'sold'");
-if (!(txInsert >= 0 && ledgerInsert > txInsert && holdInsert > ledgerInsert && listingSold > holdInsert)) {
-  fail('Wallet escrow must insert transaction, ledger debit, and hold before marking listing sold');
+const listingReserved = wallet.indexOf("SET status = 'reserved'");
+if (!(txInsert >= 0 && ledgerInsert > txInsert && holdInsert > ledgerInsert && listingReserved > holdInsert)) {
+  fail('Wallet escrow must insert transaction, ledger debit, and hold before reserving the listing');
 }
-assertIncludes(integrity, "SET status='sold'", 'Paystack success must keep using the sold listing convention');
+assertIncludes(integrity, "SET status='sold'", 'Paystack settlement must keep using the sold listing convention');
 
 // Refunds must restore availability only after the transaction is cancelled and only
 // when no other live transaction exists. Null auth must not pass participant checks.
 assertIncludes(resolve, 'v_user IS NULL', 'Wallet escrow resolution must reject unauthenticated callers');
 assertIncludes(resolve, "status = 'active'", 'Wallet refund must return the listing to active');
+assertIncludes(resolve, "l.status = 'reserved'", 'Wallet refund must only restore a reserved listing');
 assertIncludes(resolve, 'NOT EXISTS', 'Wallet refund must not reopen a listing with another active transaction');
 
 // Unhandled SQL errors abort the function statement, which rolls back the transaction,
@@ -64,7 +65,7 @@ assertIncludes(resolve, 'NOT EXISTS', 'Wallet refund must not reopen a listing w
 if (/EXCEPTION\s+WHEN\s+OTHERS/i.test(wallet)) {
   fail('Wallet escrow must not swallow unexpected errors and commit partial state');
 }
-if (!(wallet.indexOf('INSERT INTO public.wallet_escrow_holds') < wallet.indexOf("SET status = 'sold'"))) {
+if (!(wallet.indexOf('INSERT INTO public.wallet_escrow_holds') < wallet.indexOf("SET status = 'reserved'"))) {
   fail('Listing state update must be part of the same atomic wallet escrow function');
 }
 

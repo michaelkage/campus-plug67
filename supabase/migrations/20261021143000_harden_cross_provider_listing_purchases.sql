@@ -273,6 +273,7 @@ DECLARE
   v_hold public.wallet_escrow_holds%ROWTYPE;
   v_user uuid := auth.uid();
   v_reason text;
+  v_listing_id uuid;
 BEGIN
   SELECT *
     INTO v_hold
@@ -309,82 +310,10 @@ BEGIN
       RAISE EXCEPTION 'Only the buyer can request a wallet refund';
     END IF;
 
-    INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
-    VALUES(v_hold.buyer_id, v_hold.amount_kobo, 'Campus Wallet micro-escrow refund', v_hold.transaction_id);
-
-    UPDATE public.wallet_escrow_holds
-       SET status = 'refunded', resolved_at = now()
-     WHERE id = v_hold.id;
-
-    UPDATE public.transactions
-       SET status = 'cancelled', payout_status = 'not_applicable'
+    SELECT listing_id
+      INTO v_listing_id
+      FROM public.transactions
      WHERE id = v_hold.transaction_id;
-
-    UPDATE public.listings l
-       SET status = 'active', updated_at = now()
-     WHERE l.id = v_hold.transaction_id::text::uuid -- replaced below with listing lookup
-       AND l.status = 'sold';
-  ELSE
-    RAISE EXCEPTION 'Invalid wallet escrow action';
-  END IF;
-
-  RETURN jsonb_build_object('success', true, 'status', p_action);
-END;
-$$;
-
--- Replace the placeholder listing update with the transaction's actual listing ID and
--- only reopen when no other live purchase remains. (Kept separate to avoid trusting
--- client-supplied listing identifiers.)
-CREATE OR REPLACE FUNCTION public.resolve_wallet_micro_escrow(
-  p_transaction_id uuid,
-  p_action text
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_hold public.wallet_escrow_holds%ROWTYPE;
-  v_user uuid := auth.uid();
-  v_reason text;
-  v_listing_id uuid;
-BEGIN
-  SELECT h.*, t.listing_id
-    INTO v_hold, v_listing_id
-    FROM public.wallet_escrow_holds h
-    JOIN public.transactions t ON t.id = h.transaction_id
-   WHERE h.transaction_id = p_transaction_id
-   FOR UPDATE OF h, t;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Wallet escrow not found';
-  END IF;
-
-  IF v_user IS NULL OR (v_user <> v_hold.buyer_id AND v_user <> v_hold.seller_id) THEN
-    RAISE EXCEPTION 'Not authorized';
-  END IF;
-
-  IF v_hold.status <> 'held' THEN
-    RAISE EXCEPTION 'Wallet escrow already resolved';
-  END IF;
-
-  IF p_action = 'release' THEN
-    v_reason := 'Campus Wallet micro-escrow release';
-    INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
-    VALUES(v_hold.seller_id, v_hold.amount_kobo, v_reason, v_hold.transaction_id);
-
-    UPDATE public.wallet_escrow_holds
-       SET status = 'released', resolved_at = now()
-     WHERE id = v_hold.id;
-
-    UPDATE public.transactions
-       SET status = 'released', released_at = now(), completed_at = now(), payout_status = 'paid'
-     WHERE id = v_hold.transaction_id;
-  ELSIF p_action = 'refund' THEN
-    IF v_user <> v_hold.buyer_id THEN
-      RAISE EXCEPTION 'Only the buyer can request a wallet refund';
-    END IF;
 
     INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
     VALUES(v_hold.buyer_id, v_hold.amount_kobo, 'Campus Wallet micro-escrow refund', v_hold.transaction_id);

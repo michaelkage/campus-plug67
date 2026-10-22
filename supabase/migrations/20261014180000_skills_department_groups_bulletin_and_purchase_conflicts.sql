@@ -11,6 +11,85 @@ DROP POLICY IF EXISTS "Sellers delete own gigs" ON public.gigs;
 CREATE POLICY "Sellers delete own gigs" ON public.gigs
   FOR DELETE TO authenticated USING (seller_id = (SELECT auth.uid()));
 
+-- Normalize legacy programme-valued profiles.department into faculty labels used by current onboarding.
+-- Profile data stays untouched; existing groups and new profiles resolve to the same scope.
+CREATE OR REPLACE FUNCTION public.canonical_academic_department(p_department text)
+RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = public AS $
+  SELECT CASE trim(COALESCE(p_department, ''))
+    WHEN '' THEN 'General'
+    WHEN 'Agricultural Engineering' THEN 'Engineering'
+    WHEN 'Chemical Engineering' THEN 'Engineering'
+    WHEN 'Civil Engineering' THEN 'Engineering'
+    WHEN 'Computer Engineering' THEN 'Engineering'
+    WHEN 'Electrical/Electronics Engineering' THEN 'Engineering'
+    WHEN 'Mechanical Engineering' THEN 'Engineering'
+    WHEN 'Biochemistry' THEN 'Sciences'
+    WHEN 'Biology' THEN 'Sciences'
+    WHEN 'Chemistry' THEN 'Sciences'
+    WHEN 'Computer Science' THEN 'Sciences'
+    WHEN 'Geology' THEN 'Sciences'
+    WHEN 'Industrial Chemistry' THEN 'Sciences'
+    WHEN 'Mathematics' THEN 'Sciences'
+    WHEN 'Microbiology' THEN 'Sciences'
+    WHEN 'Physics' THEN 'Sciences'
+    WHEN 'Statistics' THEN 'Sciences'
+    WHEN 'Anatomy' THEN 'Medicine & Health Sciences'
+    WHEN 'Dentistry' THEN 'Medicine & Health Sciences'
+    WHEN 'Human Anatomy' THEN 'Medicine & Health Sciences'
+    WHEN 'Medical Laboratory Science' THEN 'Medicine & Health Sciences'
+    WHEN 'Medicine and Surgery' THEN 'Medicine & Health Sciences'
+    WHEN 'Nursing Science' THEN 'Medicine & Health Sciences'
+    WHEN 'Pharmacy' THEN 'Medicine & Health Sciences'
+    WHEN 'Physiology' THEN 'Medicine & Health Sciences'
+    WHEN 'Veterinary Medicine' THEN 'Medicine & Health Sciences'
+    WHEN 'English and Literary Studies' THEN 'Arts & Humanities'
+    WHEN 'English' THEN 'Arts & Humanities'
+    WHEN 'History' THEN 'Arts & Humanities'
+    WHEN 'Linguistics' THEN 'Arts & Humanities'
+    WHEN 'Philosophy' THEN 'Arts & Humanities'
+    WHEN 'Theatre Arts' THEN 'Arts & Humanities'
+    WHEN 'Fine Arts' THEN 'Arts & Humanities'
+    WHEN 'Economics' THEN 'Social Sciences'
+    WHEN 'Geography' THEN 'Social Sciences'
+    WHEN 'Political Science' THEN 'Social Sciences'
+    WHEN 'Psychology' THEN 'Social Sciences'
+    WHEN 'Sociology' THEN 'Social Sciences'
+    WHEN 'Mass Communication' THEN 'Social Sciences'
+    WHEN 'Accounting' THEN 'Management Sciences'
+    WHEN 'Banking and Finance' THEN 'Management Sciences'
+    WHEN 'Business Administration' THEN 'Management Sciences'
+    WHEN 'Finance' THEN 'Management Sciences'
+    WHEN 'Insurance' THEN 'Management Sciences'
+    WHEN 'Marketing' THEN 'Management Sciences'
+    WHEN 'Public Administration' THEN 'Management Sciences'
+    WHEN 'Industrial Relations' THEN 'Management Sciences'
+    WHEN 'Adult Education' THEN 'Education'
+    WHEN 'Education' THEN 'Education'
+    WHEN 'Guidance and Counselling' THEN 'Education'
+    WHEN 'Architecture' THEN 'Environmental Sciences'
+    WHEN 'Building' THEN 'Environmental Sciences'
+    WHEN 'Estate Management' THEN 'Environmental Sciences'
+    WHEN 'Quantity Surveying' THEN 'Environmental Sciences'
+    WHEN 'Surveying and Geoinformatics' THEN 'Environmental Sciences'
+    WHEN 'Urban and Regional Planning' THEN 'Environmental Sciences'
+    WHEN 'Agricultural Economics' THEN 'Agriculture & Food Sciences'
+    WHEN 'Agriculture' THEN 'Agriculture & Food Sciences'
+    WHEN 'Fisheries' THEN 'Agriculture & Food Sciences'
+    WHEN 'Food Science and Technology' THEN 'Agriculture & Food Sciences'
+    WHEN 'Law' THEN 'Law'
+    WHEN 'Other' THEN 'Other'
+    WHEN 'Engineering' THEN 'Engineering'
+    WHEN 'Sciences' THEN 'Sciences'
+    WHEN 'Medicine & Health Sciences' THEN 'Medicine & Health Sciences'
+    WHEN 'Arts & Humanities' THEN 'Arts & Humanities'
+    WHEN 'Social Sciences' THEN 'Social Sciences'
+    WHEN 'Management Sciences' THEN 'Management Sciences'
+    WHEN 'Environmental Sciences' THEN 'Environmental Sciences'
+    WHEN 'Agriculture & Food Sciences' THEN 'Agriculture & Food Sciences'
+    ELSE trim(p_department)
+  END
+$;
+
 -- Study groups: a group is visible only to students in its department at that university.
 ALTER TABLE public.group_chats ADD COLUMN IF NOT EXISTS department text;
 UPDATE public.group_chats gc
@@ -18,6 +97,7 @@ SET department = COALESCE(NULLIF(trim(p.department), ''), 'General')
 FROM public.profiles p
 WHERE p.id = gc.creator_id AND gc.department IS NULL;
 UPDATE public.group_chats SET department = 'General' WHERE department IS NULL;
+UPDATE public.group_chats SET department = public.canonical_academic_department(department);
 ALTER TABLE public.group_chats ALTER COLUMN department SET DEFAULT 'General';
 CREATE INDEX IF NOT EXISTS group_chats_department_idx
   ON public.group_chats(university, department, is_archived, last_activity_at DESC);
@@ -27,9 +107,8 @@ CREATE POLICY "Group chats visible to matching department"
   ON public.group_chats FOR SELECT TO authenticated
   USING (
     university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
-    AND department = COALESCE(
-      (SELECT NULLIF(trim(p.department), '') FROM public.profiles p WHERE p.id = (SELECT auth.uid())),
-      'General'
+    AND department = public.canonical_academic_department(
+      (SELECT p.department FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
     )
   );
 
@@ -59,7 +138,7 @@ CREATE POLICY "Users join matching department groups"
       JOIN public.profiles p ON p.id = (SELECT auth.uid())
       WHERE g.id = group_chat_members.group_id
         AND g.university = p.university
-        AND g.department = COALESCE(NULLIF(trim(p.department), ''), 'General')
+        AND g.department = public.canonical_academic_department(p.department)
         AND (
           role = 'member'
           OR (role = 'owner' AND g.creator_id = (SELECT auth.uid()))

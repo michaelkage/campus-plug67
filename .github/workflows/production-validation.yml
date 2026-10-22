@@ -80,6 +80,9 @@ jobs:
           fi
 
   production-smoke:
+    # Dependabot pull_request runs do not receive repository secrets. This live
+    # smoke audit runs on main pushes and normal PRs where secrets are available.
+    if: github.actor != 'dependabot[bot]'
     name: Live production path smoke
     runs-on: ubuntu-latest
     timeout-minutes: 5

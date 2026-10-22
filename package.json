@@ -24,7 +24,7 @@
     "functions:serve": "supabase functions serve",
     "test:production-smoke": "node scripts/production-smoke.mjs",
     "test:transaction-state": "vitest run src/lib/transactionStateMachine.test.ts",
-    "test:platform-integrity": "node scripts/platform-integrity-regression.mjs && node scripts/marketplace-purchase-regression.mjs"
+    "test:platform-integrity": "node scripts/platform-integrity-regression.mjs && node scripts/marketplace-purchase-regression.mjs && node scripts/wallet-funding-intent-regression.mjs"
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.5.0",

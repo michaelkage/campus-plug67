@@ -35,6 +35,8 @@ if (!config.includes('project_id = "etwsfdovcgofhqseejjo"')) fail('Supabase proj
 const groupsMigration = read('supabase/migrations/20261014180000_skills_department_groups_bulletin_and_purchase_conflicts.sql');
 for (const required of [
   'CREATE POLICY "Users join matching department groups"',
+  'DROP POLICY IF EXISTS "Owners update group chats" ON public.group_chats',
+  'CREATE POLICY "Owners update matching department groups"',
   'g.university = p.university',
   'g.department = public.canonical_academic_department(p.department)',
   'CREATE OR REPLACE FUNCTION public.canonical_academic_department(p_department text)',

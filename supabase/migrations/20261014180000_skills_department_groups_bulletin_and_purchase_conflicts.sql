@@ -112,6 +112,24 @@ CREATE POLICY "Group chats visible to matching department"
     )
   );
 
+DROP POLICY IF EXISTS "Owners update group chats" ON public.group_chats;
+CREATE POLICY "Owners update matching department groups"
+  ON public.group_chats FOR UPDATE TO authenticated
+  USING (
+    creator_id = (SELECT auth.uid())
+    AND university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
+    AND department = public.canonical_academic_department(
+      (SELECT p.department FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
+    )
+  )
+  WITH CHECK (
+    creator_id = (SELECT auth.uid())
+    AND university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
+    AND department = public.canonical_academic_department(
+      (SELECT p.department FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
+    )
+  );
+
 DROP POLICY IF EXISTS "Users create group chats" ON public.group_chats;
 CREATE POLICY "Users create department group chats"
   ON public.group_chats FOR INSERT TO authenticated

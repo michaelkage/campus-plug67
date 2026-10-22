@@ -69,36 +69,21 @@ serve(async (req: Request) => {
     const transactionReference = typeof data?.transaction_reference === "string" ? data.transaction_reference : null;
     const status = typeof data?.status === "string" ? data.status.toLowerCase() : null;
     const refundReference = typeof data?.refund_reference === "string" ? data.refund_reference : null;
-    if (!transactionReference || !status || !["pending", "processed", "failed", "cancelled", "needs_attention"].includes(status)) {
+    if (!transactionReference || !refundReference || !status ||
+        !["pending", "processed", "failed", "cancelled", "needs_attention"].includes(status)) {
       return jsonResponse({ error: "Invalid refund event payload" }, 400, {}, req);
     }
 
-    const { data: transaction, error: lookupError } = await admin
-      .from("transactions")
-      .select("id,refund_status,refund_processed_at,refund_failure_reason,paystack_refund_id")
-      .eq("paystack_ref", transactionReference)
-      .maybeSingle();
-    if (lookupError) {
-      console.error("Paystack refund lookup failed", lookupError.message);
-      return jsonResponse({ error: "Could not load refund transaction" }, 500, {}, req);
-    }
-    if (!transaction) return jsonResponse({ error: "Refund transaction not found" }, 404, {}, req);
-
-    // Never regress a processed refund because an older event arrived late.
-    if (transaction.refund_status === "processed" && status !== "processed") {
-      return jsonResponse({ ok: true, ignored: true }, 200, {}, req);
-    }
-    const patch: Record<string, unknown> = { refund_status: status };
-    if (refundReference) patch.paystack_refund_id = refundReference;
-    if (status === "processed" && !transaction.refund_processed_at) patch.refund_processed_at = new Date().toISOString();
-    if (status === "failed") patch.refund_failure_reason = "Paystack reported refund.failed";
-    if (status !== "failed") patch.refund_failure_reason = null;
-    const { error } = await admin.from("transactions").update(patch).eq("id", transaction.id);
+    const { data: recorded, error } = await admin.rpc("record_paystack_refund", {
+      p_transaction_reference: transactionReference,
+      p_refund_reference: refundReference,
+      p_status: status,
+    });
     if (error) {
-      console.error("Paystack refund state update failed", error.message);
-      return jsonResponse({ error: "Could not update refund state" }, 500, {}, req);
+      console.error("Paystack refund recording failed", error.message);
+      return jsonResponse({ error: "Could not record refund event" }, 500, {}, req);
     }
-    return jsonResponse({ ok: true }, 200, {}, req);
+    return jsonResponse(recorded ?? { ok: true }, 200, {}, req);
   }
 
   if (event.event !== "charge.success") return jsonResponse({ ok: true }, 200, {}, req);

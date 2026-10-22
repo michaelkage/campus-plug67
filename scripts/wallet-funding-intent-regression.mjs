@@ -19,9 +19,26 @@ assertIncludes(functionBody, "v_intent.status <> 'pending'", 'Rejected/non-pendi
 assertIncludes(functionBody, "RAISE EXCEPTION 'Funding intent is not eligible for credit'", 'Ineligible funding status must fail closed');
 assertIncludes(functionBody, 'v_intent.user_id <> auth.uid()', 'Funding credit must be restricted to the intent owner');
 assertIncludes(functionBody, 'v_intent.amount_kobo <> p_amount_kobo', 'Funding amount must match the locked intent');
-assertIncludes(migration, 'REVOKE ALL ON FUNCTION public.credit_wallet_funding(text, bigint) FROM PUBLIC, anon',
-  'Funding RPC must revoke PUBLIC/anon execution');
-assertIncludes(migration, 'GRANT EXECUTE ON FUNCTION public.credit_wallet_funding(text, bigint) TO authenticated',
-  'Funding RPC must remain available to authenticated users');
 
-console.log('Wallet funding intent regression checks passed (static SQL invariants).');
+const legacyLockdown = read('supabase/migrations/20261022140000_disable_legacy_wallet_funding_rpc.sql');
+assertIncludes(legacyLockdown,
+  'REVOKE ALL ON FUNCTION public.credit_wallet_funding(text, bigint)',
+  'Legacy client-callable wallet credit RPC must be disabled');
+assertIncludes(legacyLockdown, 'FROM PUBLIC, anon, authenticated, service_role',
+  'No API role may execute the legacy credit RPC');
+if (legacyLockdown.includes('GRANT EXECUTE ON FUNCTION public.credit_wallet_funding(text, bigint) TO authenticated')) {
+  fail('Legacy wallet funding RPC must not be granted to authenticated users');
+}
+
+const serviceCredit = read('supabase/migrations/044_wallet_service_credit.sql');
+assertIncludes(serviceCredit, 'GRANT EXECUTE ON FUNCTION public.credit_wallet_funding_for_user(uuid,text,bigint) TO service_role',
+  'Verified wallet credits must use the service-role-only RPC');
+assertIncludes(serviceCredit, 'FROM PUBLIC,anon,authenticated',
+  'Service credit RPC must remain inaccessible to client roles');
+
+const edge = read('supabase/functions/fund-wallet/index.ts');
+assertIncludes(edge, 'api.paystack.co/transaction/verify/', 'Wallet credit flow must verify payment with Paystack');
+assertIncludes(edge, 'credit_wallet_funding_for_user', 'Wallet credit flow must use the service-role-only RPC');
+if (edge.includes('"credit_wallet_funding"')) fail('Edge function must not call the legacy client-callable RPC');
+
+console.log('Wallet funding security regression checks passed (static SQL/source invariants).');

@@ -82,7 +82,22 @@ jobs:
             fn="$(basename "$dir")"
             [[ "$fn" == "_shared" ]] && continue
             echo "→ Deploying ${fn}..."
-            supabase functions deploy "$fn" --project-ref "${{ steps.project.outputs.ref }}"
+            deployed=false
+            for attempt in 1 2 3; do
+              if supabase functions deploy "$fn" --project-ref "${{ steps.project.outputs.ref }}"; then
+                deployed=true
+                break
+              fi
+              if [[ "$attempt" -lt 3 ]]; then
+                delay=$((attempt * 5))
+                echo "Deployment of ${fn} failed on attempt ${attempt}; retrying in ${delay}s (transient network or bundling failure may clear)."
+                sleep "$delay"
+              fi
+            done
+            if [[ "$deployed" != true ]]; then
+              echo "Deployment of ${fn} failed after 3 attempts."
+              exit 1
+            fi
           done
 
       - name: Link project for database deployment

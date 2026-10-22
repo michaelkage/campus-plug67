@@ -45,6 +45,58 @@ CREATE POLICY "Users create department group chats"
     )
   );
 
+-- Child-table policies must enforce the same university + department boundary as group_chats.
+-- UI filtering is not authorization: clients can submit arbitrary group IDs directly.
+DROP POLICY IF EXISTS "Users join own campus groups" ON public.group_chat_members;
+DROP POLICY IF EXISTS "Users join groups" ON public.group_chat_members;
+CREATE POLICY "Users join matching department groups"
+  ON public.group_chat_members FOR INSERT TO authenticated
+  WITH CHECK (
+    user_id = (SELECT auth.uid())
+    AND role = 'member'
+    AND EXISTS (
+      SELECT 1
+      FROM public.group_chats g
+      JOIN public.profiles p ON p.id = (SELECT auth.uid())
+      WHERE g.id = group_chat_members.group_id
+        AND g.university = p.university
+        AND g.department = COALESCE(NULLIF(trim(p.department), ''), 'General')
+    )
+  );
+
+DROP POLICY IF EXISTS "Members read group messages" ON public.group_chat_messages;
+CREATE POLICY "Members read matching department messages"
+  ON public.group_chat_messages FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.group_chats g
+      JOIN public.profiles p ON p.id = (SELECT auth.uid())
+      JOIN public.group_chat_members m
+        ON m.group_id = g.id AND m.user_id = (SELECT auth.uid())
+      WHERE g.id = group_chat_messages.group_id
+        AND g.university = p.university
+        AND g.department = COALESCE(NULLIF(trim(p.department), ''), 'General')
+    )
+  );
+
+DROP POLICY IF EXISTS "Members send group messages" ON public.group_chat_messages;
+CREATE POLICY "Members send matching department messages"
+  ON public.group_chat_messages FOR INSERT TO authenticated
+  WITH CHECK (
+    sender_id = (SELECT auth.uid())
+    AND EXISTS (
+      SELECT 1
+      FROM public.group_chats g
+      JOIN public.profiles p ON p.id = (SELECT auth.uid())
+      JOIN public.group_chat_members m
+        ON m.group_id = g.id AND m.user_id = (SELECT auth.uid())
+      WHERE g.id = group_chat_messages.group_id
+        AND g.university = p.university
+        AND g.department = COALESCE(NULLIF(trim(p.department), ''), 'General')
+    )
+  );
+
 -- News bulletin: campus-specific posts, with publishing restricted to trusted campus moderators.
 CREATE TABLE IF NOT EXISTS public.campus_bulletins (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

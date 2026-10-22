@@ -37,7 +37,7 @@ BEGIN
     trim(p_name),
     NULLIF(trim(COALESCE(p_course_code, '')), ''),
     v_profile.university,
-    COALESCE(NULLIF(trim(v_profile.department), ''), 'General'),
+    public.canonical_academic_department(v_profile.department),
     v_user
   )
   RETURNING * INTO v_group;

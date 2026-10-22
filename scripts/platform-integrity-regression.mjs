@@ -31,4 +31,30 @@ for (const state of ['PENDING','LOCKED','MEETUP_INITIATED','RELEASE_REQUESTED','
 const config = read('supabase/config.toml');
 if (!config.includes('project_id = "etwsfdovcgofhqseejjo"')) fail('Supabase project ref mismatch');
 
+
+const groupsMigration = read('supabase/migrations/20261014180000_skills_department_groups_bulletin_and_purchase_conflicts.sql');
+for (const required of [
+  'CREATE POLICY "Users join matching department groups"',
+  'g.university = p.university',
+  "g.department = COALESCE(NULLIF(trim(p.department), ''), 'General')",
+  'CREATE POLICY "Members read matching department messages"',
+  'CREATE POLICY "Members send matching department messages"',
+  'sender_id = (SELECT auth.uid())',
+]) if (!groupsMigration.includes(required)) fail(`Department group RLS missing: ${required}`);
+
+const atomicGroups = read('supabase/migrations/20261022193500_atomic_department_group_creation.sql');
+for (const required of [
+  'CREATE OR REPLACE FUNCTION public.create_department_group_with_owner',
+  'INSERT INTO public.group_chats',
+  "INSERT INTO public.group_chat_members (group_id, user_id, role)",
+  "VALUES (v_group.id, v_user, 'owner')",
+  'REVOKE ALL ON FUNCTION public.create_department_group_with_owner(text, text) FROM PUBLIC, anon',
+  'GRANT EXECUTE ON FUNCTION public.create_department_group_with_owner(text, text) TO authenticated',
+]) if (!atomicGroups.includes(required)) fail(`Atomic group creation invariant missing: ${required}`);
+
+const campusHub = read('src/pages/CampusHub.tsx');
+if (!campusHub.includes("supabase.rpc('create_department_group_with_owner'")) {
+  fail('Campus Hub must use the atomic group-creation RPC');
+}
+
 console.log('Platform integrity regression checks passed.');

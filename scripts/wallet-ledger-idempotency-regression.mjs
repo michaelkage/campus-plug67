@@ -27,7 +27,8 @@ for (const reason of [
 const escrowPurchase = read("supabase/migrations/20261021143000_harden_cross_provider_listing_purchases.sql");
 assert(/'Campus Wallet escrow hold'\s*,\s*v_tx\.id/.test(escrowPurchase), "Escrow hold must use the transaction UUID as its idempotency reference");
 const escrowResolution = read("supabase/migrations/20261022151000_guard_wallet_escrow_resolution.sql");
-assert(/'Campus Wallet micro-escrow release'\s*,\s*v_hold\.transaction_id/.test(escrowResolution), "Release must use transaction UUID as its idempotency reference");
+assert(escrowResolution.includes("v_reason := 'Campus Wallet micro-escrow release';"), "Release must use the expected ledger reason");
+assert(/VALUES\s*\(v_hold\.seller_id,\s*v_hold\.amount_kobo,\s*v_reason,\s*v_hold\.transaction_id\)/.test(escrowResolution), "Release must use transaction UUID as its idempotency reference");
 assert(/'Campus Wallet micro-escrow refund'\s*,\s*v_hold\.transaction_id/.test(escrowResolution), "Refund must use transaction UUID as its idempotency reference");
 const legacyRpc = read("supabase/migrations/20261022170000_revoke_legacy_wallet_funding_rpc.sql");
 assert(legacyRpc.includes("REVOKE ALL ON FUNCTION public.credit_wallet_funding(text, bigint)"), "Obsolete client-callable wallet funding RPC must be revoked");

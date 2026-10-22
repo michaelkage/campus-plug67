@@ -69,4 +69,34 @@ for (const protectedRpc of [
   }
 }
 
+
+const bulletinMigration = read('supabase/migrations/20261014180000_skills_department_groups_bulletin_and_purchase_conflicts.sql');
+for (const required of [
+  'ALTER TABLE public.campus_bulletins ENABLE ROW LEVEL SECURITY',
+  'CREATE POLICY "Campus users read bulletins"',
+  'CREATE POLICY "Trusted campus moderators publish bulletins"',
+  "created_by = (SELECT auth.uid())",
+  "university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))",
+  "COALESCE(p.badges, ARRAY[]::text[]) @> ARRAY['Plug Dev']",
+  "COALESCE(p.badges, ARRAY[]::text[]) @> ARRAY['Community Hero']",
+  'CREATE POLICY "Bulletin authors update own posts"',
+  'CREATE POLICY "Bulletin authors delete own posts"',
+]) if (!bulletinMigration.includes(required)) fail(`Bulletin security invariant missing: ${required}`);
+
+const bulletinDeletePolicy = bulletinMigration.split('CREATE POLICY "Bulletin authors delete own posts"')[1] || '';
+if (!bulletinDeletePolicy.includes('university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))')) {
+  fail('Bulletin delete policy must enforce the author’s current campus boundary');
+}
+if (!bulletinDeletePolicy.includes('created_by = (SELECT auth.uid())')) {
+  fail('Bulletin delete policy must restrict deletion to the author');
+}
+
+const bulletinPage = read('src/pages/NewsBulletin.tsx');
+for (const required of [
+  "profile?.badges?.includes('Plug Dev')",
+  "profile?.badges?.includes('Community Hero')",
+  ".eq('university',profile.university)",
+  ".eq('created_by',profile?.id)",
+]) if (!bulletinPage.includes(required)) fail(`Bulletin UI invariant missing: ${required}`);
+
 console.log('Platform integrity regression checks passed.');

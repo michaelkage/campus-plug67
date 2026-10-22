@@ -39,6 +39,7 @@ for (const required of [
   'CREATE POLICY "Owners update matching department groups"',
   'g.university = p.university',
   'g.department = public.canonical_academic_department(p.department)',
+  'department = public.canonical_academic_department(\n      (SELECT p.department FROM public.profiles p WHERE p.id = (SELECT auth.uid()))\n    )',
   'CREATE OR REPLACE FUNCTION public.canonical_academic_department(p_department text)',
   "WHEN 'Computer Science' THEN 'Sciences'",
   "WHEN 'Accounting' THEN 'Management Sciences'",

@@ -46,8 +46,14 @@ serve(async (req: Request) => {
   const secret = Deno.env.get("PAYSTACK_SECRET_KEY") ?? "";
   if (!secret) return jsonResponse({ error: "Server misconfiguration" }, 500, {}, req);
 
+  if (!/^[a-f0-9]{128}$/i.test(signature)) return jsonResponse({ error: "Invalid signature" }, 400, {}, req);
   const expected = await createHmacSignature(secret, body);
-  if (expected !== signature) return jsonResponse({ error: "Invalid signature" }, 400, {}, req);
+  // Compare fixed-length signature bytes without an early-exit string comparison.
+  const expectedBytes = new TextEncoder().encode(expected.toLowerCase());
+  const suppliedBytes = new TextEncoder().encode(signature.toLowerCase());
+  let signatureMismatch = 0;
+  for (let i = 0; i < expectedBytes.length; i++) signatureMismatch |= expectedBytes[i] ^ suppliedBytes[i];
+  if (signatureMismatch !== 0) return jsonResponse({ error: "Invalid signature" }, 400, {}, req);
 
   let event: PaystackEvent;
   try {
@@ -61,18 +67,36 @@ serve(async (req: Request) => {
   if (event.event?.startsWith("refund.")) {
     const data = event.data as Record<string, unknown> | undefined;
     const transactionReference = typeof data?.transaction_reference === "string" ? data.transaction_reference : null;
-    const status = typeof data?.status === "string" ? data.status : null;
+    const status = typeof data?.status === "string" ? data.status.toLowerCase() : null;
     const refundReference = typeof data?.refund_reference === "string" ? data.refund_reference : null;
-    if (!transactionReference || !status) return jsonResponse({ ok: true }, 200, {}, req);
+    if (!transactionReference || !status || !["pending", "processed", "failed", "cancelled", "needs_attention"].includes(status)) {
+      return jsonResponse({ error: "Invalid refund event payload" }, 400, {}, req);
+    }
 
+    const { data: transaction, error: lookupError } = await admin
+      .from("transactions")
+      .select("id,refund_status,refund_processed_at,refund_failure_reason,paystack_refund_id")
+      .eq("paystack_ref", transactionReference)
+      .maybeSingle();
+    if (lookupError) {
+      console.error("Paystack refund lookup failed", lookupError.message);
+      return jsonResponse({ error: "Could not load refund transaction" }, 500, {}, req);
+    }
+    if (!transaction) return jsonResponse({ error: "Refund transaction not found" }, 404, {}, req);
+
+    // Never regress a processed refund because an older event arrived late.
+    if (transaction.refund_status === "processed" && status !== "processed") {
+      return jsonResponse({ ok: true, ignored: true }, 200, {}, req);
+    }
     const patch: Record<string, unknown> = { refund_status: status };
     if (refundReference) patch.paystack_refund_id = refundReference;
-    if (status === "processed") patch.refund_processed_at = new Date().toISOString();
+    if (status === "processed" && !transaction.refund_processed_at) patch.refund_processed_at = new Date().toISOString();
     if (status === "failed") patch.refund_failure_reason = "Paystack reported refund.failed";
-    const { error } = await admin.from("transactions").update(patch).eq("paystack_ref", transactionReference);
+    if (status !== "failed") patch.refund_failure_reason = null;
+    const { error } = await admin.from("transactions").update(patch).eq("id", transaction.id);
     if (error) {
       console.error("Paystack refund state update failed", error.message);
-      return jsonResponse({ error: error.message }, 500, {}, req);
+      return jsonResponse({ error: "Could not update refund state" }, 500, {}, req);
     }
     return jsonResponse({ ok: true }, 200, {}, req);
   }

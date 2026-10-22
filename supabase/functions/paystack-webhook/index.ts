@@ -9,6 +9,7 @@ type PaystackEvent = {
   data?: {
     reference?: unknown;
     amount?: unknown;
+    currency?: unknown;
     metadata?: Record<string, unknown>;
   };
 };
@@ -97,6 +98,7 @@ serve(async (req: Request) => {
     return jsonResponse({ ok: true }, 200, {}, req);
   }
 
+  if (String(event.data?.currency || "") !== "NGN") return jsonResponse({ error: "Unsupported payment currency" }, 400, {}, req);
   const transactionId = typeof metadata.transaction_id === "string" ? metadata.transaction_id : null;
   if (!transactionId) return jsonResponse({ error: "Payment missing transaction_id" }, 400, {}, req);
   const { data, error } = await admin.rpc("process_paystack_success", {

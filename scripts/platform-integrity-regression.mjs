@@ -64,7 +64,7 @@ for (const protectedRpc of [
   'create_pending_paystack_transaction',
   'resolve_wallet_micro_escrow',
 ]) {
-  if (new RegExp('CREATE\\\\s+OR\\\\s+REPLACE\\\\s+FUNCTION\\\\s+public\\\\.' + protectedRpc + '\\\\s*\\\\(', 'i').test(featureMigration)) {
+  if (new RegExp('CREATE\\s+OR\\s+REPLACE\\s+FUNCTION\\s+public\\.' + protectedRpc + '\\s*\\(', 'i').test(featureMigration)) {
     fail(`Feature migration must not replace main's protected wallet RPC: ${protectedRpc}`);
   }
 }

@@ -26,7 +26,7 @@ export function openPaystack(options: PaystackTransactionOptions): Promise<Payst
 
 export function generatePaystackRef(prefix = 'CP'): string { return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}` }
 
-export type AllowedEdgeFunctionName = 'release-escrow' | 'fund-wallet' | 'ai-chat-scan' | 'beacon-matcher' | 'security-gate' | 'process-growth-events' | 'process-dispute'
+export type AllowedEdgeFunctionName = 'release-escrow' | 'fund-wallet' | 'create-wallet-funding-intent' | 'ai-chat-scan' | 'beacon-matcher' | 'security-gate' | 'process-growth-events' | 'process-dispute'
 export interface EdgeFunctionResult<T> { data: T | null; error: string | null }
 
 export async function callEdgeFunction<T = unknown>(functionName: AllowedEdgeFunctionName, body: unknown, accessToken?: string): Promise<EdgeFunctionResult<T>> {

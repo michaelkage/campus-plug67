@@ -75,18 +75,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Payment is not linked to this wallet funding request" }, 403, {}, req);
   }
 
-  // Insert only when no intent exists. The unique reference constraint arbitrates
-  // concurrent first-time verification; never upsert over an existing state.
-  if (!existing) {
-    const { error: insertError } = await admin
-      .from("wallet_funding_intents")
-      .insert({ user_id: user.id, reference, amount_kobo: amountKobo, status: "pending" });
-    if (insertError) {
-      // Another request may have created the intent after our lookup. Fail closed;
-      // a retry will load and validate the persisted intent rather than overwrite it.
-      return jsonResponse({ error: "Funding intent changed; retry verification" }, 409, {}, req);
-    }
-  }
+  if (!existing) return jsonResponse({ error: "Funding intent not found" }, 404, {}, req);
 
   const { data: credited, error: creditError } = await admin.rpc(
     "credit_wallet_funding_for_user",

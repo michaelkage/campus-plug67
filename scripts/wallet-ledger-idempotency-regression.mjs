@@ -12,6 +12,11 @@ assert(credit.includes("v_intent.status <> 'pending'"), "Rejected funding intent
 
 const migration = read("supabase/migrations/20261022160000_wallet_ledger_idempotency.sql");
 assert(migration.includes("UNIQUE INDEX IF NOT EXISTS plug_credit_ledger_wallet_reference_uidx"), "Wallet ledger needs a unique reference/reason index");
+assert(migration.includes("DO $"), "Migration must preflight legacy duplicates before index creation");
+assert(migration.includes("HAVING count(*) > 1"), "Duplicate preflight must detect repeated reference/reason groups");
+assert(migration.includes("Cannot create wallet ledger idempotency index"), "Duplicate preflight must explain why index creation is blocked");
+assert(migration.includes("Sample groups:"), "Duplicate preflight must include actionable sample groups");
+assert(migration.indexOf("DO $") < migration.indexOf("CREATE UNIQUE INDEX IF NOT EXISTS plug_credit_ledger_wallet_reference_uidx"), "Duplicate preflight must run before index creation");
 for (const reason of [
   "Campus Wallet funding",
   "Campus Wallet escrow hold",

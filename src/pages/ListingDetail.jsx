@@ -162,9 +162,7 @@ export default function ListingDetail() {
           qc.invalidateQueries({ queryKey: ['transaction', id, user.id] })
           qc.invalidateQueries({ queryKey: ['listing', id] })
           qc.invalidateQueries({ queryKey: ['listings'] })
-          toast('Payment received. We are confirming it with Paystack; your transaction will update automatically.',
-            icon: '⏳',
-          })
+          toast('Payment received. We are confirming it with Paystack; your transaction will update automatically.', { icon: '⏳' })
           return
         }
       } catch (paymentError) {

@@ -136,9 +136,8 @@ CREATE POLICY "Users create department group chats"
   WITH CHECK (
     creator_id = (SELECT auth.uid())
     AND university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
-    AND department = COALESCE(
-      (SELECT NULLIF(trim(p.department), '') FROM public.profiles p WHERE p.id = (SELECT auth.uid())),
-      'General'
+    AND department = public.canonical_academic_department(
+      (SELECT p.department FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
     )
   );
 
@@ -176,7 +175,7 @@ CREATE POLICY "Members read matching department messages"
         ON m.group_id = g.id AND m.user_id = (SELECT auth.uid())
       WHERE g.id = group_chat_messages.group_id
         AND g.university = p.university
-        AND g.department = COALESCE(NULLIF(trim(p.department), ''), 'General')
+        AND g.department = public.canonical_academic_department(p.department)
     )
   );
 
@@ -193,7 +192,7 @@ CREATE POLICY "Members send matching department messages"
         ON m.group_id = g.id AND m.user_id = (SELECT auth.uid())
       WHERE g.id = group_chat_messages.group_id
         AND g.university = p.university
-        AND g.department = COALESCE(NULLIF(trim(p.department), ''), 'General')
+        AND g.department = public.canonical_academic_department(p.department)
     )
   );
 

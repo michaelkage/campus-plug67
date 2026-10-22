@@ -40,5 +40,10 @@ const edge = read('supabase/functions/fund-wallet/index.ts');
 assertIncludes(edge, 'api.paystack.co/transaction/verify/', 'Wallet credit flow must verify payment with Paystack');
 assertIncludes(edge, 'credit_wallet_funding_for_user', 'Wallet credit flow must use the service-role-only RPC');
 if (edge.includes('"credit_wallet_funding"')) fail('Edge function must not call the legacy client-callable RPC');
+assertIncludes(edge, 'metadata.type !== "campus_wallet_funding"', 'Wallet funding must require the expected Paystack transaction type');
+assertIncludes(edge, 'String(metadata.user_id || "") !== user.id', 'Wallet funding must require exact Paystack metadata ownership');
+assertIncludes(edge, 'existing?.status === "rejected"', 'Rejected funding intents must remain rejected');
+assertIncludes(edge, 'Number(existing.amount_kobo) !== amountKobo', 'Existing funding intent amounts must be immutable');
+if (edge.includes('.upsert(')) fail('Funding verification must never overwrite an existing intent');
 
 console.log('Wallet funding security regression checks passed (static SQL/source invariants).');

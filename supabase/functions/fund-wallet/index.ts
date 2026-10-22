@@ -22,20 +22,28 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Invalid wallet funding request" }, 400, {}, req);
   }
 
-  const existing = await admin
+  // An existing reference is immutable: never overwrite its owner, amount, or state.
+  const { data: existing, error: intentLookupError } = await admin
     .from("wallet_funding_intents")
-    .select("status,amount_kobo,user_id")
+    .select("id,status,amount_kobo,user_id")
     .eq("reference", reference)
     .maybeSingle();
 
-  if (existing.data?.user_id && existing.data.user_id !== user.id) {
+  if (intentLookupError) return jsonResponse({ error: "Unable to load funding intent" }, 503, {}, req);
+  if (existing && existing.user_id !== user.id) {
     return jsonResponse({ error: "Payment reference is owned by another account" }, 403, {}, req);
   }
-  if (existing.data?.status === "credited") {
+  if (existing && Number(existing.amount_kobo) !== amountKobo) {
+    return jsonResponse({ error: "Funding intent amount does not match" }, 400, {}, req);
+  }
+  if (existing?.status === "rejected") {
+    return jsonResponse({ error: "Funding intent is not eligible for credit" }, 409, {}, req);
+  }
+  if (existing?.status === "credited") {
     return jsonResponse({
       success: true,
       already_credited: true,
-      amount_kobo: existing.data.amount_kobo,
+      amount_kobo: existing.amount_kobo,
     }, 200, {}, req);
   }
 
@@ -44,7 +52,7 @@ Deno.serve(async (req: Request) => {
 
   const verify = await fetch(
     `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-    { headers: { Authorization: `Bearer ${secret}` } },
+    { headers: { Authorization: `Bearer ${secret}`, Accept: "application/json" } },
   );
   const payload = await verify.json().catch(() => null);
   const payment = payload?.data;
@@ -52,28 +60,39 @@ Deno.serve(async (req: Request) => {
   if (!verify.ok || payload?.status !== true || payment?.status !== "success") {
     return jsonResponse({ error: "Payment is not verified yet" }, 409, {}, req);
   }
-  if (Number(payment.amount) !== amountKobo || String(payment.currency || "NGN") !== "NGN") {
-    return jsonResponse({ error: "Verified payment amount does not match" }, 400, {}, req);
+  if (Number(payment.amount) !== amountKobo || String(payment.currency || "") !== "NGN") {
+    return jsonResponse({ error: "Verified payment amount or currency does not match" }, 400, {}, req);
   }
 
-  const metadata = payment.metadata || {};
-  if (metadata.user_id && String(metadata.user_id) !== user.id) {
-    return jsonResponse({ error: "Payment owner mismatch" }, 403, {}, req);
+  // Do not accept arbitrary successful Paystack transactions as wallet funding.
+  // These fields are set by Campus Plug when initializing the wallet payment.
+  const metadata = payment.metadata;
+  if (
+    !metadata ||
+    metadata.type !== "campus_wallet_funding" ||
+    String(metadata.user_id || "") !== user.id
+  ) {
+    return jsonResponse({ error: "Payment is not linked to this wallet funding request" }, 403, {}, req);
   }
 
-  const { error: intentError } = await admin
-    .from("wallet_funding_intents")
-    .upsert(
-      { user_id: user.id, reference, amount_kobo: amountKobo, status: "pending" },
-      { onConflict: "reference", ignoreDuplicates: false },
-    );
-  if (intentError) return jsonResponse({ error: intentError.message }, 500, {}, req);
+  // Insert only when no intent exists. The unique reference constraint arbitrates
+  // concurrent first-time verification; never upsert over an existing state.
+  if (!existing) {
+    const { error: insertError } = await admin
+      .from("wallet_funding_intents")
+      .insert({ user_id: user.id, reference, amount_kobo: amountKobo, status: "pending" });
+    if (insertError) {
+      // Another request may have created the intent after our lookup. Fail closed;
+      // a retry will load and validate the persisted intent rather than overwrite it.
+      return jsonResponse({ error: "Funding intent changed; retry verification" }, 409, {}, req);
+    }
+  }
 
   const { data: credited, error: creditError } = await admin.rpc(
     "credit_wallet_funding_for_user",
     { p_user_id: user.id, p_reference: reference, p_amount_kobo: amountKobo },
   );
-  if (creditError) return jsonResponse({ error: creditError.message }, 500, {}, req);
+  if (creditError) return jsonResponse({ error: "Unable to credit verified wallet funding" }, 500, {}, req);
 
   return jsonResponse(credited, 200, {}, req);
 });

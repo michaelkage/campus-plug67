@@ -10,7 +10,8 @@ assert(migration.includes("GET DIAGNOSTICS updated_count = ROW_COUNT"), "Settlem
 assert(migration.includes("updated_count <> 1 THEN RAISE EXCEPTION 'Listing availability changed during settlement'"), "Listing update race must roll back settlement");
 assert(migration.includes("tx.status <> 'pending' OR COALESCE(tx.payment_verified, false)"), "Cancelled and otherwise ineligible transactions must not settle");
 assert(migration.includes("tx.status = 'locked' AND tx.payment_verified"), "Settled transaction retries must remain idempotent");
-assert(migration.includes("GRANT EXECUTE ON FUNCTION public.process_paystack_success(text, text, text, bigint, uuid) TO service_role"), "Settlement RPC must remain service-role-only");
+assert(/REVOKE ALL ON FUNCTION public\.process_paystack_success\(text, text, text, bigint, uuid\)\s+FROM PUBLIC, anon, authenticated/.test(migration), "Settlement RPC must revoke public and user-role access");
+assert(/GRANT EXECUTE ON FUNCTION public\.process_paystack_success\(text, text, text, bigint, uuid\)\s+TO service_role/.test(migration), "Settlement RPC must remain service-role-only");
 
 const verify = read("supabase/functions/verify-payment/index.ts");
 assert(verify.includes('verifiedCurrency !== "NGN"'), "Buyer-triggered verification must require NGN");

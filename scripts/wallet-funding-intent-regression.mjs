@@ -46,4 +46,17 @@ assertIncludes(edge, 'existing?.status === "rejected"', 'Rejected funding intent
 assertIncludes(edge, 'Number(existing.amount_kobo) !== amountKobo', 'Existing funding intent amounts must be immutable');
 if (edge.includes('.upsert(')) fail('Funding verification must never overwrite an existing intent');
 
+
+const serviceCreditGuard = read('supabase/migrations/20261022143000_guard_service_wallet_credit_status.sql');
+const serviceCreditStart = serviceCreditGuard.toLowerCase().indexOf('create or replace function public.credit_wallet_funding_for_user');
+if (serviceCreditStart < 0) fail('Missing hardened service-role wallet funding function');
+const serviceCreditBody = serviceCreditGuard.slice(serviceCreditStart, serviceCreditGuard.toLowerCase().indexOf('revoke all on function', serviceCreditStart));
+assertIncludes(serviceCreditBody, 'FOR UPDATE', 'Service credit must lock the funding intent');
+assertIncludes(serviceCreditBody, "v_intent.status = 'credited'", 'Service credit retries must remain idempotent');
+assertIncludes(serviceCreditBody, "v_intent.status <> 'pending'", 'Service credit must reject rejected and unexpected intent states');
+assertIncludes(serviceCreditBody, "RAISE EXCEPTION 'Funding intent is not eligible for credit'", 'Non-pending service credits must fail closed');
+assertIncludes(serviceCreditBody, 'INSERT INTO public.plug_credit_ledger', 'Pending verified intent must write the ledger credit');
+assertIncludes(serviceCreditBody, "SET status = 'credited'", 'Successful service credit must atomically mark the intent credited');
+assertIncludes(serviceCreditGuard, 'TO service_role', 'Service credit RPC must remain service-role-only');
+
 console.log('Wallet funding security regression checks passed (static SQL/source invariants).');

@@ -59,4 +59,14 @@ assertIncludes(serviceCreditBody, 'INSERT INTO public.plug_credit_ledger', 'Pend
 assertIncludes(serviceCreditBody, "SET status = 'credited'", 'Successful service credit must atomically mark the intent credited');
 assertIncludes(serviceCreditGuard, 'TO service_role', 'Service credit RPC must remain service-role-only');
 
+
+const intentEndpoint = read('supabase/functions/create-wallet-funding-intent/index.ts');
+assertIncludes(intentEndpoint, 'getAuthenticatedUser(req)', 'Intent creation requires authentication');
+assertIncludes(intentEndpoint, 'crypto.randomUUID()', 'Funding reference must be server-generated');
+assertIncludes(intentEndpoint, 'status: "pending"', 'New funding intent must be pending');
+const walletPage = read('src/pages/CampusWallet.tsx');
+assertIncludes(walletPage, "'create-wallet-funding-intent'", 'Checkout must request a server-issued intent');
+if (walletPage.includes('generatePaystackRef')) fail('Wallet checkout must not generate references in the browser');
+assertIncludes(edge, 'if (!existing) return jsonResponse', 'Verification must reject missing intents');
+
 console.log('Wallet funding security regression checks passed (static SQL/source invariants).');

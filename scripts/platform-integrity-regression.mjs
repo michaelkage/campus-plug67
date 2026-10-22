@@ -61,6 +61,16 @@ for (const required of [
 ]) if (!atomicGroups.includes(required)) fail(`Atomic group creation invariant missing: ${required}`);
 
 const campusHub = read('src/pages/CampusHub.tsx');
+for (const required of [
+  "const LEGACY_DEPARTMENT_GROUPS",
+  "'Computer Science'",
+  "'Nursing Science'",
+  "'Accounting'",
+  'LEGACY_DEPARTMENT_TO_FACULTY[department?.trim()]',
+  ".eq('department',canonicalAcademicDepartment(department))",
+  "queryKey:['groups',university,canonicalAcademicDepartment(department)]",
+]) if (!campusHub.includes(required)) fail(`Campus Hub legacy department filter missing: ${required}`);
+
 if (!campusHub.includes("supabase.rpc('create_department_group_with_owner'")) {
   fail('Campus Hub must use the atomic group-creation RPC');
 }

@@ -1,0 +1,39 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const read = (file) => fs.readFileSync(path.join(process.cwd(), file), "utf8");
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+
+const credit = read("supabase/migrations/20261022143000_guard_service_wallet_credit_status.sql");
+assert(credit.includes("VALUES (p_user_id, p_amount_kobo, 'Campus Wallet funding', v_intent.id)"), "Funding ledger must reference the UUID intent, not the provider's text reference");
+assert(!credit.includes("'Campus Wallet funding', p_reference"), "Funding ledger must not pass Paystack's text reference into UUID reference_id");
+assert(credit.includes("v_intent.status = 'credited'"), "Funding retries must remain idempotent");
+assert(credit.includes("v_intent.status <> 'pending'"), "Rejected funding intents must not be credited");
+
+const migration = read("supabase/migrations/20261022160000_wallet_ledger_idempotency.sql");
+assert(migration.includes("UNIQUE INDEX IF NOT EXISTS plug_credit_ledger_wallet_reference_uidx"), "Wallet ledger needs a unique reference/reason index");
+assert(migration.includes("DO $"), "Migration must preflight legacy duplicates before index creation");
+assert(migration.includes("HAVING count(*) > 1"), "Duplicate preflight must detect repeated reference/reason groups");
+assert(migration.includes("Cannot create wallet ledger idempotency index"), "Duplicate preflight must explain why index creation is blocked");
+assert(migration.includes("Sample groups:"), "Duplicate preflight must include actionable sample groups");
+assert(migration.indexOf("DO $") < migration.indexOf("CREATE UNIQUE INDEX IF NOT EXISTS plug_credit_ledger_wallet_reference_uidx"), "Duplicate preflight must run before index creation");
+for (const reason of [
+  "Campus Wallet funding",
+  "Campus Wallet escrow hold",
+  "Campus Wallet micro-escrow release",
+  "Campus Wallet micro-escrow refund",
+]) assert(migration.includes("'" + reason + "'"), "Missing idempotency coverage for " + reason);
+
+const escrowPurchase = read("supabase/migrations/20261021143000_harden_cross_provider_listing_purchases.sql");
+assert(/'Campus Wallet escrow hold'\s*,\s*v_tx\.id/.test(escrowPurchase), "Escrow hold must use the transaction UUID as its idempotency reference");
+const escrowResolution = read("supabase/migrations/20261022151000_guard_wallet_escrow_resolution.sql");
+assert(escrowResolution.includes("v_reason := 'Campus Wallet micro-escrow release';"), "Release must use the expected ledger reason");
+assert(/VALUES\s*\(v_hold\.seller_id,\s*v_hold\.amount_kobo,\s*v_reason,\s*v_hold\.transaction_id\)/.test(escrowResolution), "Release must use transaction UUID as its idempotency reference");
+assert(/'Campus Wallet micro-escrow refund'\s*,\s*v_hold\.transaction_id/.test(escrowResolution), "Refund must use transaction UUID as its idempotency reference");
+const legacyRpc = read("supabase/migrations/20261022170000_revoke_legacy_wallet_funding_rpc.sql");
+assert(legacyRpc.includes("REVOKE ALL ON FUNCTION public.credit_wallet_funding(text, bigint)"), "Obsolete client-callable wallet funding RPC must be revoked");
+assert(legacyRpc.includes("FROM PUBLIC, anon, authenticated"), "Legacy wallet funding RPC must not remain executable by clients");
+const legacyDefinition = read("supabase/migrations/042_wallet_funding_and_sku_restore.sql");
+assert(legacyDefinition.includes("CREATE OR REPLACE FUNCTION public.credit_wallet_funding("), "Regression must continue to track the legacy RPC definition");
+assert(legacyDefinition.includes("'Campus Wallet funding',p_reference"), "Legacy RPC reference_id cast risk must remain covered by access revocation");
+console.log("Wallet ledger idempotency regression checks passed (static source invariants).");

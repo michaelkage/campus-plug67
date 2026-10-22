@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, formatNaira } from '@/lib/supabase'
@@ -10,7 +11,7 @@ type MicroListing = { id: string; title: string; price: number; seller_id: strin
 type WalletRpcResult = { success?: boolean; transaction_id?: string; message?: string }
 
 export default function MicroEscrowLauncher() {
-  const { user } = useAuth(); const location = useLocation(); const navigate = useNavigate()
+  const { user } = useAuth(); const location = useLocation(); const navigate = useNavigate(); const qc = useQueryClient()
   const [listing, setListing] = useState<MicroListing | null>(null); const [balance, setBalance] = useState(0); const [busy, setBusy] = useState(false)
   const listingId = location.pathname.match(/^\/marketplace\/([^/]+)$/)?.[1]
 
@@ -38,6 +39,8 @@ export default function MicroEscrowLauncher() {
       const result = data as WalletRpcResult | null
       if (!result?.success) throw new Error(result?.message || 'This listing already has an active purchase. Refresh the listing and check your transactions.')
       toast.success('🔐 Wallet escrow locked — no Paystack checkout needed.')
+      qc.invalidateQueries({ queryKey: ['listings'] })
+      qc.invalidateQueries({ queryKey: ['transaction', listing.id, user.id] })
       navigate(`/marketplace/${listing.id}`)
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Campus Wallet purchase failed') }
     finally { setBusy(false) }

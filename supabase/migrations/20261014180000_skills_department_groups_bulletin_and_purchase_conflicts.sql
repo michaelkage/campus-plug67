@@ -53,7 +53,6 @@ CREATE POLICY "Users join matching department groups"
   ON public.group_chat_members FOR INSERT TO authenticated
   WITH CHECK (
     user_id = (SELECT auth.uid())
-    AND role = 'member'
     AND EXISTS (
       SELECT 1
       FROM public.group_chats g
@@ -61,6 +60,10 @@ CREATE POLICY "Users join matching department groups"
       WHERE g.id = group_chat_members.group_id
         AND g.university = p.university
         AND g.department = COALESCE(NULLIF(trim(p.department), ''), 'General')
+        AND (
+          role = 'member'
+          OR (role = 'owner' AND g.creator_id = (SELECT auth.uid()))
+        )
     )
   );
 

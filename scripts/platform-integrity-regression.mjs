@@ -57,4 +57,16 @@ if (!campusHub.includes("supabase.rpc('create_department_group_with_owner'")) {
   fail('Campus Hub must use the atomic group-creation RPC');
 }
 
+
+const featureMigration = read('supabase/migrations/20261014180000_skills_department_groups_bulletin_and_purchase_conflicts.sql');
+for (const protectedRpc of [
+  'create_wallet_micro_escrow',
+  'create_pending_paystack_transaction',
+  'resolve_wallet_micro_escrow',
+]) {
+  if (new RegExp('CREATE\\\\s+OR\\\\s+REPLACE\\\\s+FUNCTION\\\\s+public\\\\.' + protectedRpc + '\\\\s*\\\\(', 'i').test(featureMigration)) {
+    fail(`Feature migration must not replace main's protected wallet RPC: ${protectedRpc}`);
+  }
+}
+
 console.log('Platform integrity regression checks passed.');

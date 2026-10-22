@@ -154,7 +154,11 @@ CREATE POLICY "Bulletin authors update own posts" ON public.campus_bulletins
   );
 DROP POLICY IF EXISTS "Bulletin authors delete own posts" ON public.campus_bulletins;
 CREATE POLICY "Bulletin authors delete own posts" ON public.campus_bulletins
-  FOR DELETE TO authenticated USING (created_by = (SELECT auth.uid()));
+  FOR DELETE TO authenticated
+  USING (
+    created_by = (SELECT auth.uid())
+    AND university = (SELECT p.university FROM public.profiles p WHERE p.id = (SELECT auth.uid()))
+  );
 
 -- Wallet purchase RPCs are intentionally not redefined here.
 -- Later migrations on main own these functions and include listing reservation,

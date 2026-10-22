@@ -16,6 +16,7 @@ const extractFunction = (sql, name) => {
 
 const migrationPath = 'supabase/migrations/20261021143000_harden_cross_provider_listing_purchases.sql';
 const migration = read(migrationPath);
+const resolutionMigration = read('supabase/migrations/20261022180000_mark_wallet_listing_sold_on_release.sql');
 const rpcPermissions = read('supabase/migrations/20261022120000_restrict_marketplace_escrow_rpc_execution.sql');
 const legacyRpcPermissions = read('supabase/migrations/20261022124500_restrict_legacy_wallet_sku_rpc_execution.sql');
 for (const signature of [
@@ -39,7 +40,7 @@ for (const signature of [
 }
 const wallet = extractFunction(migration, 'create_wallet_micro_escrow');
 const paystack = extractFunction(migration, 'create_pending_paystack_transaction');
-const resolve = extractFunction(migration, 'resolve_wallet_micro_escrow');
+const resolve = extractFunction(resolutionMigration, 'resolve_wallet_micro_escrow');
 const integrity = read('supabase/migrations/20260926131500_protect_listing_purchase_integrity.sql');
 const listingDetail = read('src/pages/ListingDetail.jsx');
 const walletLauncher = read('src/components/wallet/MicroEscrowLauncher.tsx');
@@ -48,8 +49,6 @@ const rpcTypes = read('src/lib/supabase/client.ts');
 
 const activeStatuses = "'pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed'";
 
-// Both providers must serialize on the listing row and check for active purchases
-// before creating a transaction. This guards the cross-provider race, not just retries.
 for (const [name, fn] of [['wallet', wallet], ['Paystack', paystack]]) {
   assertIncludes(fn, 'FOR UPDATE', `${name} purchase path must lock the listing row`);
   assertIncludes(fn, activeStatuses, `${name} purchase path must check all active transaction states`);
@@ -57,16 +56,12 @@ for (const [name, fn] of [['wallet', wallet], ['Paystack', paystack]]) {
   assertIncludes(fn, "'listing_unavailable'", `${name} purchase path must return a structured unavailable response`);
 }
 
-// Preserve the partial unique index as the final concurrency safeguard and translate
-// the rare constraint race to a structured conflict.
 assertIncludes(integrity, 'CREATE UNIQUE INDEX IF NOT EXISTS transactions_one_active_per_listing',
   'The active-per-listing unique index must remain in place');
 assertIncludes(paystack, 'WHEN unique_violation', 'Paystack must handle a last-resort uniqueness race');
 assertIncludes(paystack, "v_constraint_name = 'transactions_one_active_per_listing'",
   'Paystack must map the unique-index race to active_transaction_exists');
 
-// Listing visibility must follow the established state machine: locked purchases are
-// reserved; release marks them sold. All writes occur inside one PostgreSQL function call.
 const txInsert = wallet.indexOf('INSERT INTO public.transactions');
 const ledgerInsert = wallet.indexOf('INSERT INTO public.plug_credit_ledger');
 const holdInsert = wallet.indexOf('INSERT INTO public.wallet_escrow_holds');
@@ -75,16 +70,16 @@ if (!(txInsert >= 0 && ledgerInsert > txInsert && holdInsert > ledgerInsert && l
   fail('Wallet escrow must insert transaction, ledger debit, and hold before reserving the listing');
 }
 assertIncludes(integrity, "SET status='sold'", 'Paystack settlement must keep using the sold listing convention');
+assertIncludes(resolve, "SET status = 'sold'", 'Wallet escrow release must mark the listing sold');
+assertIncludes(resolve, "AND status = 'reserved'", 'Wallet escrow release must only sell the reserved listing');
+assertIncludes(resolve, "RAISE EXCEPTION 'Wallet escrow listing is not reserved'",
+  'Wallet release must roll back if listing state is inconsistent');
 
-// Refunds must restore availability only after the transaction is cancelled and only
-// when no other live transaction exists. Null auth must not pass participant checks.
 assertIncludes(resolve, 'v_user IS NULL', 'Wallet escrow resolution must reject unauthenticated callers');
 assertIncludes(resolve, "status = 'active'", 'Wallet refund must return the listing to active');
 assertIncludes(resolve, "l.status = 'reserved'", 'Wallet refund must only restore a reserved listing');
 assertIncludes(resolve, 'NOT EXISTS', 'Wallet refund must not reopen a listing with another active transaction');
 
-// Unhandled SQL errors abort the function statement, which rolls back the transaction,
-// trigger-driven balance debit, ledger entry, hold, and listing update together.
 if (/EXCEPTION\s+WHEN\s+OTHERS/i.test(wallet)) {
   fail('Wallet escrow must not swallow unexpected errors and commit partial state');
 }
@@ -92,8 +87,6 @@ if (!(wallet.indexOf('INSERT INTO public.wallet_escrow_holds') < wallet.indexOf(
   fail('Listing state update must be part of the same atomic wallet escrow function');
 }
 
-// Client must consume the structured conflict response and refresh cached visibility
-// and transaction data after conflict/success.
 assertIncludes(listingDetail, 'tx?.success === false', 'Paystack client must handle structured RPC conflicts');
 assertIncludes(listingDetail, "['listings']", 'Paystack conflict handling must refresh marketplace results');
 assertIncludes(listingDetail, "listing.status === 'reserved'", 'Marketplace detail must explain reserved listings');

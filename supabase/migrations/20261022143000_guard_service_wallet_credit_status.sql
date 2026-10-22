@@ -42,7 +42,7 @@ BEGIN
   END IF;
 
   INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
-  VALUES (p_user_id, p_amount_kobo, 'Campus Wallet funding', p_reference);
+  VALUES (p_user_id, p_amount_kobo, 'Campus Wallet funding', v_intent.id);
 
   UPDATE public.wallet_funding_intents
      SET status = 'credited',

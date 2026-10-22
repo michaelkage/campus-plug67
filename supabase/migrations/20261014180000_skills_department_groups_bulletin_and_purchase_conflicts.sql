@@ -14,7 +14,7 @@ CREATE POLICY "Sellers delete own gigs" ON public.gigs
 -- Normalize legacy programme-valued profiles.department into faculty labels used by current onboarding.
 -- Profile data stays untouched; existing groups and new profiles resolve to the same scope.
 CREATE OR REPLACE FUNCTION public.canonical_academic_department(p_department text)
-RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = public AS $
+RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = public AS $$
   SELECT CASE trim(COALESCE(p_department, ''))
     WHEN '' THEN 'General'
     WHEN 'Agricultural Engineering' THEN 'Engineering'
@@ -88,7 +88,7 @@ RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE SET search_path = public AS $
     WHEN 'Agriculture & Food Sciences' THEN 'Agriculture & Food Sciences'
     ELSE trim(p_department)
   END
-$;
+$$;
 
 -- Study groups: a group is visible only to students in its department at that university.
 ALTER TABLE public.group_chats ADD COLUMN IF NOT EXISTS department text;

@@ -28,4 +28,10 @@ const escrow = read("supabase/migrations/20261021143000_harden_cross_provider_li
 assert(escrow.includes("'Campus Wallet escrow hold', v_tx.id"), "Escrow hold must use the transaction UUID as its idempotency reference");
 assert(escrow.includes("'Campus Wallet micro-escrow release', v_hold.transaction_id"), "Release must use transaction UUID as its idempotency reference");
 assert(escrow.includes("'Campus Wallet micro-escrow refund', v_hold.transaction_id"), "Refund must use transaction UUID as its idempotency reference");
+const legacyRpc = read("supabase/migrations/20261022170000_revoke_legacy_wallet_funding_rpc.sql");
+assert(legacyRpc.includes("REVOKE ALL ON FUNCTION public.credit_wallet_funding(text, bigint)"), "Obsolete client-callable wallet funding RPC must be revoked");
+assert(legacyRpc.includes("FROM PUBLIC, anon, authenticated"), "Legacy wallet funding RPC must not remain executable by clients");
+const legacyDefinition = read("supabase/migrations/042_wallet_funding_and_sku_restore.sql");
+assert(legacyDefinition.includes("CREATE OR REPLACE FUNCTION public.credit_wallet_funding("), "Regression must continue to track the legacy RPC definition");
+assert(legacyDefinition.includes("'Campus Wallet funding',p_reference"), "Legacy RPC reference_id cast risk must remain covered by access revocation");
 console.log("Wallet ledger idempotency regression checks passed (static source invariants).");

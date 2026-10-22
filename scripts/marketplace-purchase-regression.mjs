@@ -17,6 +17,7 @@ const extractFunction = (sql, name) => {
 const migrationPath = 'supabase/migrations/20261021143000_harden_cross_provider_listing_purchases.sql';
 const migration = read(migrationPath);
 const rpcPermissions = read('supabase/migrations/20261022120000_restrict_marketplace_escrow_rpc_execution.sql');
+const legacyRpcPermissions = read('supabase/migrations/20261022124500_restrict_legacy_wallet_sku_rpc_execution.sql');
 for (const signature of [
   'public.create_wallet_micro_escrow(uuid)',
   'public.resolve_wallet_micro_escrow(uuid, text)',
@@ -26,6 +27,15 @@ for (const signature of [
     `Privileged RPC must revoke PUBLIC/anon execution: ${signature}`);
   assertIncludes(rpcPermissions, `GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`,
     `Privileged RPC must remain available to authenticated users: ${signature}`);
+}
+for (const signature of [
+  'public.credit_wallet_funding(text, bigint)',
+  'public.match_global_sku(text)',
+]) {
+  assertIncludes(legacyRpcPermissions, `REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC, anon`,
+    `Legacy RPC must revoke PUBLIC/anon execution: ${signature}`);
+  assertIncludes(legacyRpcPermissions, `GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`,
+    `Legacy RPC must remain available to authenticated users: ${signature}`);
 }
 const wallet = extractFunction(migration, 'create_wallet_micro_escrow');
 const paystack = extractFunction(migration, 'create_pending_paystack_transaction');

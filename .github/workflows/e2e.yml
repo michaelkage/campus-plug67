@@ -18,6 +18,9 @@ concurrency:
 
 jobs:
   e2e:
+    # Dependabot pull_request runs do not receive repository secrets. The live,
+    # credentialed journey is still exercised on main pushes with configured secrets.
+    if: github.actor != 'dependabot[bot]'
     name: Playwright smoke tests
     runs-on: ubuntu-latest
     timeout-minutes: 15

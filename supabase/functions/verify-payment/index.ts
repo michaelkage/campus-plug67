@@ -61,7 +61,8 @@ Deno.serve(async (req: Request) => {
 
   const verifiedAmount = Number(payload.data.amount);
   const verifiedReference = payload.data.reference;
-  if (!Number.isSafeInteger(verifiedAmount) || verifiedAmount !== Number(tx.amount) || verifiedReference !== tx.paystack_ref) {
+  const verifiedCurrency = String(payload.data.currency || "");
+  if (!Number.isSafeInteger(verifiedAmount) || verifiedAmount !== Number(tx.amount) || verifiedReference !== tx.paystack_ref || verifiedCurrency !== "NGN") {
     return response(req, { error: "Paystack payment verification mismatch" }, 409);
   }
 

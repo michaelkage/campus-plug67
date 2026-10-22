@@ -292,7 +292,7 @@ export type Database = {
           subcategory?: string | null
           condition: string
           seller_id: string
-          status: 'active' | 'sold' | 'removed' | 'pending'
+          status: 'active' | 'reserved' | 'sold' | 'removed' | 'pending'
           images: string[]
           location_lat?: number | null
           location_long?: number | null

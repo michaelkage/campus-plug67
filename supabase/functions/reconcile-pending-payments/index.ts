@@ -58,7 +58,8 @@ Deno.serve(async (req: Request) => {
       if (providerStatus === "success") {
         const amount = Number(payload.data.amount);
         const reference = payload.data.reference;
-        if (!Number.isSafeInteger(amount) || amount !== Number(tx.amount) || reference !== tx.paystack_ref) {
+        const currency = String(payload.data.currency || "");
+        if (!Number.isSafeInteger(amount) || amount !== Number(tx.amount) || reference !== tx.paystack_ref || currency !== "NGN") {
           results.push({ transaction_id: tx.id, action: "manual_review", provider_status: providerStatus });
           continue;
         }

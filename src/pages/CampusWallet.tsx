@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { supabase, formatNaira, openPaystack, generatePaystackRef, callEdgeFunction } from '@/lib/supabase'
+import { supabase, formatNaira, openPaystack, callEdgeFunction } from '@/lib/supabase'
 import { WalletCards, ArrowDownToLine, ShieldCheck, Zap, RefreshCw, HelpCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -65,10 +65,13 @@ export default function CampusWallet() {
     if (!publicKey) { toast.error('Wallet payments are not configured. Please contact support.'); return }
 
     setFunding(true)
-    const reference = generatePaystackRef('WALLET')
-    setRecoveryReference(reference)
-    try { sessionStorage.setItem(PENDING_REFERENCE_KEY, reference) } catch { /* Recovery field remains visible. */ }
     try {
+      const intent = await callEdgeFunction<{ reference: string; amount_kobo: number }>('create-wallet-funding-intent', { amount_kobo: kobo })
+      if (intent.error) throw new Error(intent.error)
+      const reference = intent.data?.reference
+      if (!reference || intent.data?.amount_kobo !== kobo) throw new Error('Could not prepare wallet funding. Please retry.')
+      setRecoveryReference(reference)
+      try { sessionStorage.setItem(PENDING_REFERENCE_KEY, reference) } catch { /* Recovery field remains visible. */ }
       await openPaystack({ email: user.email || '', amount: kobo, ref: reference, publicKey, metadata: { type: 'campus_wallet_funding', user_id: user.id } })
       await verifyAndCredit(reference, kobo)
     } catch (error) {

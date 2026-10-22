@@ -33,6 +33,8 @@ jobs:
         run: npm run typecheck
       - name: Security regression
         run: npm run test:security
+      - name: Platform integrity regression
+        run: npm run test:platform-integrity
       - name: Unit tests
         run: npm test -- --passWithNoTests
       - name: Production build

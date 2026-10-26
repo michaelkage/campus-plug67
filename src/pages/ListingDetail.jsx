@@ -145,7 +145,13 @@ export default function ListingDetail() {
       if (!publicKey) throw new Error('Payment service is not configured. Please try again later.')
       const { data: tx, error } = await supabase.rpc('create_pending_paystack_transaction', { p_listing_id: listing.id, p_paystack_ref: ref })
       if (error) throw error
-      if (tx?.success === false || !tx) throw new Error(tx?.message || 'This listing already has an active purchase. Refresh the listing and check your transactions.')
+      if (tx?.success === false) {
+        qc.invalidateQueries({ queryKey: ['listing', id] })
+        qc.invalidateQueries({ queryKey: ['listings'] })
+        qc.invalidateQueries({ queryKey: ['transaction', id, user.id] })
+        throw new Error(tx.message || 'This listing is no longer available.')
+      }
+      if (!tx?.id) throw new Error('The payment service did not create a transaction. Please try again.')
       try {
         await initPaystack({ email: user.email, amount: amountInKobo, ref, publicKey, metadata: { type: 'marketplace_escrow', transaction_id: tx.id, listing_id: listing.id } })
         const { data: verification, error: verificationError } = await supabase.functions.invoke('verify-payment', {
@@ -153,6 +159,8 @@ export default function ListingDetail() {
         })
         if (verificationError) throw verificationError
         if (!verification?.success && !verification?.already_verified) {
+          qc.invalidateQueries({ queryKey: ['listing', id] })
+          qc.invalidateQueries({ queryKey: ['listings'] })
           qc.invalidateQueries({ queryKey: ['transaction', id, user.id] })
           toast('Payment received. We are confirming it with Paystack; your transaction will update automatically.', {
             icon: '⏳',
@@ -165,6 +173,8 @@ export default function ListingDetail() {
         }
         throw paymentError
       }
+      qc.invalidateQueries({ queryKey: ['listing', id] })
+      qc.invalidateQueries({ queryKey: ['listings'] })
       qc.invalidateQueries({ queryKey: ['transaction', id, user.id] })
     } catch (e) {
       if (e.message !== 'Payment cancelled') toast.error(e.message)
@@ -209,7 +219,7 @@ export default function ListingDetail() {
           <div className="surface p-4"><div className="flex items-center gap-2 mb-1"><Shield size={13} className="text-[var(--md-primary)]"/><span className="text-xs font-bold text-[var(--md-primary)] uppercase tracking-wider">PlugPay Escrow + Dispute Protection</span></div><p className="text-xs text-white/40">Funds locked until QR handshake. 48h dispute window on every transaction.</p></div>
           {!isSeller && listing.status === 'active' && !activeTx && <button onClick={handleBuy} disabled={buying} className="btn-primary w-full text-base disabled:opacity-50">{buying ? 'Opening Paystack...' : `Buy Now — ${formatNaira(listing.price)}`}</button>}
           {activeTx && <EscrowPanel tx={activeTx} isSeller={isSeller} otherUserId={isSeller ? activeTx.buyer_id : activeTx.seller_id} onRefresh={() => qc.invalidateQueries({ queryKey: ['transaction', id, user.id] })} />}
-          {listing.status === 'reserved' && <div className="surface p-5 text-center"><div className="font-bold text-sm">Reserved</div><p className="mt-1 text-xs text-white/45">Another buyer has an active purchase for this listing. Check back if it becomes available again.</p></div>}
+          {listing.status === 'reserved' && !activeTx && <div className="surface p-5 text-center"><div className="font-bold text-sm">Reserved</div><p className="mt-1 text-xs text-white/45">Another buyer has an active purchase for this listing. Check back if it becomes available again.</p></div>}
           {listing.status === 'sold' && <div className="surface p-5 text-center"><div className="text-2xl mb-2">✅</div><div className="font-bold text-sm">Sold</div></div>}
         </div>
       </div>

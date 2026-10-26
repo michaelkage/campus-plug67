@@ -23,6 +23,14 @@ for (const required of [
   'alter table public.platform_observability_events enable row level security',
 ]) if (!migration.includes(required)) fail(`Platform integrity migration missing: ${required}`);
 
+const adminConsole = read('src/pages/AdminConsole.jsx');
+if (!adminConsole.includes("['admin','platform_admin'].includes(String(user?.app_metadata?.role ?? ''))")) {
+  fail('Admin console visibility must match the database platform-admin JWT role check');
+}
+if (adminConsole.includes("profile?.badges?.includes('Community Hero')") || adminConsole.includes("profile?.badges?.includes('Plug Dev')")) {
+  fail('Public profile badges must not grant admin-console access');
+}
+
 const machine = read('src/lib/transactionStateMachine.ts');
 for (const state of ['PENDING','LOCKED','MEETUP_INITIATED','RELEASE_REQUESTED','RELEASED','CANCELLED','DISPUTED','REFUNDED']) {
   if (!machine.includes(`'${state}'`)) fail(`Transaction state missing: ${state}`);

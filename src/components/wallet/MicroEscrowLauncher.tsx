@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 
 const LIMIT_KOBO = 1_000_000
 type MicroListing = { id: string; title: string; price: number; seller_id: string; status: string }
-type WalletRpcResult = { success?: boolean; transaction_id?: string; message?: string }
+type WalletRpcResult = { success?: boolean; code?: string; transaction_id?: string; message?: string }
 
 export default function MicroEscrowLauncher() {
   const { user } = useAuth(); const location = useLocation(); const navigate = useNavigate(); const qc = useQueryClient()
@@ -37,7 +37,22 @@ export default function MicroEscrowLauncher() {
       const { data, error } = await (supabase.rpc as any)('create_wallet_micro_escrow', { p_listing_id: listing.id })
       if (error) throw error
       const result = data as WalletRpcResult | null
-      if (!result?.success) throw new Error(result?.message || 'This listing already has an active purchase. Refresh the listing and check your transactions.')
+      if (!result?.success) {
+        if (result?.code === 'active_transaction_exists') {
+          toast.error(result.message || 'This listing already has an active purchase.')
+          qc.invalidateQueries({ queryKey: ['listings'] })
+          qc.invalidateQueries({ queryKey: ['transaction', listing.id, user.id] })
+          navigate(`/marketplace/${listing.id}`)
+          return
+        }
+        if (result?.code === 'listing_unavailable') {
+          toast.error(result.message || 'This listing is no longer available.')
+          qc.invalidateQueries({ queryKey: ['listings'] })
+          navigate(`/marketplace/${listing.id}`)
+          return
+        }
+        throw new Error(result?.message || 'Campus Wallet purchase failed')
+      }
       toast.success('🔐 Wallet escrow locked — no Paystack checkout needed.')
       qc.invalidateQueries({ queryKey: ['listings'] })
       qc.invalidateQueries({ queryKey: ['transaction', listing.id, user.id] })

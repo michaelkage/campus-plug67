@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { DEPARTMENTS, PROGRAMMES } from '@/data/academicOptions'
+import { DEPARTMENTS, getProgrammesForDepartment } from '@/data/academicOptions'
 import { ArrowRight, Eye, EyeOff, Fingerprint, LockKeyhole, Mail, ShieldCheck, Zap } from 'lucide-react'
 
 const UNIVERSITIES = [
@@ -35,6 +35,7 @@ export default function Auth() {
   if (isAuthenticated) return <Navigate to="/" replace />
 
   const set = key => event => setForm(current => ({ ...current, [key]: event.target.value }))
+  const setDepartment = event => setForm(current => ({ ...current, department: event.target.value, course: '' }))
 
   const switchMode = nextMode => {
     if (submitting) return
@@ -236,7 +237,7 @@ export default function Auth() {
                       </div>
                       <div>
                         <label className="label" htmlFor="department">Department</label>
-                        <select id="department" className="input" value={form.department} onChange={set('department')} required>
+                        <select id="department" className="input" value={form.department} onChange={setDepartment} required>
                           <option value="">Choose your department</option>
                           {DEPARTMENTS.map(department => <option key={department} value={department}>{department}</option>)}
                         </select>
@@ -244,8 +245,8 @@ export default function Auth() {
                       <div>
                         <label className="label" htmlFor="course">Course / Programme</label>
                         <select id="course" className="input" value={form.course} onChange={set('course')} required>
-                          <option value="">Choose your course or programme</option>
-                          {PROGRAMMES.map(programme => <option key={programme} value={programme}>{programme}</option>)}
+                          <option value="">Choose a department first</option>
+                          {getProgrammesForDepartment(form.department).map(programme => <option key={programme} value={programme}>{programme}</option>)}
                         </select>
                       </div>
                       <div>

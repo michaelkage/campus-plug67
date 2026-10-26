@@ -15,7 +15,9 @@ const extractFunction = (sql, name) => {
 };
 
 const migrationPath = 'supabase/migrations/20261021143000_harden_cross_provider_listing_purchases.sql';
+const walletConflictMigrationPath = 'supabase/migrations/20261026103000_handle_wallet_active_purchase_conflicts.sql';
 const migration = read(migrationPath);
+const walletConflictMigration = read(walletConflictMigrationPath);
 const resolutionMigration = read('supabase/migrations/20261022180000_mark_wallet_listing_sold_on_release.sql');
 const rpcPermissions = read('supabase/migrations/20261022120000_restrict_marketplace_escrow_rpc_execution.sql');
 const legacyRpcPermissions = read('supabase/migrations/20261022124500_restrict_legacy_wallet_sku_rpc_execution.sql');
@@ -38,7 +40,7 @@ for (const signature of [
   assertIncludes(legacyRpcPermissions, `GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`,
     `Legacy RPC must remain available to authenticated users: ${signature}`);
 }
-const wallet = extractFunction(migration, 'create_wallet_micro_escrow');
+const wallet = extractFunction(walletConflictMigration, 'create_wallet_micro_escrow');
 const paystack = extractFunction(migration, 'create_pending_paystack_transaction');
 const resolve = extractFunction(resolutionMigration, 'resolve_wallet_micro_escrow');
 const integrity = read('supabase/migrations/20260926131500_protect_listing_purchase_integrity.sql');
@@ -61,6 +63,13 @@ assertIncludes(integrity, 'CREATE UNIQUE INDEX IF NOT EXISTS transactions_one_ac
 assertIncludes(paystack, 'WHEN unique_violation', 'Paystack must handle a last-resort uniqueness race');
 assertIncludes(paystack, "v_constraint_name = 'transactions_one_active_per_listing'",
   'Paystack must map the unique-index race to active_transaction_exists');
+assertIncludes(wallet, 'WHEN unique_violation', 'Wallet must handle a last-resort uniqueness race');
+assertIncludes(wallet, "v_constraint_name = 'transactions_one_active_per_listing'",
+  'Wallet must map the unique-index race to active_transaction_exists');
+assertIncludes(wallet, 'GET STACKED DIAGNOSTICS v_constraint_name = CONSTRAINT_NAME',
+  'Wallet must inspect the violated constraint instead of hiding unrelated uniqueness errors');
+assertIncludes(wallet, '    RAISE;',
+  'Wallet must re-raise unexpected uniqueness violations');
 
 const txInsert = wallet.indexOf('INSERT INTO public.transactions');
 const ledgerInsert = wallet.indexOf('INSERT INTO public.plug_credit_ledger');

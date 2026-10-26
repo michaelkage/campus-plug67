@@ -9,8 +9,8 @@ import TransactionTimeline from '@/components/admin/TransactionTimeline'
 const tabs=[['overview','Overview',LayoutDashboard],['transactions','Transactions',CreditCard],['payments','Payments',WalletCards],['security','Security',Shield],['operations','Operations',Activity]]
 
 export default function AdminConsole(){
-  const { profile }=useAuth(); const [tab,setTab]=useState('overview'); const [transactionId,setTransactionId]=useState('')
-  const isAdmin=profile?.badges?.includes('Plug Dev') || profile?.badges?.includes('Community Hero')
+  const { user }=useAuth(); const [tab,setTab]=useState('overview'); const [transactionId,setTransactionId]=useState('')
+  const isAdmin=['admin','platform_admin'].includes(String(user?.app_metadata?.role ?? ''))
   const {data:snapshot,isLoading,isError,refetch}=useQuery({
     queryKey:['admin-console-snapshot'], enabled:isAdmin,
     queryFn:async()=>{const {data,error}=await supabase.rpc('get_admin_console_snapshot');if(error)throw error;return data},

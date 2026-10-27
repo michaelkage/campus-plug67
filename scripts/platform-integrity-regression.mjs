@@ -125,6 +125,14 @@ for (const required of [
   ".eq('created_by',profile?.id)",
 ]) if (!bulletinPage.includes(required)) fail(`Bulletin UI invariant missing: ${required}`);
 
+const deployWorkflow = read('.github/workflows/deploy-supabase.yml');
+for (const required of [
+  'pull_request:',
+  'types: [closed]',
+  "if: github.event_name != 'pull_request' || github.event.pull_request.merged == true",
+  'supabase db push --linked --include-all',
+]) if (!deployWorkflow.includes(required)) fail(`Supabase deployment workflow missing merged-PR safety invariant: ${required}`);
+
 console.log('Platform integrity regression checks passed.');
 
 

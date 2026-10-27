@@ -126,3 +126,19 @@ for (const required of [
 ]) if (!bulletinPage.includes(required)) fail(`Bulletin UI invariant missing: ${required}`);
 
 console.log('Platform integrity regression checks passed.');
+
+
+const auditWriter = read('supabase/migrations/20261027110000_scope_client_audit_writer.sql');
+for (const required of [
+  "trim(p_entity_type) <> 'message' OR trim(p_action) NOT IN ('edit', 'delete')",
+  'm.sender_id = actor',
+  'm.id = p_entity_id',
+  'metadata_value->>\'original_content\' IS DISTINCT FROM current_content',
+  "metadata_value->>'new_content' IS NULL",
+  "length(metadata_value->>'new_content') > 10000",
+  "REVOKE ALL ON FUNCTION public.write_security_audit(text, uuid, text, jsonb) FROM PUBLIC, anon",
+  "GRANT EXECUTE ON FUNCTION public.write_security_audit(text, uuid, text, jsonb) TO authenticated, service_role",
+]) if (!auditWriter.includes(required)) fail(`Audit writer scope invariant missing: ${required}`);
+
+if (!auditWriter.includes('FOR UPDATE')) fail('Audit writer must lock the owned message while validating its original content');
+if (!auditWriter.includes("IF auth.role() <> 'service_role' THEN")) fail('Generic audit writes must remain limited to trusted service-role callers');

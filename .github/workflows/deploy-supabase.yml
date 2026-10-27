@@ -7,6 +7,14 @@ on:
       - 'supabase/**'
       - 'scripts/normalize-migrations.mjs'
       - '.github/workflows/deploy-supabase.yml'
+  # Some merge integrations suppress push-triggered workflows. Deploy after
+  # a merged same-repository PR as a second, auditable path.
+  pull_request:
+    types: [closed]
+    paths:
+      - 'supabase/**'
+      - 'scripts/normalize-migrations.mjs'
+      - '.github/workflows/deploy-supabase.yml'
   workflow_dispatch:
 
 permissions:
@@ -24,6 +32,9 @@ env:
 
 jobs:
   deploy:
+    # A closed but unmerged PR must never deploy. On merged PRs, checkout uses
+    # the base ref (main), so the complete merged migration set is deployed.
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     name: Deploy database and Edge Functions
     runs-on: ubuntu-latest
     timeout-minutes: 15

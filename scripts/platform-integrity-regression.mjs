@@ -142,3 +142,9 @@ for (const required of [
 
 if (!auditWriter.includes('FOR UPDATE')) fail('Audit writer must lock the owned message while validating its original content');
 if (!auditWriter.includes("IF auth.role() <> 'service_role' THEN")) fail('Generic audit writes must remain limited to trusted service-role callers');
+
+const skuRpcPrivileges = read('supabase/migrations/20261027120000_restrict_global_sku_rpc.sql');
+for (const required of [
+  'REVOKE ALL ON FUNCTION public.match_global_sku(text) FROM PUBLIC, anon',
+  'GRANT EXECUTE ON FUNCTION public.match_global_sku(text) TO authenticated',
+]) if (!skuRpcPrivileges.includes(required)) fail(`Global SKU RPC privilege invariant missing: ${required}`);

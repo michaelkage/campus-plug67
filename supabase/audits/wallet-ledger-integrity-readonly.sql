@@ -87,7 +87,33 @@ HAVING count(*) FILTER (
        ))
 ORDER BY h.transaction_id;
 
--- 4) Current profile balances that differ from the complete append-only ledger sum.
+-- 4) Wallet-funded transactions and escrow holds must match one-to-one.
+-- This catches wallet transactions missing a hold, orphan holds, and mismatched
+-- buyer/seller/amount/payment method fields. It is deliberately read-only.
+SELECT t.id AS transaction_id,
+       t.payment_method,
+       t.status AS transaction_status,
+       t.buyer_id AS transaction_buyer_id,
+       t.seller_id AS transaction_seller_id,
+       t.amount AS transaction_amount,
+       h.transaction_id AS hold_transaction_id,
+       h.status AS hold_status,
+       h.buyer_id AS hold_buyer_id,
+       h.seller_id AS hold_seller_id,
+       h.amount_kobo AS hold_amount
+FROM public.transactions t
+FULL OUTER JOIN public.wallet_escrow_holds h
+  ON h.transaction_id = t.id
+WHERE (t.id IS NOT NULL AND t.payment_method = 'campus_wallet'
+       AND h.transaction_id IS NULL)
+   OR (h.transaction_id IS NOT NULL AND
+       (t.id IS NULL OR t.payment_method IS DISTINCT FROM 'campus_wallet'
+        OR t.buyer_id IS DISTINCT FROM h.buyer_id
+        OR t.seller_id IS DISTINCT FROM h.seller_id
+        OR t.amount IS DISTINCT FROM h.amount_kobo))
+ORDER BY coalesce(t.id, h.transaction_id);
+
+-- 5) Current profile balances that differ from the complete append-only ledger sum.
 -- Treat results as investigation candidates: historical opening balances or legacy
 -- migrations may mean a mismatch is not automatically proof of corruption.
 SELECT p.id AS user_id,

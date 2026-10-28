@@ -85,6 +85,43 @@ const ROLES = {
 
 type RoleName = keyof typeof ROLES
 
+/** Fixed street palette: preserves existing Material role consumers. */
+const STREET = {
+  light: {
+    surface:'#FAF6F0', ink:'#0D0F12', slab:'#EFEBE5',
+    clay:'#D95D39', signal:'#E0A96D', muted:'#55534F',
+    line:'#827C73', onClay:'#0D0F12',
+  },
+  dark: {
+    surface:'#141614', ink:'#F3F4F3', slab:'#1E221E',
+    clay:'#E2734F', signal:'#E0A96D', muted:'#B7BDB5',
+    line:'#686E64', onClay:'#141614',
+  },
+} as const
+
+function streetRoles(mode: ThemeMode): Partial<Record<RoleName, string>> {
+  const p = STREET[mode === 'light' ? 'light' : 'dark']
+  return {
+    background:p.surface, 'on-background':p.ink,
+    surface:p.surface, 'on-surface':p.ink,
+    'surface-variant':p.slab, 'surface-dim':p.slab,
+    'surface-bright':p.surface, 'surface-container-lowest':p.surface,
+    'surface-container-low':p.slab, 'surface-container':p.slab,
+    'surface-container-high':p.slab, 'surface-container-highest':p.slab,
+    primary:p.clay, 'on-primary':p.onClay,
+    'primary-container':p.clay, 'on-primary-container':p.onClay,
+    secondary:p.signal, 'on-secondary':'#0D0F12',
+    'secondary-container':p.signal, 'on-secondary-container':'#0D0F12',
+    tertiary:p.signal, 'on-tertiary':'#0D0F12',
+    'tertiary-container':p.signal, 'on-tertiary-container':'#0D0F12',
+    'on-surface-variant':p.muted, outline:p.line, 'outline-variant':p.line,
+    'inverse-surface':p.ink, 'inverse-on-surface':p.surface,
+    'inverse-primary':p.clay, 'surface-tint':p.clay,
+    shadow:'#000000', scrim:'#000000',
+  }
+}
+
+
 /** Break an ARGB int into the bare `R G B` channel string Tailwind expects. */
 function channels(argb: number): string {
   return `${(argb >> 16) & 0xff} ${(argb >> 8) & 0xff} ${argb & 0xff}`
@@ -136,6 +173,10 @@ export function buildPalette(mode: ThemeMode): {
     argb[role] = ROLES[role]().getArgb(scheme)
   }
 
+  for (const [role, hex] of Object.entries(streetRoles(mode))) {
+    argb[role as RoleName] = argbFromHex(hex)
+  }
+
   // AMOLED flattens the surface ramp to true black. Applied after generation so
   // the accent roles still come from the tonal palette.
   for (const [role, hex] of Object.entries(config.overrides ?? {})) {
@@ -157,6 +198,18 @@ export function buildThemeVars(mode: ThemeMode): Record<string, string> {
     vars[`--md-${role}-rgb`] = channels(value)
   }
 
+  const palette = STREET[mode === 'light' ? 'light' : 'dark']
+  const semantic = {
+    canvas: palette.surface, ink: palette.ink, slab: palette.slab,
+    clay: palette.clay, signal: palette.signal,
+    line: palette.line, muted: palette.muted,
+  }
+  for (const [name, hex] of Object.entries(semantic)) {
+    vars[`--cp-${name}`] = hex
+    vars[`--cp-${name}-rgb`] = channels(argbFromHex(hex))
+  }
+  vars['--cp-on-clay'] = palette.onClay
+
   // Role-colour aliases used by the surface helpers in src/index.css.
   vars['--md-background'] = hexFromArgb(argb.background)
   vars['--md-background-rgb'] = channels(argb.background)
@@ -166,9 +219,8 @@ export function buildThemeVars(mode: ThemeMode): Record<string, string> {
   vars['color-scheme'] = dark ? 'dark' : 'light'
 
   // Tactical overlays, derived from generated roles so they rebrand with the seed.
-  vars['--md-glass'] =
-    dark ? 'color-mix(in srgb, var(--md-surface) 72%, transparent)' : 'color-mix(in srgb, var(--md-on-surface) 72%, transparent)'
-  vars['--md-glow'] = `0 0 15px color-mix(in srgb, ${hexFromArgb(argb.primary)} 30%, transparent)`
+  vars['--md-glass'] = 'var(--md-surface-container)'
+  vars['--md-glow'] = 'none'
 
   return vars
 }

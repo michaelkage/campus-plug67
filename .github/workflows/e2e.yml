@@ -22,7 +22,7 @@ jobs:
     # credentialed journey is still exercised on main pushes with configured secrets.
     if: github.actor != 'dependabot[bot]'
     name: Playwright smoke tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -241,3 +243,37 @@ html[data-compact="true"] .surface, html[data-compact="true"] .stat-card { paddi
  * .overrides in theme.tokens.json), which re-tints both the hex aliases and the
  * RGB channel twins so Tailwind opacity modifiers follow.
  */
+
+/* Street & Sovereign Ore phase 1: structural compatibility layer. */
+@layer base {
+  :root { font-family: 'Inter', system-ui, sans-serif; --md-blur: none; }
+  body { font-family: 'Inter', system-ui, sans-serif; }
+  h1, h2, h3, .page-title, .price-display {
+    font-family: 'Archivo Black', Impact, sans-serif;
+    letter-spacing: -.035em;
+    line-height: 1.1;
+  }
+}
+@layer components {
+  .btn-primary, .btn-secondary, .icon-button, .card-tactical,
+  .surface, .stat-card, .modal-panel, .tag-neon, .skeleton {
+    border-radius: 4px;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .btn-primary, .btn-secondary {
+    border-radius: 2px;
+    transition: background-color 110ms steps(1,end), color 110ms steps(1,end), transform 110ms steps(1,end);
+  }
+  .btn-primary { background: var(--md-primary); color: var(--md-on-primary); border: 2px solid var(--md-primary); }
+  .btn-primary:hover { background: var(--md-on-surface); color: var(--md-surface); border-color: var(--md-on-surface); box-shadow: none; }
+  .btn-secondary { background: var(--md-surface-container); color: var(--md-on-surface); border: 2px solid var(--md-outline); }
+  .btn-secondary:hover { background: var(--md-secondary); color: var(--md-on-secondary); border-color: var(--md-on-surface); box-shadow: none; }
+  .btn-primary:active, .btn-secondary:active, .icon-button:active { transform: translateY(1px); }
+  .card-tactical, .surface, .stat-card, .modal-panel { background: var(--md-surface-container); border: 1px solid var(--md-outline-variant); }
+  .card-tactical:hover, .surface-interactive:hover { box-shadow: none; border-color: var(--md-on-surface); }
+  .tag-neon { background: var(--md-secondary); color: var(--md-on-secondary); border-radius: 2px; }
+  .plug-dot { background: var(--md-secondary); border-radius: 0; }
+  .modal-header { background: var(--md-surface-container); backdrop-filter: none; }
+  .app-ambient { background: var(--md-surface); }
+}

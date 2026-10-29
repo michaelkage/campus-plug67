@@ -337,7 +337,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className={`rounded-xl border-2 transition-colors duration-300 overflow-hidden
+      className={`rounded-md border-2 transition-colors duration-300 overflow-hidden
                   ${stateUi.border} ${stateUi.bg}`}
     >
       {/* ── Card header ──────────────────────────────────────────────────── */}
@@ -416,7 +416,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
 
               {/* Full heartbeat clock */}
               {tx.listing?.expires_at && !['released','cancelled'].includes(status) && (
-                <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-4">
+                <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-4">
                   <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)] mb-3">
                     RETURN DEADLINE
                   </p>
@@ -566,7 +566,7 @@ function ActionButton({ icon: Icon, label, description, color, loading, disabled
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-md border
                   font-bold transition-all duration-150
                   disabled:opacity-40 disabled:cursor-not-allowed
                   ${compact ? 'text-xs px-3 py-2' : 'text-sm'}
@@ -596,7 +596,7 @@ function InventoryCard({ listing }) {
   const style   = URGENCY_STYLE[urgency]
 
   return (
-    <div className={`bg-[var(--md-surface-container)] border rounded-xl overflow-hidden transition-colors
+    <div className={`bg-[var(--md-surface-container)] border rounded-md overflow-hidden transition-colors
                      ${urgency === 'penalty' ? 'border-error/40'
                        : urgency === 'grace' ? 'border-[var(--md-secondary)]/30'
                        : 'border-[var(--md-outline-variant)]'}`}>
@@ -628,7 +628,7 @@ function InventoryCard({ listing }) {
 
         <div className="flex items-center justify-between">
           <span className="font-mono font-black text-[var(--md-primary)] text-sm">{formatNaira(listing.price)}</span>
-          <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full
+          <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm
                             border ${listing.status === 'active'
                               ? 'border-primary/30 text-[var(--md-primary)] bg-[var(--md-primary)]/10'
                               : 'border-[var(--md-outline-variant)] text-[var(--md-on-surface-variant)]'}`}>
@@ -744,7 +744,7 @@ export default function MyGearHubDashboard() {
       </div>
 
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-1">
+      <div className="flex gap-1 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-1">
         {TABS.map(t => (
           <button
             key={t.id}
@@ -757,7 +757,7 @@ export default function MyGearHubDashboard() {
           >
             {t.label}
             {t.count > 0 && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold
+              <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold
                                 ${tab === t.id ? 'bg-surface/20 text-on-primary' : 'bg-white/10 text-[var(--md-on-surface-variant)]'}`}>
                 {t.count}
               </span>
@@ -769,7 +769,7 @@ export default function MyGearHubDashboard() {
       {/* ── Error banner ──────────────────────────────────────────────────── */}
       {txError && (
         <div className="flex items-center gap-2 bg-[var(--md-error)]/10 border border-[var(--md-error)]/30
-                        rounded-xl p-3 text-sm text-[var(--md-error)]">
+                        rounded-md p-3 text-sm text-[var(--md-error)]">
           <AlertTriangle size={14} />
           Failed to load transactions. Check your connection.
         </div>
@@ -789,7 +789,7 @@ export default function MyGearHubDashboard() {
               <div className="space-y-3">
                 {[0, 1, 2].map(i => (
                   <div key={i} className="h-24 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)]
-                                          rounded-xl animate-pulse" />
+                                          rounded-md animate-pulse" />
                 ))}
               </div>
             ) : activeTxns.length === 0 ? (
@@ -825,7 +825,7 @@ export default function MyGearHubDashboard() {
               <div className="grid grid-cols-2 gap-3">
                 {[0, 1, 2, 3].map(i => (
                   <div key={i} className="h-48 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)]
-                                          rounded-xl animate-pulse" />
+                                          rounded-md animate-pulse" />
                 ))}
               </div>
             ) : inventory.length === 0 ? (
@@ -853,7 +853,7 @@ export default function MyGearHubDashboard() {
 // ─────────────────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, color, mono = false }) {
   return (
-    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-3">
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-3">
       <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--md-on-surface-variant)] mb-1">{label}</p>
       <p className={`font-black text-lg leading-none mb-0.5 text-${color} ${mono ? 'font-mono' : ''}`}>
         {value}

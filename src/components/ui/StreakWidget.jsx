@@ -85,7 +85,7 @@ export function StreakWidget({ userId, compact = false }) {
   )
 
   return (
-    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl p-5">
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-5">
       <div className="flex items-start justify-between mb-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -130,9 +130,9 @@ export function StreakWidget({ userId, compact = false }) {
           <span className="text-[var(--md-on-surface-variant)]">Next milestone: {nextMilestone} days</span>
           <span className="text-[var(--md-on-surface-variant)]">{nextMilestone - current} more to go</span>
         </div>
-        <div className="h-2 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden">
+        <div className="h-2 bg-[var(--md-surface-container-high)] rounded-sm overflow-hidden">
           <motion.div
-            className={`h-full rounded-full ${
+            className={`h-full rounded-sm ${
               current >= 30 ? 'bg-[var(--md-error)]' :
               'bg-[var(--md-primary)]'
             }`}
@@ -148,7 +148,7 @@ export function StreakWidget({ userId, compact = false }) {
         {MILESTONES.map(m => (
           <div
             key={m}
-            className={`flex-1 py-2 rounded-xl text-center border transition-all ${
+            className={`flex-1 py-2 rounded-md text-center border transition-all ${
               current >= m
                 ? 'bg-[var(--md-secondary)]/15 border-[var(--md-secondary)]/30 text-[var(--md-secondary)]'
                 : 'bg-[var(--md-surface-container-high)] border-[var(--md-outline-variant)] text-[var(--md-on-surface-variant)]/50'

@@ -9,7 +9,7 @@ export const TIERS = {
     label:       'Citizen',
     emoji:       '🎓',
     icon:        Shield,
-    color:       'text-white/60',
+    color:       'text-on-surface/60',
     bg:          'bg-[var(--md-surface-container-high)]',
     border:      'border-[var(--md-outline-variant)]',
     gradient:    'from-[var(--md-on-surface)]/10 to-[var(--md-on-surface)]/5',
@@ -79,13 +79,13 @@ export function TierBadge({ tier = 'citizen', size = 'sm' }) {
   const Icon = t.icon
 
   if (size === 'xs') return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${t.bg} ${t.border} ${t.color}`}>
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-sm border ${t.bg} ${t.border} ${t.color}`}>
       {t.emoji} {t.label}
     </span>
   )
 
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border ${t.bg} ${t.border} ${t.color}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-sm border ${t.bg} ${t.border} ${t.color}`}>
       <Icon size={11} />
       {t.label}
     </span>
@@ -107,7 +107,7 @@ export function TierCard({ profile }) {
   const Icon = t.icon
 
   return (
-    <div className={`bg-[var(--md-surface-container)] border rounded-2xl overflow-hidden ${t.border}`}>
+    <div className={`bg-[var(--md-surface-container)] border rounded-md overflow-hidden ${t.border}`}>
       {/* Header */}
       <div className={`bg-gradient-to-r ${t.gradient} px-6 py-5 border-b ${t.border}`}>
         <div className="flex items-center justify-between mb-3">
@@ -117,18 +117,18 @@ export function TierCard({ profile }) {
                 boxShadow: ['0 0 0 0 rgba(var(--md-tertiary-rgb), 0)', '0 0 20px 4px rgba(var(--md-tertiary-rgb), 0.3)', '0 0 0 0 rgba(var(--md-tertiary-rgb), 0)']
               } : {}}
               transition={{ duration: 2, repeat: Infinity }}
-              className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl border ${t.bg} ${t.border}`}
+              className={`w-12 h-12 rounded-md flex items-center justify-center text-2xl border ${t.bg} ${t.border}`}
             >
               {t.emoji}
             </motion.div>
             <div>
               <div className={`font-black text-lg ${t.color}`}>{t.label}</div>
-              <div className="text-xs text-white/40">PlugScore {score}</div>
+              <div className="text-xs text-on-surface/40">PlugScore {score}</div>
             </div>
           </div>
           <div className="text-right">
             <div className={`text-2xl font-black font-mono ${t.color}`}>{score}</div>
-            <div className="text-xs text-white/30">/ 1000</div>
+            <div className="text-xs text-on-surface/30">/ 1000</div>
           </div>
         </div>
 
@@ -136,12 +136,12 @@ export function TierCard({ profile }) {
         {nextTier && (
           <div>
             <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-white/40">Progress to {nextTier.label}</span>
-              <span className="text-white/40">{nextTier.minScore - score} pts needed</span>
+              <span className="text-on-surface/40">Progress to {nextTier.label}</span>
+              <span className="text-on-surface/40">{nextTier.minScore - score} pts needed</span>
             </div>
-            <div className="h-2 bg-[var(--md-scrim)]/20 rounded-full overflow-hidden">
+            <div className="h-2 bg-[var(--md-scrim)]/20 rounded-sm overflow-hidden">
               <motion.div
-                className={`h-full rounded-full ${
+                className={`h-full rounded-sm ${
                   tier === 'citizen' ? 'bg-gradient-to-r from-[var(--md-primary)] to-[var(--md-secondary)]'
                   : 'bg-gradient-to-r from-[var(--md-secondary)] to-[var(--md-error)]'
                 }`}
@@ -162,11 +162,11 @@ export function TierCard({ profile }) {
 
       {/* Privileges */}
       <div className="p-5">
-        <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Your Privileges</div>
+        <div className="text-xs font-bold text-on-surface/40 uppercase tracking-wider mb-3">Your Privileges</div>
         <div className="space-y-2 mb-4">
           {t.privileges.map(p => (
-            <div key={p} className="flex items-center gap-2 text-sm text-white/70">
-              <div className="w-1.5 h-1.5 rounded-full bg-[var(--md-primary)] flex-shrink-0" />
+            <div key={p} className="flex items-center gap-2 text-sm text-on-surface/70">
+              <div className="w-1.5 h-1.5 rounded-sm bg-[var(--md-primary)] flex-shrink-0" />
               {p}
             </div>
           ))}
@@ -174,13 +174,13 @@ export function TierCard({ profile }) {
 
         {t.locked.length > 0 && (
           <>
-            <div className="text-xs font-bold text-white/20 uppercase tracking-wider mb-3">
+            <div className="text-xs font-bold text-on-surface/20 uppercase tracking-wider mb-3">
               Unlock Next
             </div>
             <div className="space-y-2">
               {t.locked.map(p => (
-                <div key={p} className="flex items-center gap-2 text-sm text-white/30">
-                  <div className="w-1.5 h-1.5 rounded-full bg-white/20 flex-shrink-0" />
+                <div key={p} className="flex items-center gap-2 text-sm text-on-surface/30">
+                  <div className="w-1.5 h-1.5 rounded-sm bg-white/20 flex-shrink-0" />
                   {p}
                 </div>
               ))}
@@ -204,15 +204,15 @@ export function TierGate({ requiredTier, userTier, children, featureName }) {
   if (hasAccess) return children
 
   return (
-    <div className="relative rounded-xl overflow-hidden">
+    <div className="relative rounded-md overflow-hidden">
       <div className="blur-sm pointer-events-none select-none opacity-40">
         {children}
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center
-                      bg-surface/60 backdrop-blur-sm rounded-xl">
+                      bg-surface/60 backdrop-blur-sm rounded-md">
         <div className={`text-2xl mb-2`}>{required.emoji}</div>
         <div className={`font-bold text-sm ${required.color}`}>{required.label} Required</div>
-        <div className="text-xs text-white/40 mt-1 text-center px-4">
+        <div className="text-xs text-on-surface/40 mt-1 text-center px-4">
           {featureName} is unlocked at {required.minScore}+ PlugScore
         </div>
       </div>
@@ -233,7 +233,7 @@ export function EliteBadge({ tier }) {
         boxShadow: ['0 0 0 0 rgba(255,184,0,0)', '0 0 12px 2px rgba(255,184,0,0.4)', '0 0 0 0 rgba(255,184,0,0)']
       } : {}}
       transition={{ duration: 2.5, repeat: Infinity }}
-      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black border ${
+      className={`flex items-center gap-1 px-2 py-0.5 rounded-sm text-[9px] font-black border ${
         isElite
           ? 'bg-tertiary/20 text-[var(--md-secondary)] border-tertiary/40'
           : 'bg-[var(--md-primary)]/15 text-[var(--md-primary)] border-[var(--md-primary)]/30'

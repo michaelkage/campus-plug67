@@ -16,21 +16,21 @@ function EvidenceViewer({ messages }: { messages: any[] }) {
       {messages?.map((m: any, i: number) => (
         <div key={i} className={`flex gap-2 text-xs ${m.is_system ? 'justify-center' : ''}`}>
           {m.is_system ? (
-            <div className="px-3 py-1.5 rounded-full bg-[var(--md-surface-container-high)] text-[var(--md-on-surface-variant)] italic">{m.body}</div>
+            <div className="px-3 py-1.5 rounded-sm bg-[var(--md-surface-container-high)] text-[var(--md-on-surface-variant)] italic">{m.body}</div>
           ) : (
             <>
               <div className="w-6 h-6 rounded-full bg-[var(--md-primary-container)] flex-shrink-0
                               flex items-center justify-center text-[9px] font-bold text-white">
                 {m.is_claimant ? 'C' : 'R'}
               </div>
-              <div className={`flex-1 rounded-xl px-3 py-2 ${
+              <div className={`flex-1 rounded-md px-3 py-2 ${
                 m.is_claimant ? 'bg-[var(--md-primary)]/8 border border-[var(--md-primary)]/15' : 'bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)]'
               } ${m.flagged ? 'ring-1 ring-[var(--md-secondary)]/40' : ''}`}>
-                <div className="font-semibold text-white/60 mb-0.5">
+                <div className="font-semibold text-[var(--md-on-surface)]/60 mb-0.5">
                   {m.is_claimant ? 'Claimant' : 'Respondent'}
                   {m.flagged && <span className="ml-2 text-[var(--md-secondary)] text-[9px] font-bold">⚠️ FLAGGED: {m.flag_type}</span>}
                 </div>
-                <div className="text-white/80 leading-relaxed">{m.body}</div>
+                <div className="text-[var(--md-on-surface)]/80 leading-relaxed">{m.body}</div>
                 <div className="text-[var(--md-on-surface-variant)]/70 mt-1">{new Date(m.created_at).toLocaleString('en-NG', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
               </div>
             </>
@@ -58,7 +58,7 @@ function ReviewTimer({ required, onReady }: { required: boolean; onReady: () => 
   if (!required) return null
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-md border ${
       ready ? 'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/8' : 'border-[var(--md-secondary)]/30 bg-[var(--md-secondary)]/8'
     }`}>
       <Clock size={14} className={ready ? 'text-[var(--md-primary)]' : 'text-[var(--md-secondary)]'} />
@@ -121,7 +121,7 @@ function CaseView({ juryCase, onVoted }: any) {
   return (
     <div className="space-y-5">
       {/* Case header */}
-      <div className="bg-[var(--md-surface-container-high)] rounded-xl p-4 space-y-2">
+      <div className="bg-[var(--md-surface-container-high)] rounded-md p-4 space-y-2">
         <div className="flex items-center gap-2 mb-3">
           <Scale size={14} className="text-[var(--md-primary)]" />
           <span className="text-xs font-bold text-[var(--md-primary)] uppercase tracking-wider">Peer Jury Case</span>
@@ -129,22 +129,22 @@ function CaseView({ juryCase, onVoted }: any) {
             <span className="ml-auto tag tag-amber text-[9px]">⚠️ HIGH VALUE ₦50,000+</span>
           )}
         </div>
-        <div className="text-sm font-semibold text-white/80 leading-relaxed">
+        <div className="text-sm font-semibold text-[var(--md-on-surface)]/80 leading-relaxed">
           "{juryCase.dispute_reason}"
         </div>
         <div className="flex items-center gap-4 text-xs text-[var(--md-on-surface-variant)] pt-2 border-t border-[var(--md-outline-variant)]">
-          <span>Amount: <span className="text-white/70 font-mono font-bold">{formatNaira(juryCase.amount)}</span></span>
-          <span>Votes needed: <span className="text-white/70 font-bold">{juryCase.required_votes}</span></span>
-          <span>Filed: <span className="text-white/70">{new Date(juryCase.created_at).toLocaleDateString('en-NG')}</span></span>
+          <span>Amount: <span className="text-[var(--md-on-surface)]/70 font-mono font-bold">{formatNaira(juryCase.amount)}</span></span>
+          <span>Votes needed: <span className="text-[var(--md-on-surface)]/70 font-bold">{juryCase.required_votes}</span></span>
+          <span>Filed: <span className="text-[var(--md-on-surface)]/70">{new Date(juryCase.created_at).toLocaleDateString('en-NG')}</span></span>
         </div>
       </div>
 
       {/* Tabs: Summary / Evidence */}
-      <div className="flex bg-[var(--md-surface-container-high)] rounded-xl p-1">
+      <div className="flex bg-[var(--md-surface-container-high)] rounded-md p-1">
         {(['summary','evidence'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-              tab === t ? 'bg-[var(--md-primary)] text-[var(--md-on-primary)]' : 'text-[var(--md-on-surface-variant)] hover:text-white/60'
+              tab === t ? 'bg-[var(--md-primary)] text-[var(--md-on-primary)]' : 'text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)]/60'
             }`}>
             {t === 'summary' ? 'Case Summary' : `Evidence (${msgs.length})`}
           </button>
@@ -152,12 +152,12 @@ function CaseView({ juryCase, onVoted }: any) {
       </div>
 
       {tab === 'summary' && (
-        <div className="bg-[var(--md-surface-container-high)] rounded-xl p-4 space-y-3 text-sm">
+        <div className="bg-[var(--md-surface-container-high)] rounded-md p-4 space-y-3 text-sm">
           <div className="flex items-start gap-3 pb-3 border-b border-[var(--md-outline-variant)]">
             <div className="w-7 h-7 rounded-full bg-[var(--md-primary)]/15 flex items-center justify-center text-xs font-bold text-[var(--md-primary)] flex-shrink-0">C</div>
             <div>
               <div className="text-xs font-bold text-[var(--md-primary)] mb-1">Claimant (Filed Dispute)</div>
-              <div className="text-white/70">{juryCase.dispute_reason}</div>
+              <div className="text-[var(--md-on-surface)]/70">{juryCase.dispute_reason}</div>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -185,8 +185,8 @@ function CaseView({ juryCase, onVoted }: any) {
             { key:'respondent', label:'Respondent Wins', desc:'Dispute unfounded',     color:'text-[var(--md-secondary)] border-[var(--md-secondary)]/30 bg-[var(--md-secondary)]/10' },
           ].map(v => (
             <button key={v.key} onClick={() => setVerdict(v.key)}
-              className={`border rounded-xl p-3 text-left transition-all ${
-                verdict === v.key ? v.color : 'border-[var(--md-outline-variant)] bg-transparent text-white/50 hover:border-white/20'
+              className={`border rounded-md p-3 text-left transition-all ${
+                verdict === v.key ? v.color : 'border-[var(--md-outline-variant)] bg-transparent text-[var(--md-on-surface)]/50 hover:border-white/20'
               }`}>
               <div className="text-xs font-bold mb-0.5">{v.label}</div>
               <div className="text-[10px] opacity-70">{v.desc}</div>
@@ -206,7 +206,7 @@ function CaseView({ juryCase, onVoted }: any) {
       {/* Submit */}
       <motion.button whileTap={{ scale: 0.97 }} onClick={handleSubmit}
         disabled={!verdict || !reviewReady || submitting}
-        className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2
+        className="w-full py-3.5 rounded-md font-bold text-sm flex items-center justify-center gap-2
                    bg-[var(--md-primary)] text-[var(--md-on-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all">
         <Scale size={15} />
         {submitting ? 'Submitting…' : 'Submit Verdict'}
@@ -259,8 +259,8 @@ export function JuryPortal() {
   const pendingCases = cases.filter(c => !myVotes.includes(c.id))
 
   if (!profile?.juror_enabled) return (
-    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl p-6 text-center">
-      <Scale size={28} className="mx-auto mb-3 text-white/20" />
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-6 text-center">
+      <Scale size={28} className="mx-auto mb-3 text-[var(--md-on-surface)]/20" />
       <div className="font-bold text-sm mb-1">Jury Access Required</div>
       <p className="text-xs text-[var(--md-on-surface-variant)]">
         Juror status is granted to Trusted+ users with ≥10 completed trades and no active disputes.
@@ -269,7 +269,7 @@ export function JuryPortal() {
   )
 
   return (
-    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl overflow-hidden">
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--md-outline-variant)] bg-primary/5">
         <div className="flex items-center gap-2">
@@ -319,13 +319,13 @@ export function JuryPortal() {
             <motion.div key="list" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
               {isLoading && (
                 <div className="space-y-3">
-                  {[1,2].map(i => <div key={i} className="h-20 bg-[var(--md-surface-container-high)] rounded-xl animate-pulse" />)}
+                  {[1,2].map(i => <div key={i} className="h-20 bg-[var(--md-surface-container-high)] rounded-md animate-pulse" />)}
                 </div>
               )}
               {!isLoading && pendingCases.length === 0 && (
                 <div className="text-center py-8">
                   <CheckCircle2 size={28} className="mx-auto mb-3 text-[var(--md-primary)]/40" />
-                  <div className="text-sm font-semibold text-white/50">No Pending Cases</div>
+                  <div className="text-sm font-semibold text-[var(--md-on-surface)]/50">No Pending Cases</div>
                   <div className="text-xs text-[var(--md-on-surface-variant)] mt-1">You're all caught up. Check back later.</div>
                 </div>
               )}
@@ -333,7 +333,7 @@ export function JuryPortal() {
                 <motion.button key={c.id} whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}
                   onClick={() => setActiveCase(c)}
                   className="w-full flex items-center gap-3 p-4 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)]
-                             rounded-xl mb-3 text-left hover:border-primary/30 transition-all">
+                             rounded-md mb-3 text-left hover:border-primary/30 transition-all">
                   <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
                     <Scale size={14} className="text-[var(--md-primary)]" />
                   </div>
@@ -345,7 +345,7 @@ export function JuryPortal() {
                       {c.high_value && <span className="text-[var(--md-secondary)] font-bold">⚠️ HIGH VALUE</span>}
                     </div>
                   </div>
-                  <ChevronRight size={14} className="text-white/20 flex-shrink-0" />
+                  <ChevronRight size={14} className="text-[var(--md-on-surface)]/20 flex-shrink-0" />
                 </motion.button>
               ))}
             </motion.div>

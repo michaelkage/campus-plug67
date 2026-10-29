@@ -67,7 +67,7 @@ export function HighConfidenceBadge({ transaction, profile }: { transaction?: an
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="group relative bg-[var(--md-primary)]/8 border border-[var(--md-primary)]/30 rounded-xl px-4 py-3
+      className="group relative bg-[var(--md-primary)]/8 border border-[var(--md-primary)]/30 rounded-md px-4 py-3
                  flex items-center gap-3 cursor-help"
     >
       <div className="w-8 h-8 rounded-lg bg-[var(--md-primary)]/15 flex items-center justify-center flex-shrink-0">
@@ -85,11 +85,11 @@ export function HighConfidenceBadge({ transaction, profile }: { transaction?: an
 
       {/* Tooltip on hover */}
       <div className="absolute bottom-full left-0 mb-2 w-56 p-3 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)]
-                      rounded-xl shadow-card invisible group-hover:visible transition-all z-20">
-        <div className="text-[10px] font-bold text-white/50 uppercase tracking-wider mb-2">Confidence Factors</div>
+                      rounded-md shadow-card invisible group-hover:visible transition-all z-20">
+        <div className="text-[10px] font-bold text-on-surface/50 uppercase tracking-wider mb-2">Confidence Factors</div>
         {criteria.map(c => (
           <div key={c.label} className="flex items-center gap-2 text-[11px] mb-1">
-            <div className={`w-3 h-3 rounded-full flex-shrink-0 ${c.met ? 'bg-primary' : 'bg-[var(--md-on-surface)]/15'}`} />
+            <div className={`w-3 h-3 rounded-sm flex-shrink-0 ${c.met ? 'bg-primary' : 'bg-[var(--md-on-surface)]/15'}`} />
             <span className={c.met ? 'text-[var(--md-on-surface)]' : 'text-[var(--md-on-surface-variant)]'}>{c.label}</span>
           </div>
         ))}
@@ -133,7 +133,7 @@ export function CampusShieldNudge({ onDismiss }: { onDismiss?: () => void }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
-      className="flex items-start gap-3 p-4 bg-[var(--md-primary)]/6 border border-[var(--md-primary)]/20 rounded-xl"
+      className="flex items-start gap-3 p-4 bg-[var(--md-primary)]/6 border border-[var(--md-primary)]/20 rounded-md"
     >
       <Lock size={14} className="text-primary flex-shrink-0 mt-0.5" />
       <div className="flex-1 text-xs text-[var(--md-on-surface)] leading-relaxed">
@@ -142,7 +142,7 @@ export function CampusShieldNudge({ onDismiss }: { onDismiss?: () => void }) {
         Moving off-platform voids your safety guarantee.
       </div>
       {onDismiss && (
-        <button onClick={onDismiss} className="text-white/20 hover:text-white/50 flex-shrink-0">×</button>
+        <button onClick={onDismiss} className="text-on-surface/20 hover:text-on-surface/50 flex-shrink-0">×</button>
       )}
     </motion.div>
   )
@@ -175,7 +175,7 @@ export function SuccessMoment({ type, data }: { type: keyof typeof MICRO_COPY; d
           initial={{ opacity: 0, scale: 0.95, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.97, y: -4 }}
-          className={`relative overflow-hidden rounded-2xl border p-5 ${
+          className={`relative overflow-hidden rounded-md border p-5 ${
             isSuccess
               ? 'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/8'
               : 'border-[var(--md-primary)]/20 bg-[var(--md-primary)]/5'
@@ -183,15 +183,15 @@ export function SuccessMoment({ type, data }: { type: keyof typeof MICRO_COPY; d
         >
           
           <div className="relative z-10 flex items-start gap-3">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
+            <div className={`w-8 h-8 rounded-md flex items-center justify-center text-lg flex-shrink-0 ${
               isSuccess ? 'bg-[var(--md-primary)]/15' : 'bg-[var(--md-primary)]/10'
             }`}>
               {isSuccess ? '🤝' : '🔐'}
             </div>
-            <p className={`text-sm leading-relaxed flex-1 ${isSuccess ? 'text-white/80' : 'text-[var(--md-on-surface)]'}`}>
+            <p className={`text-sm leading-relaxed flex-1 ${isSuccess ? 'text-on-surface/80' : 'text-[var(--md-on-surface)]'}`}>
               {copy}
             </p>
-            <button onClick={() => setVisible(false)} className="text-white/20 hover:text-white/50 flex-shrink-0 text-lg leading-none">×</button>
+            <button onClick={() => setVisible(false)} className="text-on-surface/20 hover:text-on-surface/50 flex-shrink-0 text-lg leading-none">×</button>
           </div>
         </motion.div>
       )}
@@ -228,18 +228,18 @@ export function PWAOverlay({ onDismiss }: { onDismiss: () => void }) {
         transition={{ type: 'spring', stiffness: 300, damping: 32 }}
         className="fixed bottom-20 md:bottom-6 left-4 right-4 z-50 max-w-sm mx-auto"
       >
-        <div className="bg-[var(--md-surface-container)] border border-[var(--md-primary)]/30 rounded-2xl overflow-hidden shadow-md">
+        <div className="bg-[var(--md-surface-container)] border border-[var(--md-primary)]/30 rounded-md overflow-hidden shadow-md">
           {/* Glow stripe */}
           <div className="h-1 bg-[var(--md-primary)]" />
 
           <div className="p-5">
             <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-[var(--md-primary-container)] flex items-center justify-center text-on-primary font-black text-xl flex-shrink-0">
+              <div className="w-12 h-12 rounded-md bg-[var(--md-primary-container)] flex items-center justify-center text-on-primary font-black text-xl flex-shrink-0">
                 ⚡
               </div>
               <div>
                 <div className="font-black text-base mb-1">⚡ Pro Access</div>
-                <p className="text-sm text-white/60 leading-relaxed">
+                <p className="text-sm text-on-surface/60 leading-relaxed">
                   Faster loading and lag-free handshakes. Install Campus Plug for the full experience.
                 </p>
               </div>
@@ -251,9 +251,9 @@ export function PWAOverlay({ onDismiss }: { onDismiss: () => void }) {
                 { icon: Shield,      label: 'Offline capable'    },
                 { icon: TrendingUp,  label: 'Home screen'        },
               ].map(({ icon: Icon, label }) => (
-                <div key={label} className="bg-[var(--md-surface-container-high)] rounded-xl p-2.5 text-center">
+                <div key={label} className="bg-[var(--md-surface-container-high)] rounded-md p-2.5 text-center">
                   <Icon size={14} className="text-primary mx-auto mb-1" />
-                  <div className="text-[10px] text-white/50">{label}</div>
+                  <div className="text-[10px] text-on-surface/50">{label}</div>
                 </div>
               ))}
             </div>

@@ -23,7 +23,7 @@ export function TrendingBadge({ listingId, isPreloaded = false }) {
   if (activeTrending && activeTrending.views_1h < 5) return null
   const isHot = activeTrending?.views_1h >= 20 || (activeTrending?.score || 0) >= 40
   return (
-    <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black border ${isHot ? 'bg-[var(--md-error)]/20 text-[var(--md-error)] border-error/40' : 'bg-[var(--md-secondary)]/15 text-[var(--md-secondary)] border-[var(--md-secondary)]/30'}`}>
+    <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`flex items-center gap-1 px-2 py-0.5 rounded-sm text-[9px] font-black border ${isHot ? 'bg-[var(--md-error)]/20 text-[var(--md-error)] border-error/40' : 'bg-[var(--md-secondary)]/15 text-[var(--md-secondary)] border-[var(--md-secondary)]/30'}`}>
       <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 1, repeat: Infinity, repeatDelay: 1.5 }}><Flame size={9} /></motion.span>
       {isHot ? 'HOT' : 'TRENDING'}
     </motion.div>
@@ -72,7 +72,7 @@ export function LiveViewerGlow({ listingId, currentUserId, sellerId }) {
   if (count <= 1 || currentUserId === sellerId) return null
   return (
     <motion.div animate={controls} className="flex items-center gap-2 text-xs">
-      <motion.div animate={{ opacity: [1, 0.4, 1], scale: [1, 1.2, 1] }} transition={{ duration: 1.8, repeat: Infinity }} className="w-2 h-2 rounded-full bg-[var(--md-primary)] flex-shrink-0" />
+      <motion.div animate={{ opacity: [1, 0.4, 1], scale: [1, 1.2, 1] }} transition={{ duration: 1.8, repeat: Infinity }} className="w-2 h-2 rounded-sm bg-[var(--md-primary)] flex-shrink-0" />
       <span className="text-[var(--md-primary)] font-semibold">{count} {count === 1 ? 'person' : 'people'} viewing right now</span>
     </motion.div>
   )
@@ -115,10 +115,10 @@ export function CampusTicker({ university }) {
     <div className="relative h-12 overflow-hidden">
       <AnimatePresence mode="wait">
         {current && <motion.div key={current.id} variants={TICKER_VARIANTS} initial="initial" animate="animate" exit="exit" className="absolute inset-0 flex items-center">
-          <div className="flex items-center gap-2.5 px-4 py-2 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl text-sm w-full">
+          <div className="flex items-center gap-2.5 px-4 py-2 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md text-sm w-full">
             <motion.span animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 0.5, delay: 0.2 }} className="flex-shrink-0 text-base">{current.emoji}</motion.span>
             <span className="text-[var(--md-on-surface)] truncate"><span className="font-semibold text-[var(--md-on-surface)]">{current.text}</span></span>
-            <div className="flex items-center gap-1 ml-auto flex-shrink-0"><div className="w-1.5 h-1.5 rounded-full bg-[var(--md-primary)] animate-pulse" /><span className="text-[10px] text-[var(--md-primary)] font-semibold">LIVE</span></div>
+            <div className="flex items-center gap-1 ml-auto flex-shrink-0"><div className="w-1.5 h-1.5 rounded-sm bg-[var(--md-primary)] animate-pulse" /><span className="text-[10px] text-[var(--md-primary)] font-semibold">LIVE</span></div>
           </div>
         </motion.div>}
       </AnimatePresence>
@@ -135,7 +135,7 @@ export function DemandPulse({ listingId, listing }) {
   if (listing?.is_flash_deal) signals.push({ icon: Zap, text: 'Flash deal — time limited', color: 'text-[var(--md-secondary)]' })
   if (!signals.length) return null
   return (
-    <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 space-y-2">
+    <div className="bg-[var(--md-surface-container-high)] rounded-md p-3 space-y-2">
       <div className="text-[10px] font-bold text-[var(--md-on-surface-variant)] uppercase tracking-wider">Demand Signals</div>
       {signals.map(({ icon: Icon, text, color }) => <div key={text} className="flex items-center gap-2"><Icon size={12} className={color} /><span className={`text-xs font-semibold ${color}`}>{text}</span></div>)}
     </div>
@@ -145,8 +145,8 @@ export function DemandPulse({ listingId, listing }) {
 // ── TRUST BADGE ────────────────────────────────────────────────────────────────
 export function PlugPayBadge({ protected: isProtected }) {
   if (isProtected === undefined) return null
-  return <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${isProtected ? 'bg-[var(--md-primary)]/10 text-[var(--md-primary)] border-[var(--md-primary)]/25' : 'bg-[var(--md-error)]/10 text-[var(--md-error)] border-error/25'}`}>
-    <div className={`w-1.5 h-1.5 rounded-full ${isProtected ? 'bg-[var(--md-primary)]' : 'bg-error'}`} />
+  return <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-sm border ${isProtected ? 'bg-[var(--md-primary)]/10 text-[var(--md-primary)] border-[var(--md-primary)]/25' : 'bg-[var(--md-error)]/10 text-[var(--md-error)] border-error/25'}`}>
+    <div className={`w-1.5 h-1.5 rounded-sm ${isProtected ? 'bg-[var(--md-primary)]' : 'bg-error'}`} />
     {isProtected ? 'PlugPay Protected' : 'Protection Void'}
   </div>
 }
@@ -167,7 +167,7 @@ export function DemandBroadcastForm() {
     onError: () => { toast.error('Failed to broadcast demand.') },
   })
   return (
-    <div className="bg-[var(--md-surface-container)] p-4 rounded-xl border border-[var(--md-outline-variant)]">
+    <div className="bg-[var(--md-surface-container)] p-4 rounded-md border border-[var(--md-outline-variant)]">
       <h3 className="font-bold text-[var(--md-on-surface)] mb-2 flex items-center gap-2"><TrendingUp className="text-[var(--md-primary)]" size={16}/> Broadcast a Demand</h3>
       <p className="text-xs text-[var(--md-on-surface-variant)] mb-4">Looking for something specific? Alert all campus sellers instantly.</p>
       <div className="space-y-3">
@@ -202,7 +202,7 @@ export function DemandStream() {
       <AnimatePresence>
         {demands.map(d => <motion.div key={d.id} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-[var(--md-surface-container-high)] p-3 rounded-lg border border-[var(--md-outline-variant)] flex justify-between items-center">
           <div><p className="text-sm font-semibold text-[var(--md-on-surface)]">{d.title}</p><p className="text-xs text-[var(--md-on-surface-variant)]">Budget: ₦{(d.max_budget / 100).toLocaleString()}</p></div>
-          <button className="text-xs bg-[var(--md-primary)]/10 text-[var(--md-primary)] px-3 py-1.5 rounded-full font-bold hover:bg-[var(--md-primary)]/20">Fulfill</button>
+          <button className="text-xs bg-[var(--md-primary)]/10 text-[var(--md-primary)] px-3 py-1.5 rounded-sm font-bold hover:bg-[var(--md-primary)]/20">Fulfill</button>
         </motion.div>)}
       </AnimatePresence>
     </div>

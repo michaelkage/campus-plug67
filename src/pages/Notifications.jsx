@@ -149,7 +149,7 @@ export default function Notifications() {
           <p className="section-label">Inbox</p>
           <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
           {unread > 0 && (
-            <p className="text-sm text-white/40 mt-1">{unread} unread</p>
+            <p className="text-sm text-on-surface/40 mt-1">{unread} unread</p>
           )}
         </div>
         {unread > 0 && (
@@ -163,10 +163,10 @@ export default function Notifications() {
 
       {isLoading ? (
         Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 mb-3 animate-pulse h-20" />
+          <div key={i} className="bg-surface-container-high border border-outline-variant rounded-md p-4 mb-3 animate-pulse h-20" />
         ))
       ) : notifications.length === 0 ? (
-        <div className="text-center py-20 text-white/30">
+        <div className="text-center py-20 text-on-surface/30">
           <Bell size={36} className="mx-auto mb-4 opacity-30" />
           <p className="font-semibold">No notifications yet</p>
           <p className="text-sm mt-1">You're all caught up 👌</p>
@@ -177,13 +177,13 @@ export default function Notifications() {
             <button
               key={notif.id}
               onClick={() => { void openNotification(notif) }}
-              className={`w-full text-left flex gap-4 p-4 rounded-xl border transition-all hover:border-primary/20 ${
+              className={`w-full text-left flex gap-4 p-4 rounded-md border transition-all hover:border-primary/20 ${
                 notif.read
                   ? 'bg-surface-container-high border-outline-variant opacity-60'
                   : 'bg-surface-container-high border-primary/20 shadow-[0_0_0_1px_rgba(0,242,255,0.06)]'
               }`}
             >
-              <div className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center
+              <div className="w-10 h-10 rounded-sm bg-surface-container-highest flex items-center justify-center
                               text-xl flex-shrink-0">
                 {TYPE_ICON[notif.type] || '🔔'}
               </div>
@@ -191,11 +191,11 @@ export default function Notifications() {
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-sm">{notif.title}</p>
                   {!notif.read && (
-                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
+                    <div className="w-2 h-2 rounded-sm bg-primary flex-shrink-0 mt-1" />
                   )}
                 </div>
                 {notif.body && (
-                  <p className="text-sm text-white/50 mt-0.5 leading-relaxed">{notif.body}</p>
+                  <p className="text-sm text-on-surface/50 mt-0.5 leading-relaxed">{notif.body}</p>
                 )}
                 <p className="text-xs text-white/25 mt-1">{timeAgo(notif.created_at)}</p>
               </div>

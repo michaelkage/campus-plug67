@@ -51,8 +51,8 @@ function TagInput({ tags, setTags }) {
             key={p}
             type="button"
             onClick={() => add(p)}
-            className="text-[11px] px-2 py-0.5 rounded-full border border-outline-variant
-                       text-white/40 hover:border-primary/30 hover:text-primary transition-colors"
+            className="text-[11px] px-2 py-0.5 rounded-sm border border-outline-variant
+                       text-on-surface/40 hover:border-primary/30 hover:text-primary transition-colors"
           >
             #{p}
           </button>
@@ -112,14 +112,14 @@ function ReportModal({ onClose, profile }) {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
          onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-3xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-md overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-outline-variant">
           <h2 className="font-bold">Report an Item</h2>
-          <button onClick={onClose} className="text-white/30 hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} className="text-on-surface/30 hover:text-white"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Lost / Found toggle */}
-          <div className="flex bg-surface-container-highest rounded-xl p-1">
+          <div className="flex bg-surface-container-highest rounded-md p-1">
             {[
               { val: 'lost',  label: '🔍 I Lost Something',  },
               { val: 'found', label: '📦 I Found Something', },
@@ -129,7 +129,7 @@ function ReportModal({ onClose, profile }) {
                 type="button"
                 onClick={() => setType(val)}
                 className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                  type === val ? 'bg-primary text-on-primary' : 'text-white/40 hover:text-white/70'
+                  type === val ? 'bg-primary text-on-primary' : 'text-on-surface/40 hover:text-on-surface/70'
                 }`}
               >
                 {label}
@@ -159,7 +159,7 @@ function ReportModal({ onClose, profile }) {
           <div>
             <label className="label">Tags <span className="text-error">*</span></label>
             <TagInput tags={tags} setTags={setTags} />
-            <p className="text-xs text-white/30 mt-1">
+            <p className="text-xs text-on-surface/30 mt-1">
               Tags are used by AI matching to connect lost & found reports.
             </p>
           </div>
@@ -182,7 +182,7 @@ function ItemCard({ item }) {
     claimed:  'tag-green',
   }
   return (
-    <div className={`bg-surface-container-high border rounded-xl p-4 transition-all hover:-translate-y-0.5 ${
+    <div className={`bg-surface-container-high border rounded-md p-4 transition-all hover:-translate-y-0.5 ${
       isLost ? 'border-error/20 hover:border-error/40' : 'border-primary/20 hover:border-primary/40'
     }`}>
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -202,11 +202,11 @@ function ItemCard({ item }) {
 
       <h3 className="font-semibold text-sm mb-1 leading-snug">{item.title}</h3>
       {item.description && (
-        <p className="text-xs text-white/50 mb-3 line-clamp-2">{item.description}</p>
+        <p className="text-xs text-on-surface/50 mb-3 line-clamp-2">{item.description}</p>
       )}
 
       {item.location && (
-        <div className="flex items-center gap-1.5 text-xs text-white/30 mb-3">
+        <div className="flex items-center gap-1.5 text-xs text-on-surface/30 mb-3">
           <span>📍</span>
           {item.location}
         </div>
@@ -215,8 +215,8 @@ function ItemCard({ item }) {
       {/* Tags */}
       <div className="flex flex-wrap gap-1">
         {item.tags?.map(tag => (
-          <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full
-                                     bg-surface-container-highest text-white/40 border border-outline-variant font-mono">
+          <span key={tag} className="text-[10px] px-2 py-0.5 rounded-sm
+                                     bg-surface-container-highest text-on-surface/40 border border-outline-variant font-mono">
             #{tag}
           </span>
         ))}
@@ -275,7 +275,7 @@ export default function LostFound() {
         <div>
           <p className="section-label">AI-Assisted</p>
           <h1 className="text-2xl font-black tracking-tight">Lost & Found</h1>
-          <p className="text-sm text-white/40 mt-1">
+          <p className="text-sm text-on-surface/40 mt-1">
             Tag-based matching automatically connects lost & found reports.
           </p>
         </div>
@@ -286,12 +286,12 @@ export default function LostFound() {
       </div>
 
       {/* How it works */}
-      <div className="bg-tertiary/5 border border-[var(--md-outline-variant)] rounded-xl p-5 mb-6">
+      <div className="bg-tertiary/5 border border-[var(--md-outline-variant)] rounded-md p-5 mb-6">
         <div className="flex items-center gap-2 mb-2">
           <span>🤖</span>
           <span className="text-xs font-bold text-[var(--md-secondary)] uppercase tracking-wider">AI Matching Active</span>
         </div>
-        <p className="text-sm text-white/50">
+        <p className="text-sm text-on-surface/50">
           When you submit a report, our system automatically checks all existing reports for
           overlapping tags. If a match is found, both parties are instantly notified via
           in-app notification. No manual searching needed.
@@ -301,7 +301,7 @@ export default function LostFound() {
       {/* Filters + Search */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface/30" />
           <input className="input pl-9" placeholder="Search by title or tag..."
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
@@ -317,7 +317,7 @@ export default function LostFound() {
               className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
                 filter === val
                   ? 'bg-primary text-on-primary border-primary'
-                  : 'bg-transparent text-white/40 border-outline-variant hover:border-primary/30'
+                  : 'bg-transparent text-on-surface/40 border-outline-variant hover:border-primary/30'
               }`}
             >
               {label}
@@ -333,9 +333,9 @@ export default function LostFound() {
           { label: 'Lost Items',   val: items.filter(i => i.type === 'lost').length,  color: 'text-error'  },
           { label: 'Found Items',  val: items.filter(i => i.type === 'found').length, color: 'text-primary'      },
         ].map(({ label, val, color }) => (
-          <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
+          <div key={label} className="bg-surface-container-high border border-outline-variant rounded-md p-4 text-center">
             <div className={`text-2xl font-black font-mono ${color}`}>{val}</div>
-            <div className="text-xs text-white/40 mt-0.5">{label}</div>
+            <div className="text-xs text-on-surface/40 mt-0.5">{label}</div>
           </div>
         ))}
       </div>
@@ -344,11 +344,11 @@ export default function LostFound() {
       {isLoading ? (
         <div className="grid sm:grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 animate-pulse h-32" />
+            <div key={i} className="bg-surface-container-high border border-outline-variant rounded-md p-4 animate-pulse h-32" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-white/30">
+        <div className="text-center py-16 text-on-surface/30">
           <div className="text-4xl mb-4">🔍</div>
           <p className="font-semibold">No reports found</p>
           <p className="text-sm mt-1">

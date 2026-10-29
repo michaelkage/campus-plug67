@@ -47,9 +47,9 @@ export function ThemeCard() {
       key: 'light',
       label: 'Light',
       desc: 'Premium sand and terracotta',
-      bg: '#FAF6F0',
-      surface: '#EFEBE5',
-      accent: '#D95D39',
+      bg: 'var(--cp-canvas)',
+      surface: 'var(--cp-slab)',
+      accent: 'var(--cp-clay)',
     },
     {
       key: 'dark',

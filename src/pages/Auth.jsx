@@ -89,7 +89,7 @@ export default function Auth() {
 
           <div className="relative z-10">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-on-primary shadow-[0_0_30px_rgba(var(--md-primary-rgb),0.16)]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-on-primary shadow-[0_0_30px_rgba(var(--md-primary-rgb),0.16)]">
                 <Zap size={20} strokeWidth={2.5} />
               </div>
               <span className="text-xl font-black tracking-tight">Campus<span className="text-primary">Plug</span></span>
@@ -123,15 +123,15 @@ export default function Auth() {
           </div>
 
           <div className="relative z-10 flex items-center gap-2 text-xs text-white/25">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--md-primary-rgb),0.5)]" />
+            <span className="h-1.5 w-1.5 rounded-sm bg-primary shadow-[0_0_10px_rgba(var(--md-primary-rgb),0.5)]" />
             Built for students, by Campus Plug
           </div>
         </section>
 
         {/* Auth panel */}
         <section className="relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-8 sm:px-8 lg:min-h-0 lg:px-12 xl:px-20">
-          <div className="pointer-events-none absolute -left-32 top-1/3 h-72 w-72 rounded-full bg-primary/[0.035] blur-3xl" />
-          <div className="pointer-events-none absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-tertiary/[0.035] blur-3xl" />
+          <div className="pointer-events-none absolute -left-32 top-1/3 h-72 w-72 rounded-sm bg-primary/[0.035] blur-3xl" />
+          <div className="pointer-events-none absolute -right-32 bottom-0 h-80 w-80 rounded-sm bg-tertiary/[0.035] blur-3xl" />
 
           <motion.div
             className="relative z-10 w-full max-w-[460px]"
@@ -141,7 +141,7 @@ export default function Auth() {
           >
             <div className="mb-8 lg:hidden">
               <div className="mb-7 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-on-primary">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-on-primary">
                   <Zap size={20} strokeWidth={2.5} />
                 </div>
                 <span className="text-xl font-black tracking-tight">Campus<span className="text-primary">Plug</span></span>
@@ -155,19 +155,19 @@ export default function Auth() {
               <h1 className="text-3xl font-black tracking-[-0.03em] sm:text-[34px]">
                 {mode === 'signin' ? 'Sign in to Campus Plug' : 'Create your student account'}
               </h1>
-              <p className="mt-2 text-sm leading-6 text-white/40">
+              <p className="mt-2 text-sm leading-6 text-on-surface/40">
                 {mode === 'signin'
                   ? 'Use your university email to continue where you left off.'
                   : 'Join your campus community in a few quick steps.'}
               </p>
             </header>
 
-            <div className="mb-7 grid grid-cols-2 rounded-xl border border-white/[0.07] bg-white/[0.025] p-1">
+            <div className="mb-7 grid grid-cols-2 rounded-md border border-white/[0.07] bg-white/[0.025] p-1">
               <button
                 type="button"
                 onClick={() => switchMode('signin')}
                 aria-pressed={mode === 'signin'}
-                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-white text-inverse-on-surface shadow-sm' : 'text-white/40 hover:text-white/70'}`}
+                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-white text-inverse-on-surface shadow-sm' : 'text-on-surface/40 hover:text-on-surface/70'}`}
               >
                 Sign in
               </button>
@@ -175,18 +175,18 @@ export default function Auth() {
                 type="button"
                 onClick={() => switchMode('signup')}
                 aria-pressed={mode === 'signup'}
-                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-white text-inverse-on-surface shadow-sm' : 'text-white/40 hover:text-white/70'}`}
+                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-white text-inverse-on-surface shadow-sm' : 'text-on-surface/40 hover:text-on-surface/70'}`}
               >
                 Create account
               </button>
             </div>
 
-            <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(var(--md-scrim-rgb),0.25)] sm:p-7">
-              <div className="mb-6 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-black/10 px-3.5 py-3">
+            <div className="rounded-md border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(var(--md-scrim-rgb),0.25)] sm:p-7">
+              <div className="mb-6 flex items-center gap-3 rounded-md border border-white/[0.06] bg-black/10 px-3.5 py-3">
                 <ShieldCheck size={17} className="shrink-0 text-primary" />
                 <div>
-                  <p className="text-xs font-bold text-white/70">Secure student access</p>
-                  <p className="mt-0.5 text-[11px] leading-4 text-white/30">Your credentials are protected and your university identity is verified.</p>
+                  <p className="text-xs font-bold text-on-surface/70">Secure student access</p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-on-surface/30">Your credentials are protected and your university identity is verified.</p>
                 </div>
               </div>
 
@@ -213,7 +213,7 @@ export default function Auth() {
                     <input id="university-email" className="input pl-10" type="email" autoComplete="email" placeholder="your.name@unilag.edu.ng" value={form.email} onChange={set('email')} required />
                   </div>
                   {mode === 'signup' && (
-                    <p className="mt-2 text-[11px] leading-4 text-white/30">
+                    <p className="mt-2 text-[11px] leading-4 text-on-surface/30">
                       Use an approved university email. We verify it against the campus allowlist.
                     </p>
                   )}
@@ -250,7 +250,7 @@ export default function Auth() {
                         </select>
                       </div>
                       <div>
-                        <label className="label" htmlFor="matric-number">Matric number <span className="font-normal text-white/20">(optional)</span></label>
+                        <label className="label" htmlFor="matric-number">Matric number <span className="font-normal text-on-surface/20">(optional)</span></label>
                         <input id="matric-number" className="input" type="text" placeholder="e.g. 190402056" value={form.matric} onChange={set('matric')} />
                       </div>
                     </motion.div>
@@ -266,7 +266,7 @@ export default function Auth() {
                       type="button"
                       onClick={() => setShowPass(value => !value)}
                       aria-label={showPass ? 'Hide password' : 'Show password'}
-                      className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-white/25 transition-colors hover:bg-white/[0.05] hover:text-white/60"
+                      className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-white/25 transition-colors hover:bg-white/[0.05] hover:text-on-surface/60"
                     >
                       {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -276,7 +276,7 @@ export default function Auth() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-black text-on-primary transition-all hover:bg-primary/90 hover:shadow-[0_8px_30px_rgba(var(--md-primary-rgb),0.14)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 font-black text-on-primary transition-all hover:bg-primary/90 hover:shadow-[0_8px_30px_rgba(var(--md-primary-rgb),0.14)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
                   {!submitting && <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />}
@@ -287,7 +287,7 @@ export default function Auth() {
                 <div className="mt-5">
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-white/[0.07]" />
-                    <span className="text-[11px] font-medium uppercase tracking-wider text-white/20">or</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-on-surface/20">or</span>
                     <div className="h-px flex-1 bg-white/[0.07]" />
                   </div>
                   <motion.button
@@ -295,12 +295,12 @@ export default function Auth() {
                     onClick={handlePasskey}
                     disabled={passkeyLoading || !form.email}
                     whileTap={{ scale: 0.985 }}
-                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/[0.09] bg-white/[0.025] text-sm font-bold text-white/70 transition-colors hover:border-primary/25 hover:bg-primary/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-35"
+                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-md border border-white/[0.09] bg-white/[0.025] text-sm font-bold text-on-surface/70 transition-colors hover:border-primary/25 hover:bg-primary/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-35"
                   >
                     <Fingerprint size={17} className={passkeyLoading ? 'animate-pulse' : ''} />
                     {passkeyLoading ? 'Verifying…' : 'Use Face ID or fingerprint'}
                   </motion.button>
-                  {!form.email && <p className="mt-2 text-center text-[11px] text-white/20">Enter your email first to use passkey sign-in.</p>}
+                  {!form.email && <p className="mt-2 text-center text-[11px] text-on-surface/20">Enter your email first to use passkey sign-in.</p>}
                 </div>
               )}
 
@@ -311,7 +311,7 @@ export default function Auth() {
               )}
             </div>
 
-            <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-white/20">
+            <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-on-surface/20">
               <LockKeyhole size={12} />
               Secure connection · Campus Plug
             </div>

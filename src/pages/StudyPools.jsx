@@ -71,15 +71,15 @@ function CreatePoolModal({ onClose, profile }) {
       <motion.div
         initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-3xl max-h-[90vh] overflow-y-auto"
+        className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-md max-h-[90vh] overflow-y-auto"
       >
         <div className="sticky top-0 bg-surface-container-high border-b border-outline-variant px-6 py-4 flex items-center justify-between">
           <h2 className="font-bold text-lg">Start a Study Pool</h2>
-          <button onClick={onClose} className="text-white/30 hover:text-white"><X size={18}/></button>
+          <button onClick={onClose} className="text-on-surface/30 hover:text-white"><X size={18}/></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="bg-[var(--md-primary)]/5 border border-primary/20 rounded-xl p-4 text-sm text-white/60">
+          <div className="bg-[var(--md-primary)]/5 border border-primary/20 rounded-md p-4 text-sm text-on-surface/60">
             <strong className="text-primary">How pools work:</strong> Set a group buy deal.
             Students join and pay their share. When full, the pool locks and you purchase together at the bulk price.
           </div>
@@ -163,7 +163,7 @@ function PoolCard({ pool, myId, onJoin }) {
       layout
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-surface-container-high border rounded-3xl p-5 transition-all duration-200 ${statusColor[pool.status] || statusColor.open}`}
+      className={`bg-surface-container-high border rounded-md p-5 transition-all duration-200 ${statusColor[pool.status] || statusColor.open}`}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
@@ -173,11 +173,11 @@ function PoolCard({ pool, myId, onJoin }) {
             {expired && pool.status === 'open' && <span className="tag tag-red text-[10px]">EXPIRED</span>}
           </div>
           <h3 className="font-bold text-base leading-snug">{pool.title}</h3>
-          <p className="text-xs text-white/50 mt-0.5">{pool.item_name}</p>
+          <p className="text-xs text-on-surface/50 mt-0.5">{pool.item_name}</p>
         </div>
         <div className="text-right flex-shrink-0">
           <div className="text-lg font-black text-primary font-mono">{formatNaira(pool.unit_price)}</div>
-          <div className="text-xs text-white/40">per person</div>
+          <div className="text-xs text-on-surface/40">per person</div>
           {savingsPct > 0 && (
             <div className="text-[10px] text-primary font-bold mt-0.5">~{savingsPct}% cheaper</div>
           )}
@@ -185,23 +185,23 @@ function PoolCard({ pool, myId, onJoin }) {
       </div>
 
       {pool.description && (
-        <p className="text-sm text-white/50 mb-3 line-clamp-2">{pool.description}</p>
+        <p className="text-sm text-on-surface/50 mb-3 line-clamp-2">{pool.description}</p>
       )}
 
       {/* Progress bar */}
       <div className="mb-3">
         <div className="flex justify-between text-xs mb-1.5">
-          <div className="flex items-center gap-1.5 text-white/50">
+          <div className="flex items-center gap-1.5 text-on-surface/50">
             <Users size={11} />
             <span>{pool.current_count}/{pool.max_capacity} joined</span>
           </div>
-          <span className={`font-bold ${spotsLeft <= 2 ? 'text-error' : 'text-white/40'}`}>
+          <span className={`font-bold ${spotsLeft <= 2 ? 'text-error' : 'text-on-surface/40'}`}>
             {pool.status === 'locked' ? 'Full!' : `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`}
           </span>
         </div>
-        <div className="h-2 bg-surface-container-highest rounded-full overflow-hidden">
+        <div className="h-2 bg-surface-container-highest rounded-sm overflow-hidden">
           <motion.div
-            className={`h-full rounded-full ${pool.status === 'locked' ? 'bg-primary' : 'bg-[var(--md-primary)]'}`}
+            className={`h-full rounded-sm ${pool.status === 'locked' ? 'bg-primary' : 'bg-[var(--md-primary)]'}`}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -213,20 +213,20 @@ function PoolCard({ pool, myId, onJoin }) {
       <div className="flex items-center gap-2 mb-4">
         <div className="flex -space-x-2">
           {Array.from({ length: Math.min(pool.current_count, 6) }).map((_, i) => (
-            <div key={i} className="w-6 h-6 rounded-full bg-[var(--md-primary-container)]
+            <div key={i} className="w-6 h-6 rounded-sm bg-[var(--md-primary-container)]
                                     border border-outline-variant flex items-center justify-center text-[9px] font-bold text-on-primary">
               {String.fromCharCode(65 + i)}
             </div>
           ))}
           {pool.current_count > 6 && (
-            <div className="w-6 h-6 rounded-full bg-surface-container-highest border border-outline-variant
-                            flex items-center justify-center text-[9px] text-white/40">
+            <div className="w-6 h-6 rounded-sm bg-surface-container-highest border border-outline-variant
+                            flex items-center justify-center text-[9px] text-on-surface/40">
               +{pool.current_count - 6}
             </div>
           )}
         </div>
         {!expired && pool.status === 'open' && (
-          <div className="flex items-center gap-1 text-xs text-white/30 ml-auto">
+          <div className="flex items-center gap-1 text-xs text-on-surface/30 ml-auto">
             <Clock size={10}/> {timeLeft(pool.expires_at)}
           </div>
         )}
@@ -256,7 +256,7 @@ function PoolCard({ pool, myId, onJoin }) {
       )}
 
       {pool.status === 'locked' && !isMember && (
-        <div className="w-full py-2.5 rounded-lg text-sm text-center text-white/30">
+        <div className="w-full py-2.5 rounded-lg text-sm text-center text-on-surface/30">
           Pool is full
         </div>
       )}
@@ -368,7 +368,7 @@ export default function StudyPools() {
         <div>
           <p className="section-label">Group Buying</p>
           <h1 className="text-2xl font-black tracking-tight">Study Pools</h1>
-          <p className="text-sm text-white/40 mt-1">Buy in bulk, save together. Pool up with course mates.</p>
+          <p className="text-sm text-on-surface/40 mt-1">Buy in bulk, save together. Pool up with course mates.</p>
         </div>
         <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2 self-start">
           <Plus size={16} /> Start a Pool
@@ -382,10 +382,10 @@ export default function StudyPools() {
           { icon: '👥', title: 'Students join & pay', desc: 'Each pays their share via PlugPay' },
           { icon: '🔒', title: 'Pool locks when full', desc: 'Organiser purchases at the bulk rate' },
         ].map(({ icon, title, desc }) => (
-          <div key={title} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
+          <div key={title} className="bg-surface-container-high border border-outline-variant rounded-md p-4 text-center">
             <div className="text-2xl mb-2">{icon}</div>
             <div className="text-xs font-bold mb-1">{title}</div>
-            <div className="text-xs text-white/40">{desc}</div>
+            <div className="text-xs text-on-surface/40">{desc}</div>
           </div>
         ))}
       </div>
@@ -398,8 +398,8 @@ export default function StudyPools() {
           { val: 'mine',   label: '⚡ My Pools' },
         ].map(({ val, label }) => (
           <button key={val} onClick={() => setFilter(val)}
-            className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
-              filter === val ? 'bg-[var(--md-primary)] text-on-primary border-primary' : 'bg-transparent text-white/40 border-outline-variant hover:border-primary/30'
+            className={`px-4 py-1.5 rounded-sm text-sm font-semibold border transition-all ${
+              filter === val ? 'bg-[var(--md-primary)] text-on-primary border-primary' : 'bg-transparent text-on-surface/40 border-outline-variant hover:border-primary/30'
             }`}>
             {label}
           </button>
@@ -409,11 +409,11 @@ export default function StudyPools() {
       {isLoading ? (
         <div className="grid sm:grid-cols-2 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-surface-container-high border border-outline-variant rounded-3xl p-5 animate-pulse h-56" />
+            <div key={i} className="bg-surface-container-high border border-outline-variant rounded-md p-5 animate-pulse h-56" />
           ))}
         </div>
       ) : pools.length === 0 ? (
-        <div className="text-center py-20 text-white/30">
+        <div className="text-center py-20 text-on-surface/30">
           <div className="text-4xl mb-4">🛒</div>
           <p className="font-semibold">No pools yet</p>
           <p className="text-sm mt-1">Start one and invite your course mates!</p>
@@ -443,7 +443,7 @@ export default function StudyPools() {
 
           {expiredPools.length > 0 && (
             <div>
-              <div className="text-sm font-bold text-white/30 mb-4">Expired ({expiredPools.length})</div>
+              <div className="text-sm font-bold text-on-surface/30 mb-4">Expired ({expiredPools.length})</div>
               <div className="grid sm:grid-cols-2 gap-4">
                 {expiredPools.map(p => <PoolCard key={p.id} pool={p} myId={user?.id} onJoin={handleJoin} />)}
               </div>

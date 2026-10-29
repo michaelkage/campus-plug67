@@ -57,7 +57,7 @@ export function MarketPulse({ category, university, currentPrice, className = ''
 
   if (!category || !university) return null
   if (isLoading) return (
-    <div className={`bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl p-4 animate-pulse ${className}`}>
+    <div className={`bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-md p-4 animate-pulse ${className}`}>
       <div className="h-4 bg-[var(--md-surface-container)] rounded w-1/2 mb-3" />
       <div className="h-3 bg-[var(--md-surface-container)] rounded w-3/4" />
     </div>
@@ -81,7 +81,7 @@ export function MarketPulse({ category, university, currentPrice, className = ''
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`border rounded-xl overflow-hidden ${demand.bg} ${className}`}
+      className={`border rounded-md overflow-hidden ${demand.bg} ${className}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
@@ -220,7 +220,7 @@ export function LiveViewerGlow({ listingId, sellerId, currentUserId }) {
       <motion.div
         animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
         transition={{ duration: 1.5, repeat: Infinity }}
-        className="w-2 h-2 rounded-full bg-[var(--md-primary)]"
+        className="w-2 h-2 rounded-sm bg-[var(--md-primary)]"
       />
       <span className="text-[var(--md-primary)] font-semibold">
         {viewerCount} {viewerCount === 1 ? 'person' : 'people'} viewing this right now

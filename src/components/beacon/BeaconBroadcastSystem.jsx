@@ -133,10 +133,10 @@ function KeywordTag({ text, onRemove }) {
   return (
     <motion.span
       layout
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0.8, opacity: 0 }}
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+      initial={{ y: 4, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 4, opacity: 0 }}
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm
                  bg-[var(--md-primary)]/10 border border-primary/25 text-[var(--md-primary)] text-xs font-semibold"
     >
       {text}
@@ -153,7 +153,7 @@ function KeywordTag({ text, onRemove }) {
 function BudgetBar({ budgetKobo, ceilingKobo = 50_000_00 }) {
   const pct = Math.min(100, Math.round((budgetKobo / ceilingKobo) * 100))
   const color =
-    pct > 70 ? 'bg-emerald-400' :
+    pct > 70 ? 'bg-secondary' :
     pct > 35 ? 'bg-[var(--md-primary)]'        : 'bg-tertiary'
 
   return (
@@ -162,12 +162,12 @@ function BudgetBar({ budgetKobo, ceilingKobo = 50_000_00 }) {
         <span>BUDGET</span>
         <span className="font-mono font-bold text-[var(--md-on-surface)]">{formatNaira(budgetKobo)}</span>
       </div>
-      <div className="h-1 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden">
+      <div className="h-1 bg-[var(--md-surface-container-high)] rounded-sm overflow-hidden">
         <motion.div
-          className={`h-full rounded-full ${color}`}
+          className={`h-full rounded-sm ${color}`}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
         />
       </div>
     </div>
@@ -183,9 +183,9 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
       layout
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8, scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 340, damping: 28 }}
-      className={`rounded-xl border-2 p-4 space-y-3 transition-colors
+      exit={{ opacity: 0, y: -8, y: -8 }}
+      transition={{ type: 'spring', stiffness: 520, damping: 42, mass: 1.15 }}
+      className={`rounded-md border-2 p-4 space-y-3 transition-colors
                   ${isMine
                     ? 'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/3'
                     : 'border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] hover:border-outline-variant'}`}
@@ -196,9 +196,9 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
           {broadcast.requester?.avatar_url ? (
             <img src={broadcast.requester.avatar_url}
                  alt={broadcast.requester.full_name}
-                 className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                 className="w-8 h-8 rounded-sm object-cover flex-shrink-0" />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-[var(--md-surface-container-high)] flex items-center justify-center
+            <div className="w-8 h-8 rounded-sm bg-[var(--md-surface-container-high)] flex items-center justify-center
                             text-xs font-bold text-[var(--md-on-surface-variant)] flex-shrink-0">
               {(broadcast.requester?.full_name ?? '?')[0].toUpperCase()}
             </div>
@@ -257,10 +257,10 @@ function DemandCard({ broadcast, isMine, onClose, onPitch }) {
       {/* CTA */}
       {!isMine && (
         <motion.button
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ y: -8 }}
           onClick={() => { setPitching(true); onPitch(broadcast) }}
           disabled={pitching}
-          className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl
+          className="w-full flex items-center justify-between px-4 py-2.5 rounded-md
                      bg-[var(--md-primary)]/10 border border-[var(--md-primary)]/25 text-[var(--md-primary)]
                      hover:bg-[var(--md-primary)]/20 transition-all text-sm font-bold
                      disabled:opacity-40 disabled:cursor-not-allowed"
@@ -328,7 +328,7 @@ function DemandForm({ onSuccess, onCancel, profile }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl p-5 space-y-4"
+      className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-5 space-y-4"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -402,7 +402,7 @@ function DemandForm({ onSuccess, onCancel, profile }) {
             type="button"
             onClick={addKeyword}
             disabled={!kwInput.trim() || keywords.length >= MAX_KEYWORDS}
-            className="px-3 py-2 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-xl
+            className="px-3 py-2 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] rounded-md
                        text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)] disabled:opacity-30 transition-colors"
           >
             <Plus size={14} />
@@ -424,10 +424,10 @@ function DemandForm({ onSuccess, onCancel, profile }) {
 
       {/* Submit */}
       <motion.button
-        whileTap={valid ? { scale: 0.97 } : {}}
+        whileTap={valid ? { y: -8 } : {}}
         onClick={() => valid && mutation.mutate()}
         disabled={!valid || mutation.isPending}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl
+        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-md
                    font-bold text-sm tracking-wide transition-all
                    disabled:opacity-40 disabled:cursor-not-allowed
                    bg-[var(--md-primary)] text-on-primary hover:bg-[var(--md-primary)]/90"
@@ -437,7 +437,7 @@ function DemandForm({ onSuccess, onCancel, profile }) {
             <motion.span
               animate={{ rotate: 360 }}
               transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-              className="block w-4 h-4 border-2 border-outline-variant border-t-transparent rounded-full"
+              className="block w-4 h-4 border-2 border-outline-variant border-t-transparent rounded-sm"
             />
             BROADCASTING…
           </>
@@ -591,7 +591,7 @@ export default function BeaconBroadcastSystem() {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowForm(v => !v)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-bold
                       transition-all self-start mt-1
                       ${showForm
                         ? 'bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)] text-[var(--md-on-surface-variant)]'
@@ -611,13 +611,13 @@ export default function BeaconBroadcastSystem() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             onClick={() => setTab('mine')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-md
                        bg-[var(--md-primary)]/5 border border-primary/20 text-left"
           >
             <motion.span
               animate={{ opacity: [1, 0.3, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-2 h-2 rounded-full bg-[var(--md-primary)] flex-shrink-0"
+              className="w-2 h-2 rounded-sm bg-[var(--md-primary)] flex-shrink-0"
             />
             <div className="flex-1">
               <p className="text-xs font-bold text-[var(--md-primary)]">
@@ -643,7 +643,7 @@ export default function BeaconBroadcastSystem() {
       </AnimatePresence>
 
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-1">
+      <div className="flex gap-1 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-1">
         {[
           { id: 'feed', label: 'DEMAND FEED', count: filteredFeed.length },
           { id: 'mine', label: 'MY DEMANDS',  count: myDemands.length    },
@@ -651,7 +651,7 @@ export default function BeaconBroadcastSystem() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md
                         text-xs font-bold uppercase tracking-widest transition-all
                         ${tab === t.id
                           ? 'bg-[var(--md-primary)] text-on-primary'
@@ -659,7 +659,7 @@ export default function BeaconBroadcastSystem() {
           >
             {t.label}
             {t.count > 0 && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold
+              <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold
                                 ${tab === t.id
                                   ? 'bg-surface/20 text-on-primary'
                                   : 'bg-white/10 text-[var(--md-on-surface-variant)]'}`}>
@@ -704,7 +704,7 @@ export default function BeaconBroadcastSystem() {
             {/* Feed error */}
             {feedError && (
               <div className="flex items-center gap-2 text-xs text-[var(--md-error)]
-                              bg-error/5 border border-[var(--md-error)]/20 rounded-xl px-4 py-3">
+                              bg-error/5 border border-[var(--md-error)]/20 rounded-md px-4 py-3">
                 <AlertTriangle size={13} />
                 Failed to load feed. Check your connection.
               </div>
@@ -715,7 +715,7 @@ export default function BeaconBroadcastSystem() {
               <div className="space-y-3">
                 {[0, 1, 2].map(i => (
                   <div key={i}
-                    className="h-32 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl animate-pulse" />
+                    className="h-32 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md animate-pulse" />
                 ))}
               </div>
             )}
@@ -759,7 +759,7 @@ export default function BeaconBroadcastSystem() {
               <div className="space-y-3">
                 {[0, 1].map(i => (
                   <div key={i}
-                    className="h-28 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl animate-pulse" />
+                    className="h-28 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md animate-pulse" />
                 ))}
               </div>
             ) : myDemands.length === 0 ? (

@@ -38,7 +38,7 @@ export function FlashDealTimer({ expiresAt, compact = false, onExpire }) {
 
   // Expired
   if (!timeLeft) return (
-    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--md-error)]/20 text-[var(--md-error)] text-[10px] font-bold border border-[var(--md-error)]/30">
+    <div className="flex items-center gap-1 px-2 py-0.5 rounded-sm bg-[var(--md-error)]/20 text-[var(--md-error)] text-[10px] font-bold border border-[var(--md-error)]/30">
       <span>EXPIRED</span>
     </div>
   )
@@ -47,7 +47,7 @@ export function FlashDealTimer({ expiresAt, compact = false, onExpire }) {
     <motion.div
       animate={isUrgent ? { scale: [1, 1.04, 1] } : {}}
       transition={{ duration: 1, repeat: isUrgent ? Infinity : 0 }}
-      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+      className={`flex items-center gap-1 px-2 py-0.5 rounded-sm text-[10px] font-bold border ${
         isUrgent
           ? 'bg-[var(--md-error)]/20 text-[var(--md-error)] border-error/40'
           : 'bg-[var(--md-secondary)]/15 text-[var(--md-secondary)] border-[var(--md-secondary)]/30'
@@ -62,7 +62,7 @@ export function FlashDealTimer({ expiresAt, compact = false, onExpire }) {
   return (
     <motion.div
       
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+      className={`flex items-center gap-3 px-4 py-3 rounded-md border ${
         isUrgent
           ? 'bg-[var(--md-error)]/10 border-[var(--md-error)]/30'
           : 'bg-tertiary/8 border-[var(--md-secondary)]/20'
@@ -93,7 +93,7 @@ export function FlashDealTimer({ expiresAt, compact = false, onExpire }) {
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-[10px] font-bold text-[var(--md-error)] bg-[var(--md-error)]/20 px-2 py-0.5 rounded-full"
+          className="text-[10px] font-bold text-[var(--md-error)] bg-[var(--md-error)]/20 px-2 py-0.5 rounded-sm"
         >
           ENDING SOON
         </motion.div>
@@ -108,7 +108,7 @@ export function FlashDealTimer({ expiresAt, compact = false, onExpire }) {
  */
 export function FlashDealToggle({ value, onChange }) {
   return (
-    <div className={`border rounded-xl p-4 cursor-pointer transition-all duration-200 ${
+    <div className={`border rounded-md p-4 cursor-pointer transition-all duration-200 ${
       value
         ? 'border-tertiary/40 bg-tertiary/5'
         : 'border-[var(--md-outline-variant)] bg-transparent hover:border-[var(--md-secondary)]/20'
@@ -125,13 +125,13 @@ export function FlashDealToggle({ value, onChange }) {
             <div className="text-xs text-[var(--md-on-surface-variant)]">Listing expires in 2 hours — creates urgency</div>
           </div>
         </div>
-        <div className={`w-10 h-6 rounded-full relative transition-colors duration-200 ${
+        <div className={`w-10 h-6 rounded-sm relative transition-colors duration-200 ${
           value ? 'bg-tertiary' : 'bg-[var(--md-surface-container-high)]'
         }`}>
           <motion.div
             animate={{ x: value ? 18 : 2 }}
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm"
+            className="absolute top-1 w-4 h-4 rounded-sm bg-white shadow-sm"
           />
         </div>
       </div>
@@ -178,7 +178,7 @@ export function FlashDealBadge({ expiresAt }) {
     <motion.div
       animate={{ scale: [1, 1.03, 1] }}
       transition={{ duration: 2, repeat: Infinity }}
-      className="flex items-center gap-1 bg-tertiary/90 text-on-primary px-2 py-0.5 rounded-full text-[10px] font-black"
+      className="flex items-center gap-1 bg-tertiary/90 text-on-primary px-2 py-0.5 rounded-sm text-[10px] font-black"
     >
       <Zap size={8} />
       {timeLeft}

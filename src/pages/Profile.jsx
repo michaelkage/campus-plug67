@@ -35,7 +35,7 @@ function CreditRing({ score, max = 1000 }) {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
           {score}
         </motion.div>
-        <div className="text-[9px] text-white/40 uppercase tracking-wider">PlugScore</div>
+        <div className="text-[9px] text-on-surface/40 uppercase tracking-wider">PlugScore</div>
       </div>
     </div>
   )
@@ -194,24 +194,24 @@ function PasskeyManager({ userId }) {
   }
 
   if (!passkeySupported) return (
-    <div className="text-xs text-white/30 flex items-center gap-2">
+    <div className="text-xs text-on-surface/30 flex items-center gap-2">
       <Fingerprint size={12} /> Passkeys not supported on this device
     </div>
   )
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-white/50 font-semibold uppercase tracking-wider">Registered Passkeys</div>
+      <div className="text-xs text-on-surface/50 font-semibold uppercase tracking-wider">Registered Passkeys</div>
       {passkeys.length === 0 && (
-        <div className="text-xs text-white/30">No passkeys registered. Add one for biometric sign-in.</div>
+        <div className="text-xs text-on-surface/30">No passkeys registered. Add one for biometric sign-in.</div>
       )}
       {passkeys.map(pk => (
-        <div key={pk.id} className="flex items-center justify-between p-3 bg-surface-container-highest rounded-xl">
+        <div key={pk.id} className="flex items-center justify-between p-3 bg-surface-container-highest rounded-md">
           <div className="flex items-center gap-2">
             <Fingerprint size={14} className="text-primary" />
             <div>
               <div className="text-xs font-semibold">{pk.device_label || 'Unknown Device'}</div>
-              <div className="text-[10px] text-white/30">
+              <div className="text-[10px] text-on-surface/30">
                 Added {new Date(pk.created_at).toLocaleDateString('en-NG')}
                 {pk.last_used_at && ` · Last used ${new Date(pk.last_used_at).toLocaleDateString('en-NG')}`}
                 {pk.backed_up && ' · ☁️ Cloud backed up'}
@@ -304,12 +304,12 @@ export default function Profile() {
 
   if (isLoading) return (
     <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse space-y-4">
-      <div className="h-40 bg-surface-container-high rounded-2xl" />
-      <div className="h-32 bg-surface-container-high rounded-2xl" />
+      <div className="h-40 bg-surface-container-high rounded-md" />
+      <div className="h-32 bg-surface-container-high rounded-md" />
     </div>
   )
   if (!profile) return (
-    <div className="max-w-4xl mx-auto px-4 py-20 text-center text-white/30">
+    <div className="max-w-4xl mx-auto px-4 py-20 text-center text-on-surface/30">
       <p className="text-4xl mb-4">👤</p><p>Profile not found</p>
     </div>
   )
@@ -317,17 +317,17 @@ export default function Profile() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       {/* Profile header */}
-      <div className="bg-surface-container-high border border-outline-variant rounded-2xl overflow-hidden">
+      <div className="bg-surface-container-high border border-outline-variant rounded-md overflow-hidden">
         <div className="h-24 bg-[var(--md-surface-container-high)] relative">
           <div className="absolute inset-0 cyber-grid opacity-30" />
         </div>
         <div className="px-6 pb-6 -mt-10">
           <div className="flex items-end justify-between mb-4">
             <motion.div whileHover={{ scale: 1.05 }}
-              className="w-20 h-20 rounded-2xl bg-[var(--md-primary-container)] border-4 border-outline-variant
+              className="w-20 h-20 rounded-md bg-[var(--md-primary-container)] border-4 border-outline-variant
                          flex items-center justify-center text-on-primary font-black text-3xl shadow-md">
               {profile.avatar_url
-                ? <img src={profile.avatar_url} className="w-full h-full rounded-xl object-cover" />
+                ? <img src={profile.avatar_url} className="w-full h-full rounded-md object-cover" />
                 : profile.full_name?.[0]?.toUpperCase() || '?'}
             </motion.div>
             {viewingOwn && (
@@ -384,15 +384,15 @@ export default function Profile() {
                 <h1 className="text-xl font-black">{profile.full_name}</h1>
                 {profile.is_verified && <span className="tag tag-green text-[10px] flex items-center gap-1"><Shield size={9}/>Verified</span>}
               </div>
-              <p className="text-sm text-white/50 mb-0.5">{profile.university}</p>
-              {profile.department && <p className="text-xs text-white/30 mb-3">{profile.department} · Level {profile.level}</p>}
-              {profile.bio && <p className="text-sm text-white/60 mb-3 leading-relaxed">{profile.bio}</p>}
+              <p className="text-sm text-on-surface/50 mb-0.5">{profile.university}</p>
+              {profile.department && <p className="text-xs text-on-surface/30 mb-3">{profile.department} · Level {profile.level}</p>}
+              {profile.bio && <p className="text-sm text-on-surface/60 mb-3 leading-relaxed">{profile.bio}</p>}
               {ratings?.avg_rating > 0 && (
                 <div className="flex items-center gap-1.5 mb-3">
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} size={12} className={i < Math.round(ratings.avg_rating) ? 'text-tertiary fill-tertiary' : 'text-white/20'} />
+                    <Star key={i} size={12} className={i < Math.round(ratings.avg_rating) ? 'text-tertiary fill-tertiary' : 'text-on-surface/20'} />
                   ))}
-                  <span className="text-xs text-white/40">{ratings.avg_rating} ({ratings.rating_count})</span>
+                  <span className="text-xs text-on-surface/40">{ratings.avg_rating} ({ratings.rating_count})</span>
                 </div>
               )}
               {profile.badges?.length > 0 && (
@@ -422,10 +422,10 @@ export default function Profile() {
           { label:'Earnings', val: formatNaira(profile.total_earnings), icon: TrendingUp, c:'text-primary' },
           { label:'Score',    val: profile.plug_score,            icon: Star,       c:'text-tertiary'  },
         ].map(({ label, val, icon: Icon, c }) => (
-          <div key={label} className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-center">
+          <div key={label} className="bg-surface-container-high border border-outline-variant rounded-md p-4 text-center">
             <Icon size={16} className={`${c} mx-auto mb-2`} />
             <div className={`text-lg font-black font-mono ${c}`}>{val}</div>
-            <div className="text-xs text-white/40 mt-0.5">{label}</div>
+            <div className="text-xs text-on-surface/40 mt-0.5">{label}</div>
           </div>
         ))}
       </div>
@@ -434,10 +434,10 @@ export default function Profile() {
       {viewingOwn && (
         <div className="grid md:grid-cols-3 gap-4">
           {/* Resume Builder */}
-          <div className="md:col-span-2 bg-surface-container-high border border-outline-variant rounded-2xl p-6">
+          <div className="md:col-span-2 bg-surface-container-high border border-outline-variant rounded-md p-6">
             <p className="section-label">Career Layer</p>
             <h2 className="font-black text-lg mb-1">Verified Resume + QR</h2>
-            <p className="text-xs text-white/40 mb-4 leading-relaxed">
+            <p className="text-xs text-on-surface/40 mb-4 leading-relaxed">
               PDF includes a live verification QR code. Employers scan it to view your real-time stats.
             </p>
             <div className="space-y-3 mb-4">
@@ -448,11 +448,11 @@ export default function Profile() {
               ].map(({ label, pct }) => (
                 <div key={label}>
                   <div className="flex justify-between text-xs mb-1.5">
-                    <span className="text-white/60">{label}</span>
+                    <span className="text-on-surface/60">{label}</span>
                     <span className="text-primary font-mono font-bold">{Math.round(pct)}%</span>
                   </div>
-                  <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
-                    <motion.div className="h-full rounded-full bg-[var(--md-primary)]"
+                  <div className="h-1.5 bg-surface-container-highest rounded-sm overflow-hidden">
+                    <motion.div className="h-full rounded-sm bg-[var(--md-primary)]"
                       initial={{ width:0 }} animate={{ width:`${Math.max(pct,2)}%` }}
                       transition={{ duration:0.9, ease:'easeOut', delay:0.2 }} />
                   </div>
@@ -468,13 +468,13 @@ export default function Profile() {
 
           {/* Verification QR */}
           <div className="card-tactical p-5 flex flex-col items-center justify-center gap-4" style={{ padding: 28 }}>
-            <div className="text-xs font-bold text-white/40 uppercase tracking-wider text-center">Live Verify QR</div>
-            <div className="p-3 bg-[var(--md-surface-container)] rounded-2xl">
+            <div className="text-xs font-bold text-on-surface/40 uppercase tracking-wider text-center">Live Verify QR</div>
+            <div className="p-3 bg-[var(--md-surface-container)] rounded-md">
               <QRCodeSVG value={verifyUrl} size={120} bgColor="var(--md-on-surface)" fgColor="var(--md-surface)" level="M" />
             </div>
             <div className="text-center">
               <div className="text-[9px] text-white/25 font-mono break-all">{verifyUrl}</div>
-              <p className="text-xs text-white/40 mt-2">Employers scan this to verify resume authenticity</p>
+              <p className="text-xs text-on-surface/40 mt-2">Employers scan this to verify resume authenticity</p>
             </div>
           </div>
         </div>
@@ -482,20 +482,20 @@ export default function Profile() {
 
       {/* PlugCredit */}
       {viewingOwn && (
-        <div className="bg-surface-container-high border border-[var(--md-secondary)]/30 rounded-2xl p-6">
+        <div className="bg-surface-container-high border border-[var(--md-secondary)]/30 rounded-md p-6">
           <p className="section-label" style={{ color:'var(--md-secondary)' }}>PlugCredit</p>
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <CreditRing score={profile.plug_score} />
             <div className="flex-1">
               <h2 className="font-black text-lg mb-1">Micro-Loan Access</h2>
-              <p className="text-xs text-white/40 mb-4">BNPL for academic essentials. Backed by your PlugScore.</p>
+              <p className="text-xs text-on-surface/40 mb-4">BNPL for academic essentials. Backed by your PlugScore.</p>
               <div className="text-2xl font-black text-[var(--md-secondary)] mb-1">{formatNaira(creditLimit)}</div>
-              <div className="text-xs text-white/40 mb-4">Available Credit Limit</div>
+              <div className="text-xs text-on-surface/40 mb-4">Available Credit Limit</div>
               <div className="grid grid-cols-3 gap-2 mb-4">
                 {[{l:'Interest',v:'0%'},{l:'Payback',v:'60d'},{l:'Approval',v:'Instant'}].map(({l,v})=>(
                   <div key={l} className="bg-surface-container-highest rounded-lg p-2.5 text-center">
                     <div className="text-sm font-black text-tertiary font-mono">{v}</div>
-                    <div className="text-[10px] text-white/40 mt-0.5">{l}</div>
+                    <div className="text-[10px] text-on-surface/40 mt-0.5">{l}</div>
                   </div>
                 ))}
               </div>
@@ -503,7 +503,7 @@ export default function Profile() {
                 className={`px-6 py-2.5 rounded-lg text-sm font-bold border transition-all ${
                   profile.plug_score >= 600
                     ? 'bg-[var(--md-secondary)] text-[var(--md-on-secondary)] border-[var(--md-secondary)] hover:opacity-90'
-                    : 'bg-transparent text-white/30 border-outline-variant cursor-not-allowed'
+                    : 'bg-transparent text-on-surface/30 border-outline-variant cursor-not-allowed'
                 }`}>
                 {profile.plug_score >= 600 ? 'Apply for PlugCredit' : `Unlock at 600 pts (${600-profile.plug_score} more)`}
               </button>
@@ -516,20 +516,20 @@ export default function Profile() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold">{viewingOwn ? 'My Listings' : `${profile.full_name?.split(' ')[0]}'s Listings`}</h2>
-          <div className="text-xs text-white/40">
+          <div className="text-xs text-on-surface/40">
             <span className="text-primary font-semibold">{listings.filter(l=>l.status==='active').length} active</span>
             {' · '}{listings.filter(l=>l.status==='sold').length} sold
           </div>
         </div>
         {listings.length === 0 ? (
-          <div className="text-center py-12 text-white/30 bg-surface-container-high border border-outline-variant rounded-xl">
+          <div className="text-center py-12 text-on-surface/30 bg-surface-container-high border border-outline-variant rounded-md">
             <Package size={32} className="mx-auto mb-3 opacity-30"/><p className="text-sm">No listings yet</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {listings.map(l => (
               <a key={l.id} href={`/marketplace/${l.id}`}
-                className="bg-surface-container-high border border-outline-variant rounded-xl overflow-hidden hover:border-primary/30 transition-colors group">
+                className="bg-surface-container-high border border-outline-variant rounded-md overflow-hidden hover:border-primary/30 transition-colors group">
                 <div className="aspect-square bg-surface-container-highest overflow-hidden">
                   {l.images?.[0]
                     ? <img src={l.images[0]} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />

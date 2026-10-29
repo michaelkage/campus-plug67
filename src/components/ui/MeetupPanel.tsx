@@ -98,7 +98,7 @@ function PopmethodBadge({ method }: { method: string | null }) {
   if (!c) return null
   const Icon = c.icon
   return (
-    <div className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border ${c.color}`}>
+    <div className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-sm border ${c.color}`}>
       <Icon size={10} />
       {c.label}
     </div>
@@ -193,7 +193,7 @@ function OMWTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => 
   const urgent = ms < 3 * 60_000
 
   return (
-    <div className={`rounded-xl border p-4 ${urgent ? 'border-error bg-error-container' : 'border-outline-variant bg-secondary-container'}`}>
+    <div className={`rounded-md border p-4 ${urgent ? 'border-error bg-error-container' : 'border-outline-variant bg-secondary-container'}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Navigation size={14} className={urgent ? 'text-on-error-container' : 'text-secondary'} />
@@ -205,9 +205,9 @@ function OMWTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => 
           {String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
         </span>
       </div>
-      <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+      <div className="h-2 bg-surface-container rounded-sm overflow-hidden">
         <motion.div
-          className={`h-full rounded-full ${urgent ? 'bg-error' : 'bg-tertiary'}`}
+          className={`h-full rounded-sm ${urgent ? 'bg-error' : 'bg-tertiary'}`}
           animate={{ width: `${pct}%` }} transition={{ duration: 0.5 }}
         />
       </div>
@@ -299,7 +299,7 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
   if (mine && theirs) return (
     <motion.div
       animate={pulseActive ? { scale: [1, 1.04, 1] } : {}}
-      className="text-center py-3 bg-primary-container border border-outline-variant rounded-xl"
+      className="text-center py-3 bg-primary-container border border-outline-variant rounded-md"
     >
       <div className="text-xl mb-1">🤝</div>
       <div className="text-sm font-bold text-on-primary-container">Both Arrived — Presence Synced</div>
@@ -307,10 +307,10 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
   )
 
   return (
-    <div className="bg-secondary-container border border-outline-variant rounded-2xl p-5 space-y-4">
+    <div className="bg-secondary-container border border-outline-variant rounded-md p-5 space-y-4">
       <div className="flex items-center gap-3">
         <motion.div animate={{ scale: [1, 1.12, 1] }} transition={{ duration: 2, repeat: Infinity }}
-          className="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center text-lg">
+          className="w-10 h-10 rounded-sm bg-tertiary/20 flex items-center justify-center text-lg">
           🟡
         </motion.div>
         <div>
@@ -321,7 +321,7 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
 
       {!mine && !delayActive && !delayDone && (
         <motion.button whileTap={{ scale: 0.96 }} onClick={handleTap}
-          className="w-full py-3.5 rounded-xl bg-secondary text-on-secondary font-bold text-sm flex items-center justify-center gap-2">
+          className="w-full py-3.5 rounded-md bg-secondary text-on-secondary font-bold text-sm flex items-center justify-center gap-2">
           <Shield size={15} /> Verify My Presence
         </motion.button>
       )}
@@ -330,7 +330,7 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
         <div className="text-center py-3">
           <div className="text-xs text-on-surface-variant mb-2">Confirming you're really here…</div>
           <motion.div
-            className="w-12 h-12 mx-auto rounded-full border-2 border-outline-variant border-t-tertiary"
+            className="w-12 h-12 mx-auto rounded-sm border-2 border-outline-variant border-t-tertiary"
             animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           />
         </div>
@@ -338,7 +338,7 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
 
       {delayDone && !mine && (
         <motion.button whileTap={{ scale: 0.94 }} onClick={handleConfirm} disabled={loading}
-          className="w-full py-3.5 rounded-xl bg-primary text-on-primary font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+          className="w-full py-3.5 rounded-md bg-primary text-on-primary font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
           {loading ? <RefreshCw size={14} className="animate-spin" /> : '✅'}
           {loading ? 'Confirming…' : "I'm Here — Confirm"}
         </motion.button>
@@ -348,7 +348,7 @@ function AmberBufferSync({ tx, isSeller, onSynced }: any) {
         <div className="space-y-2 text-center">
           <div className="text-sm text-on-surface/60">✓ Your presence confirmed.</div>
           <div className="flex items-center justify-center gap-2 text-xs text-on-surface-variant">
-            <motion.div className="w-2 h-2 rounded-full bg-tertiary"
+            <motion.div className="w-2 h-2 rounded-sm bg-tertiary"
               animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
             Waiting…
             {bufMs != null && bufMs > 0 && (
@@ -378,7 +378,7 @@ function OverrideModal({ onConfirm, onCancel }: any) {
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-surface/60 backdrop-blur-sm">
       <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="w-full max-w-md bg-surface-container-high border border-outline-variant rounded-2xl overflow-hidden">
+        className="w-full max-w-md bg-surface-container-high border border-outline-variant rounded-md overflow-hidden">
         <div className="p-5 border-b border-outline-variant">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle size={16} className="text-secondary" />
@@ -389,7 +389,7 @@ function OverrideModal({ onConfirm, onCancel }: any) {
         <div className="p-5 space-y-2">
           {opts.map(o => (
             <button key={o.k} onClick={() => setR(o.k)}
-              className={`w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${
+              className={`w-full flex items-center gap-3 p-3.5 rounded-md border text-left transition-all ${
                 r === o.k ? 'border-tertiary/50 bg-secondary-container' : 'border-outline-variant hover:border-tertiary/20'
               }`}>
               <span className="text-xl">{o.i}</span>
@@ -425,7 +425,7 @@ function FallbackProgress({ step }: { step: 'gps_poor' | 'trying_ssid' | 'ssid_f
   const currentIdx = steps.findIndex(s => s.key === step)
 
   return (
-    <div className="bg-surface-container border border-outline-variant rounded-xl p-4 space-y-2.5">
+    <div className="bg-surface-container border border-outline-variant rounded-md p-4 space-y-2.5">
       <div className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">
         Indoor Mode — Finding You
       </div>
@@ -435,7 +435,7 @@ function FallbackProgress({ step }: { step: 'gps_poor' | 'trying_ssid' | 'ssid_f
         const done   = i < currentIdx
         return (
           <div key={s.key} className={`flex items-center gap-3 text-xs ${done ? 'text-on-surface-variant' : active ? 'text-on-surface' : 'text-on-surface-variant'}`}>
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+            <div className={`w-6 h-6 rounded-sm flex items-center justify-center flex-shrink-0 ${
               done ? 'bg-error/20' : active ? 'bg-primary/20' : 'bg-surface-container-high'
             }`}>
               {done
@@ -683,14 +683,14 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
     <div className="space-y-4">
       {/* Spoof notice */}
       {spoof && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-secondary-container border border-tertiary/20 rounded-xl text-xs text-secondary">
+        <div className="flex items-center gap-2 px-3 py-2 bg-secondary-container border border-tertiary/20 rounded-md text-xs text-secondary">
           <AlertTriangle size={12} /> GPS anomaly flagged — your transaction continues normally.
         </div>
       )}
 
       {/* Zone + method status */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border text-xs font-bold ${
           synced       ? 'border-outline-variant bg-primary-container text-on-primary-container' :
           zone === 'green' ? 'border-outline-variant bg-primary-container text-on-primary-container' :
           zone === 'amber' ? 'border-outline-variant bg-secondary-container text-secondary' :
@@ -698,7 +698,7 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
           overrideActive ? 'border-outline-variant bg-surface-container-high text-on-surface-variant' :
           'border-primary/30 bg-primary/8 text-primary'
         }`}>
-          <div className="w-1.5 h-1.5 rounded-full bg-current" />
+          <div className="w-1.5 h-1.5 rounded-sm bg-current" />
           {synced ? 'Presence Verified' : zoneLabel}
         </div>
 
@@ -730,7 +730,7 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
       {!synced && !omwActive && (
         <motion.button whileTap={{ scale: 0.97 }} onClick={toggleOMW}
           disabled={omwLoading || overrideActive}
-          className="w-full py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-primary text-on-primary hover:shadow-primary disabled:opacity-40 transition-all">
+          className="w-full py-3.5 rounded-md font-bold text-sm flex items-center justify-center gap-2 bg-primary text-on-primary hover:shadow-primary disabled:opacity-40 transition-all">
           <Navigation size={15} />
           {omwLoading ? 'Updating…' : isSeller ? "I'm On My Way ➜" : "I'm Heading There ➜"}
         </motion.button>
@@ -757,7 +757,7 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
 
       {/* Green zone */}
       {zone === 'green' && !synced && (
-        <div className="bg-primary-container border border-outline-variant rounded-xl p-4">
+        <div className="bg-primary-container border border-outline-variant rounded-md p-4">
           <div className="text-sm font-bold text-on-primary-container mb-2">🟢 Green Zone — Auto-Verified</div>
           <button onClick={() => { setSynced(true); haptic('success'); onQRUnlocked?.() }}
             className="btn-primary w-full mt-2 text-sm">
@@ -768,12 +768,12 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
 
       {/* Manual confirm (BLE/SSID all failed) */}
       {fallbackStep === 'ble_failed' && !popMethod && !synced && (
-        <div className="bg-surface-container-high border border-outline-variant rounded-xl p-4">
+        <div className="bg-surface-container-high border border-outline-variant rounded-md p-4">
           <div className="text-xs text-on-surface-variant mb-3">
             GPS, WiFi, and Bluetooth signals are all blocked in this building.
             Use manual confirmation — this is recorded for dispute evidence.
           </div>
-          <button onClick={handleManualConfirm} className="w-full py-3 rounded-xl font-bold text-sm border border-outline-variant text-secondary hover:bg-secondary-container transition-colors">
+          <button onClick={handleManualConfirm} className="w-full py-3 rounded-md font-bold text-sm border border-outline-variant text-secondary hover:bg-secondary-container transition-colors">
             ✋ Manual Confirm — I'm at the Safe Zone
           </button>
         </div>
@@ -782,7 +782,7 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
       {/* Dual sync complete */}
       {synced && (
         <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }}
-          className="text-center py-4 bg-primary-container border border-outline-variant rounded-xl">
+          className="text-center py-4 bg-primary-container border border-outline-variant rounded-md">
           <div className="text-2xl mb-1">🤝</div>
           <div className="font-bold text-sm text-on-primary-container">Presence Verified — Campus Shield Active</div>
           {popMethod && (
@@ -805,14 +805,14 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
 
         {!isSeller && ghostEligible && (
           <button onClick={handleGhostRefund}
-            className="w-full py-2.5 rounded-xl text-sm font-bold border border-error text-on-error-container hover:bg-error-container transition-colors">
+            className="w-full py-2.5 rounded-md text-sm font-bold border border-error text-on-error-container hover:bg-error-container transition-colors">
             🔄 Ghost Refund — Seller Didn't Show
           </button>
         )}
 
         {isSeller && relistEligible && (
           <button onClick={handleRelist}
-            className="w-full py-2.5 rounded-xl text-sm font-bold border border-primary/30 text-primary hover:bg-primary/10 transition-colors">
+            className="w-full py-2.5 rounded-md text-sm font-bold border border-primary/30 text-primary hover:bg-primary/10 transition-colors">
             🚀 Priority Relist — Buyer No-Show
           </button>
         )}

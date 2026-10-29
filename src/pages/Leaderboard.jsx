@@ -21,7 +21,7 @@ function Badge({ name }) {
       cfg.color === 'cyan'   ? 'tag-cyan'   :
       cfg.color === 'purple' ? 'tag-purple' :
       cfg.color === 'green'  ? 'tag-green'  :
-      'bg-[var(--md-surface-container-high)] text-white/50 border-[var(--md-outline-variant)]'
+      'bg-[var(--md-surface-container-high)] text-on-surface/50 border-[var(--md-outline-variant)]'
     }`}>
       {cfg.emoji} {name}
     </span>
@@ -30,9 +30,9 @@ function Badge({ name }) {
 
 function RankMedal({ rank }) {
   if (rank === 1) return <span className="text-[var(--md-secondary)] text-xl font-black font-mono">1</span>
-  if (rank === 2) return <span className="text-white/60 text-xl font-black font-mono">2</span>
+  if (rank === 2) return <span className="text-on-surface/60 text-xl font-black font-mono">2</span>
   if (rank === 3) return <span className="text-[var(--md-tertiary)] text-xl font-black font-mono">3</span>
-  return <span className="text-white/30 text-xl font-black font-mono">{rank}</span>
+  return <span className="text-on-surface/30 text-xl font-black font-mono">{rank}</span>
 }
 
 export default function Leaderboard() {
@@ -74,14 +74,14 @@ export default function Leaderboard() {
       <div className="mb-8">
         <p className="section-label">Community</p>
         <h1 className="text-2xl font-black tracking-tight">Campus Leaderboard</h1>
-        <p className="text-sm text-white/40 mt-1">Ranked by PlugScore — updated in real-time</p>
+        <p className="text-sm text-on-surface/40 mt-1">Ranked by PlugScore — updated in real-time</p>
       </div>
 
       {/* Student of the Month */}
       {monthStar && (
-        <div className="relative overflow-hidden rounded-3xl border border-[var(--md-secondary)]/30
+        <div className="relative overflow-hidden rounded-md border border-[var(--md-secondary)]/30
                         bg-[var(--md-secondary)]/5 p-6 mb-8">
-          <div className="absolute top-0 right-0 w-48 h-48 rounded-full
+          <div className="absolute top-0 right-0 w-48 h-48 rounded-sm
                           bg-[var(--md-secondary)]/5 blur-3xl pointer-events-none" />
           <div className="flex items-center gap-2 mb-4">
             <Trophy size={16} className="text-[var(--md-secondary)]" />
@@ -90,28 +90,28 @@ export default function Leaderboard() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-[var(--md-secondary-container)]
+            <div className="w-16 h-16 rounded-sm bg-[var(--md-secondary-container)]
                             flex items-center justify-center text-on-primary font-black text-2xl flex-shrink-0">
               {monthStar.avatar_url ? (
-                <img src={monthStar.avatar_url} className="w-full h-full rounded-full object-cover" />
+                <img src={monthStar.avatar_url} className="w-full h-full rounded-sm object-cover" />
               ) : (
                 monthStar.full_name?.[0]?.toUpperCase()
               )}
             </div>
             <div>
               <div className="text-xl font-black">{monthStar.full_name}</div>
-              <div className="text-sm text-white/50">{monthStar.university}</div>
+              <div className="text-sm text-on-surface/50">{monthStar.university}</div>
               <div className="flex gap-2 mt-2 flex-wrap">
                 {monthStar.badges?.slice(0, 3).map(b => <Badge key={b} name={b} />)}
               </div>
             </div>
             <div className="ml-auto text-right hidden sm:block">
               <div className="text-2xl font-black text-[var(--md-secondary)] font-mono">{monthStar.plug_score}</div>
-              <div className="text-xs text-white/40">PlugScore</div>
+              <div className="text-xs text-on-surface/40">PlugScore</div>
               <div className="text-sm font-bold mt-1">{monthStar.total_sales} sales</div>
             </div>
           </div>
-          <div className="mt-4 text-xs text-white/30">
+          <div className="mt-4 text-xs text-on-surface/30">
             🏅 Prize: ₦2,400 Campus Voucher + Verified Badge + Campus Screen Feature
           </div>
         </div>
@@ -119,11 +119,11 @@ export default function Leaderboard() {
 
       {/* My rank card (if not in top 10) */}
       {myRank > 10 && myProfile && (
-        <div className="bg-[var(--md-primary)]/5 border border-[var(--md-primary)]/20 rounded-xl p-4 mb-6 flex items-center gap-4">
-          <div className="text-sm text-white/50">Your rank</div>
+        <div className="bg-[var(--md-primary)]/5 border border-[var(--md-primary)]/20 rounded-md p-4 mb-6 flex items-center gap-4">
+          <div className="text-sm text-on-surface/50">Your rank</div>
           <div className="text-2xl font-black text-[var(--md-primary)] font-mono">#{myRank}</div>
-          <div className="text-sm text-white/50">PlugScore: <span className="text-[var(--md-primary)] font-mono">{myProfile.plug_score}</span></div>
-          <div className="ml-auto text-xs text-white/30">Keep selling to climb! 🚀</div>
+          <div className="text-sm text-on-surface/50">PlugScore: <span className="text-[var(--md-primary)] font-mono">{myProfile.plug_score}</span></div>
+          <div className="ml-auto text-xs text-on-surface/30">Keep selling to climb! 🚀</div>
         </div>
       )}
 
@@ -134,21 +134,21 @@ export default function Leaderboard() {
           { label: '💰 Top Earners', key: 'total_earnings' },
           { label: '📦 Top Sellers', key: 'total_sales'   },
         ].map(({ label }) => (
-          <button key={label} className="px-4 py-1.5 rounded-full text-sm font-semibold
+          <button key={label} className="px-4 py-1.5 rounded-sm text-sm font-semibold
                                          bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)]
-                                         text-white/50 hover:border-[var(--md-primary)]/30 hover:text-white/80 transition-all">
+                                         text-on-surface/50 hover:border-[var(--md-primary)]/30 hover:text-on-surface/80 transition-all">
             {label}
           </button>
         ))}
       </div>
 
       {/* Table */}
-      <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-3xl overflow-hidden">
+      <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md overflow-hidden">
         {isLoading ? (
           Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4 p-4 border-b border-[var(--md-outline-variant)] animate-pulse last:border-0">
               <div className="w-6 h-6 bg-[var(--md-surface-container-high)] rounded" />
-              <div className="w-10 h-10 rounded-full bg-[var(--md-surface-container-high)]" />
+              <div className="w-10 h-10 rounded-sm bg-[var(--md-surface-container-high)]" />
               <div className="flex-1 space-y-1">
                 <div className="h-4 bg-[var(--md-surface-container-high)] rounded w-1/3" />
                 <div className="h-3 bg-[var(--md-surface-container-high)] rounded w-1/4" />
@@ -178,10 +178,10 @@ export default function Leaderboard() {
                   )}
                 </div>
 
-                <div className="w-10 h-10 rounded-full bg-[var(--md-primary-container)]
+                <div className="w-10 h-10 rounded-sm bg-[var(--md-primary-container)]
                                 flex items-center justify-center text-on-primary font-bold text-sm flex-shrink-0">
                   {leader.avatar_url ? (
-                    <img src={leader.avatar_url} className="w-full h-full rounded-full object-cover" />
+                    <img src={leader.avatar_url} className="w-full h-full rounded-sm object-cover" />
                   ) : (
                     leader.full_name?.[0]?.toUpperCase() || '?'
                   )}
@@ -197,7 +197,7 @@ export default function Leaderboard() {
                       <Badge key={b} name={b} />
                     ))}
                   </div>
-                  <div className="text-xs text-white/30 mt-0.5 truncate">
+                  <div className="text-xs text-on-surface/30 mt-0.5 truncate">
                     {leader.university} · {leader.total_sales} sales
                   </div>
                 </div>
@@ -206,7 +206,7 @@ export default function Leaderboard() {
                   <div className="font-black font-mono text-[var(--md-primary)] text-base">
                     {leader.plug_score?.toLocaleString()}
                   </div>
-                  <div className="text-xs text-white/30">pts</div>
+                  <div className="text-xs text-on-surface/30">pts</div>
                 </div>
               </Link>
             )
@@ -215,7 +215,7 @@ export default function Leaderboard() {
       </div>
 
       {/* Scoring guide */}
-      <div className="mt-8 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-5">
+      <div className="mt-8 bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-5">
         <h3 className="font-bold text-sm mb-4">How PlugScore Works</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
@@ -227,7 +227,7 @@ export default function Leaderboard() {
             <div key={action} className="text-center">
               <div className="text-2xl mb-1">{icon}</div>
               <div className="text-[var(--md-primary)] font-black font-mono text-sm">{pts}</div>
-              <div className="text-xs text-white/40 mt-0.5">{action}</div>
+              <div className="text-xs text-on-surface/40 mt-0.5">{action}</div>
             </div>
           ))}
         </div>

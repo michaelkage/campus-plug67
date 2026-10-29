@@ -43,9 +43,9 @@ export function JurorTutorial({ onComplete }) {
   return (
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--md-scrim)]/75 backdrop-blur-sm">
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--md-scrim)]/75 backdrop-blur-none">
         <motion.div initial={{ scale: 0.92, y: 16 }} animate={{ scale: 1, y: 0 }}
-          className="w-full max-w-md bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-2xl overflow-hidden">
+          className="w-full max-w-md bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md overflow-hidden">
           <div className="flex gap-1.5 p-4 pb-0">
             {SLIDES.map((_, i) => (
               <div key={i} className={`flex-1 h-1 rounded-full transition-all ${i <= slide ? 'bg-[var(--md-primary)]' : 'bg-[var(--md-surface-container-high)]'}`} />
@@ -54,7 +54,7 @@ export function JurorTutorial({ onComplete }) {
           <AnimatePresence mode="wait">
             <motion.div key={slide} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }} className="p-6">
-              <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center mb-5 ${bg}`}>
+              <div className={`w-14 h-14 rounded-md border flex items-center justify-center mb-5 ${bg}`}>
                 <Icon size={26} className={color} />
               </div>
               <div className="text-[10px] font-bold text-[var(--md-on-surface-variant)] uppercase tracking-widest mb-1">Step {slide + 1} of {SLIDES.length}</div>
@@ -69,7 +69,7 @@ export function JurorTutorial({ onComplete }) {
                   </motion.div>
                 ))}
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)]">
+              <div className="flex items-center gap-2 p-3 rounded-md bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)]">
                 <NoteIcon size={13} className={`${noteColor} flex-shrink-0`} />
                 <span className={`text-xs font-semibold ${noteColor}`}>{note}</span>
               </div>
@@ -77,11 +77,11 @@ export function JurorTutorial({ onComplete }) {
           </AnimatePresence>
           <div className="px-6 pb-6 flex items-center justify-between">
             {slide > 0
-              ? <button onClick={() => setSlide(s => s - 1)} className="text-sm text-[var(--md-on-surface-variant)] hover:text-white/60">← Back</button>
+              ? <button onClick={() => setSlide(s => s - 1)} className="text-sm text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)]/60">← Back</button>
               : <div />
             }
             <motion.button whileTap={{ scale: 0.96 }} onClick={isLast ? finish : () => setSlide(s => s + 1)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--md-primary)] text-on-primary font-bold text-sm">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-md bg-[var(--md-primary)] text-on-primary font-bold text-sm">
               {isLast ? <><CheckCircle2 size={15} /> I Understand</> : <>Next <ChevronRight size={15} /></>}
             </motion.button>
           </div>

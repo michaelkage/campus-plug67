@@ -48,13 +48,24 @@ describe('themeEngine palette generation', () => {
     expect(light.argb.surface).not.toBe(dark.argb.surface)
   })
 
-  it('flattens the surface ramp to true black in AMOLED but keeps accents', () => {
+  it('keeps the volcanic charcoal surface in AMOLED without altering accents', () => {
     const dark = buildPalette('dark')
     const amoled = buildPalette('amoled')
-    expect(amoled.argb.surface).toBe(0xff000000)
-    expect(amoled.argb.surface).not.toBe(dark.argb.surface)
+    expect(amoled.argb.surface).toBe(0xff141614)
+    expect(amoled.argb.surface).toBe(dark.argb.surface)
     // Accent roles are unaffected by the surface override.
     expect(amoled.argb.primary).toBe(dark.argb.primary)
+  })
+
+  it('uses exact street palette tokens in both themes', () => {
+    const light = buildThemeVars('light')
+    const dark = buildThemeVars('dark')
+    expect(light['--md-surface']).toBe('#faf6f0')
+    expect(light['--md-primary']).toBe('#d95d39')
+    expect(dark['--md-surface']).toBe('#141614')
+    expect(dark['--md-primary']).toBe('#e2734f')
+    expect(dark['--md-secondary']).toBe('#e0a96d')
+    expect(dark['--md-glow']).toBe('none')
   })
 
   it('meets WCAG AA for on-colour pairs in every mode', () => {

@@ -18,6 +18,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        canvas: token('surface'), ink: token('on-surface'), slab: token('surface-container'), clay: token('primary'), signal: token('secondary'), line: token('outline'),
         primary: token('primary'),
         'on-primary': token('on-primary'),
         'primary-container': token('primary-container'),
@@ -44,8 +45,13 @@ export default {
         'inverse-surface': token('inverse-surface'),
         'inverse-on-surface': token('inverse-on-surface'),
       },
+      borderRadius: {
+        none: '0px', sm: '2px', DEFAULT: '2px', md: '4px',
+        lg: '4px', xl: '4px', '2xl': '4px', '3xl': '4px', full: '4px',
+      },
+      boxShadow: { none: 'none', panel: '0 0 0 1px var(--md-outline)' },
       fontFamily: {
-        mono: ['"JetBrains Mono"', 'monospace'], sans: ['"Inter"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'], sans: ['"Inter"', 'sans-serif'], display: ['"Archivo Black"', 'Impact', 'sans-serif'],
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite', glitch: 'glitch 1s linear infinite',

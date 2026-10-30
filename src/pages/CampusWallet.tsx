@@ -99,54 +99,54 @@ export default function CampusWallet() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
-      <section className="bg-surface-container-high border border-primary/20 rounded-3xl p-6">
+      <section className="bg-surface-container-high border border-primary/20 rounded-md p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-primary text-xs font-bold uppercase tracking-widest"><WalletCards size={15} />Campus Wallet</div>
             <h1 className="text-2xl font-black mt-2">One Paystack top-up. Many tiny swaps.</h1>
-            <p className="text-sm text-white/45 mt-2 max-w-xl">Use stored Campus Wallet value for low-cost academic purchases and rentals. Internal wallet transfers do not run another Paystack checkout.</p>
+            <p className="text-sm text-[var(--md-on-surface)]/45 mt-2 max-w-xl">Use stored Campus Wallet value for low-cost academic purchases and rentals. Internal wallet transfers do not run another Paystack checkout.</p>
           </div>
-          <button type="button" onClick={() => void refresh()} aria-label="Refresh wallet balance" className="p-2 rounded-lg border border-outline-variant text-white/40 hover:text-white"><RefreshCw size={15} /></button>
+          <button type="button" onClick={() => void refresh()} aria-label="Refresh wallet balance" className="p-2 rounded-lg border border-outline-variant text-[var(--md-on-surface)]/40 hover:text-white"><RefreshCw size={15} /></button>
         </div>
-        <div className="mt-6 rounded-3xl border border-primary/20 bg-primary/5 p-5">
+        <div className="mt-6 rounded-md border border-primary/20 bg-primary/5 p-5">
           <div className="text-[10px] uppercase tracking-widest text-white/35">Available balance</div>
           <div className="text-4xl font-black font-mono text-primary mt-1">{loading ? '…' : formatNaira(balance)}</div>
         </div>
       </section>
 
       <div className="grid md:grid-cols-2 gap-5">
-        <section className="bg-surface-container-high border border-outline-variant rounded-3xl p-5">
+        <section className="bg-surface-container-high border border-outline-variant rounded-md p-5">
           <div className="flex items-center gap-2 mb-3"><ArrowDownToLine size={15} className="text-primary" /><h2 className="font-bold text-sm">Fund wallet</h2></div>
-          <p className="text-xs text-white/40 mb-4">Paystack is used only when you add money. The server verifies the reference before crediting your wallet.</p>
-          <label htmlFor="wallet-amount" className="block text-xs text-white/55 mb-2">Amount (NGN)</label>
+          <p className="text-xs text-[var(--md-on-surface)]/40 mb-4">Paystack is used only when you add money. The server verifies the reference before crediting your wallet.</p>
+          <label htmlFor="wallet-amount" className="block text-xs text-[var(--md-on-surface)]/55 mb-2">Amount (NGN)</label>
           <div className="flex gap-2">
             <input id="wallet-amount" className="input flex-1 min-w-0" type="number" min="10" step="10" value={amount} onChange={e => setAmount(e.target.value)} disabled={funding} />
             <button type="button" onClick={() => void fund()} disabled={funding} className="btn-primary px-4 disabled:opacity-40">{funding ? 'Processing…' : 'Add funds'}</button>
           </div>
         </section>
-        <section className="bg-surface-container-high border border-outline-variant rounded-3xl p-5">
+        <section className="bg-surface-container-high border border-outline-variant rounded-md p-5">
           <div className="flex items-center gap-2 mb-3"><Zap size={15} className="text-tertiary" /><h2 className="font-bold text-sm">Micro-escrow lane</h2></div>
-          <p className="text-xs text-white/40">Purchases up to <strong className="text-white">₦10,000</strong> can use Campus Wallet escrow. Higher-value deals stay on the protected Paystack escrow path.</p>
-          <div className="mt-4 text-[10px] text-white/30">No second card checkout for internal wallet settlement.</div>
+          <p className="text-xs text-[var(--md-on-surface)]/40">Purchases up to <strong className="text-white">₦10,000</strong> can use Campus Wallet escrow. Higher-value deals stay on the protected Paystack escrow path.</p>
+          <div className="mt-4 text-[10px] text-[var(--md-on-surface)]/30">No second card checkout for internal wallet settlement.</div>
         </section>
       </div>
 
-      <section className="rounded-xl border border-amber-400/25 bg-amber-400/5 p-4">
+      <section className="rounded-md border border-amber-400/25 bg-amber-400/5 p-4">
         <div className="flex items-start gap-3">
           <HelpCircle size={16} className="text-amber-300 flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-bold">Recover a previous top-up</h2>
-            <p className="text-xs text-white/50 mt-1 mb-3">If Paystack completed but your balance did not update, enter the original reference and the exact amount you paid. This verifies the existing payment; it does not start another checkout.</p>
-            <label htmlFor="wallet-reference" className="block text-xs text-white/55 mb-2">Paystack reference</label>
+            <p className="text-xs text-[var(--md-on-surface)]/50 mt-1 mb-3">If Paystack completed but your balance did not update, enter the original reference and the exact amount you paid. This verifies the existing payment; it does not start another checkout.</p>
+            <label htmlFor="wallet-reference" className="block text-xs text-[var(--md-on-surface)]/55 mb-2">Paystack reference</label>
             <input id="wallet-reference" className="input w-full mb-3" value={recoveryReference} onChange={e => setRecoveryReference(e.target.value)} placeholder="WALLET-…" autoComplete="off" disabled={funding} />
             <button type="button" onClick={() => void recover()} disabled={funding || !recoveryReference.trim()} className="btn-secondary px-4 disabled:opacity-40">{funding ? 'Verifying…' : 'Verify previous payment'}</button>
           </div>
         </div>
       </section>
 
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex gap-3">
+      <div className="rounded-md border border-primary/20 bg-primary/5 p-4 flex gap-3">
         <ShieldCheck size={16} className="text-primary flex-shrink-0" />
-        <div className="text-xs text-white/45"><strong className="text-white">Server-authoritative:</strong> wallet debits, escrow holds, releases, refunds, and Paystack verification happen server-side. A browser callback alone cannot create wallet value.</div>
+        <div className="text-xs text-[var(--md-on-surface)]/45"><strong className="text-white">Server-authoritative:</strong> wallet debits, escrow holds, releases, refunds, and Paystack verification happen server-side. A browser callback alone cannot create wallet value.</div>
       </div>
     </div>
   )

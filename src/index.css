@@ -33,23 +33,23 @@
      */
     color-scheme: dark;
 
-    --md-blur: blur(12px);
+    --md-blur: none;
   }
 
   @layer components {
     .btn-primary {
-      @apply rounded-2xl px-5 py-3 font-bold transition-all active:scale-95;
+      @apply rounded-sm px-5 py-3 font-bold transition-all active:scale-95;
       background: var(--md-primary);
       color: var(--md-on-primary);
-      box-shadow: var(--md-glow);
+      box-shadow: none;
     }
     .btn-primary:hover {
-      filter: brightness(1.1);
-      box-shadow: 0 0 20px color-mix(in srgb, var(--md-primary) 50%, transparent);
+      filter: none;
+      box-shadow: none;
     }
 
     .btn-secondary {
-      @apply rounded-2xl px-5 py-3 font-bold transition-all active:scale-95 border;
+      @apply rounded-sm px-5 py-3 font-bold transition-all active:scale-95 border;
       border-color: var(--md-outline-variant);
       background: var(--md-surface-container);
       color: var(--md-on-surface);
@@ -60,15 +60,15 @@
     }
 
     .card-tactical {
-      @apply rounded-3xl p-5 transition-all border;
-      background: var(--md-glass);
-      backdrop-filter: var(--md-blur);
+      @apply rounded-md p-5 transition-all border;
+      background: var(--md-surface-container);
+      backdrop-filter: none;
       border-color: var(--md-outline-variant);
       color: var(--md-on-surface);
     }
     .card-tactical:hover {
       border-color: var(--md-primary);
-      box-shadow: var(--md-glow);
+      box-shadow: none;
     }
 
     .tag-neon {
@@ -152,7 +152,7 @@
   input[type='checkbox'], input[type='radio'] { accent-color: var(--md-primary); }
 
   .surface {
-    @apply rounded-2xl border;
+    @apply rounded-md border;
     border-color: var(--md-outline-variant);
     background: var(--md-surface-container);
     box-shadow: none;
@@ -161,34 +161,34 @@
   .surface-interactive:hover {
     border-color: var(--md-outline);
     background: var(--md-surface-container-high);
-    box-shadow: 0 3px 8px rgba(0,0,0,.24);
+    box-shadow: none;
     transform: none;
   }
 
   .modal-backdrop { @apply fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6; background: rgba(0,0,0,.68); }
   .modal-panel {
-    @apply relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border sm:max-w-lg sm:rounded-3xl;
+    @apply relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-md border sm:max-w-lg;
     border-color: var(--md-outline-variant);
     background: var(--md-surface-container);
-    box-shadow: 0 16px 40px rgba(0,0,0,.42);
+    box-shadow: none;
   }
   .modal-header {
     @apply sticky top-0 z-10 flex items-center justify-between gap-4 border-b px-6 py-4;
     border-color: var(--md-outline-variant);
-    background: color-mix(in srgb, var(--md-surface-container) 94%, transparent);
-    backdrop-filter: blur(12px);
+    background: var(--md-surface-container);
+    backdrop-filter: none;
   }
 
   .plug-dot { @apply inline-block h-2 w-2 rounded-full; background: var(--md-primary); }
   .cyber-grid { background-image: none; }
   .touch-target { @apply min-h-12 min-w-12; }
-  .skeleton { @apply animate-pulse rounded-xl; background: var(--md-surface-container-high); }
+  .skeleton { @apply animate-pulse rounded-sm; background: var(--md-surface-container-high); }
   .page-shell { @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8; }
   .page-header { @apply mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between; }
   .section-label { @apply text-xs font-semibold uppercase tracking-[.12em]; color: var(--md-primary); }
   .page-title { @apply mt-1 text-2xl font-bold tracking-tight sm:text-3xl; color: var(--md-on-surface); }
   .page-subtitle { @apply mt-1 max-w-2xl text-sm leading-6; color: var(--md-on-surface-variant); }
-  .stat-card { @apply rounded-2xl border p-4 sm:p-5; border-color: var(--md-outline-variant); background: var(--md-surface-container); box-shadow: none; }
+  .stat-card { @apply rounded-md border p-4 sm:p-5; border-color: var(--md-outline-variant); background: var(--md-surface-container); box-shadow: none; }
   .app-shell { position: relative; isolation: isolate; overflow-x: clip; }
   .app-ambient { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--md-surface); }
   .app-main { min-width: 0; }
@@ -206,7 +206,7 @@
 .fixed.inset-0.z-50 > div[class*="max-w-lg"][class*="bg-surface"],
 .fixed.inset-0.z-50 > div[class*="max-w-xl"][class*="bg-surface"],
 .fixed.inset-0.z-50 > div[class*="max-w-md"][class*="bg-surface"] {
-  box-shadow: 0 16px 40px rgba(0,0,0,.42);
+  box-shadow: none;
 }
 table th { font-weight: 700; letter-spacing: .02em; color: var(--md-on-surface-variant); }
 table td, table th { vertical-align: middle; }
@@ -276,4 +276,36 @@ html[data-compact="true"] .surface, html[data-compact="true"] .stat-card { paddi
   .plug-dot { background: var(--md-secondary); border-radius: 0; }
   .modal-header { background: var(--md-surface-container); backdrop-filter: none; }
   .app-ambient { background: var(--md-surface); }
+}
+
+
+/* Street & Sovereign Ore phase 19: final shared-surface guardrails. */
+@layer components {
+  .btn-primary, .btn-secondary, .icon-button, .card-tactical,
+  .surface, .surface-interactive, .stat-card, .modal-panel, .modal-header,
+  .modal-backdrop, .tag-neon, .skeleton {
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .btn-primary, .btn-secondary { border-radius: 2px; }
+  .icon-button, .card-tactical, .surface, .surface-interactive,
+  .stat-card, .modal-panel, .modal-header, .skeleton { border-radius: 4px; }
+  .tag-neon { border-radius: 2px; }
+  .card-tactical { background: var(--md-surface-container); }
+  .card-tactical:hover, .surface-interactive:hover {
+    box-shadow: none;
+    transform: none;
+  }
+  .modal-panel, .modal-header { background: var(--md-surface-container); }
+  .modal-backdrop {
+    background: color-mix(in srgb, var(--md-scrim) 76%, transparent);
+  }
+}
+.fixed.inset-0.z-50 > .relative.z-10.max-w-lg,
+.fixed.inset-0.z-50 > .relative.z-10.max-w-xl,
+.fixed.inset-0.z-50 > .relative.z-10.max-w-md,
+.fixed.inset-0.z-50 > div[class*="max-w-lg"][class*="bg-surface"],
+.fixed.inset-0.z-50 > div[class*="max-w-xl"][class*="bg-surface"],
+.fixed.inset-0.z-50 > div[class*="max-w-md"][class*="bg-surface"] {
+  box-shadow: none;
 }

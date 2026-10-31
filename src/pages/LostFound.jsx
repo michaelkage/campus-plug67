@@ -111,11 +111,11 @@ function ReportModal({ onClose, profile }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
          onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-[var(--md-scrim)]/75" onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-md overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-outline-variant">
           <h2 className="font-bold">Report an Item</h2>
-          <button onClick={onClose} className="text-on-surface/30 hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} className="text-on-surface/30 hover:text-on-surface"><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Lost / Found toggle */}
@@ -128,7 +128,7 @@ function ReportModal({ onClose, profile }) {
                 key={val}
                 type="button"
                 onClick={() => setType(val)}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                className={`flex-1 py-2 rounded-sm text-sm font-semibold transition-colors ${
                   type === val ? 'bg-primary text-on-primary' : 'text-on-surface/40 hover:text-on-surface/70'
                 }`}
               >
@@ -195,7 +195,7 @@ function ItemCard({ item }) {
             {item.status.toUpperCase()}
           </span>
         </div>
-        <span className="text-xs text-white/25 flex-shrink-0">
+        <span className="text-xs text-on-surface/25 flex-shrink-0">
           {new Date(item.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
         </span>
       </div>
@@ -314,7 +314,7 @@ export default function LostFound() {
             <button
               key={val}
               onClick={() => setFilter(val)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+              className={`px-4 py-2 rounded-sm text-sm font-semibold border transition-colors ${
                 filter === val
                   ? 'bg-primary text-on-primary border-primary'
                   : 'bg-transparent text-on-surface/40 border-outline-variant hover:border-primary/30'
@@ -329,7 +329,7 @@ export default function LostFound() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
-          { label: 'Open Reports', val: items.length, color: 'text-white' },
+          { label: 'Open Reports', val: items.length, color: 'text-on-surface' },
           { label: 'Lost Items',   val: items.filter(i => i.type === 'lost').length,  color: 'text-error'  },
           { label: 'Found Items',  val: items.filter(i => i.type === 'found').length, color: 'text-primary'      },
         ].map(({ label, val, color }) => (

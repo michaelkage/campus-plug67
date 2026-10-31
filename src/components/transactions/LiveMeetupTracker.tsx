@@ -101,7 +101,7 @@ function ArrivalBadge({
     <motion.div
       layout
       animate={arrived ? { borderColor: 'var(--md-secondary)' } : { borderColor: 'var(--md-outline-variant)' }}
-      className={`flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors
+      className={`flex items-center justify-between px-4 py-3 rounded-md border-2 transition-colors
                   ${arrived ? 'bg-secondary-container' : 'bg-surface-container-high'}`}
     >
       <div className="flex items-center gap-2.5">
@@ -138,7 +138,7 @@ function EscrowVerificationLoader({ escrowStatus }: { escrowStatus: Transaction[
   const isRefunded  = escrowStatus === 'refunded'
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-high border border-outline-variant">
+    <div className="flex items-center gap-3 px-4 py-3 rounded-md bg-surface-container-high border border-outline-variant">
       {/* Animated status dot */}
       <div className="relative flex-shrink-0">
         {isVerifying && (
@@ -190,7 +190,7 @@ function CoordPanel({
 }) {
   if (!location) {
     return (
-      <div className="px-4 py-4 rounded-xl bg-surface-container-high border border-outline-variant">
+      <div className="px-4 py-4 rounded-md bg-surface-container-high border border-outline-variant">
         <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">
           YOUR COORDINATES
         </p>
@@ -200,7 +200,7 @@ function CoordPanel({
   }
 
   return (
-    <div className="px-4 py-4 rounded-xl bg-surface-container-high border border-outline-variant space-y-1.5">
+    <div className="px-4 py-4 rounded-md bg-surface-container-high border border-outline-variant space-y-1.5">
       <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface0 mb-2">
         YOUR COORDINATES
       </p>
@@ -506,7 +506,7 @@ export default function LiveMeetupTracker({
   // ── Disputed guard ─────────────────────────────────────────────────────────
   if (disputedAt || tx.status === 'disputed') {
     return (
-      <div className="bg-surface border border-error rounded-2xl p-6 space-y-3">
+      <div className="bg-surface border border-error rounded-md p-6 space-y-3">
         <div className="flex items-center gap-2 text-on-error-container">
           <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
           <p className="text-sm font-bold tracking-widest uppercase">Transaction Disputed</p>
@@ -517,7 +517,7 @@ export default function LiveMeetupTracker({
         <button
           onClick={() => navigate(`/war-room?tx=${transactionId}`)}
           className="w-full py-3 bg-error-container border border-error text-on-error-container
-                     rounded-xl text-sm font-bold tracking-wide hover:bg-rose-900 transition-colors"
+                     rounded-md text-sm font-bold tracking-wide hover:bg-rose-900 transition-colors"
         >
           VIEW IN WAR ROOM →
         </button>
@@ -527,7 +527,7 @@ export default function LiveMeetupTracker({
 
   // ── Main render ────────────────────────────────────────────────────────────
   return (
-    <div className="bg-surface-container text-on-surface rounded-2xl overflow-hidden border border-outline-variant">
+    <div className="bg-surface-container text-on-surface rounded-md overflow-hidden border border-outline-variant">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="px-5 pt-5 pb-4 border-b border-outline-variant">
@@ -579,7 +579,7 @@ export default function LiveMeetupTracker({
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="flex items-start gap-2 px-4 py-3 rounded-xl
+              className="flex items-start gap-2 px-4 py-3 rounded-md
                          bg-error-container border border-error text-on-error-container text-xs"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1 flex-shrink-0" />
@@ -613,7 +613,7 @@ export default function LiveMeetupTracker({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl
+              className="flex items-center gap-3 px-4 py-3 rounded-md
                          bg-primary-container border border-outline-variant"
             >
               <motion.span
@@ -630,7 +630,7 @@ export default function LiveMeetupTracker({
 
         {/* ── Proximity ring ────────────────────────────────────────────── */}
         {isTracking && (
-          <div className="border border-outline-variant rounded-2xl overflow-hidden">
+          <div className="border border-outline-variant rounded-md overflow-hidden">
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-4 pt-4">
               PROXIMITY TO MEETUP POINT
             </p>
@@ -667,7 +667,7 @@ export default function LiveMeetupTracker({
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={startTracking}
-              className="w-full py-3.5 rounded-xl border border-outline bg-surface-container-high
+              className="w-full py-3.5 rounded-md border border-outline bg-surface-container-high
                          text-sm font-bold text-on-surface tracking-wide
                          hover:border-emerald-700 hover:text-on-primary-container transition-all"
             >
@@ -677,7 +677,7 @@ export default function LiveMeetupTracker({
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={stopTracking}
-              className="w-full py-3.5 rounded-xl border border-error bg-error-container/30
+              className="w-full py-3.5 rounded-md border border-error bg-error-container/30
                          text-sm font-bold text-on-error-container tracking-wide
                          hover:bg-error-container/50 transition-all"
             >
@@ -691,7 +691,7 @@ export default function LiveMeetupTracker({
               whileTap={{ scale: 0.97 }}
               onClick={() => arrivalMutation.mutate()}
               disabled={arrivalMutation.isPending}
-              className="w-full py-3.5 rounded-xl bg-primary text-black
+              className="w-full py-3.5 rounded-md bg-primary text-black
                          text-sm font-black tracking-wide
                          disabled:opacity-40 disabled:cursor-not-allowed
                          hover:bg-emerald-400 transition-all"
@@ -714,7 +714,7 @@ export default function LiveMeetupTracker({
             whileTap={bothArrived ? { scale: 0.97 } : {}}
             onClick={() => bothArrived && completeMutation.mutate()}
             disabled={!bothArrived || completing || completeMutation.isPending}
-            className={`w-full py-3.5 rounded-xl text-sm font-black tracking-wide
+            className={`w-full py-3.5 rounded-md text-sm font-black tracking-wide
                         transition-all duration-300
                         ${bothArrived
                           ? 'bg-primary text-black hover:bg-primary-300 cursor-pointer'

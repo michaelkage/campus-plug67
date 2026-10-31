@@ -375,7 +375,7 @@ function OverrideModal({ onConfirm, onCancel }: any) {
   ]
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-surface/60 backdrop-blur-sm">
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-[var(--md-scrim)]/75">
       <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         className="w-full max-w-md bg-surface-container-high border border-outline-variant rounded-md overflow-hidden">
@@ -730,7 +730,7 @@ export function MeetupPanel({ tx, isSeller, session, onQRUnlocked }: {
       {!synced && !omwActive && (
         <motion.button whileTap={{ scale: 0.97 }} onClick={toggleOMW}
           disabled={omwLoading || overrideActive}
-          className="w-full py-3.5 rounded-md font-bold text-sm flex items-center justify-center gap-2 bg-primary text-on-primary hover:shadow-primary disabled:opacity-40 transition-all">
+          className="w-full py-3.5 rounded-md font-bold text-sm flex items-center justify-center gap-2 bg-primary text-on-primary  disabled:opacity-40 transition-all">
           <Navigation size={15} />
           {omwLoading ? 'Updating…' : isSeller ? "I'm On My Way ➜" : "I'm Heading There ➜"}
         </motion.button>

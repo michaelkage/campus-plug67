@@ -12,7 +12,6 @@ export const TIERS = {
     color:       'text-on-surface/60',
     bg:          'bg-[var(--md-surface-container-high)]',
     border:      'border-[var(--md-outline-variant)]',
-    gradient:    'from-[var(--md-on-surface)]/10 to-[var(--md-on-surface)]/5',
     minScore:    0,
     nextScore:   650,
     privileges:  [
@@ -35,7 +34,6 @@ export const TIERS = {
     color:       'text-[var(--md-primary)]',
     bg:          'bg-[var(--md-primary)]/10',
     border:      'border-[var(--md-primary)]/30',
-    gradient:    'from-[var(--md-primary)]/20 to-[var(--md-primary)]/5',
     minScore:    650,
     nextScore:   800,
     privileges:  [
@@ -57,7 +55,6 @@ export const TIERS = {
     color:       'text-[var(--md-secondary)]',
     bg:          'bg-[var(--md-secondary)]/10',
     border:      'border-[var(--md-secondary)]/30',
-    gradient:    'from-[var(--md-secondary)]/20 to-[var(--md-secondary)]/5',
     minScore:    800,
     nextScore:   1000,
     privileges:  [
@@ -109,14 +106,10 @@ export function TierCard({ profile }) {
   return (
     <div className={`bg-[var(--md-surface-container)] border rounded-md overflow-hidden ${t.border}`}>
       {/* Header */}
-      <div className={`bg-gradient-to-r ${t.gradient} px-6 py-5 border-b ${t.border}`}>
+      <div className={`${t.bg} px-6 py-5 border-b ${t.border}`}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
             <motion.div
-              animate={tier === 'elite' ? {
-                boxShadow: ['0 0 0 0 rgba(var(--md-tertiary-rgb), 0)', '0 0 20px 4px rgba(var(--md-tertiary-rgb), 0.3)', '0 0 0 0 rgba(var(--md-tertiary-rgb), 0)']
-              } : {}}
-              transition={{ duration: 2, repeat: Infinity }}
               className={`w-12 h-12 rounded-md flex items-center justify-center text-2xl border ${t.bg} ${t.border}`}
             >
               {t.emoji}
@@ -142,8 +135,8 @@ export function TierCard({ profile }) {
             <div className="h-2 bg-[var(--md-scrim)]/20 rounded-sm overflow-hidden">
               <motion.div
                 className={`h-full rounded-sm ${
-                  tier === 'citizen' ? 'bg-gradient-to-r from-[var(--md-primary)] to-[var(--md-secondary)]'
-                  : 'bg-gradient-to-r from-[var(--md-secondary)] to-[var(--md-error)]'
+                  tier === 'citizen' ? 'bg-[var(--md-primary)]'
+                  : 'bg-[var(--md-secondary)]'
                 }`}
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
@@ -209,7 +202,7 @@ export function TierGate({ requiredTier, userTier, children, featureName }) {
         {children}
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center
-                      bg-surface/60 backdrop-blur-sm rounded-md">
+                      bg-surface-container rounded-md">
         <div className={`text-2xl mb-2`}>{required.emoji}</div>
         <div className={`font-bold text-sm ${required.color}`}>{required.label} Required</div>
         <div className="text-xs text-on-surface/40 mt-1 text-center px-4">
@@ -229,10 +222,6 @@ export function EliteBadge({ tier }) {
 
   return (
     <motion.div
-      animate={isElite ? {
-        boxShadow: ['0 0 0 0 rgba(255,184,0,0)', '0 0 12px 2px rgba(255,184,0,0.4)', '0 0 0 0 rgba(255,184,0,0)']
-      } : {}}
-      transition={{ duration: 2.5, repeat: Infinity }}
       className={`flex items-center gap-1 px-2 py-0.5 rounded-sm text-[9px] font-black border ${
         isElite
           ? 'bg-tertiary/20 text-[var(--md-secondary)] border-tertiary/40'

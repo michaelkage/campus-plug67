@@ -173,7 +173,7 @@ export function TierCard({ profile }) {
             <div className="space-y-2">
               {t.locked.map(p => (
                 <div key={p} className="flex items-center gap-2 text-sm text-on-surface/30">
-                  <div className="w-1.5 h-1.5 rounded-sm bg-white/20 flex-shrink-0" />
+                  <div className="w-1.5 h-1.5 rounded-sm bg-on-surface/20 flex-shrink-0" />
                   {p}
                 </div>
               ))}
@@ -214,7 +214,7 @@ export function TierGate({ requiredTier, userTier, children, featureName }) {
 }
 
 /**
- * EliteBadge — glowing crown badge for listing cards showing elite seller status.
+ * EliteBadge — compact tier badge for listing cards showing seller status.
  */
 export function EliteBadge({ tier }) {
   if (tier !== 'elite' && tier !== 'trusted') return null

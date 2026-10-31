@@ -40,7 +40,7 @@ function PriceFloorWarning({ floorData, onUseToken, onAdjust, using }) {
     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="bg-error/5 border border-error/30 rounded-md p-4">
       <div className="flex items-start gap-3"><AlertTriangle size={16} className="text-error flex-shrink-0 mt-0.5" /><div className="flex-1">
         <div className="font-bold text-sm text-error mb-1">Price Below Market Floor</div>
-        <p className="text-xs text-on-surface/60 mb-3">Your price is <strong className="text-error">{floorData.below_pct}% below</strong> the campus median. Minimum allowed: <strong className="text-white">{formatNaira(floorData.floor_price)}</strong></p>
+        <p className="text-xs text-on-surface/60 mb-3">Your price is <strong className="text-error">{floorData.below_pct}% below</strong> the campus median. Minimum allowed: <strong className="text-on-surface">{formatNaira(floorData.floor_price)}</strong></p>
         <div className="flex gap-2 flex-wrap"><button onClick={onAdjust} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary">Use {formatNaira(floorData.floor_price)} instead</button>
           {floorData.token_available && <button onClick={onUseToken} disabled={using} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-tertiary/40 text-tertiary hover:bg-tertiary/10 transition-colors disabled:opacity-50">🎟️ Use Emergency Token ({floorData.tokens_remaining} left this month)</button>}
           {!floorData.token_available && <span className="text-xs text-on-surface/30 flex items-center gap-1">No emergency tokens left this month</span>}
@@ -268,7 +268,7 @@ export default function Marketplace() {
       {showMoreCategories && <div className="grid gap-4 rounded-md border border-outline-variant bg-surface-container-high p-4 sm:grid-cols-2 lg:grid-cols-3">
         {CATEGORY_GROUPS.map(group => <section key={group.label} className="min-w-0">
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface/60">{group.label}</h2>
-          <div className="flex flex-wrap gap-1.5">{group.items.map(item => <button key={item} onClick={() => setCategory(item)} className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${category === item ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface/55 hover:border-primary/30 hover:text-white'}`}>{item}</button>)}</div>
+          <div className="flex flex-wrap gap-1.5">{group.items.map(item => <button key={item} onClick={() => setCategory(item)} className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${category === item ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface/55 hover:border-primary/30 hover:text-on-surface'}`}>{item}</button>)}</div>
         </section>)}
       </div>}
       <div className="flex flex-wrap gap-2">

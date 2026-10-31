@@ -14,7 +14,7 @@ function fmtMs(ms) {
 
 function Card({ label, value, sub, trend, alert, Icon, color = 'text-[var(--md-primary)]' }) {
   return (
-    <div className={`bg-[var(--md-surface-container)] border rounded-xl p-4 ${alert ? 'border-error/40' : 'border-[var(--md-outline-variant)]'}`}>
+    <div className={`bg-[var(--md-surface-container)] border rounded-md p-4 ${alert ? 'border-error/40' : 'border-[var(--md-outline-variant)]'}`}>
       <div className="flex items-start justify-between mb-3">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${alert ? 'bg-error/15' : 'bg-[var(--md-surface-container-high)]'}`}>
           <Icon size={14} className={alert ? 'text-[var(--md-error)]' : color} />
@@ -72,7 +72,7 @@ export function InsightDashboard() {
   })
 
   if (!isAdmin) return (
-    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-xl p-6 text-center">
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-6 text-center">
       <BarChart3 size={28} className="mx-auto mb-3 text-[var(--md-on-surface)]/20"/>
       <div className="text-sm text-[var(--md-on-surface-variant)]">Insight Engine — Admin Only</div>
     </div>
@@ -89,7 +89,7 @@ export function InsightDashboard() {
 
       {friction && (
         <motion.div initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}}
-          className="flex items-start gap-3 p-4 bg-error/8 border border-[var(--md-error)]/30 rounded-xl">
+          className="flex items-start gap-3 p-4 bg-error/8 border border-[var(--md-error)]/30 rounded-md">
           <AlertTriangle size={16} className="text-[var(--md-error)] flex-shrink-0 mt-0.5"/>
           <div>
             <div className="font-bold text-sm text-[var(--md-error)] mb-1">⚠️ Friction Alert — Review Meetup Flow</div>
@@ -106,8 +106,8 @@ export function InsightDashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-xs">
-        <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3"><div className="font-bold text-[var(--md-primary)] mb-1">⚡ Velocity FAST → Tighten Security</div><div className="text-[var(--md-on-surface-variant)]">Users rushing through meetups. Add more friction to QR handshake.</div></div>
-        <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3"><div className="font-bold text-[var(--md-error)] mb-1">🐌 Velocity SLOW → Reduce Friction</div><div className="text-[var(--md-on-surface-variant)]">Users confused by meetup flow. Simplify Amber sync, add Safe Zones.</div></div>
+        <div className="bg-[var(--md-surface-container-high)] rounded-md p-3"><div className="font-bold text-[var(--md-primary)] mb-1">⚡ Velocity FAST → Tighten Security</div><div className="text-[var(--md-on-surface-variant)]">Users rushing through meetups. Add more friction to QR handshake.</div></div>
+        <div className="bg-[var(--md-surface-container-high)] rounded-md p-3"><div className="font-bold text-[var(--md-error)] mb-1">🐌 Velocity SLOW → Reduce Friction</div><div className="text-[var(--md-on-surface-variant)]">Users confused by meetup flow. Simplify Amber sync, add Safe Zones.</div></div>
       </div>
     </div>
   )

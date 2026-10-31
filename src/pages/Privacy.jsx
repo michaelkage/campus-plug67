@@ -7,21 +7,21 @@ export default function Privacy() {
     <div className="min-h-screen bg-surface">
       <div className="border-b border-outline-variant bg-surface-container-high sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/" className="text-white/40 hover:text-white"><ArrowLeft size={18} /></Link>
+          <Link to="/" className="text-[var(--md-on-surface)]/40 hover:text-white"><ArrowLeft size={18} /></Link>
           <div className="flex items-center gap-2"><Lock size={16} className="text-primary" /><h1 className="font-bold text-sm">Privacy Policy</h1></div>
-          <span className="ml-auto text-xs text-white/30">v1.0 · January 1, 2025</span>
+          <span className="ml-auto text-xs text-[var(--md-on-surface)]/30">v1.0 · January 1, 2025</span>
         </div>
       </div>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto px-4 py-10 pb-20 space-y-8">
-        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6">
-          <p className="text-sm text-white/70 leading-relaxed">This Privacy Policy explains how <strong className="text-white">Campus Plug Technologies Ltd</strong> collects, uses, and protects your personal data. We comply with the Nigeria Data Protection Act (NDPA) 2023. DPO: <strong className="text-primary">dpo@campusplug.ng</strong></p>
+        <div className="bg-primary/5 border border-primary/20 rounded-md p-6">
+          <p className="text-sm text-[var(--md-on-surface)]/70 leading-relaxed">This Privacy Policy explains how <strong className="text-white">Campus Plug Technologies Ltd</strong> collects, uses, and protects your personal data. We comply with the Nigeria Data Protection Act (NDPA) 2023. DPO: <strong className="text-primary">dpo@campusplug.ng</strong></p>
         </div>
 
         <section>
           <h2 className="text-base font-black mb-3 pb-2 border-b border-outline-variant">Data We Collect</h2>
-          <div className="border border-outline-variant rounded-xl overflow-hidden">
+          <div className="border border-outline-variant rounded-md overflow-hidden">
             <table className="w-full text-xs">
-              <thead><tr className="bg-surface-container-highest"><th className="text-left px-4 py-2.5 text-white/60 font-bold">Data</th><th className="text-left px-4 py-2.5 text-white/60 font-bold">Purpose</th><th className="text-left px-4 py-2.5 text-white/60 font-bold">Retention</th></tr></thead>
+              <thead><tr className="bg-surface-container-highest"><th className="text-left px-4 py-2.5 text-[var(--md-on-surface)]/60 font-bold">Data</th><th className="text-left px-4 py-2.5 text-[var(--md-on-surface)]/60 font-bold">Purpose</th><th className="text-left px-4 py-2.5 text-[var(--md-on-surface)]/60 font-bold">Retention</th></tr></thead>
               <tbody className="divide-y divide-outline-variant">
                 {[
                   ['University email', 'Account verification', 'Account lifetime + 2 years'],
@@ -35,9 +35,9 @@ export default function Privacy() {
                   ['Terms acceptance log', 'Legal compliance', 'Permanent'],
                 ].map(([d, p, r]) => (
                   <tr key={d} className="hover:bg-surface-container-highest/30">
-                    <td className="px-4 py-2.5 text-white/70 font-medium">{d}</td>
-                    <td className="px-4 py-2.5 text-white/50">{p}</td>
-                    <td className="px-4 py-2.5 text-white/40">{r}</td>
+                    <td className="px-4 py-2.5 text-[var(--md-on-surface)]/70 font-medium">{d}</td>
+                    <td className="px-4 py-2.5 text-[var(--md-on-surface)]/50">{p}</td>
+                    <td className="px-4 py-2.5 text-[var(--md-on-surface)]/40">{r}</td>
                   </tr>
                 ))}
               </tbody>
@@ -56,11 +56,11 @@ export default function Privacy() {
         ].map(({ title, body }) => (
           <section key={title}>
             <h2 className="text-base font-black mb-3 pb-2 border-b border-outline-variant">{title}</h2>
-            <p className="text-sm text-white/60 leading-relaxed">{body}</p>
+            <p className="text-sm text-[var(--md-on-surface)]/60 leading-relaxed">{body}</p>
           </section>
         ))}
 
-        <div className="border-t border-outline-variant pt-6 flex items-center justify-between text-xs text-white/30">
+        <div className="border-t border-outline-variant pt-6 flex items-center justify-between text-xs text-[var(--md-on-surface)]/30">
           <span>Campus Plug Technologies Ltd · 2025</span>
           <Link to="/terms" className="text-primary hover:underline">Terms of Service →</Link>
         </div>

@@ -7,14 +7,14 @@ export default function Privacy() {
     <div className="min-h-screen bg-surface">
       <div className="border-b border-outline-variant bg-surface-container-high sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/" className="text-[var(--md-on-surface)]/40 hover:text-white"><ArrowLeft size={18} /></Link>
+          <Link to="/" className="text-[var(--md-on-surface)]/40 hover:text-on-surface"><ArrowLeft size={18} /></Link>
           <div className="flex items-center gap-2"><Lock size={16} className="text-primary" /><h1 className="font-bold text-sm">Privacy Policy</h1></div>
           <span className="ml-auto text-xs text-[var(--md-on-surface)]/30">v1.0 · January 1, 2025</span>
         </div>
       </div>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto px-4 py-10 pb-20 space-y-8">
         <div className="bg-primary/5 border border-primary/20 rounded-md p-6">
-          <p className="text-sm text-[var(--md-on-surface)]/70 leading-relaxed">This Privacy Policy explains how <strong className="text-white">Campus Plug Technologies Ltd</strong> collects, uses, and protects your personal data. We comply with the Nigeria Data Protection Act (NDPA) 2023. DPO: <strong className="text-primary">dpo@campusplug.ng</strong></p>
+          <p className="text-sm text-[var(--md-on-surface)]/70 leading-relaxed">This Privacy Policy explains how <strong className="text-on-surface">Campus Plug Technologies Ltd</strong> collects, uses, and protects your personal data. We comply with the Nigeria Data Protection Act (NDPA) 2023. DPO: <strong className="text-primary">dpo@campusplug.ng</strong></p>
         </div>
 
         <section>

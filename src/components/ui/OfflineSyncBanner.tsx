@@ -23,7 +23,7 @@ export default function OfflineSyncBanner() {
 
   const warning = online
   return (
-    <div className="fixed inset-x-0 top-0 z-[100] border-b border-[var(--md-outline-variant)] bg-[var(--md-surface-container-high)] text-[var(--md-on-surface)] shadow-[var(--md-elevation-2)]">
+    <div className="fixed inset-x-0 top-0 z-[100] border-b border-[var(--md-outline-variant)] bg-[var(--md-surface-container-high)] text-[var(--md-on-surface)] shadow-none">
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 text-xs sm:text-sm">
         <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${warning ? 'bg-[var(--md-secondary-container)] text-[var(--md-on-secondary-container)]' : 'bg-[var(--md-error-container)] text-[var(--md-on-error-container)]'}`}>
           {warning ? <Cloud size={16} /> : <CloudOff size={16} />}

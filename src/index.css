@@ -273,7 +273,7 @@ html[data-compact="true"] .surface, html[data-compact="true"] .stat-card { paddi
   .card-tactical, .surface, .stat-card, .modal-panel { background: var(--md-surface-container); border: 1px solid var(--md-outline-variant); }
   .card-tactical:hover, .surface-interactive:hover { box-shadow: none; border-color: var(--md-on-surface); }
   .tag-neon { background: var(--md-secondary); color: var(--md-on-secondary); border-radius: 2px; }
-  .plug-dot { background: var(--md-secondary); border-radius: 0; }
+  .plug-dot { background: var(--md-secondary); border-radius: 9999px; }
   .modal-header { background: var(--md-surface-container); backdrop-filter: none; }
   .app-ambient { background: var(--md-surface); }
 }

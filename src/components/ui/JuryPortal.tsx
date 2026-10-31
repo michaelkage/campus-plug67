@@ -20,7 +20,7 @@ function EvidenceViewer({ messages }: { messages: any[] }) {
           ) : (
             <>
               <div className="w-6 h-6 rounded-full bg-[var(--md-primary-container)] flex-shrink-0
-                              flex items-center justify-center text-[9px] font-bold text-white">
+                              flex items-center justify-center text-[9px] font-bold text-on-primary-container">
                 {m.is_claimant ? 'C' : 'R'}
               </div>
               <div className={`flex-1 rounded-md px-3 py-2 ${
@@ -186,7 +186,7 @@ function CaseView({ juryCase, onVoted }: any) {
           ].map(v => (
             <button key={v.key} onClick={() => setVerdict(v.key)}
               className={`border rounded-md p-3 text-left transition-all ${
-                verdict === v.key ? v.color : 'border-[var(--md-outline-variant)] bg-transparent text-[var(--md-on-surface)]/50 hover:border-white/20'
+                verdict === v.key ? v.color : 'border-[var(--md-outline-variant)] bg-transparent text-[var(--md-on-surface)]/50 hover:border-outline-variant'
               }`}>
               <div className="text-xs font-bold mb-0.5">{v.label}</div>
               <div className="text-[10px] opacity-70">{v.desc}</div>

@@ -277,3 +277,35 @@ html[data-compact="true"] .surface, html[data-compact="true"] .stat-card { paddi
   .modal-header { background: var(--md-surface-container); backdrop-filter: none; }
   .app-ambient { background: var(--md-surface); }
 }
+
+
+/* Street & Sovereign Ore phase 19: final shared-surface guardrails. */
+@layer components {
+  .btn-primary, .btn-secondary, .icon-button, .card-tactical,
+  .surface, .surface-interactive, .stat-card, .modal-panel, .modal-header,
+  .modal-backdrop, .tag-neon, .skeleton {
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .btn-primary, .btn-secondary { border-radius: 2px; }
+  .icon-button, .card-tactical, .surface, .surface-interactive,
+  .stat-card, .modal-panel, .modal-header, .skeleton { border-radius: 4px; }
+  .tag-neon { border-radius: 2px; }
+  .card-tactical { background: var(--md-surface-container); }
+  .card-tactical:hover, .surface-interactive:hover {
+    box-shadow: none;
+    transform: none;
+  }
+  .modal-panel, .modal-header { background: var(--md-surface-container); }
+  .modal-backdrop {
+    background: color-mix(in srgb, var(--md-scrim) 76%, transparent);
+  }
+}
+.fixed.inset-0.z-50 > .relative.z-10.max-w-lg,
+.fixed.inset-0.z-50 > .relative.z-10.max-w-xl,
+.fixed.inset-0.z-50 > .relative.z-10.max-w-md,
+.fixed.inset-0.z-50 > div[class*="max-w-lg"][class*="bg-surface"],
+.fixed.inset-0.z-50 > div[class*="max-w-xl"][class*="bg-surface"],
+.fixed.inset-0.z-50 > div[class*="max-w-md"][class*="bg-surface"] {
+  box-shadow: none;
+}

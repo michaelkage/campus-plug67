@@ -78,7 +78,7 @@ export default function VerifyProfile() {
             </div>
           </div>
           <div className="ml-auto">
-            <div className="w-8 h-8 rounded-lg bg-[var(--md-primary-container)] flex items-center justify-center text-on-primary font-black text-sm">
+            <div className="w-8 h-8 rounded-md bg-[var(--md-primary-container)] flex items-center justify-center text-on-primary font-black text-sm">
               ⚡
             </div>
           </div>
@@ -110,7 +110,7 @@ export default function VerifyProfile() {
               {stats.department && (
                 <p className="text-xs text-on-surface/30 mt-0.5">{stats.department} · Level {stats.level}</p>
               )}
-              <p className="text-xs text-white/25 mt-2">
+              <p className="text-xs text-on-surface/25 mt-2">
                 Member since {new Date(stats.created_at).toLocaleDateString('en-NG', { month: 'long', year: 'numeric' })}
               </p>
             </div>
@@ -182,8 +182,8 @@ export default function VerifyProfile() {
             <span className="font-bold text-sm text-[var(--md-primary)]">Verification Statement</span>
           </div>
           <p className="text-sm text-on-surface/60 leading-relaxed">
-            Campus Plug confirms that <strong className="text-white">{stats.full_name}</strong> is a
-            registered student at <strong className="text-white">{stats.university}</strong> with a
+            Campus Plug confirms that <strong className="text-on-surface">{stats.full_name}</strong> is a
+            registered student at <strong className="text-on-surface">{stats.university}</strong> with a
             verified campus email. The statistics above reflect real, completed transactions on the
             Campus Plug platform as of {verifiedAt}. This data is pulled live and cannot be manipulated.
           </p>

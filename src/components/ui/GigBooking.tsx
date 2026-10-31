@@ -40,17 +40,17 @@ export function GigPerformanceStats({ gig, compact = false }) {
 
   return (
     <div className="grid grid-cols-3 gap-2">
-      <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 text-center">
+      <div className="bg-[var(--md-surface-container-high)] rounded-md p-3 text-center">
         <CheckCircle size={14} className="text-[var(--md-primary)] mx-auto mb-1" />
         <div className="text-base font-black text-[var(--md-primary)] font-mono">{gig.jobs_completed || 0}</div>
         <div className="text-[10px] text-[var(--md-on-surface-variant)]">Jobs Done</div>
       </div>
-      <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 text-center">
+      <div className="bg-[var(--md-surface-container-high)] rounded-md p-3 text-center">
         <Clock size={14} className="text-[var(--md-primary)] mx-auto mb-1" />
         <div className="text-base font-black text-[var(--md-primary)] font-mono">{responseLabel}</div>
         <div className="text-[10px] text-[var(--md-on-surface-variant)]">Avg Response</div>
       </div>
-      <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 text-center">
+      <div className="bg-[var(--md-surface-container-high)] rounded-md p-3 text-center">
         <Star size={14} className="text-[var(--md-secondary)] mx-auto mb-1" />
         <div className="text-base font-black text-[var(--md-secondary)] font-mono">
           {gig.avg_rating ? `${gig.avg_rating}★` : '—'}
@@ -87,7 +87,7 @@ export function BookingSlotEditor({ slots, onChange }) {
       </div>
 
       {(slots || []).map((slot, i) => (
-        <div key={slot.id || i} className="flex items-center justify-between bg-[var(--md-surface-container-high)] rounded-xl px-4 py-2.5 text-sm">
+        <div key={slot.id || i} className="flex items-center justify-between bg-[var(--md-surface-container-high)] rounded-md px-4 py-2.5 text-sm">
           <div className="font-semibold">{slot.day}</div>
           <div className="text-[var(--md-on-surface-variant)] text-xs">{slot.start} – {slot.end}</div>
           <div className="text-[var(--md-primary)] text-xs font-mono">{slot.max_bookings} max</div>
@@ -103,7 +103,7 @@ export function BookingSlotEditor({ slots, onChange }) {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-[var(--md-surface-container-high)] rounded-xl p-4 space-y-3">
+            <div className="bg-[var(--md-surface-container-high)] rounded-md p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Day</label>
@@ -254,7 +254,7 @@ export function BookGig({ gig, onClose }) {
                   key={time}
                   disabled={taken}
                   onClick={() => setSelectedSlot({ time })}
-                  className={`py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                  className={`py-2.5 rounded-md text-sm font-semibold border transition-all ${
                     taken  ? 'border-[var(--md-outline-variant)] text-[var(--md-on-surface)]/20 cursor-not-allowed line-through' :
                     active ? 'border-primary bg-[var(--md-primary)]/15 text-[var(--md-primary)]' :
                              'border-[var(--md-outline-variant)] text-[var(--md-on-surface)]/70 hover:border-[var(--md-primary)]/40'
@@ -278,7 +278,7 @@ export function BookGig({ gig, onClose }) {
       )}
 
       {selectedSlot && (
-        <div className="bg-[var(--md-surface-container-high)] rounded-xl p-4">
+        <div className="bg-[var(--md-surface-container-high)] rounded-md p-4">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-[var(--md-on-surface)]/70">{gig.title}</span>
             <span className="text-[var(--md-primary)] font-mono font-bold">{formatNaira(gig.starting_price)}</span>

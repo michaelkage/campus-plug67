@@ -9,7 +9,7 @@
  *
  * Features:
  *   - Progress bars: current_value → threshold_value per feature
- *   - Glowing "Approve Cloak Release" button when criteria_met = true
+ *   - Clear approval state when criteria_met = true
  *   - Real-time: global_config changes broadcast to all clients via Supabase Realtime
  *   - Mode display: AUTO / MANUAL / HYBRID
  *   - Manual override: force-enable any feature regardless of threshold
@@ -47,10 +47,6 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
   return (
     <motion.div
       layout
-      animate={canApprove ? {
-        boxShadow: ['0 0 0 0 rgba(255,184,0,0)', '0 0 20px 2px rgba(255,184,0,0.15)', '0 0 0 0 rgba(255,184,0,0)'],
-      } : { boxShadow: '0 0 0 0 rgba(0,0,0,0)' }}
-      transition={{ duration: 2.5, repeat: canApprove ? Infinity : 0 }}
       className={`border rounded-md overflow-hidden transition-all ${
         feature.is_enabled
           ? 'border-primary/25 bg-primary/3'
@@ -95,7 +91,7 @@ function FeatureRow({ feature, onToggle, onForceEnable }) {
               <motion.div
                 animate={{ x: feature.is_enabled ? 19 : 2 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                className="absolute top-1 w-4 h-4 rounded-sm bg-white shadow-sm"
+                className="absolute top-1 w-4 h-4 rounded-sm bg-[var(--md-on-primary)]"
               />
             </motion.button>
           )}
@@ -261,7 +257,7 @@ export default function WarRoom() {
       <div className="border-b border-outline-variant bg-surface-container-high sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <button onClick={() => navigate('/')}
-            className="text-on-surface/40 hover:text-white transition-colors">
+            className="text-on-surface/40 hover:text-on-surface transition-colors">
             <ArrowLeft size={18} />
           </button>
           <div className="flex items-center gap-2">
@@ -275,12 +271,12 @@ export default function WarRoom() {
               whileTap={{ scale: 0.92 }}
               onClick={handleRefreshCounters}
               disabled={refreshing}
-              className="flex items-center gap-1.5 text-xs text-on-surface/40 hover:text-white transition-colors disabled:opacity-30"
+              className="flex items-center gap-1.5 text-xs text-on-surface/40 hover:text-on-surface transition-colors disabled:opacity-30"
             >
               <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
               Refresh counters
             </motion.button>
-            <div className="text-[10px] text-white/25 font-mono">
+            <div className="text-[10px] text-on-surface/25 font-mono">
               Admin · {profile?.full_name?.split(' ')[0]}
             </div>
           </div>

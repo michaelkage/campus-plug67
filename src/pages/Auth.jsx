@@ -182,7 +182,7 @@ export default function Auth() {
             </div>
 
             <div className="rounded-md border border-outline-variant bg-surface-container p-5 shadow-none sm:p-7">
-              <div className="mb-6 flex items-center gap-3 rounded-md border border-white/[0.06] bg-black/10 px-3.5 py-3">
+              <div className="mb-6 flex items-center gap-3 rounded-md border border-outline-variant bg-surface-container-high px-3.5 py-3">
                 <ShieldCheck size={17} className="shrink-0 text-primary" />
                 <div>
                   <p className="text-xs font-bold text-on-surface/70">Secure student access</p>

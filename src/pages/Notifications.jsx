@@ -180,7 +180,7 @@ export default function Notifications() {
               className={`w-full text-left flex gap-4 p-4 rounded-md border transition-all hover:border-primary/20 ${
                 notif.read
                   ? 'bg-surface-container-high border-outline-variant opacity-60'
-                  : 'bg-surface-container-high border-primary/20 shadow-[0_0_0_1px_rgba(0,242,255,0.06)]'
+                  : 'bg-surface-container-high border-primary/20 shadow-none'
               }`}
             >
               <div className="w-10 h-10 rounded-sm bg-surface-container-highest flex items-center justify-center
@@ -197,7 +197,7 @@ export default function Notifications() {
                 {notif.body && (
                   <p className="text-sm text-on-surface/50 mt-0.5 leading-relaxed">{notif.body}</p>
                 )}
-                <p className="text-xs text-white/25 mt-1">{timeAgo(notif.created_at)}</p>
+                <p className="text-xs text-on-surface/25 mt-1">{timeAgo(notif.created_at)}</p>
               </div>
             </button>
           ))}

@@ -89,7 +89,7 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
 
   return (
     <div className="w-full">
-      <div className="bg-surface-container border border-outline-variant rounded-3xl p-6 shadow-sm">
+      <div className="bg-surface-container border border-outline-variant rounded-md p-6 shadow-none">
         <div className="flex items-center justify-between mb-6">
           <div><h2 className="text-xl font-bold text-on-surface mb-1">WALLET DASHBOARD</h2><p className="text-xs text-on-surface-variant font-mono tracking-widest">PLUG CREDIT SYSTEM</p></div>
           <button onClick={() => { setModalType('transfer'); setShowModal(true) }} className="px-4 py-2 bg-surface-container border border-outline-variant text-on-surface text-sm font-mono hover:border-secondary hover:text-secondary transition-all">NEW TRANSFER</button>
@@ -98,12 +98,12 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
         {success && <div className="mb-4 p-3 bg-green-900/20 border border-green-800 text-primary text-sm font-mono">{success}</div>}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-surface-container-high border border-outline-variant p-4 rounded-2xl"><p className="text-xs text-on-surface-variant font-mono mb-2">CURRENT BALANCE</p><p className="text-2xl font-bold text-on-surface font-mono">{profile ? formatNaira(balance) : '₦0.00'}</p></div>
-          <div className="bg-surface-container-high border border-outline-variant p-4 rounded-2xl"><p className="text-xs text-on-surface-variant font-mono mb-2">TOTAL TRANSACTIONS</p><p className="text-2xl font-bold text-on-surface font-mono">{transactions.length}</p></div>
-          <div className="bg-surface-container-high border border-outline-variant p-4 rounded-2xl"><p className="text-xs text-on-surface-variant font-mono mb-2">ACCOUNT STATUS</p><p className="text-2xl font-bold text-primary font-mono">ACTIVE</p></div>
+          <div className="bg-surface-container-high border border-outline-variant p-4 rounded-md"><p className="text-xs text-on-surface-variant font-mono mb-2">CURRENT BALANCE</p><p className="text-2xl font-bold text-on-surface font-mono">{profile ? formatNaira(balance) : '₦0.00'}</p></div>
+          <div className="bg-surface-container-high border border-outline-variant p-4 rounded-md"><p className="text-xs text-on-surface-variant font-mono mb-2">TOTAL TRANSACTIONS</p><p className="text-2xl font-bold text-on-surface font-mono">{transactions.length}</p></div>
+          <div className="bg-surface-container-high border border-outline-variant p-4 rounded-md"><p className="text-xs text-on-surface-variant font-mono mb-2">ACCOUNT STATUS</p><p className="text-2xl font-bold text-primary font-mono">ACTIVE</p></div>
         </div>
 
-        <div className="border border-outline-variant rounded-2xl overflow-hidden">
+        <div className="border border-outline-variant rounded-md overflow-hidden">
           <div className="bg-surface-container-high px-4 py-3 border-b border-outline-variant"><h3 className="text-sm font-bold text-on-surface font-mono tracking-widest">TRANSACTION HISTORY</h3></div>
           {loading ? <div className="p-8 text-center text-on-surface-variant font-mono text-sm">LOADING TRANSACTION DATA...</div> : transactions.length === 0 ? <div className="p-8 text-center text-on-surface-variant font-mono text-sm">NO TRANSACTIONS FOUND</div> : <div className="overflow-x-auto">
             <table className="w-full"><thead className="bg-surface-container"><tr>
@@ -122,7 +122,7 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
         </div>
       </div>
 
-      {showModal && <div className="fixed inset-0 bg-scrim/80 flex items-center justify-center z-50 p-4"><div className="bg-surface-container border border-outline-variant rounded-3xl p-6 shadow-sm w-full max-w-md">
+      {showModal && <div className="fixed inset-0 bg-scrim/80 flex items-center justify-center z-50 p-4"><div className="bg-surface-container border border-outline-variant rounded-md p-6 shadow-none w-full max-w-md">
         <div className="flex items-center justify-between mb-6"><h3 className="text-lg font-bold text-on-surface font-mono">{modalType==='transfer'?'TRANSFER PLUG CREDITS':modalType==='deposit'?'DEPOSIT FUNDS':'REQUEST PAYOUT'}</h3><button onClick={()=>setShowModal(false)} className="text-on-surface-variant hover:text-on-surface transition-colors">✕</button></div>
         {modalType==='transfer' && <div className="space-y-4">
           <div><label className="block text-xs text-on-surface-variant font-mono mb-2">AMOUNT (₦)</label><input type="number" value={transferAmount} onChange={e=>setTransferAmount(e.target.value)} className="w-full bg-surface-container border border-outline-variant text-on-surface px-4 py-2 font-mono text-sm focus:border-primary focus:outline-none transition-colors" placeholder="0.00"/></div>

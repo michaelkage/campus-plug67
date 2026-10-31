@@ -55,18 +55,18 @@ export default function Reviews() {
       <div>
         <p className="section-label">Community</p>
         <h1 className="text-2xl font-black">Campus Reviews</h1>
-        <p className="text-white/40 text-sm mt-1">Help us improve. All feedback is read by the team.</p>
+        <p className="text-on-surface-variant/40 text-sm mt-1">Help us improve. All feedback is read by the team.</p>
       </div>
 
       {/* Submit form */}
-      <div className="bg-surface-container-high border border-outline-variant rounded-3xl p-6 space-y-5">
+      <div className="bg-surface-container-high border border-outline-variant rounded-md p-6 space-y-5">
         <div className="text-sm font-bold">Submit Feedback</div>
 
         <div className="flex gap-2">
           {CATEGORIES.map(({ key, icon: Icon, color, bg }) => (
             <button key={key} onClick={() => setCategory(key)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                category === key ? bg + ' ' + color : 'border-outline-variant text-white/40 hover:border-[var(--md-outline-variant)]'
+              className={`flex items-center gap-2 px-3 py-2 rounded-md border text-xs font-bold transition-all ${
+                category === key ? bg + ' ' + color : 'border-outline-variant text-on-surface-variant/40 hover:border-[var(--md-outline-variant)]'
               }`}>
               <Icon size={12} /> {key}
             </button>
@@ -76,7 +76,7 @@ export default function Reviews() {
         <div className="flex gap-1">
           {[1,2,3,4,5].map(s => (
             <button key={s} onClick={() => setRating(s)}>
-              <Star size={24} className={s <= rating ? 'text-tertiary fill-tertiary' : 'text-white/20'} />
+              <Star size={24} className={s <= rating ? 'text-tertiary fill-tertiary' : 'text-on-surface-variant/20'} />
             </button>
           ))}
         </div>
@@ -95,17 +95,17 @@ export default function Reviews() {
       <div className="space-y-3">
         {reviews.map(r => (
           <motion.div key={r.id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
-            className="bg-surface-container-high border border-outline-variant rounded-xl p-4">
+            className="bg-surface-container-high border border-outline-variant rounded-md p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="tag tag-cyan text-[10px]">{r.context}</span>
                 <div className="flex">
-                  {[1,2,3,4,5].map(s => <Star key={s} size={11} className={s <= r.rating ? 'text-tertiary fill-tertiary' : 'text-white/15'} />)}
+                  {[1,2,3,4,5].map(s => <Star key={s} size={11} className={s <= r.rating ? 'text-tertiary fill-tertiary' : 'text-on-surface-variant/15'} />)}
                 </div>
               </div>
-              <span className="text-[10px] text-white/30">{new Date(r.created_at).toLocaleDateString('en-NG')}</span>
+              <span className="text-[10px] text-on-surface-variant/30">{new Date(r.created_at).toLocaleDateString('en-NG')}</span>
             </div>
-            <p className="text-sm text-white/70 leading-relaxed">{r.note}</p>
+            <p className="text-sm text-on-surface-variant/70 leading-relaxed">{r.note}</p>
           </motion.div>
         ))}
       </div>

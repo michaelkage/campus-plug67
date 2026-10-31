@@ -124,7 +124,7 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="relative overflow-hidden rounded-xl border border-[var(--md-primary)]/40 bg-[var(--md-primary-container)]/40 p-4"
+            className="relative overflow-hidden rounded-md border border-[var(--md-primary)]/40 bg-[var(--md-primary-container)]/40 p-4"
           >
             
             <div className="flex items-center gap-3">
@@ -146,7 +146,7 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
       {/* Arrival status for each party */}
       <div className="grid grid-cols-2 gap-2">
         {/* My status */}
-        <div className={`border rounded-xl p-3 text-center transition-all ${
+        <div className={`border rounded-md p-3 text-center transition-all ${
           myArrived
             ? 'border-[var(--md-primary)]/40 bg-[var(--md-primary-container)]/40'
             : 'border-[var(--md-outline-variant)] bg-[var(--md-surface-container)]'
@@ -163,7 +163,7 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
         </div>
 
         {/* Other party status */}
-        <div className={`border rounded-xl p-3 text-center transition-all ${
+        <div className={`border rounded-md p-3 text-center transition-all ${
           otherArrived
             ? 'border-[var(--md-primary)]/40 bg-[var(--md-primary-container)]/40'
             : 'border-[var(--md-outline-variant)] bg-[var(--md-surface-container)]'
@@ -182,20 +182,20 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
 
       {/* Nearest safe zone */}
       {safeZones.length > 0 && (
-        <div className="bg-[var(--md-surface-container-high)] rounded-xl p-3 space-y-2">
+        <div className="bg-[var(--md-surface-container-high)] rounded-md p-3 space-y-2">
           <div className="flex items-center gap-2 text-xs font-bold text-[var(--md-on-surface-variant)] uppercase tracking-wider">
             <Shield size={11} />
             Safe Exchange Zones
           </div>
           {safeZones.slice(0, 3).map(zone => (
             <div key={zone.id} className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2 text-white/60">
+              <div className="flex items-center gap-2 text-on-surface-variant/60">
                 <MapPin size={10} className="text-[var(--md-primary)] flex-shrink-0" />
                 {zone.name}
               </div>
               {distanceM != null && nearestZone?.id === zone.id && (
                 <div className={`font-mono font-bold text-[10px] ${
-                  distanceM <= zone.radius_m ? 'text-[var(--md-primary)]' : 'text-white/30'
+                  distanceM <= zone.radius_m ? 'text-[var(--md-primary)]' : 'text-on-surface-variant/30'
                 }`}>
                   {distanceM <= zone.radius_m ? '✓ Within range' : `${distanceM}m away`}
                 </div>
@@ -212,8 +212,8 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
             whileTap={{ scale: 0.97 }}
             onClick={() => handleArrive(false)}
             disabled={gettingLocation}
-            className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2
-                       bg-[var(--md-primary)] text-[var(--md-on-primary)] hover:shadow-md transition-all disabled:opacity-50"
+            className="w-full py-3 rounded-md font-bold text-sm flex items-center justify-center gap-2
+                       bg-[var(--md-primary)] text-[var(--md-on-primary)] hover:shadow-none transition-all disabled:opacity-50"
           >
             {gettingLocation ? (
               <>
@@ -231,8 +231,8 @@ export function CheckIn({ transaction, isSeller, session, onBothArrived }) {
           <button
             onClick={() => handleArrive(true)}
             disabled={gettingLocation}
-            className="w-full py-2 rounded-xl text-xs font-semibold text-[var(--md-on-surface-variant)]
-                       hover:text-white/60 border border-[var(--md-outline-variant)] hover:border-[var(--md-outline)]
+            className="w-full py-2 rounded-md text-xs font-semibold text-[var(--md-on-surface-variant)]
+                       hover:text-on-surface-variant/60 border border-[var(--md-outline-variant)] hover:border-[var(--md-outline)]
                        transition-colors disabled:opacity-30"
           >
             No GPS — Mark as arrived manually

@@ -80,16 +80,16 @@ export default function Auth() {
   }
 
   return (
-    <main className="min-h-screen bg-surface text-white selection:bg-primary/30">
+    <main className="min-h-screen bg-surface text-on-surface selection:bg-primary/30">
       <div className="min-h-screen lg:grid lg:grid-cols-[minmax(360px,0.95fr)_minmax(520px,1.05fr)]">
         {/* Brand panel */}
-        <section className="relative hidden overflow-hidden border-r border-white/[0.07] bg-surface-container lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-14">
+        <section className="relative hidden overflow-hidden border-r border-outline-variant bg-surface-container lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-14">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(var(--md-primary-rgb),0.10),transparent_30%),radial-gradient(circle_at_85%_85%,rgba(var(--md-tertiary-rgb),0.08),transparent_32%)]" />
           <div className="absolute inset-0 opacity-[0.035] [background-image:linear-gradient(rgba(255,255,255,1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,1)_1px,transparent_1px)] [background-size:44px_44px]" />
 
           <div className="relative z-10">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-on-primary shadow-[0_0_30px_rgba(var(--md-primary-rgb),0.16)]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-on-primary shadow-none">
                 <Zap size={20} strokeWidth={2.5} />
               </div>
               <span className="text-xl font-black tracking-tight">Campus<span className="text-primary">Plug</span></span>
@@ -100,9 +100,9 @@ export default function Auth() {
               <h2 className="text-4xl font-black leading-[1.08] tracking-[-0.03em] xl:text-5xl">
                 Campus life,
                 <br />
-                <span className="text-white/45">without the friction.</span>
+                <span className="text-on-surface-variant/45">without the friction.</span>
               </h2>
-              <p className="mt-6 max-w-md text-base leading-7 text-white/45">
+              <p className="mt-6 max-w-md text-base leading-7 text-on-surface-variant/45">
                 A focused campus ecosystem for discovering people, opportunities, services and the things that matter day to day.
               </p>
             </div>
@@ -110,20 +110,20 @@ export default function Auth() {
             <div className="mt-14 space-y-5">
               {features.map((feature, index) => (
                 <div key={feature.title} className="flex gap-4">
-                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--md-outline-variant)] bg-white/[0.03] text-xs font-bold text-primary">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--md-outline-variant)] bg-surface-container-high text-xs font-bold text-primary">
                     0{index + 1}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-white/85">{feature.title}</p>
-                    <p className="mt-1 max-w-sm text-sm leading-6 text-white/35">{feature.text}</p>
+                    <p className="text-sm font-bold text-on-surface-variant/85">{feature.title}</p>
+                    <p className="mt-1 max-w-sm text-sm leading-6 text-on-surface-variant/35">{feature.text}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="relative z-10 flex items-center gap-2 text-xs text-white/25">
-            <span className="h-1.5 w-1.5 rounded-sm bg-primary shadow-[0_0_10px_rgba(var(--md-primary-rgb),0.5)]" />
+          <div className="relative z-10 flex items-center gap-2 text-xs text-on-surface-variant/25">
+            <span className="h-1.5 w-1.5 rounded-sm bg-primary shadow-none" />
             Built for students, by Campus Plug
           </div>
         </section>
@@ -162,12 +162,12 @@ export default function Auth() {
               </p>
             </header>
 
-            <div className="mb-7 grid grid-cols-2 rounded-md border border-white/[0.07] bg-white/[0.025] p-1">
+            <div className="mb-7 grid grid-cols-2 rounded-md border border-outline-variant bg-surface-container p-1">
               <button
                 type="button"
                 onClick={() => switchMode('signin')}
                 aria-pressed={mode === 'signin'}
-                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-white text-inverse-on-surface shadow-sm' : 'text-on-surface/40 hover:text-on-surface/70'}`}
+                className={`min-h-11 rounded-md px-4 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-primary text-on-primary shadow-none' : 'text-on-surface/40 hover:text-on-surface/70'}`}
               >
                 Sign in
               </button>
@@ -175,14 +175,14 @@ export default function Auth() {
                 type="button"
                 onClick={() => switchMode('signup')}
                 aria-pressed={mode === 'signup'}
-                className={`min-h-11 rounded-[9px] px-4 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-white text-inverse-on-surface shadow-sm' : 'text-on-surface/40 hover:text-on-surface/70'}`}
+                className={`min-h-11 rounded-md px-4 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-primary text-on-primary shadow-none' : 'text-on-surface/40 hover:text-on-surface/70'}`}
               >
                 Create account
               </button>
             </div>
 
-            <div className="rounded-md border border-white/[0.08] bg-white/[0.025] p-5 shadow-[0_24px_80px_rgba(var(--md-scrim-rgb),0.25)] sm:p-7">
-              <div className="mb-6 flex items-center gap-3 rounded-md border border-white/[0.06] bg-black/10 px-3.5 py-3">
+            <div className="rounded-md border border-outline-variant bg-surface-container p-5 shadow-none sm:p-7">
+              <div className="mb-6 flex items-center gap-3 rounded-md border border-outline-variant bg-surface-container-high px-3.5 py-3">
                 <ShieldCheck size={17} className="shrink-0 text-primary" />
                 <div>
                   <p className="text-xs font-bold text-on-surface/70">Secure student access</p>
@@ -209,7 +209,7 @@ export default function Auth() {
                 <div>
                   <label className="label" htmlFor="university-email">University email</label>
                   <div className="relative">
-                    <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" />
+                    <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/25" />
                     <input id="university-email" className="input pl-10" type="email" autoComplete="email" placeholder="your.name@unilag.edu.ng" value={form.email} onChange={set('email')} required />
                   </div>
                   {mode === 'signup' && (
@@ -260,13 +260,13 @@ export default function Auth() {
                 <div>
                   <label className="label" htmlFor="password">Password</label>
                   <div className="relative">
-                    <LockKeyhole size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25" />
+                    <LockKeyhole size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/25" />
                     <input id="password" className="input pl-10 pr-11" type={showPass ? 'text' : 'password'} autoComplete="current-password" placeholder="Min 8 characters" value={form.password} onChange={set('password')} minLength={8} required />
                     <button
                       type="button"
                       onClick={() => setShowPass(value => !value)}
                       aria-label={showPass ? 'Hide password' : 'Show password'}
-                      className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-white/25 transition-colors hover:bg-white/[0.05] hover:text-on-surface/60"
+                      className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-on-surface-variant/25 transition-colors hover:bg-surface-container-high hover:text-on-surface/60"
                     >
                       {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -276,7 +276,7 @@ export default function Auth() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 font-black text-on-primary transition-all hover:bg-primary/90 hover:shadow-[0_8px_30px_rgba(var(--md-primary-rgb),0.14)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 font-black text-on-primary transition-all hover:bg-primary/90 shadow-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
                   {!submitting && <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />}
@@ -286,16 +286,16 @@ export default function Auth() {
               {mode === 'signin' && passkeySupported && (
                 <div className="mt-5">
                   <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-white/[0.07]" />
+                    <div className="h-px flex-1 bg-[var(--md-outline-variant)]" />
                     <span className="text-[11px] font-medium uppercase tracking-wider text-on-surface/20">or</span>
-                    <div className="h-px flex-1 bg-white/[0.07]" />
+                    <div className="h-px flex-1 bg-[var(--md-outline-variant)]" />
                   </div>
                   <motion.button
                     type="button"
                     onClick={handlePasskey}
                     disabled={passkeyLoading || !form.email}
                     whileTap={{ scale: 0.985 }}
-                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-md border border-white/[0.09] bg-white/[0.025] text-sm font-bold text-on-surface/70 transition-colors hover:border-primary/25 hover:bg-primary/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-35"
+                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-md border border-outline-variant bg-surface-container text-sm font-bold text-on-surface/70 transition-colors hover:border-primary/25 hover:bg-primary/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-35"
                   >
                     <Fingerprint size={17} className={passkeyLoading ? 'animate-pulse' : ''} />
                     {passkeyLoading ? 'Verifying…' : 'Use Face ID or fingerprint'}
@@ -305,7 +305,7 @@ export default function Auth() {
               )}
 
               {mode === 'signup' && (
-                <p className="mt-5 text-center text-[11px] leading-5 text-white/25">
+                <p className="mt-5 text-center text-[11px] leading-5 text-on-surface-variant/25">
                   By creating an account, you confirm that you are a registered student. Device fingerprinting may be used for fraud prevention.
                 </p>
               )}

@@ -40,7 +40,7 @@ function PriceFloorWarning({ floorData, onUseToken, onAdjust, using }) {
     <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="bg-error/5 border border-error/30 rounded-md p-4">
       <div className="flex items-start gap-3"><AlertTriangle size={16} className="text-error flex-shrink-0 mt-0.5" /><div className="flex-1">
         <div className="font-bold text-sm text-error mb-1">Price Below Market Floor</div>
-        <p className="text-xs text-on-surface/60 mb-3">Your price is <strong className="text-error">{floorData.below_pct}% below</strong> the campus median. Minimum allowed: <strong className="text-white">{formatNaira(floorData.floor_price)}</strong></p>
+        <p className="text-xs text-on-surface/60 mb-3">Your price is <strong className="text-error">{floorData.below_pct}% below</strong> the campus median. Minimum allowed: <strong className="text-on-surface">{formatNaira(floorData.floor_price)}</strong></p>
         <div className="flex gap-2 flex-wrap"><button onClick={onAdjust} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary">Use {formatNaira(floorData.floor_price)} instead</button>
           {floorData.token_available && <button onClick={onUseToken} disabled={using} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-tertiary/40 text-tertiary hover:bg-tertiary/10 transition-colors disabled:opacity-50">🎟️ Use Emergency Token ({floorData.tokens_remaining} left this month)</button>}
           {!floorData.token_available && <span className="text-xs text-on-surface/30 flex items-center gap-1">No emergency tokens left this month</span>}
@@ -192,7 +192,7 @@ function CreateListingModal({ onClose, profile }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-none" onClick={onClose} />
       <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} className="relative z-10 w-full max-w-xl bg-surface-container-high border border-outline-variant rounded-md max-h-[92vh] overflow-y-auto">
         <div className="sticky top-0 bg-surface-container-high border-b border-outline-variant px-6 py-4 flex items-center justify-between"><h2 className="font-bold text-lg">List an Item</h2><button type="button" onClick={onClose} aria-label="Close listing form" className="icon-button h-10 w-10" title="Close"><X size={18} /></button></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -268,7 +268,7 @@ export default function Marketplace() {
       {showMoreCategories && <div className="grid gap-4 rounded-md border border-outline-variant bg-surface-container-high p-4 sm:grid-cols-2 lg:grid-cols-3">
         {CATEGORY_GROUPS.map(group => <section key={group.label} className="min-w-0">
           <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface/60">{group.label}</h2>
-          <div className="flex flex-wrap gap-1.5">{group.items.map(item => <button key={item} onClick={() => setCategory(item)} className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${category === item ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface/55 hover:border-primary/30 hover:text-white'}`}>{item}</button>)}</div>
+          <div className="flex flex-wrap gap-1.5">{group.items.map(item => <button key={item} onClick={() => setCategory(item)} className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${category === item ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface/55 hover:border-primary/30 hover:text-on-surface'}`}>{item}</button>)}</div>
         </section>)}
       </div>}
       <div className="flex flex-wrap gap-2">

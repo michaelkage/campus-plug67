@@ -67,7 +67,7 @@ function CreatePoolModal({ onClose, profile }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-none" onClick={onClose} />
       <motion.div
         initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}
@@ -75,7 +75,7 @@ function CreatePoolModal({ onClose, profile }) {
       >
         <div className="sticky top-0 bg-surface-container-high border-b border-outline-variant px-6 py-4 flex items-center justify-between">
           <h2 className="font-bold text-lg">Start a Study Pool</h2>
-          <button onClick={onClose} className="text-on-surface/30 hover:text-white"><X size={18}/></button>
+          <button onClick={onClose} className="text-on-surface/30 hover:text-on-surface"><X size={18}/></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">

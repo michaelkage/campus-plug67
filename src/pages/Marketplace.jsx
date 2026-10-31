@@ -192,7 +192,7 @@ function CreateListingModal({ onClose, profile }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-none" onClick={onClose} />
       <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} className="relative z-10 w-full max-w-xl bg-surface-container-high border border-outline-variant rounded-md max-h-[92vh] overflow-y-auto">
         <div className="sticky top-0 bg-surface-container-high border-b border-outline-variant px-6 py-4 flex items-center justify-between"><h2 className="font-bold text-lg">List an Item</h2><button type="button" onClick={onClose} aria-label="Close listing form" className="icon-button h-10 w-10" title="Close"><X size={18} /></button></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-5">

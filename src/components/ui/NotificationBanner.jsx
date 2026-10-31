@@ -24,7 +24,7 @@ export default function NotificationBanner() {
         <button
           type="button"
           aria-label={`Dismiss notification: ${notif.title}`}
-          className={`flex w-full max-w-[360px] items-start gap-3 rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container-high)] p-4 text-left shadow-[var(--md-elevation-2)] transition-all ${t.visible ? 'animate-fade-up' : 'opacity-0'}`}
+          className={`flex w-full max-w-[360px] items-start gap-3 rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container-high)] p-4 text-left shadow-none transition-all ${t.visible ? 'animate-fade-up' : 'opacity-0'}`}
           onClick={() => toast.dismiss(t.id)}
         >
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-sm bg-[var(--md-primary-container)] text-lg">

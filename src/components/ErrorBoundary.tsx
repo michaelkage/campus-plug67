@@ -20,7 +20,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 
     return (
       <main className="flex min-h-screen items-center justify-center bg-[var(--md-surface)] px-6 py-10 text-[var(--md-on-surface)]">
-        <section className="w-full max-w-xl rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-6 shadow-[var(--md-elevation-2)] sm:p-8">
+        <section className="w-full max-w-xl rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-6 shadow-none sm:p-8">
           <div className="flex items-start gap-4">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[var(--md-error-container)] text-[var(--md-on-error-container)]">
               <AlertTriangle size={22} />

@@ -299,7 +299,7 @@ export function BookGig({ gig, onClose }) {
       </button>
 
       <p className="text-xs text-center leading-5 text-[var(--md-on-surface-variant)]">
-        This sends a booking request only. No payment is collected or held here. Agree the final price and payment method with the provider before the service begins.
+        This sends a booking request only. No payment is collected or held here. Agree the final scope and price before work begins. This booking does not include PlugPay escrow protection.
       </p>
     </div>
   )

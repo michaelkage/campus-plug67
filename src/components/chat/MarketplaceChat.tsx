@@ -184,10 +184,21 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
       if (payload.eventType === 'INSERT') {
         setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), { ...newMsg, isOptimistic: false, scanStatus: 'safe' as const }])
         if (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId) {
-          void supabase.from('messages').update({ read: true }).eq('id', newMsg.id).eq('receiver_id', currentUserId)
-            .then(({ error }) => {
-              if (error) console.error('Failed to persist incoming message read receipt:', error)
-              else setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, read: true } : m))
+          void supabase.from('messages')
+            .update({ read: true })
+            .eq('id', newMsg.id)
+            .eq('receiver_id', currentUserId)
+            .eq('read', false)
+            .select('id')
+            .maybeSingle()
+            .then(({ data, error }) => {
+              if (error || !data) {
+                console.error('Failed to persist incoming message read receipt:', error || 'No row was updated')
+                void markMessagesAsRead()
+                return
+              }
+              setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, read: true } : m))
+              void qc.invalidateQueries({ queryKey: ['chat-inbox', currentUserId] })
             })
         }
       } else if (payload.eventType === 'UPDATE') setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...newMsg, isOptimistic: false, scanStatus: 'safe' } : m))
@@ -200,16 +211,34 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
       .eq('sender_id', otherUserId)
       .eq('receiver_id', currentUserId)
       .eq('read', false)
+      .select('id')
     if (error) {
       console.error('Error persisting incoming messages as read:', error)
       return false
     }
+
+    // PostgREST can return no error when RLS filters every UPDATE row.
+    // Verify the persisted state before marking the conversation read locally.
+    const { data: remainingUnread, error: verifyError } = await supabase.from('messages')
+      .select('id')
+      .eq('sender_id', otherUserId)
+      .eq('receiver_id', currentUserId)
+      .eq('read', false)
+      .limit(1)
+    if (verifyError || remainingUnread?.length) {
+      console.error('Incoming message read receipts were not fully persisted:', verifyError || 'Unread rows remain')
+      return false
+    }
+
     setMessages(prev => prev.map(message =>
       message.sender_id === otherUserId && message.receiver_id === currentUserId
         ? { ...message, read: true }
         : message
     ))
-    await qc.invalidateQueries({ queryKey: ['unread-messages', currentUserId] })
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['unread-messages', currentUserId] }),
+      qc.invalidateQueries({ queryKey: ['chat-inbox', currentUserId] }),
+    ])
     return true
   }
   const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => { const val = e.target.value; setInput(val); setWarnDismissed(false); setScanResult(val.trim().length > 3 ? scanLive(val) : null) }, [])
@@ -235,16 +264,28 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   const handleEdit = async (msgId: string, newContent: string, originalContent: string) => {
     try {
       await writeSecurityAudit('message', msgId, 'edit', { original_content: originalContent, new_content: newContent, transaction_id: transactionId || null })
-      const { error } = await supabase.from('messages').update({ content: newContent }).eq('id', msgId).eq('sender_id', currentUserId)
+      const { data, error } = await supabase.from('messages')
+        .update({ content: newContent })
+        .eq('id', msgId)
+        .eq('sender_id', currentUserId)
+        .select('*')
+        .single()
       if (error) throw error
+      setMessages(prev => prev.map(message => message.id === msgId ? { ...data, isOptimistic: false, scanStatus: 'safe' } : message))
     } catch (e) { console.error('Failed to edit message:', e) }
   }
   const handleDelete = async (msgId: string, originalContent: string) => {
     if (!window.confirm('Delete this message?')) return
     try {
       await writeSecurityAudit('message', msgId, 'delete', { original_content: originalContent, transaction_id: transactionId || null })
-      const { error } = await supabase.from('messages').update({ content: '[Message deleted]' }).eq('id', msgId).eq('sender_id', currentUserId)
+      const { data, error } = await supabase.from('messages')
+        .update({ content: '[Message deleted]' })
+        .eq('id', msgId)
+        .eq('sender_id', currentUserId)
+        .select('*')
+        .single()
       if (error) throw error
+      setMessages(prev => prev.map(message => message.id === msgId ? { ...data, isOptimistic: false, scanStatus: 'safe' } : message))
     } catch (e) { console.error('Failed to delete message:', e) }
   }
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }

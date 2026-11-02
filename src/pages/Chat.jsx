@@ -25,7 +25,7 @@ export default function Chat() {
     const channel = supabase
       .channel(`chat-inbox:${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, payload => {
-        const message = payload.new || payload.old
+        const message = payload.new?.sender_id ? payload.new : payload.old
         if (message?.sender_id === user.id || message?.receiver_id === user.id) {
           void queryClient.invalidateQueries({ queryKey: ['chat-inbox', user.id] })
         }

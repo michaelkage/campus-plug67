@@ -15,9 +15,9 @@ const booking = read('src/components/ui/GigBooking.tsx');
 
 assertIncludes(listing, 'How a protected purchase works',
   'Marketplace checkout must explain the buyer/seller journey before payment');
-assertIncludes(listing, 'Funds are protected',
+assertIncludes(listing, 'funds are held by PlugPay',
   'Marketplace guidance must explain that payment is held before pickup');
-assertIncludes(listing, 'Inspect the item before confirming receipt',
+assertIncludes(listing, 'Inspect the item first.',
   'Buyer guidance must require item inspection before QR confirmation');
 assertIncludes(listing, 'QR release unlocks 24 hours',
   'Marketplace guidance must disclose the 24-hour release gate');

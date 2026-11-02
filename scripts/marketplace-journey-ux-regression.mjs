@@ -16,7 +16,7 @@ const inbox = read('src/pages/Chat.jsx');
 
 assertIncludes(listing, 'How a protected purchase works',
   'Marketplace checkout must explain the buyer/seller journey before payment');
-assertIncludes(listing, 'funds are held by PlugPay',
+assertIncludes(listing, 'PlugPay holds the money',
   'Marketplace guidance must explain that payment is held before pickup');
 assertIncludes(listing, 'Inspect the item first.',
   'Buyer guidance must require item inspection before QR confirmation');

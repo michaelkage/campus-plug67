@@ -295,11 +295,11 @@ export function BookGig({ gig, onClose }) {
         className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-40"
       >
         <Zap size={15} />
-        {booking ? 'Sending Request...' : 'Book Instantly'}
+        {booking ? 'Sending request...' : 'Send booking request'}
       </button>
 
-      <p className="text-xs text-center text-[var(--md-on-surface)]/25">
-        Payment collected on confirmation via PlugPay
+      <p className="text-xs text-center leading-5 text-[var(--md-on-surface-variant)]">
+        This sends a booking request only. No payment is collected or held here. Agree the final scope and price before work begins. This booking does not include PlugPay escrow protection.
       </p>
     </div>
   )

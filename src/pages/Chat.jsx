@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { MessageCircle, ArrowRight, Search, ShieldCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 
 export default function Chat() {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const { data: messages = [], isLoading, isError } = useQuery({
     queryKey: ['chat-inbox', user?.id],
     enabled: !!user,
@@ -18,6 +19,22 @@ export default function Chat() {
       return data ?? []
     },
   })
+
+  useEffect(() => {
+    if (!user?.id) return
+    const channel = supabase
+      .channel(`chat-inbox:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, payload => {
+        const message = payload.new?.sender_id ? payload.new : payload.old
+        if (message?.sender_id === user.id || message?.receiver_id === user.id) {
+          void queryClient.invalidateQueries({ queryKey: ['chat-inbox', user.id] })
+        }
+      })
+      .subscribe()
+
+    return () => { void supabase.removeChannel(channel) }
+  }, [queryClient, user?.id])
+
   const conversationUserIds = useMemo(() => user ? [...new Set(messages.map(message => message.sender_id === user.id ? message.receiver_id : message.sender_id))] : [], [messages, user])
   const { data: profiles = [] } = useQuery({
     queryKey: ['chat-inbox-profiles', conversationUserIds],

@@ -12,6 +12,7 @@ const listing = read('src/pages/ListingDetail.jsx');
 const states = read('src/lib/escrowState.js');
 const gigs = read('src/pages/Gigs.jsx');
 const booking = read('src/components/ui/GigBooking.tsx');
+const inbox = read('src/pages/Chat.jsx');
 
 assertIncludes(listing, 'How a protected purchase works',
   'Marketplace checkout must explain the buyer/seller journey before payment');
@@ -47,5 +48,9 @@ assertIncludes(booking, 'No payment is collected or held here',
   'Alternate booking component must disclose request-only behavior');
 assertIncludes(booking, 'Send booking request',
   'Alternate booking CTA must not imply instant paid booking');
+assertIncludes(inbox, 'chat-inbox:',
+  'Chat inbox must subscribe to realtime message and read-receipt changes');
+assertIncludes(inbox, "invalidateQueries({ queryKey: ['chat-inbox', user.id] })",
+  'Realtime message events must refresh the actual inbox query');
 
 console.log('Marketplace and service journey UX regression checks passed.');

@@ -47,7 +47,7 @@ export default {
       },
       borderRadius: {
         none: '0px', sm: '2px', DEFAULT: '2px', md: '4px',
-        lg: '4px', xl: '4px', '2xl': '4px', '3xl': '4px', full: '4px',
+        lg: '4px', xl: '4px', '2xl': '4px', '3xl': '4px', full: '9999px',
       },
       boxShadow: { none: 'none', panel: '0 0 0 1px var(--md-outline)' },
       fontFamily: {

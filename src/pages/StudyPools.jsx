@@ -67,7 +67,7 @@ function CreatePoolModal({ onClose, profile }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-none" onClick={onClose} />
+      <div className="absolute inset-0 bg-scrim/70" onClick={onClose} />
       <motion.div
         initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}

@@ -473,7 +473,7 @@ export default function Profile() {
               <QRCodeSVG value={verifyUrl} size={120} bgColor="var(--md-on-surface)" fgColor="var(--md-surface)" level="M" />
             </div>
             <div className="text-center">
-              <div className="text-[9px] text-white/25 font-mono break-all">{verifyUrl}</div>
+              <div className="text-[9px] text-on-surface/35 font-mono break-all">{verifyUrl}</div>
               <p className="text-xs text-on-surface/40 mt-2">Employers scan this to verify resume authenticity</p>
             </div>
           </div>

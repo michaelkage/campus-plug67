@@ -106,10 +106,10 @@ export default function CampusWallet() {
             <h1 className="text-2xl font-black mt-2">One Paystack top-up. Many tiny swaps.</h1>
             <p className="text-sm text-[var(--md-on-surface)]/45 mt-2 max-w-xl">Use stored Campus Wallet value for low-cost academic purchases and rentals. Internal wallet transfers do not run another Paystack checkout.</p>
           </div>
-          <button type="button" onClick={() => void refresh()} aria-label="Refresh wallet balance" className="p-2 rounded-lg border border-outline-variant text-[var(--md-on-surface)]/40 hover:text-white"><RefreshCw size={15} /></button>
+          <button type="button" onClick={() => void refresh()} aria-label="Refresh wallet balance" className="p-2 rounded-lg border border-outline-variant text-[var(--md-on-surface)]/40 hover:text-on-surface"><RefreshCw size={15} /></button>
         </div>
         <div className="mt-6 rounded-md border border-primary/20 bg-primary/5 p-5">
-          <div className="text-[10px] uppercase tracking-widest text-white/35">Available balance</div>
+          <div className="text-[10px] uppercase tracking-widest text-on-surface/55">Available balance</div>
           <div className="text-4xl font-black font-mono text-primary mt-1">{loading ? '…' : formatNaira(balance)}</div>
         </div>
       </section>
@@ -126,7 +126,7 @@ export default function CampusWallet() {
         </section>
         <section className="bg-surface-container-high border border-outline-variant rounded-md p-5">
           <div className="flex items-center gap-2 mb-3"><Zap size={15} className="text-tertiary" /><h2 className="font-bold text-sm">Micro-escrow lane</h2></div>
-          <p className="text-xs text-[var(--md-on-surface)]/40">Purchases up to <strong className="text-white">₦10,000</strong> can use Campus Wallet escrow. Higher-value deals stay on the protected Paystack escrow path.</p>
+          <p className="text-xs text-[var(--md-on-surface)]/40">Purchases up to <strong className="text-on-surface">₦10,000</strong> can use Campus Wallet escrow. Higher-value deals stay on the protected Paystack escrow path.</p>
           <div className="mt-4 text-[10px] text-[var(--md-on-surface)]/30">No second card checkout for internal wallet settlement.</div>
         </section>
       </div>
@@ -146,7 +146,7 @@ export default function CampusWallet() {
 
       <div className="rounded-md border border-primary/20 bg-primary/5 p-4 flex gap-3">
         <ShieldCheck size={16} className="text-primary flex-shrink-0" />
-        <div className="text-xs text-[var(--md-on-surface)]/45"><strong className="text-white">Server-authoritative:</strong> wallet debits, escrow holds, releases, refunds, and Paystack verification happen server-side. A browser callback alone cannot create wallet value.</div>
+        <div className="text-xs text-[var(--md-on-surface)]/45"><strong className="text-on-surface">Server-authoritative:</strong> wallet debits, escrow holds, releases, refunds, and Paystack verification happen server-side. A browser callback alone cannot create wallet value.</div>
       </div>
     </div>
   )

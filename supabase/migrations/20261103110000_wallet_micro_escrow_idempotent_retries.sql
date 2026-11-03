@@ -70,6 +70,8 @@ BEGIN
   IF FOUND THEN
     IF v_existing_transaction.buyer_id = v_buyer
        AND v_existing_transaction.payment_method = 'campus_wallet'
+       AND v_existing_transaction.status IN ('locked', 'meetup_initiated', 'release_requested', 'disputed')
+       AND v_existing_transaction.seller_id = v_listing.seller_id
        AND v_existing_hold.id IS NOT NULL
        AND v_existing_hold.status = 'held'
        AND v_existing_hold.buyer_id = v_buyer
@@ -169,6 +171,8 @@ BEGIN
 
       IF v_existing_transaction.buyer_id = v_buyer
          AND v_existing_transaction.payment_method = 'campus_wallet'
+         AND v_existing_transaction.status IN ('locked', 'meetup_initiated', 'release_requested', 'disputed')
+         AND v_existing_transaction.seller_id = v_listing.seller_id
          AND v_existing_hold.id IS NOT NULL
          AND v_existing_hold.status = 'held'
          AND v_existing_hold.buyer_id = v_buyer

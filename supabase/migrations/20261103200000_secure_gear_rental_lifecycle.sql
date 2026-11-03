@@ -251,7 +251,7 @@ BEGIN
   IF v_listing.listing_mode <> 'both' THEN
     RAISE EXCEPTION 'This listing is not available for rental';
   END IF;
-  IF v_listing.seller_id = v_borrower THEN RAISE EXCEPTION 'You cannot rent your own item'; END IF;
+  IF v_listing.seller_id IS NOT DISTINCT FROM v_borrower THEN RAISE EXCEPTION 'You cannot rent your own item'; END IF;
 
   IF EXISTS (
     SELECT 1 FROM public.transactions t
@@ -348,7 +348,7 @@ DECLARE
 BEGIN
   IF v_user IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_user <> v_rental.lender_id THEN RAISE EXCEPTION 'Only the lender can prepare item pickup'; END IF;
+  IF NOT FOUND OR v_user IS DISTINCT FROM v_rental.lender_id THEN RAISE EXCEPTION 'Only the lender can prepare item pickup'; END IF;
   IF v_rental.rental_status <> 'funds_escrowed' THEN RAISE EXCEPTION 'Rental is not ready for pickup'; END IF;
   IF (now() AT TIME ZONE 'Africa/Lagos')::date < v_rental.start_date
      OR (now() AT TIME ZONE 'Africa/Lagos')::date > v_rental.end_date THEN
@@ -382,7 +382,7 @@ BEGIN
   IF p_pickup_code IS NULL OR p_pickup_code !~ '^[A-F0-9]{8}$' THEN RAISE EXCEPTION 'Enter the 8-character pickup code'; END IF;
 
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_user <> v_rental.borrower_id THEN RAISE EXCEPTION 'Only the borrower can confirm pickup'; END IF;
+  IF NOT FOUND OR v_user IS DISTINCT FROM v_rental.borrower_id THEN RAISE EXCEPTION 'Only the borrower can confirm pickup'; END IF;
   IF v_rental.rental_status <> 'funds_escrowed' THEN RAISE EXCEPTION 'Rental is not awaiting pickup';
   END IF;
   IF (now() AT TIME ZONE 'Africa/Lagos')::date < v_rental.start_date THEN
@@ -534,7 +534,7 @@ DECLARE
 BEGIN
   IF v_user IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_user NOT IN (v_rental.borrower_id, v_rental.lender_id) THEN RAISE EXCEPTION 'Not authorized'; END IF;
+  IF NOT FOUND OR (v_user IS DISTINCT FROM v_rental.borrower_id AND v_user IS DISTINCT FROM v_rental.lender_id) THEN RAISE EXCEPTION 'Not authorized'; END IF;
   IF v_rental.rental_status <> 'funds_escrowed' THEN RAISE EXCEPTION 'A rental can only be cancelled before pickup'; END IF;
 
   SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;

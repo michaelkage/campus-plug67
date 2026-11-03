@@ -16,6 +16,8 @@ const required = [
   'gear_rentals_borrower_request_key_uidx',
   'daterange(r.start_date, r.end_date, \'[]\') && daterange(p_start_date, p_end_date, \'[]\')',
   'FOR UPDATE',
+  "t.status IN ('pending','locked','meetup_initiated','release_requested','disputed')",
+  'ORDER BY p.id',
   'extensions.gen_random_bytes(4)',
   'extensions.digest(v_code, \'sha256\')',
   'pickup_code_expires_at < now()',

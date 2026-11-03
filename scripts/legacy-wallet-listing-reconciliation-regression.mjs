@@ -17,7 +17,8 @@ assert.ok(sql.includes('h.amount_kobo = t.amount'));
 assert.ok(sql.includes("p.reason = 'Campus Wallet escrow hold'"));
 assert.ok(sql.includes('p.amount = -t.amount'));
 assert.ok(sql.includes('AND NOT EXISTS'), 'Repair must exclude a competing active transaction');
-assert.ok(!/UPDATE public\\.(transactions|wallet_escrow_holds|plug_credit_ledger)/i.test(sql),
-  'Repair must not mutate transaction state, escrow holds, or ledger balances');
+assert.ok(!sql.includes('UPDATE public.transactions'), 'Repair must not mutate transaction state');
+assert.ok(!sql.includes('UPDATE public.wallet_escrow_holds'), 'Repair must not mutate escrow holds');
+assert.ok(!sql.includes('UPDATE public.plug_credit_ledger'), 'Repair must not mutate ledger balances');
 
 console.log('Legacy wallet listing reconciliation regression checks passed.');

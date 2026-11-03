@@ -740,10 +740,10 @@ BEGIN
      'The lender confirmed receipt. Rental funds remain held until admin review is complete.',
      jsonb_build_object('rental_id', p_rental_id)),
     (v_rental.lender_id, 'gear_rental_dispute_returned', 'Disputed item return verified',
-     'Item custody is confirmed. Campus Plug can now settle the held funds.',
+     'Item custody is confirmed. The listing can become available again.',
      jsonb_build_object('rental_id', p_rental_id));
 
-  RETURN jsonb_build_object('success', true, 'rental_status', 'disputed', 'custody_resolved', true);
+  RETURN jsonb_build_object('success', true, 'rental_status', v_rental.rental_status, 'custody_resolved', true);
 END;
 $fn$;
 

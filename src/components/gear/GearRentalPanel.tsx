@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, CheckCircle2, Clock3, Copy, KeyRound, PackageCheck, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Copy, KeyRound, PackageCheck, ShieldAlert } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatNaira, supabase } from '@/lib/supabase'

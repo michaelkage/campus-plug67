@@ -20,7 +20,7 @@ ALTER TABLE public.listings
       AND rental_security_deposit_kobo = 0)
     OR
     (listing_mode = 'both'
-      AND rental_daily_rate_kobo > 0
+      AND rental_daily_rate_kobo IS NOT NULL AND rental_daily_rate_kobo > 0
       AND rental_security_deposit_kobo >= 0
       AND rental_min_days BETWEEN 1 AND 90
       AND rental_max_days BETWEEN rental_min_days AND 90)
@@ -67,7 +67,9 @@ ALTER TABLE public.gear_rentals
     (start_date IS NULL AND end_date IS NULL)
     OR
     (start_date IS NOT NULL AND end_date IS NOT NULL AND end_date >= start_date
-      AND rental_fee_kobo > 0 AND security_deposit_kobo >= 0
+      AND rental_fee_kobo IS NOT NULL AND rental_fee_kobo > 0
+      AND security_deposit_kobo IS NOT NULL AND security_deposit_kobo >= 0
+      AND total_held_kobo IS NOT NULL
       AND total_held_kobo = rental_fee_kobo + security_deposit_kobo)
   );
 

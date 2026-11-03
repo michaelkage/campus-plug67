@@ -19,8 +19,8 @@ assert.ok(migration.includes("IF p_action = 'initiate_meetup' THEN"));
 assert.ok(migration.includes("Only the seller can initiate the wallet meetup"));
 assert.ok(migration.includes("IF p_action = 'release' THEN"));
 assert.ok(migration.includes("Only the buyer can release Campus Wallet escrow"));
-assert.ok(migration.includes("p_qr_secret <> COALESCE(v_tx.qr_secret, v_tx.release_code)"),
-  'Wallet release must validate the seller QR secret');
+assert.ok(migration.includes("p_qr_secret IS DISTINCT FROM COALESCE(v_tx.qr_secret, v_tx.release_code)"),
+  'Wallet release must validate the seller QR secret without NULL comparison gaps');
 assert.ok(migration.includes("v_tx.meetup_initiated_at > now() - interval '24 hours'"),
   'Wallet release must enforce the 24-hour gate server-side');
 assert.ok(migration.includes("v_tx.mobile_release_ready_at < now() - interval '10 minutes'"),

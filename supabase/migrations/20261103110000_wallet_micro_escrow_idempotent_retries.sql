@@ -57,17 +57,20 @@ BEGIN
   -- Recover a prior committed wallet purchase if the client lost the response.
   -- Only the same buyer with a still-held, internally consistent wallet escrow
   -- may receive success. No transaction or ledger write occurs on this branch.
-  SELECT t, h
-    INTO v_existing_transaction, v_existing_hold
+  SELECT t.*
+    INTO v_existing_transaction
     FROM public.transactions t
-    LEFT JOIN public.wallet_escrow_holds h
-      ON h.transaction_id = t.id
    WHERE t.listing_id = p_listing_id
      AND t.status IN ('pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed')
    ORDER BY t.created_at DESC
    LIMIT 1;
 
   IF FOUND THEN
+    SELECT h.*
+      INTO v_existing_hold
+      FROM public.wallet_escrow_holds h
+     WHERE h.transaction_id = v_existing_transaction.id;
+
     IF v_existing_transaction.buyer_id = v_buyer
        AND v_existing_transaction.payment_method = 'campus_wallet'
        AND v_existing_transaction.status IN ('locked', 'meetup_initiated', 'release_requested', 'disputed')
@@ -155,11 +158,9 @@ BEGIN
     GET STACKED DIAGNOSTICS v_constraint_name = CONSTRAINT_NAME;
 
     IF v_constraint_name = 'transactions_one_active_per_listing' THEN
-      SELECT t, h
-        INTO v_existing_transaction, v_existing_hold
+      SELECT t.*
+        INTO v_existing_transaction
         FROM public.transactions t
-        LEFT JOIN public.wallet_escrow_holds h
-          ON h.transaction_id = t.id
        WHERE t.listing_id = p_listing_id
          AND t.status IN ('pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed')
        ORDER BY t.created_at DESC
@@ -168,6 +169,11 @@ BEGIN
       IF NOT FOUND THEN
         RAISE;
       END IF;
+
+      SELECT h.*
+        INTO v_existing_hold
+        FROM public.wallet_escrow_holds h
+       WHERE h.transaction_id = v_existing_transaction.id;
 
       IF v_existing_transaction.buyer_id = v_buyer
          AND v_existing_transaction.payment_method = 'campus_wallet'

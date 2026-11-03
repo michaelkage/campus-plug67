@@ -97,6 +97,12 @@ if (!/rpc\('get_public_profile_stats'/i.test(read('src/pages/VerifyProfile.jsx')
 if (!/rpc\('get_public_profile_stats'/i.test(read('src/lib/supabase/queries.ts'))) {
   fail('getPublicProfileStats must use the least-privilege stats RPC');
 }
+if (!read('src/lib/supabase/client.ts').includes('get_public_profile_stats:{Args:{p_profile_id:string};Returns:PublicProfileVerificationStats}')) {
+  fail('Public profile stats RPC must be typed in the Supabase client');
+}
+if (!read('src/types/database.ts').includes('export interface PublicProfileVerificationStats')) {
+  fail('Public profile stats RPC response type is missing');
+}
 if (/from\('public_profile_stats'\)/i.test(read('src/pages/VerifyProfile.jsx'))) {
   fail('Public resume verification must not query the legacy view directly');
 }

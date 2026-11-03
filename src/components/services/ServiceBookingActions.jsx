@@ -24,24 +24,38 @@ export function ServiceBookingActions({ booking, currentUserId }) {
   const [scope, setScope] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const { data: quotes = [] } = useQuery({
+  const { data: quoteData = { recent: [], accepted: null }, isLoading: quotesLoading } = useQuery({
     queryKey: ['service-booking-quotes', booking.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('service_booking_quotes')
-        .select('id, amount_kobo, scope, status, expires_at, accepted_at, created_at')
-        .eq('booking_id', booking.id)
-        .order('created_at', { ascending: false })
-        .limit(5)
-      if (error) throw error
-      return data || []
+      const columns = 'id, amount_kobo, scope, status, expires_at, accepted_at, created_at'
+      const [recentResult, acceptedResult] = await Promise.all([
+        supabase
+          .from('service_booking_quotes')
+          .select(columns)
+          .eq('booking_id', booking.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('service_booking_quotes')
+          .select(columns)
+          .eq('booking_id', booking.id)
+          .eq('status', 'accepted')
+          .maybeSingle(),
+      ])
+      if (recentResult.error) throw recentResult.error
+      if (acceptedResult.error) throw acceptedResult.error
+      return {
+        recent: recentResult.data || [],
+        accepted: acceptedResult.data || null,
+      }
     },
   })
 
-  const latestQuote = quotes[0] || null
-  const acceptedQuote = quotes.find(quote => quote.status === 'accepted') || null
+  const latestQuote = quoteData.recent[0] || null
+  const acceptedQuote = quoteData.accepted
   const displayedQuote = acceptedQuote || latestQuote
   const quoteExpired = latestQuote?.status === 'sent' && new Date(latestQuote.expires_at).getTime() <= Date.now()
+  const actionsDisabled = busy || quotesLoading
 
   const refresh = async () => {
     await Promise.all([
@@ -134,19 +148,25 @@ export function ServiceBookingActions({ booking, currentUserId }) {
 
       {booking.status === 'quoted' && !isProvider && latestQuote?.status === 'sent' && !quoteExpired && (
         <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={busy} onClick={() => respondToQuote(true)} className="btn-primary text-xs">
+          <button type="button" disabled={actionsDisabled} onClick={() => respondToQuote(true)} className="btn-primary text-xs">
             <CheckCircle size={13} /> Accept quote
           </button>
-          <button type="button" disabled={busy} onClick={() => respondToQuote(false)} className="btn-secondary text-xs">
+          <button type="button" disabled={actionsDisabled} onClick={() => respondToQuote(false)} className="btn-secondary text-xs">
             <XCircle size={13} /> Decline quote
           </button>
         </div>
       )}
 
+      {booking.status === 'confirmed' && !isProvider && !acceptedQuote && (
+        <p className="rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3 text-xs leading-5 text-on-surface/70">
+          This booking was confirmed before final quotes were introduced. Ask the provider to send the final price and work scope here before work begins.
+        </p>
+      )}
+
       {isProvider && (['pending', 'quoted'].includes(booking.status) || (booking.status === 'confirmed' && !acceptedQuote)) && (
         <div className="space-y-2">
           {!showQuoteForm ? (
-            <button type="button" disabled={busy} onClick={() => setShowQuoteForm(true)} className="btn-primary text-xs">
+            <button type="button" disabled={actionsDisabled} onClick={() => setShowQuoteForm(true)} className="btn-primary text-xs">
               <Send size={13} /> {latestQuote?.status === 'sent' ? 'Revise quote' : 'Send final quote'}
             </button>
           ) : (
@@ -176,8 +196,8 @@ export function ServiceBookingActions({ booking, currentUserId }) {
               />
               <p className="text-[11px] leading-4 text-on-surface/50">The customer has 24 hours to accept or decline this quote. Sending a quote does not collect payment.</p>
               <div className="flex flex-wrap gap-2">
-                <button type="submit" disabled={busy} className="btn-primary text-xs">{busy ? 'Sending…' : 'Send quote'}</button>
-                <button type="button" disabled={busy} onClick={() => setShowQuoteForm(false)} className="btn-secondary text-xs">Close</button>
+                <button type="submit" disabled={actionsDisabled} className="btn-primary text-xs">{busy ? 'Sending…' : 'Send quote'}</button>
+                <button type="button" disabled={actionsDisabled} onClick={() => setShowQuoteForm(false)} className="btn-secondary text-xs">Close</button>
               </div>
             </form>
           )}
@@ -185,22 +205,22 @@ export function ServiceBookingActions({ booking, currentUserId }) {
       )}
 
       {isProvider && booking.status === 'confirmed' && acceptedQuote && (
-        <button type="button" disabled={busy} onClick={() => transition('start')} className="btn-primary text-xs">
+        <button type="button" disabled={actionsDisabled} onClick={() => transition('start')} className="btn-primary text-xs">
           <Play size={13} /> Start service
         </button>
       )}
       {isProvider && booking.status === 'in_progress' && (
-        <button type="button" disabled={busy} onClick={() => transition('deliver')} className="btn-primary text-xs">
+        <button type="button" disabled={actionsDisabled} onClick={() => transition('deliver')} className="btn-primary text-xs">
           <CheckCircle size={13} /> Mark delivered
         </button>
       )}
       {!isProvider && booking.status === 'delivered' && (
-        <button type="button" disabled={busy} onClick={() => transition('confirm')} className="btn-primary text-xs">
+        <button type="button" disabled={actionsDisabled} onClick={() => transition('confirm')} className="btn-primary text-xs">
           <CheckCircle size={13} /> Confirm service received
         </button>
       )}
       {canCancel && (
-        <button type="button" disabled={busy} onClick={() => transition('cancel')} className="btn-secondary text-xs">
+        <button type="button" disabled={actionsDisabled} onClick={() => transition('cancel')} className="btn-secondary text-xs">
           <XCircle size={13} /> Cancel booking
         </button>
       )}

@@ -26,54 +26,10 @@ AS $function$
           WHERE t.status = 'released'::text OR t.status = 'completed'::text
         ),
         0::numeric
-      ) AS total_earnings,
-      0::integer AS verified_uploads
+      ) AS total_earnings
     FROM public.transactions AS t
     WHERE t.seller_id = p_profile_id
     GROUP BY t.seller_id
-  ),
-  rating_stats AS (
-    SELECT
-      r.reviewee_id AS user_id,
-      COALESCE(avg(r.score), 0::numeric) AS avg_rating,
-      count(*) AS rating_count
-    FROM public.ratings AS r
-    WHERE r.reviewee_id = p_profile_id
-    GROUP BY r.reviewee_id
-  ),
-  hostel_stats AS (
-    SELECT
-      hr.user_id,
-      count(*) AS hostel_reviews_count,
-      COALESCE(avg(hr.rating), 0::numeric) AS hostel_avg_rating
-    FROM public.hostel_reviews AS hr
-    WHERE hr.user_id = p_profile_id
-    GROUP BY hr.user_id
-  ),
-  groupbuy_stats AS (
-    SELECT
-      participant.user_id,
-      count(*) AS pools_joined,
-      COALESCE(sum(participant.contribution_kobo), 0::numeric) AS total_contributions,
-      count(*) FILTER (
-        WHERE participant.pool_id IN (
-          SELECT pool.id
-          FROM public.group_buy_pools AS pool
-          WHERE pool.status = 'completed'::text
-        )
-      ) AS successful_pools
-    FROM public.group_buy_participants AS participant
-    WHERE participant.user_id = p_profile_id
-    GROUP BY participant.user_id
-  ),
-  pool_creator_stats AS (
-    SELECT
-      listing.seller_id AS user_id,
-      count(pool.id)::integer AS pools_created
-    FROM public.group_buy_pools AS pool
-    JOIN public.listings AS listing ON listing.id = pool.listing_id
-    WHERE listing.seller_id = p_profile_id
-    GROUP BY listing.seller_id
   )
   SELECT pg_catalog.to_jsonb(stats)
   FROM (
@@ -83,27 +39,31 @@ AS $function$
       p.university,
       p.department,
       p.level,
-      p.is_verified,
-      p.created_at,
       p.plug_score,
-      p.badges,
       COALESCE(tx_stats.total_sales, 0::bigint) AS total_sales,
       COALESCE(tx_stats.total_earnings, 0::numeric) AS total_earnings,
-      COALESCE(tx_stats.verified_uploads, 0::integer) AS verified_uploads,
+      p.badges,
+      p.is_verified,
+      p.created_at,
       COALESCE(rating_stats.avg_rating, 0::numeric) AS avg_rating,
       COALESCE(rating_stats.rating_count, 0::bigint) AS rating_count,
-      COALESCE(hostel_stats.hostel_reviews_count, 0::bigint) AS hostel_reviews_count,
-      COALESCE(hostel_stats.hostel_avg_rating, 0::numeric) AS hostel_avg_rating,
-      COALESCE(groupbuy_stats.pools_joined, 0::bigint) AS pools_joined,
-      COALESCE(pool_creator_stats.pools_created, 0::integer) AS pools_created,
-      COALESCE(groupbuy_stats.total_contributions, 0::numeric) AS total_contributions,
-      COALESCE(groupbuy_stats.successful_pools, 0::bigint) AS successful_pools
+      (
+        SELECT count(*)
+        FROM public.listings AS listing
+        WHERE listing.seller_id = p.id
+          AND listing.status = 'active'
+      ) AS active_listings,
+      (
+        SELECT count(*)
+        FROM public.listing_exif_flags AS exif
+        JOIN public.listings AS listing ON listing.id = exif.listing_id
+        WHERE listing.seller_id = p.id
+          AND NOT exif.gps_mismatch
+          AND NOT exif.timestamp_flag
+      ) AS verified_uploads
     FROM public.profiles AS p
     LEFT JOIN tx_stats ON p.id = tx_stats.seller_id
-    LEFT JOIN rating_stats ON p.id = rating_stats.user_id
-    LEFT JOIN hostel_stats ON p.id = hostel_stats.user_id
-    LEFT JOIN groupbuy_stats ON p.id = groupbuy_stats.user_id
-    LEFT JOIN pool_creator_stats ON p.id = pool_creator_stats.user_id
+    LEFT JOIN public.profile_ratings AS rating_stats ON p.id = rating_stats.profile_id
     WHERE p.id = p_profile_id
   ) AS stats;
 $function$;

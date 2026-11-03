@@ -32,7 +32,46 @@ for (const value of [
   'An accepted final quote is required',
   'Only the customer can confirm delivery',
   'A service cannot be cancelled after work has started',
+  'DO $publication
+  'service_quote_received',
+  'service_delivered',
+  'REVOKE ALL ON FUNCTION public.send_gig_booking_quote',
+  'GRANT EXECUTE ON FUNCTION public.transition_gig_booking',
+  'Quote acceptance does not collect or escrow payment',
+]) includes(migration, value, `Service booking migration missing invariant: ${value}`)
+
+for (const value of [
+  "callRpc('send_gig_booking_quote'",
+  "callRpc('respond_gig_booking_quote'",
+  "callRpc('transition_gig_booking'",
+  "p_amount_kobo: toKobo(numericAmount)",
+  'Accept quote',
+  'Decline quote',
+  'Start service',
+  'Mark delivered',
+  'Confirm service received',
+  'does not collect or protect funds yet',
+  'The customer has 24 hours to accept or decline',
+]) includes(actions, value, `Service booking UI missing invariant: ${value}`)
+
+includes(page, "import { ServiceBookingActions } from '@/components/services/ServiceBookingActions'", 'Gigs page must use the server-authoritative booking controls')
+includes(page, "table: 'service_booking_quotes'", 'Gigs page must subscribe to quote realtime events')
+includes(page, "table: 'gig_bookings'", 'Gigs page must subscribe to booking realtime events')
+if (page.includes(".from('gig_bookings').update(")) fail('Direct client-side booking status updates must remain disabled')
+if (actions.includes(".from('service_booking_quotes').insert(") || actions.includes(".from('service_booking_quotes').update(")) {
+  fail('Quote writes must go through the server-authoritative RPCs')
+}
+if (actions.includes("transition('completed')") || actions.includes("update({ status: 'completed' })")) {
+  fail('Customer confirmation must use the delivery confirmation RPC')
+}
+if (!packageJson.scripts['test:platform-integrity'].includes('service-booking-lifecycle-regression.mjs')) {
+  fail('Service booking regression must run in the platform-integrity suite')
+}
+
+console.log('Service booking quote and delivery lifecycle regression checks passed.')
+,
   'ALTER PUBLICATION supabase_realtime ADD TABLE public.service_booking_quotes',
+  '-- Lock booking before quote, matching quote creation and cancellation.',
   'service_quote_received',
   'service_delivered',
   'REVOKE ALL ON FUNCTION public.send_gig_booking_quote',

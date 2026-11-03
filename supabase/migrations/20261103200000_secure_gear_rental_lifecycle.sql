@@ -639,7 +639,7 @@ BEGIN
   UPDATE public.gear_rentals
      SET rental_status = 'disputed', current_state = 'funds_released_or_disputed',
          disputed_at = now(), dispute_reason = trim(p_reason),
-         custody_resolved_at = CASE WHEN v_rental.picked_up_at IS NULL THEN now() ELSE NULL END,
+         custody_resolved_at = CASE WHEN v_rental.picked_up_at IS NULL OR v_rental.returned_at IS NOT NULL THEN COALESCE(v_rental.custody_resolved_at, now()) ELSE NULL END,
          pickup_code_hash = NULL, pickup_code_expires_at = NULL,
          return_code_hash = NULL, return_code_expires_at = NULL, return_code_attempts = 0,
          updated_at = now()

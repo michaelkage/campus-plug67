@@ -76,11 +76,8 @@ if (!/create or replace function private\.get_public_profile_stats[\s\S]*?securi
 if (!/create or replace function public\.get_public_profile_stats[\s\S]*?security invoker[\s\S]*?set search_path = ''/i.test(profileStatsMigration)) {
   fail('Exposed public-profile stats RPC must be SECURITY INVOKER with an empty search_path');
 }
-if (!/grant select\s*\(\s*reviewee_id\s*,\s*score\s*\)\s*on table public\.ratings to authenticated/i.test(profileStatsMigration)) {
-  fail('profile_ratings must use least-privilege source-column grants');
-}
-if (/grant select on table public\.ratings to (anon|authenticated)/i.test(profileStatsMigration)) {
-  fail('Do not grant broad ratings table access to client roles');
+if (/grant select[^;]*on table public\.ratings to (anon|authenticated)/i.test(profileStatsMigration)) {
+  fail('Do not grant raw rating access to client roles');
 }
 if (!/alter view public\.profile_ratings set \(security_invoker = true\)/i.test(profileStatsMigration)) {
   fail('profile_ratings must use SECURITY INVOKER');
@@ -88,8 +85,8 @@ if (!/alter view public\.profile_ratings set \(security_invoker = true\)/i.test(
 if (!/revoke all privileges on table public\.public_profile_stats from public, anon, authenticated/i.test(profileStatsMigration)) {
   fail('Retire all direct access to the legacy public_profile_stats view');
 }
-if (!/revoke insert, update, delete on table public\.profile_ratings from public, anon, authenticated/i.test(profileStatsMigration)) {
-  fail('profile_ratings must remain a read-only aggregate view');
+if (!/revoke all privileges on table public\.profile_ratings from public, anon, authenticated/i.test(profileStatsMigration)) {
+  fail('profile_ratings must not be directly accessible to client roles');
 }
 if (!/rpc\('get_public_profile_stats'/i.test(read('src/pages/VerifyProfile.jsx'))) {
   fail('Public resume verification must use the least-privilege stats RPC');
@@ -102,6 +99,9 @@ if (!read('src/lib/supabase/client.ts').includes('get_public_profile_stats:{Args
 }
 if (!read('src/types/database.ts').includes('export interface PublicProfileVerificationStats')) {
   fail('Public profile stats RPC response type is missing');
+}
+if (/from\('profile_ratings'\)/i.test(read('src/pages/Profile.jsx'))) {
+  fail('Profile rating summaries must use the public stats RPC, not raw aggregate views');
 }
 if (/from\('public_profile_stats'\)/i.test(read('src/pages/VerifyProfile.jsx'))) {
   fail('Public resume verification must not query the legacy view directly');

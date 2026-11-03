@@ -67,6 +67,8 @@ BEGIN
 END;
 $;
 
+REVOKE ALL ON FUNCTION public.guard_gig_booking_update() FROM PUBLIC, anon, authenticated;
+
 -- All booking transitions now pass through narrow RPCs. The legacy direct
 -- UPDATE path is removed so participants cannot skip quote acceptance/delivery.
 REVOKE UPDATE ON public.gig_bookings FROM authenticated;
@@ -74,7 +76,7 @@ REVOKE UPDATE ON public.gig_bookings FROM authenticated;
 CREATE OR REPLACE FUNCTION public.guard_gig_booking_update()
 RETURNS trigger
 LANGUAGE plpgsql
-SET search_path = public, pg_temp
+SET search_path = ''
 AS $fn$
 BEGIN
   IF NEW.id IS DISTINCT FROM OLD.id
@@ -108,7 +110,7 @@ CREATE OR REPLACE FUNCTION public.send_gig_booking_quote(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = ''
 AS $fn$
 DECLARE
   v_actor uuid := auth.uid();
@@ -182,7 +184,7 @@ CREATE OR REPLACE FUNCTION public.respond_gig_booking_quote(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = ''
 AS $fn$
 DECLARE
   v_actor uuid := auth.uid();
@@ -254,7 +256,7 @@ CREATE OR REPLACE FUNCTION public.transition_gig_booking(
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = ''
 AS $fn$
 DECLARE
   v_actor uuid := auth.uid();
@@ -332,7 +334,7 @@ CREATE OR REPLACE FUNCTION public.notify_gig_booking_status_changed()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = ''
 AS $fn$
 DECLARE
   recipient_id uuid;

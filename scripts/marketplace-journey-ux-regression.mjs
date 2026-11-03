@@ -12,6 +12,7 @@ const listing = read('src/pages/ListingDetail.jsx');
 const states = read('src/lib/escrowState.js');
 const gigs = read('src/pages/Gigs.jsx');
 const booking = read('src/components/ui/GigBooking.tsx');
+const serviceActions = read('src/components/services/ServiceBookingActions.jsx');
 const inbox = read('src/pages/Chat.jsx');
 
 assertIncludes(listing, 'How a protected purchase works',
@@ -36,8 +37,10 @@ assertIncludes(gigs, 'does not charge your wallet or hold money in escrow',
   'Service booking UI must disclose that it does not collect or hold payment');
 assertIncludes(gigs, 'Message {isSeller ? \'customer\' : \'provider\'}',
   'Both service booking participants must have a direct chat action');
-assertIncludes(gigs, 'Mark service complete',
-  'Provider completion action must be explicit');
+assertIncludes(serviceActions, 'Mark delivered',
+  'Provider must explicitly mark service delivery');
+assertIncludes(serviceActions, 'Confirm service received',
+  'Customer must explicitly confirm service receipt');
 
 for (const source of [gigs, booking]) {
   if (source.includes('Payment collected on confirmation via PlugPay')) {

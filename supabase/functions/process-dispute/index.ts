@@ -192,7 +192,26 @@ serve(async (req: Request) => {
     for (const vote of votes ?? []) if (vote.verdict in tally) tally[vote.verdict]++;
     const finalVerdict = Object.entries(tally).find(([, count]) => count >= juryCase.required_votes)?.[0] ?? null;
     if (!finalVerdict) return ok(req, { success: true, votes_cast: juryCase.votes_cast + 1, verdict: null, case_closed: false });
-    await admin.from("jury_cases").update({ status: "decided", verdict: finalVerdict, verdict_decided_at: new Date().toISOString() }).eq("id", caseId);
+    if (finalVerdict === "split") {
+      const { error: escalationError } = await admin.from("jury_cases").update({
+        status: "escalated",
+        escalated_to_admin: true,
+        escalated_at: new Date().toISOString(),
+      }).eq("id", juryCase.id).eq("status", "deliberating");
+      if (escalationError) throw escalationError;
+      for (const userId of [juryCase.claimant_id, juryCase.respondent_id]) {
+        await admin.from("notifications").insert({
+          user_id: userId,
+          type: "jury_escalated",
+          title: "⚖️ Dispute referred for admin review",
+          body: "The jury vote was split. Your escrow remains protected while the case is reviewed.",
+        });
+      }
+      return ok(req, { success: true, verdict: "split", case_closed: true, escalated: true });
+    }
+    // resolve_dispute_verdict owns the locked, atomic case + escrow settlement.
+    // Marking the case decided here first would make the RPC return already_resolved
+    // and skip the financial and transaction-state changes entirely.
     await executeVerdict(juryCase, finalVerdict);
     for (const vote of votes ?? []) { const correct = vote.verdict === finalVerdict; await rewardJuror(vote.juror_id, correct, caseId); await admin.rpc("update_juror_accuracy", { p_juror_id: vote.juror_id }); }
     const minsElapsed = Math.round((Date.now() - new Date(juryCase.created_at).getTime()) / 60_000);

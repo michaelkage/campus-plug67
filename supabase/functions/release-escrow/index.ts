@@ -26,7 +26,7 @@ serve(async (req: Request) => {
 
   if (action === "auto_release") {
     if (!isServiceRoleRequest(req)) return jsonResponse({ error: "Forbidden" }, 403, {}, req);
-    const { data: due, error } = await admin.from("transactions").select("id").eq("status", "release_requested").lte("auto_release_at", new Date().toISOString()).limit(100);
+    const { data: due, error } = await admin.from("transactions").select("id").eq("status", "release_requested").or("payment_method.is.null,payment_method.neq.campus_wallet").lte("auto_release_at", new Date().toISOString()).limit(100);
     if (error) return jsonResponse({ error: error.message }, 500, {}, req);
     let released = 0;
     for (const tx of due ?? []) {
@@ -82,6 +82,29 @@ serve(async (req: Request) => {
   } catch {
     return jsonResponse({ error: "Auth client unavailable" }, 503, {}, req);
   }
+  if (action === "release") {
+    const { data: transaction, error: transactionError } = await userClient
+      .from("transactions")
+      .select("payment_method")
+      .eq("id", transactionId)
+      .maybeSingle();
+    if (transactionError) return jsonResponse({ error: "Unable to load transaction payment method" }, 500, {}, req);
+
+    if (transaction?.payment_method === "campus_wallet") {
+      const { data, error } = await userClient.rpc("resolve_wallet_micro_escrow", {
+        p_transaction_id: transactionId,
+        p_action: "release",
+        p_qr_secret: rpcArgs.p_qr_secret,
+      });
+      if (error) {
+        const message = error.message || "Wallet escrow release failed";
+        const status = /not authorized|only the|invalid release credential|safe swap|24-hour|authentication/i.test(message) ? 403 : 400;
+        return jsonResponse({ error: message }, status, {}, req);
+      }
+      return jsonResponse(data, 200, {}, req);
+    }
+  }
+
   const { data, error } = await userClient.rpc("process_escrow_action", rpcArgs);
   if (error) {
     const message = error.message || "Escrow action failed";

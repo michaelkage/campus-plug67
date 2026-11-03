@@ -25,7 +25,12 @@ Deno.serve(async (req: Request) => {
   if (!["locked","meetup_initiated","release_requested","disputed"].includes(tx.status)) return jsonResponse({ error: "Transaction cannot be refunded from its current state" }, 400, {}, req);
 
   if ((tx.payment_method ?? "paystack") === "campus_wallet") {
-    const { data, error } = await admin.rpc("process_escrow_action", { p_transaction_id: tx.id, p_action: "refund", p_qr_secret: null, p_reason: null });
+    if (tx.status === "disputed") {
+      return jsonResponse({ error: "Disputed Campus Wallet escrow must be resolved through the dispute verdict flow" }, 409, {}, req);
+    }
+    const { data, error } = await admin.rpc("admin_refund_wallet_micro_escrow", {
+      p_transaction_id: tx.id,
+    });
     if (error) return jsonResponse({ error: error.message }, 400, {}, req);
     return jsonResponse(data, 200, {}, req);
   }

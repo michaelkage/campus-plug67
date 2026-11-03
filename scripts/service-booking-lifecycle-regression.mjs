@@ -58,8 +58,8 @@ if (guardStart < 0 || privilegedWrite < 0 || immutableFieldGuard < 0 || privileg
 
 for (const value of [
   "callRpc('send_gig_booking_quote'",
-  "callRpc('respond_gig_booking_quote'",
-  "callRpc('transition_gig_booking'",
+  "'respond_gig_booking_quote'",
+  "'transition_gig_booking'",
   'p_amount_kobo: toKobo(numericAmount)',
   'Accept quote',
   'Decline quote',

@@ -94,4 +94,30 @@ if (!packageJson.scripts['test:platform-integrity'].includes('service-booking-li
   fail('Service booking regression must run in the platform-integrity suite')
 }
 
-console.log('Service booking quote and delivery lifecycle regression checks passed.')
+
+const availabilityMigration = read('supabase/migrations/20261103190000_service_booking_server_availability.sql')
+for (const value of [
+  'CREATE OR REPLACE FUNCTION public.create_gig_booking_request',
+  "v_actor uuid := auth.uid()",
+  'FROM public.gigs',
+  'FOR UPDATE',
+  'WHERE b.seller_id = v_gig.seller_id',
+  'FROM public.profiles WHERE id = v_gig.seller_id FOR UPDATE',
+  "v_requested_at AT TIME ZONE 'Africa/Lagos'",
+  "to_char(v_requested_at, 'FMDay')",
+  'v_weekday = ANY(v_gig.available_days)',
+  "b.status IN ('pending', 'quoted', 'confirmed', 'in_progress', 'delivered')",
+  'gig_bookings_one_active_provider_slot_uidx',
+  'GET STACKED DIAGNOSTICS v_constraint_name = CONSTRAINT_NAME',
+  'REVOKE INSERT ON public.gig_bookings FROM PUBLIC, anon, authenticated',
+  'GRANT EXECUTE ON FUNCTION public.create_gig_booking_request',
+  'slot_unavailable',
+  'Does not collect or escrow payment',
+]) includes(availabilityMigration, value, `Availability migration missing invariant: ${value}`)
+
+includes(page, "supabase.rpc('create_gig_booking_request'", 'Booking requests must use the server-authoritative availability RPC')
+includes(page, 'p_slot_date: booking.date', 'Booking RPC must receive the selected date')
+includes(page, 'p_slot_time: booking.time', 'Booking RPC must receive the selected time')
+if (page.includes(".from('gig_bookings').insert(")) fail('Client-side booking inserts must remain disabled')
+
+console.log('Service booking quote, availability and delivery lifecycle regression checks passed.')

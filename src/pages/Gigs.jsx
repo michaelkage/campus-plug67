@@ -95,17 +95,16 @@ export function Gigs() {
     if (Array.isArray(bookingGig.available_days) && bookingGig.available_days.length > 0 && !bookingGig.available_days.includes(selectedDay)) return toast.error(`This provider is not available on ${selectedDay}. Choose one of their listed days.`)
     setBookingSubmitting(true)
     try {
-      const { error } = await supabase.from('gig_bookings').insert({
-        gig_id: bookingGig.id,
-        client_id: profile.id,
-        seller_id: bookingGig.seller_id,
-        slot_date: booking.date,
-        slot_time: booking.time,
-        notes: booking.notes || null,
-        amount: bookingGig.starting_price,
-        status: 'pending',
+      const { data, error } = await supabase.rpc('create_gig_booking_request', {
+        p_gig_id: bookingGig.id,
+        p_slot_date: booking.date,
+        p_slot_time: booking.time,
+        p_notes: booking.notes.trim() || null,
       })
       if (error) throw error
+      if (data?.success === false) {
+        throw new Error(data.message || 'That service time is unavailable. Choose another time.')
+      }
       // A database trigger creates the seller notification with the booking.
       toast.success('Booking request sent. No payment has been taken.')
       qc.invalidateQueries({ queryKey: ['gig-bookings'] })

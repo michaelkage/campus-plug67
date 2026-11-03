@@ -9,10 +9,10 @@ SELECT set_config('app.escrow_transition', 'true', true);
 UPDATE public.transactions AS t
    SET locked_at = COALESCE(t.locked_at, t.created_at),
        escrow_status = 'held'
-  FROM public.wallet_escrow_holds AS h
-  JOIN public.listings AS l
-    ON l.id = (SELECT tx.listing_id FROM public.transactions AS tx WHERE tx.id = h.transaction_id)
+  FROM public.wallet_escrow_holds AS h,
+       public.listings AS l
  WHERE h.transaction_id = t.id
+   AND l.id = t.listing_id
    AND t.payment_method = 'campus_wallet'
    AND t.status = 'locked'
    AND h.status = 'held'

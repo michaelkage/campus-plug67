@@ -73,6 +73,15 @@ const profileStatsMigration = read('supabase/migrations/20261103114500_secure_pu
 if (!/create or replace function private\.get_public_profile_stats[\s\S]*?security definer[\s\S]*?set search_path = ''/i.test(profileStatsMigration)) {
   fail('Private public-profile stats helper must be SECURITY DEFINER with an empty search_path');
 }
+if (/hostel_reviews|group_buy_participants|group_buy_pools/i.test(profileStatsMigration)) {
+  fail('Public profile stats RPC must not depend on production-only, untracked tables');
+}
+if (!/public\.listing_exif_flags/i.test(profileStatsMigration) || !/active_listings/i.test(profileStatsMigration)) {
+  fail('Public profile stats RPC must preserve the canonical EXIF and active-listing metrics');
+}
+if (!/left join public\.profile_ratings as rating_stats/i.test(profileStatsMigration)) {
+  fail('Public profile stats RPC must use the aggregate profile_ratings view');
+}
 if (!/create or replace function public\.get_public_profile_stats[\s\S]*?security invoker[\s\S]*?set search_path = ''/i.test(profileStatsMigration)) {
   fail('Exposed public-profile stats RPC must be SECURITY INVOKER with an empty search_path');
 }

@@ -574,7 +574,7 @@ BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
     RAISE EXCEPTION 'Service role required';
   END IF;
-  IF p_lender_share_bps NOT BETWEEN 0 AND 10000 THEN RAISE EXCEPTION 'Invalid settlement split'; END IF;
+  IF p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000 THEN RAISE EXCEPTION 'Invalid settlement split'; END IF;
   IF p_admin_id IS NULL THEN RAISE EXCEPTION 'Admin identity is required'; END IF;
 
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;

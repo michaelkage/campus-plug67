@@ -255,7 +255,7 @@ export default function Profile() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile', targetId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', targetId).single()
+      const { data, error } = await supabase.from('public_profiles').select('*').eq('id', targetId).single()
       if (error) throw error
       return data
     },

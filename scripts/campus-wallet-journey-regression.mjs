@@ -11,6 +11,7 @@ const safeArrival = read('supabase/functions/safe-arrival/index.ts');
 const safeSwapPage = read('src/pages/SafeSwapZone.tsx');
 const disputeEdge = read('supabase/functions/process-dispute/index.ts');
 const rpcTypes = read('src/lib/supabase/client.ts');
+const mobileMeetup = read('src/components/meetup/MobileMeetupMode.tsx');
 
 assert.ok(migration.includes("current_setting('app.escrow_transition', true) = 'true'"));
 assert.ok(migration.includes("PERFORM set_config('app.escrow_transition', 'true', true)"));
@@ -61,6 +62,8 @@ assert.ok(!walletRefundBranch.includes('process_escrow_action'));
 assert.ok(safeArrival.includes('record_safe_arrival_v2'), 'Safe-arrival Edge Function must call the hardened RPC');
 assert.ok(safeSwapPage.includes('tx?.buyer_id===user?.id'));
 assert.ok(safeSwapPage.includes('sellerCheckinFresh'), 'Buyer QR scanner must wait for a fresh seller Safe Swap check-in');
+assert.ok(mobileMeetup.includes('manualQr'), 'Mobile release must have a manual QR fallback');
+assert.ok(mobileMeetup.includes('release(manualQr.trim())'), 'Manual QR must use the same server-authorized release path');
 assert.ok(rpcTypes.includes('p_qr_secret?:string|null'));
 assert.ok(disputeEdge.includes('await executeVerdict(juryCase, finalVerdict)'));
 assert.ok(!disputeEdge.includes('update({ status: "decided", verdict: finalVerdict'));

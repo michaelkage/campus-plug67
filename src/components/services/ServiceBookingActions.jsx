@@ -41,6 +41,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
   const latestQuote = quotes[0] || null
   const acceptedQuote = quotes.find(quote => quote.status === 'accepted') || null
   const displayedQuote = acceptedQuote || latestQuote
+  const quoteExpired = latestQuote?.status === 'sent' && new Date(latestQuote.expires_at).getTime() <= Date.now()
 
   const refresh = async () => {
     await Promise.all([
@@ -122,13 +123,13 @@ export function ServiceBookingActions({ booking, currentUserId }) {
           <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-on-surface/70">{displayedQuote.scope}</p>
           {displayedQuote.status === 'sent' && (
             <p className="mt-2 flex items-center gap-1 text-[11px] text-on-surface/50">
-              <Clock size={11} /> Expires {new Date(displayedQuote.expires_at).toLocaleString()}
+              <Clock size={11} /> {quoteExpired ? 'Quote expired. Ask the provider to revise it.' : `Expires ${new Date(displayedQuote.expires_at).toLocaleString()}`}
             </p>
           )}
         </div>
       )}
 
-      {booking.status === 'quoted' && !isProvider && latestQuote?.status === 'sent' && (
+      {booking.status === 'quoted' && !isProvider && latestQuote?.status === 'sent' && !quoteExpired && (
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={busy} onClick={() => respondToQuote(true)} className="btn-primary text-xs">
             <CheckCircle size={13} /> Accept quote

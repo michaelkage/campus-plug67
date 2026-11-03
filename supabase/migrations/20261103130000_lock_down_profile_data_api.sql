@@ -199,19 +199,9 @@ SET
   created_at = EXCLUDED.created_at,
   tier = EXCLUDED.tier;
 
--- Public reads are now served from public_profiles. Keep only an own-row id
--- lookup on profiles so authenticated UPDATE statements filtered by id still work.
-REVOKE SELECT ON TABLE public.profiles FROM PUBLIC, anon, authenticated;
-REVOKE ALL PRIVILEGES ON TABLE public.profiles FROM PUBLIC, anon;
-GRANT SELECT (id) ON TABLE public.profiles TO authenticated;
-
-DROP POLICY IF EXISTS "Profiles viewable by all" ON public.profiles;
-DROP POLICY IF EXISTS "Users can read own profile" ON public.profiles;
-CREATE POLICY "Users can read own profile"
-  ON public.profiles
-  FOR SELECT
-  TO authenticated
-  USING ((SELECT auth.uid()) = id);
+-- The profiles-table privilege cutover is intentionally a separate deployment.
+-- First ship the frontend that uses public_profiles and the scoped RPCs; then
+-- revoke legacy full-row SELECT access in the follow-up cutover migration.
 
 CREATE OR REPLACE FUNCTION private.get_my_profile()
 RETURNS jsonb
@@ -336,28 +326,10 @@ $revoke_trigger_execute$;
 
 DO $assertions$
 DECLARE
-  profile_oid oid := 'public.profiles'::regclass;
   public_profiles_oid oid := 'public.public_profiles'::regclass;
   my_profile_oid oid := to_regprocedure('public.get_my_profile()');
   my_referrals_oid oid := to_regprocedure('public.get_my_referrals()');
 BEGIN
-  IF has_column_privilege('anon', profile_oid, 'email', 'SELECT')
-     OR has_column_privilege('anon', profile_oid, 'matric_number', 'SELECT')
-     OR has_column_privilege('anon', profile_oid, 'last_known_ip', 'SELECT')
-     OR has_column_privilege('anon', profile_oid, 'plug_credit_balance', 'SELECT')
-     OR has_column_privilege('anon', profile_oid, 'duress_code_hash', 'SELECT')
-     OR has_column_privilege('authenticated', profile_oid, 'email', 'SELECT')
-     OR has_column_privilege('authenticated', profile_oid, 'matric_number', 'SELECT')
-     OR has_column_privilege('authenticated', profile_oid, 'last_known_ip', 'SELECT')
-     OR has_column_privilege('authenticated', profile_oid, 'plug_credit_balance', 'SELECT')
-     OR has_column_privilege('authenticated', profile_oid, 'duress_code_hash', 'SELECT') THEN
-    RAISE EXCEPTION 'Client roles must not read private profile columns';
-  END IF;
-
-  IF NOT has_column_privilege('authenticated', profile_oid, 'id', 'SELECT') THEN
-    RAISE EXCEPTION 'Authenticated users need own-profile id access for row-scoped updates';
-  END IF;
-
   IF NOT has_table_privilege('anon', public_profiles_oid, 'SELECT')
      OR NOT has_table_privilege('authenticated', public_profiles_oid, 'SELECT')
      OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid = public_profiles_oid) THEN

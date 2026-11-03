@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { Database } from '../../types/database'
+import type { MyProfile, Database } from '../../types/database'
 import type { WalletTransferResult } from '../../types/domain'
 
-type Profile = Database['public']['Tables']['profiles']['Row']
+type Profile = MyProfile
 type PlugCreditLedger = Database['public']['Tables']['plug_credit_ledger']['Row']
 
 interface WalletDashboardProps { userId: string }
@@ -28,8 +28,9 @@ export default function WalletDashboard({ userId }: WalletDashboardProps) {
 
   const fetchProfile = async () => {
     try {
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
+      const { data, error } = await supabase.rpc('get_my_profile', {})
       if (error) throw error
+      if (!data || data.id !== userId) throw new Error('Private profile unavailable')
       setProfile(data)
     } catch (err: unknown) {
       console.error('Error fetching profile:', err)

@@ -122,7 +122,7 @@ GRANT EXECUTE ON FUNCTION public.get_public_profile_stats(uuid) TO anon, authent
 
 -- The browser now uses the RPC. Retire direct access to the view because its
 -- SECURITY INVOKER definition would otherwise require broad base-table grants.
-REVOKE SELECT ON TABLE public.public_profile_stats FROM PUBLIC, anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.public_profile_stats FROM PUBLIC, anon, authenticated;
 
 -- The profile page needs only aggregate ratings. Grant the two source columns
 -- required by the invoker view, not reviewer IDs, transaction IDs, or comments.

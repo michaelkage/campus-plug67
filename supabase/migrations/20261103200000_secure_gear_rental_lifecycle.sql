@@ -737,7 +737,7 @@ BEGIN
   INSERT INTO public.notifications (user_id, type, title, body, data)
   VALUES
     (v_rental.borrower_id, 'gear_rental_dispute_returned', 'Disputed item return verified',
-     'The lender confirmed receipt. Rental funds remain held until admin review is complete.',
+     CASE WHEN v_rental.rental_status = 'resolved' THEN 'The lender confirmed receipt. The listing can become available again.' ELSE 'The lender confirmed receipt. Rental funds remain held until admin review is complete.' END,
      jsonb_build_object('rental_id', p_rental_id)),
     (v_rental.lender_id, 'gear_rental_dispute_returned', 'Disputed item return verified',
      'Item custody is confirmed. The listing can become available again.',

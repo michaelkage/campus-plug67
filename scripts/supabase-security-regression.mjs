@@ -27,7 +27,7 @@ for (const file of walk('.')) {
   const content = read(file);
   for (const pattern of forbidden) {
     if (pattern.test(content) && !file.endsWith('.env.example')) {
-      fail(`Potential committed secret material detected in ${file}`);
+      fail('Potential committed secret material detected in ' + file);
     }
   }
 }
@@ -40,7 +40,7 @@ for (const signature of [
   'st_estimatedextent(text,text,text,boolean)',
 ]) {
   if (!normalizedMigration.includes(signature)) {
-    fail(`Missing PostGIS hardening for ${signature}`);
+    fail('Missing PostGIS hardening for ' + signature);
   }
 }
 if (!/revoke execute on function public\.st_estimatedextent/i.test(migration)) {
@@ -52,8 +52,8 @@ if (!/\[functions\.maintenance-cleanup\][\s\S]*?verify_jwt\s*=\s*false/.test(con
   fail('maintenance-cleanup must disable gateway JWT verification and authenticate its secret key in the handler');
 }
 for (const fn of ['release-escrow', 'calculate-trending', 'process-dispute']) {
-  const pattern = new RegExp(`\\[functions\\.${fn}\\][\\s\\S]*?verify_jwt\\s*=\\s*false`);
-  if (!pattern.test(config)) fail(`${fn} must use API-key authentication for service-to-service calls`);
+  const pattern = new RegExp('\\[functions\\.' + fn + '\\][\\s\\S]*?verify_jwt\\s*=\\s*false');
+  if (!pattern.test(config)) fail(fn + ' must use API-key authentication for service-to-service calls');
 }
 
 const viewMigration = read('supabase/migrations/048_security_linter_hardening.sql');
@@ -64,6 +64,11 @@ if (/alter table public\.spatial_ref_sys/i.test(viewMigration)) {
   fail('Do not alter extension-owned spatial_ref_sys in the hardening migration');
 }
 
+const groupChatSearchPathMigration = read('supabase/migrations/20261103113000_fix_group_chat_activity_search_path.sql');
+if (!/alter function public\.touch_group_chat_activity\(\)\s+set search_path = ''/i.test(groupChatSearchPathMigration)) {
+  fail('touch_group_chat_activity must use an empty search_path');
+}
+
 const required = [
   ['src/lib/gpsSpoof.ts', 'increment_spoof_flag'],
   ['src/lib/security.ts', 'provision_my_emergency_tokens'],
@@ -72,7 +77,7 @@ const required = [
   ['supabase/functions/fund-wallet/index.ts', 'credit_wallet_funding_for_user'],
 ];
 for (const [file, text] of required) {
-  if (!read(file).includes(text)) fail(`${file} no longer contains required server-authoritative RPC ${text}`);
+  if (!read(file).includes(text)) fail(file + ' no longer contains required server-authoritative RPC ' + text);
 }
 
 console.log('Supabase security regression checks passed.');

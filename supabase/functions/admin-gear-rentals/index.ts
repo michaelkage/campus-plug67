@@ -21,7 +21,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const { data, error } = await admin.from("gear_rentals")
-    .select("id,listing_id,borrower_id,lender_id,rental_status,start_date,end_date,rental_fee_kobo,security_deposit_kobo,total_held_kobo,dispute_reason,disputed_at,created_at,listing:listings(title),hold:gear_rental_holds(status,total_held_kobo)")
+    .select("id,listing_id,borrower_id,lender_id,rental_status,start_date,end_date,rental_fee_kobo,security_deposit_kobo,total_held_kobo,dispute_reason,disputed_at,custody_resolved_at,created_at,listing:listings(title),hold:gear_rental_holds(status,total_held_kobo)")
     .eq("rental_status", "disputed")
     .order("disputed_at", { ascending: true })
     .limit(100)

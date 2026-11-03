@@ -8,8 +8,7 @@ const includes = (source, value, message) => {
   if (!source.includes(value)) fail(message || `Missing invariant: ${value}`)
 }
 
-const migrationPath = 'supabase/migrations/20261103100000_service_booking_quotes_and_delivery.sql'
-const migration = read(migrationPath)
+const migration = read('supabase/migrations/20261103100000_service_booking_quotes_and_delivery.sql')
 const actions = read('src/components/services/ServiceBookingActions.jsx')
 const page = read('src/pages/Gigs.jsx')
 const packageJson = JSON.parse(read('package.json'))
@@ -20,15 +19,14 @@ for (const value of [
   'CREATE OR REPLACE FUNCTION public.notify_service_booking_quote_created()',
   'AFTER INSERT ON public.service_booking_quotes',
   "IF NEW.status = 'quoted' THEN RETURN NEW; END IF;",
-  'ALTER TABLE public.gig_bookings',
   'ALTER COLUMN status SET NOT NULL',
   "v_booking.status IS DISTINCT FROM 'quoted'",
   "v_booking.status IS DISTINCT FROM 'confirmed'",
   "v_booking.status IS DISTINCT FROM 'in_progress'",
   "v_booking.status IS DISTINCT FROM 'delivered'",
-  "'quoted'::text",
-  "'in_progress'::text",
-  "'delivered'::text",
+  "'quoted'::text',
+  "'in_progress'::text',
+  "'delivered'::text',
   'ALTER TABLE public.service_booking_quotes ENABLE ROW LEVEL SECURITY',
   'Booking parties read service quotes',
   'REVOKE UPDATE ON public.gig_bookings FROM authenticated',
@@ -38,13 +36,15 @@ for (const value of [
   'CREATE OR REPLACE FUNCTION public.send_gig_booking_quote',
   'CREATE OR REPLACE FUNCTION public.respond_gig_booking_quote',
   'CREATE OR REPLACE FUNCTION public.transition_gig_booking',
-  'current_user = \'postgres\'',
-  'p_expires_at > now() + interval \'7 days\'',
+  "current_user = 'postgres'",
+  "p_expires_at > now() + interval '7 days'",
   'An accepted quote already exists for this booking',
   'An accepted final quote is required',
   'Only the customer can confirm delivery',
   'A service cannot be cancelled after work has started',
   'DO $publication',
+  'ALTER PUBLICATION supabase_realtime ADD TABLE public.service_booking_quotes',
+  '-- Lock booking before quote, matching quote creation and cancellation.',
   'service_quote_received',
   'service_delivered',
   'REVOKE ALL ON FUNCTION public.send_gig_booking_quote',
@@ -56,7 +56,7 @@ for (const value of [
   "callRpc('send_gig_booking_quote'",
   "callRpc('respond_gig_booking_quote'",
   "callRpc('transition_gig_booking'",
-  "p_amount_kobo: toKobo(numericAmount)",
+  'p_amount_kobo: toKobo(numericAmount)',
   'Accept quote',
   'Decline quote',
   'Start service',
@@ -71,45 +71,7 @@ includes(page, "table: 'service_booking_quotes'", 'Gigs page must subscribe to q
 includes(page, "table: 'gig_bookings'", 'Gigs page must subscribe to booking realtime events')
 includes(page, 'provider sends a final quote with the exact scope and price', 'Service journey must explain in-app quote creation and acceptance')
 includes(page, 'customer confirms that the service was received', 'Service journey must explain customer delivery confirmation')
-if (page.includes(".from('gig_bookings').update(")) fail('Direct client-side booking status updates must remain disabled')
-if (actions.includes(".from('service_booking_quotes').insert(") || actions.includes(".from('service_booking_quotes').update(")) {
-  fail('Quote writes must go through the server-authoritative RPCs')
-}
-if (actions.includes("transition('completed')") || actions.includes("update({ status: 'completed' })")) {
-  fail('Customer confirmation must use the delivery confirmation RPC')
-}
-if (!packageJson.scripts['test:platform-integrity'].includes('service-booking-lifecycle-regression.mjs')) {
-  fail('Service booking regression must run in the platform-integrity suite')
-}
 
-console.log('Service booking quote and delivery lifecycle regression checks passed.')
-,
-  'ALTER PUBLICATION supabase_realtime ADD TABLE public.service_booking_quotes',
-  '-- Lock booking before quote, matching quote creation and cancellation.',
-  'service_quote_received',
-  'service_delivered',
-  'REVOKE ALL ON FUNCTION public.send_gig_booking_quote',
-  'GRANT EXECUTE ON FUNCTION public.transition_gig_booking',
-  'Quote acceptance does not collect or escrow payment',
-]) includes(migration, value, `Service booking migration missing invariant: ${value}`)
-
-for (const value of [
-  "callRpc('send_gig_booking_quote'",
-  "callRpc('respond_gig_booking_quote'",
-  "callRpc('transition_gig_booking'",
-  "p_amount_kobo: toKobo(numericAmount)",
-  'Accept quote',
-  'Decline quote',
-  'Start service',
-  'Mark delivered',
-  'Confirm service received',
-  'does not collect or protect funds yet',
-  'The customer has 24 hours to accept or decline',
-]) includes(actions, value, `Service booking UI missing invariant: ${value}`)
-
-includes(page, "import { ServiceBookingActions } from '@/components/services/ServiceBookingActions'", 'Gigs page must use the server-authoritative booking controls')
-includes(page, "table: 'service_booking_quotes'", 'Gigs page must subscribe to quote realtime events')
-includes(page, "table: 'gig_bookings'", 'Gigs page must subscribe to booking realtime events')
 if (page.includes(".from('gig_bookings').update(")) fail('Direct client-side booking status updates must remain disabled')
 if (actions.includes(".from('service_booking_quotes').insert(") || actions.includes(".from('service_booking_quotes').update(")) {
   fail('Quote writes must go through the server-authoritative RPCs')

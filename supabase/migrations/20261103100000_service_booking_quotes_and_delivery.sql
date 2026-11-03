@@ -53,7 +53,7 @@ GRANT SELECT ON public.service_booking_quotes TO authenticated;
 GRANT ALL ON public.service_booking_quotes TO service_role;
 
 -- Keep quote changes synchronized for both booking participants.
-DO $
+DO $publication$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime')
      AND NOT EXISTS (
@@ -65,7 +65,7 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.service_booking_quotes;
   END IF;
 END;
-$;
+$publication$;
 
 REVOKE ALL ON FUNCTION public.guard_gig_booking_update() FROM PUBLIC, anon, authenticated;
 

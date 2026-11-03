@@ -4,8 +4,9 @@
 -- Locking the provider listing serializes concurrent requests for the same gig.
 -- The partial unique index is the final protection against duplicate active slots.
 
-CREATE UNIQUE INDEX IF NOT EXISTS gig_bookings_one_active_slot_uidx
-  ON public.gig_bookings (gig_id, slot_date, slot_time)
+DROP INDEX IF EXISTS public.gig_bookings_one_active_slot_uidx;
+CREATE UNIQUE INDEX IF NOT EXISTS gig_bookings_one_active_provider_slot_uidx
+  ON public.gig_bookings (seller_id, slot_date, slot_time)
   WHERE status IN ('pending', 'quoted', 'confirmed', 'in_progress', 'delivered');
 
 -- Booking creation must pass through the RPC so date, time, availability and
@@ -58,6 +59,11 @@ BEGIN
     RAISE EXCEPTION 'You cannot book your own service';
   END IF;
 
+  -- Serialize all service requests for one provider, including requests made
+  -- against different gig listings owned by that provider.
+  PERFORM 1 FROM public.profiles WHERE id = v_gig.seller_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Service provider profile not found'; END IF;
+
   v_requested_at := p_slot_date + p_slot_time::time;
   IF (v_requested_at AT TIME ZONE 'Africa/Lagos') <= now() THEN
     RAISE EXCEPTION 'Choose a future date and time';
@@ -72,7 +78,7 @@ BEGIN
   IF EXISTS (
     SELECT 1
       FROM public.gig_bookings b
-     WHERE b.gig_id = v_gig.id
+     WHERE b.seller_id = v_gig.seller_id
        AND b.slot_date = p_slot_date
        AND b.slot_time = p_slot_time
        AND b.status IN ('pending', 'quoted', 'confirmed', 'in_progress', 'delivered')
@@ -105,7 +111,7 @@ BEGIN
 EXCEPTION
   WHEN unique_violation THEN
     GET STACKED DIAGNOSTICS v_constraint_name = CONSTRAINT_NAME;
-    IF v_constraint_name = 'gig_bookings_one_active_slot_uidx' THEN
+    IF v_constraint_name = 'gig_bookings_one_active_provider_slot_uidx' THEN
       RETURN jsonb_build_object(
         'success', false,
         'code', 'slot_unavailable',

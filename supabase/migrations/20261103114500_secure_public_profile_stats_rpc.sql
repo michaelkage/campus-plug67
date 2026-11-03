@@ -132,7 +132,7 @@ REVOKE ALL PRIVILEGES ON TABLE public.public_profile_stats FROM PUBLIC, anon, au
 -- required by the invoker view, not reviewer IDs, transaction IDs, or comments.
 GRANT SELECT (reviewee_id, score) ON TABLE public.ratings TO authenticated;
 ALTER VIEW public.profile_ratings SET (security_invoker = true);
-REVOKE INSERT, UPDATE, DELETE ON TABLE public.profile_ratings FROM authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.profile_ratings FROM PUBLIC, anon, authenticated;
 
 DO $assertions$
 DECLARE
@@ -201,10 +201,13 @@ BEGIN
     RAISE EXCEPTION 'Public profile stats RPC must be executable by anon and authenticated';
   END IF;
 
-  IF has_table_privilege('authenticated', 'public.profile_ratings', 'INSERT')
+  IF has_table_privilege('anon', 'public.profile_ratings', 'INSERT')
+     OR has_table_privilege('anon', 'public.profile_ratings', 'UPDATE')
+     OR has_table_privilege('anon', 'public.profile_ratings', 'DELETE')
+     OR has_table_privilege('authenticated', 'public.profile_ratings', 'INSERT')
      OR has_table_privilege('authenticated', 'public.profile_ratings', 'UPDATE')
      OR has_table_privilege('authenticated', 'public.profile_ratings', 'DELETE') THEN
-    RAISE EXCEPTION 'Aggregate profile_ratings view must be read-only';
+    RAISE EXCEPTION 'Aggregate profile_ratings view must be read-only for client roles';
   END IF;
 
   SELECT p.id

@@ -88,7 +88,7 @@ if (!/alter view public\.profile_ratings set \(security_invoker = true\)/i.test(
 if (!/revoke all privileges on table public\.public_profile_stats from public, anon, authenticated/i.test(profileStatsMigration)) {
   fail('Retire all direct access to the legacy public_profile_stats view');
 }
-if (!/revoke insert, update, delete on table public\\.profile_ratings from public, anon, authenticated/i.test(profileStatsMigration)) {
+if (!/revoke insert, update, delete on table public\.profile_ratings from public, anon, authenticated/i.test(profileStatsMigration)) {
   fail('profile_ratings must remain a read-only aggregate view');
 }
 if (!/rpc\('get_public_profile_stats'/i.test(read('src/pages/VerifyProfile.jsx'))) {

@@ -30,6 +30,7 @@ DECLARE
   v_booking public.gig_bookings%ROWTYPE;
   v_requested_at timestamp without time zone;
   v_weekday text;
+  v_constraint_name text;
 BEGIN
   IF v_actor IS NULL THEN
     RAISE EXCEPTION 'Authentication required';
@@ -103,11 +104,15 @@ BEGIN
   );
 EXCEPTION
   WHEN unique_violation THEN
-    RETURN jsonb_build_object(
-      'success', false,
-      'code', 'slot_unavailable',
-      'message', 'That service time has already been requested. Choose another time.'
-    );
+    GET STACKED DIAGNOSTICS v_constraint_name = CONSTRAINT_NAME;
+    IF v_constraint_name = 'gig_bookings_one_active_slot_uidx' THEN
+      RETURN jsonb_build_object(
+        'success', false,
+        'code', 'slot_unavailable',
+        'message', 'That service time has already been requested. Choose another time.'
+      );
+    END IF;
+    RAISE;
 END;
 $fn$;
 

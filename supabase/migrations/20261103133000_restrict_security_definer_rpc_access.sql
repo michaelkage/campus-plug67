@@ -44,7 +44,7 @@ REVOKE ALL ON FUNCTION public.assign_jurors(uuid, integer, uuid[])
 
 -- These two legacy functions exist in production but are absent from the
 -- tracked migration chain. Guard them so a clean database reset stays valid.
-DO $
+DO $legacy$
 BEGIN
   IF to_regprocedure('public.delete_user_data(uuid)') IS NOT NULL THEN
     EXECUTE 'REVOKE ALL ON FUNCTION public.delete_user_data(uuid) FROM PUBLIC, anon, authenticated, service_role';
@@ -54,7 +54,7 @@ BEGIN
     EXECUTE 'REVOKE ALL ON FUNCTION public.export_user_data(uuid) FROM PUBLIC, anon, authenticated, service_role';
   END IF;
 END;
-$;
+$legacy$;
 
 REVOKE ALL ON FUNCTION public.search_users_by_department(text)
   FROM PUBLIC, anon, authenticated, service_role;
@@ -230,7 +230,7 @@ GRANT EXECUTE ON FUNCTION public.check_priority_relist_v2(uuid)
 
 -- The installed PostGIS package may restore these extension function ACLs
 -- during extension maintenance. Re-assert the existing API boundary.
-DO $$
+DO $block$
 BEGIN
   IF to_regprocedure('public.st_estimatedextent(text,text)') IS NOT NULL THEN
     EXECUTE 'REVOKE EXECUTE ON FUNCTION public.st_estimatedextent(text,text) FROM PUBLIC, anon, authenticated';
@@ -244,13 +244,13 @@ BEGIN
     EXECUTE 'REVOKE EXECUTE ON FUNCTION public.st_estimatedextent(text,text,text,boolean) FROM PUBLIC, anon, authenticated';
   END IF;
 END;
-$$;
+$block$;
 
 -- Trigger functions are not Data API RPCs. PostgreSQL requires EXECUTE when a
 -- trigger is created; existing triggers execute in the triggering statement's
 -- context (or as the function owner for SECURITY DEFINER triggers). Remove
 -- direct client EXECUTE without dropping or changing any trigger.
-DO $$
+DO $block$
 DECLARE
   trigger_function record;
 BEGIN
@@ -268,4 +268,4 @@ BEGIN
     );
   END LOOP;
 END;
-$$;
+$block$;

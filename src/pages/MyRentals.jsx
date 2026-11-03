@@ -26,7 +26,7 @@ export default function MyRentals() {
       const { data, error } = await supabase
         .from('gear_rentals')
         .select('id,listing_id')
-        .or(`borrower_id.eq.${user!.id},lender_id.eq.${user!.id}`)
+        .or(`borrower_id.eq.${user.id},lender_id.eq.${user.id}`)
         .order('created_at', { ascending: false })
         .limit(100)
       if (error) throw error

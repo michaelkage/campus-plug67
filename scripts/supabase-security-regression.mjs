@@ -119,6 +119,81 @@ if (/schemas\s*=\s*\[[^\]]*["']private["']/i.test(config)) {
   fail('The private helper schema must not be exposed through the Supabase Data API');
 }
 
+const profileDataMigration = read('supabase/migrations/20261103130000_lock_down_profile_data_api.sql');
+if (!/create table if not exists public\.public_profiles/i.test(profileDataMigration)) {
+  fail('A dedicated public_profiles projection must replace public reads from profiles');
+}
+if (!/alter table public\.public_profiles enable row level security/i.test(profileDataMigration)
+    || !/create policy "Public profiles are readable by everyone"/i.test(profileDataMigration)) {
+  fail('Public profile projection must be protected by an explicit RLS read policy');
+}
+if (!/revoke select on table public\.profiles from public, anon, authenticated/i.test(profileDataMigration)
+    || !/grant select \(id\) on table public\.profiles to authenticated/i.test(profileDataMigration)) {
+  fail('Direct profile reads must be revoked except for the caller-scoped id needed by updates');
+}
+if (!/create or replace function private\.get_my_profile[\s\S]*?security definer[\s\S]*?set search_path = ''[\s\S]*?auth\.uid\(\)/i.test(profileDataMigration)
+    || !/create or replace function public\.get_my_profile[\s\S]*?security invoker[\s\S]*?set search_path = ''/i.test(profileDataMigration)) {
+  fail('Private profile reads must use an auth.uid-scoped definer helper behind an invoker RPC');
+}
+if (!/create or replace function private\.get_my_referrals[\s\S]*?security definer[\s\S]*?auth\.uid\(\)/i.test(profileDataMigration)
+    || !/create or replace function public\.get_my_referrals[\s\S]*?security invoker/i.test(profileDataMigration)) {
+  fail('Referral reads must be scoped to the authenticated referrer');
+}
+if (!/revoke all on function public\.search_users_by_department\(text\) from public, anon, authenticated, service_role/i.test(profileDataMigration)) {
+  fail('Legacy full-profile search RPC must be disabled');
+}
+if (!/revoke all on function %s from public, anon, authenticated, service_role/i.test(profileDataMigration)) {
+  fail('SECURITY DEFINER trigger functions must not be directly executable by client roles');
+}
+
+const authContext = read('src/contexts/AuthContext.tsx');
+if (!/rpc\('get_my_profile'/i.test(authContext) || /from\('profiles'\)\.select\('\*'\)/i.test(authContext)) {
+  fail('AuthContext must load private profile data through the scoped RPC');
+}
+for (const file of [
+  'src/contexts/ThemeContext.tsx',
+  'src/components/wallet/WalletDashboard.tsx',
+  'src/pages/CampusWallet.tsx',
+  'src/components/wallet/MicroEscrowLauncher.tsx',
+]) {
+  const source = read(file);
+  if (!/rpc\('get_my_profile'/i.test(source) || /from\('profiles'\)\.select/i.test(source)) {
+    fail(file + ' must read private profile fields through get_my_profile');
+  }
+}
+for (const file of [
+  'src/pages/Chat.jsx',
+  'src/pages/Leaderboard.jsx',
+  'src/pages/Profile.jsx',
+  'src/components/chat/MarketplaceChat.tsx',
+]) {
+  if (!/from\('public_profiles'\)/i.test(read(file))) {
+    fail(file + ' must use the safe public_profiles projection');
+  }
+}
+if (!/rpc\('get_my_referrals'/i.test(read('src/components/ui/Referral.tsx'))
+    || /from\('profiles'\)/i.test(read('src/components/ui/Referral.tsx'))) {
+  fail('Referral UI must use the caller-scoped referral RPC');
+}
+if (/from\('profiles'\)/i.test(read('src/lib/passkeys.ts'))
+    || !/userEmail: email\.trim\(\)\.toLowerCase\(\)/i.test(read('src/lib/passkeys.ts'))) {
+  fail('Passkey login must resolve email server-side, not query private profiles from the browser');
+}
+if (!/admin\.from\("profiles"\)\.select\("id"\)\.eq\("email",normalizedEmail\)/i.test(read('supabase/functions/passkey-auth/index.ts'))) {
+  fail('Passkey edge function must resolve account IDs using its service credential');
+}
+if (/collusion_flag/i.test(read('src/components/ui/TrustSignals.tsx'))) {
+  fail('Internal collusion signals must not be displayed on public profiles');
+}
+if (!read('src/types/database.ts').includes('export interface PublicProfile')
+    || !read('src/types/database.ts').includes('export interface MyProfile')) {
+  fail('Public and private profile response types are required');
+}
+if (!read('src/lib/supabase/client.ts').includes('get_my_profile:{Args:Record<string,never>;Returns:MyProfile}')
+    || !read('src/lib/supabase/client.ts').includes('get_my_referrals:{Args:Record<string,never>;Returns:MyReferral[]}')) {
+  fail('Private profile RPCs must have explicit client types');
+}
+
 const required = [
   ['src/lib/gpsSpoof.ts', 'increment_spoof_flag'],
   ['src/lib/security.ts', 'provision_my_emergency_tokens'],

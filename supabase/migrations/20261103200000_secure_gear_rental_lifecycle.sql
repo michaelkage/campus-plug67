@@ -60,6 +60,14 @@ ALTER TABLE public.gear_rentals
     AND (security_deposit_kobo IS NULL OR security_deposit_kobo >= 0)
     AND (total_held_kobo IS NULL OR total_held_kobo > 0)
     AND (settlement_lender_share_bps IS NULL OR settlement_lender_share_bps BETWEEN 0 AND 10000)
+  ),
+  DROP CONSTRAINT IF EXISTS gear_rentals_period_amounts_check,
+  ADD CONSTRAINT gear_rentals_period_amounts_check CHECK (
+    (start_date IS NULL AND end_date IS NULL)
+    OR
+    (start_date IS NOT NULL AND end_date IS NOT NULL AND end_date >= start_date
+      AND rental_fee_kobo > 0 AND security_deposit_kobo >= 0
+      AND total_held_kobo = rental_fee_kobo + security_deposit_kobo)
   );
 
 CREATE UNIQUE INDEX IF NOT EXISTS gear_rentals_borrower_request_key_uidx
@@ -637,7 +645,7 @@ GRANT EXECUTE ON FUNCTION public.create_gear_rental_return_code(uuid) TO authent
 GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_return(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_gear_rental_request(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.open_gear_rental_dispute(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid) TO service_role;
 
 COMMENT ON TABLE public.gear_rental_holds IS
   'Separate wallet escrow holds for rentals. Never linked to marketplace transactions because purchase settlement marks listings sold.';

@@ -53,6 +53,7 @@ assert.ok(!walletRefundBranch.includes('process_escrow_action'));
 
 assert.ok(safeArrival.includes('record_safe_arrival_v2'), 'Safe-arrival Edge Function must call the hardened RPC');
 assert.ok(safeSwapPage.includes('tx?.buyer_id===user?.id'));
+assert.ok(safeSwapPage.includes('sellerCheckinFresh'), 'Buyer QR scanner must wait for a fresh seller Safe Swap check-in');
 assert.ok(rpcTypes.includes('p_qr_secret?:string|null'));
 assert.ok(disputeEdge.includes('await executeVerdict(juryCase, finalVerdict)'));
 assert.ok(!disputeEdge.includes('update({ status: "decided", verdict: finalVerdict'));

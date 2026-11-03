@@ -38,7 +38,7 @@ const required = [
   'return_code_expires_at < now()',
   'return_code_attempts + 1 >= 5',
   'Campus Plug gear rental escrow hold',
-  'Gear rental fee released after return',
+  'Gear rental fee released after return inspection',
   'Gear rental security deposit returned',
   "now() < v_rental.returned_at + interval '24 hours'",
   "'return_inspection'",

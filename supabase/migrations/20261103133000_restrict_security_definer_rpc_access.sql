@@ -42,11 +42,19 @@ GRANT EXECUTE ON FUNCTION public.update_juror_accuracy(uuid)
 REVOKE ALL ON FUNCTION public.assign_jurors(uuid, integer, uuid[])
   FROM PUBLIC, anon, authenticated, service_role;
 
-REVOKE ALL ON FUNCTION public.delete_user_data(uuid)
-  FROM PUBLIC, anon, authenticated, service_role;
+-- These two legacy functions exist in production but are absent from the
+-- tracked migration chain. Guard them so a clean database reset stays valid.
+DO $
+BEGIN
+  IF to_regprocedure('public.delete_user_data(uuid)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.delete_user_data(uuid) FROM PUBLIC, anon, authenticated, service_role';
+  END IF;
 
-REVOKE ALL ON FUNCTION public.export_user_data(uuid)
-  FROM PUBLIC, anon, authenticated, service_role;
+  IF to_regprocedure('public.export_user_data(uuid)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.export_user_data(uuid) FROM PUBLIC, anon, authenticated, service_role';
+  END IF;
+END;
+$;
 
 REVOKE ALL ON FUNCTION public.search_users_by_department(text)
   FROM PUBLIC, anon, authenticated, service_role;

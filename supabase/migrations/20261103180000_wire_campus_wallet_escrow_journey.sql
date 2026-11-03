@@ -137,7 +137,8 @@ BEGIN
       RAISE EXCEPTION 'Fresh buyer Safe Swap Zone verification is required';
     END IF;
     IF p_qr_secret IS NULL
-       OR p_qr_secret <> COALESCE(v_tx.qr_secret, v_tx.release_code) THEN
+       OR COALESCE(v_tx.qr_secret, v_tx.release_code) IS NULL
+       OR p_qr_secret IS DISTINCT FROM COALESCE(v_tx.qr_secret, v_tx.release_code) THEN
       RAISE EXCEPTION 'Invalid release credential';
     END IF;
 

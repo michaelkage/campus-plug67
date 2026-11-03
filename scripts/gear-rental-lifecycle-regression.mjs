@@ -66,4 +66,17 @@ for (const item of [
   "15 minutes",
 ]) assert.ok(panel.includes(item), `Rental UI missing lifecycle action: ${item}`)
 
+
+const app = read('src/App.tsx')
+assert.ok(app.includes("const MyRentals=lazy(()=>import('@/pages/MyRentals'))"), 'My Rentals page must be lazy-loaded')
+assert.ok(app.includes('<Route path="rentals" element={<MyRentals/>}/>'), 'My Rentals route must be registered')
+
+const nav = read('src/components/layout/TopNav.jsx')
+assert.ok(nav.includes("['/rentals','Rentals']"), 'Rentals must be discoverable in primary navigation')
+assert.ok(nav.includes('to="/rentals"'), 'My Rentals must be available from the account menu')
+
+const dashboard = read('src/pages/MyRentals.jsx')
+for (const item of ['gear_rentals', 'GearRentalPanel', 'allowRequest={false}', 'My Rentals', 'Campus Wallet only']) {
+  assert.ok(dashboard.includes(item), `My Rentals dashboard missing: ${item}`)
+}
 console.log('Secure gear rental lifecycle regression checks passed.')

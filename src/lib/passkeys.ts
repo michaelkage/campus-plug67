@@ -23,6 +23,7 @@ type RegistrationOptionsResponse = {
 
 type AuthenticationOptionsResponse = {
   options: Parameters<typeof startAuthentication>[0]
+  userId?: string
 }
 
 type VerifyResponse = {
@@ -71,25 +72,17 @@ export async function registerPasskey(user: User, deviceLabel: string): Promise<
 export async function authenticateWithPasskey(email: string) {
   if (!browserSupportsWebAuthn()) throw new Error('This device does not support passkeys')
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('email', email)
-    .maybeSingle()
-  if (profileError) throw profileError
-  if (!profile) throw new Error('No account found for this email')
-
   const clientFingerprint = await getDeviceHash().catch(() => null)
 
   const { data: optionsRes, error } = await supabase.functions.invoke<AuthenticationOptionsResponse>('passkey-auth', {
     body: {
       action: 'generate_authentication_options',
-      userId: profile.id,
+      userEmail: email.trim().toLowerCase(),
       client_fingerprint: clientFingerprint,
     },
   })
   if (error) throw new Error(error.message)
-  if (!optionsRes?.options) throw new Error('No passkeys registered for this account')
+  if (!optionsRes?.options || !optionsRes.userId) throw new Error('No passkey available for this account')
 
   let authResponse: Awaited<ReturnType<typeof startAuthentication>>
   try {
@@ -104,7 +97,7 @@ export async function authenticateWithPasskey(email: string) {
   const { data: verifyRes, error: verifyErr } = await supabase.functions.invoke<VerifyResponse>('passkey-auth', {
     body: {
       action: 'verify_authentication',
-      userId: profile.id,
+      userId: optionsRes.userId,
       response: authResponse,
       client_fingerprint: clientFingerprint,
     },

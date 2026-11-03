@@ -210,16 +210,52 @@ STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $function$
-  SELECT pg_catalog.to_jsonb(p) - ARRAY[
-    'last_known_ip',
-    'duress_code_hash',
-    'duress_qr_token_hash',
-    'commission_rate',
-    'collusion_flag',
-    'collusion_flagged_at',
-    'collusion_ceiling',
-    'gps_spoof_flags'
-  ]
+  SELECT pg_catalog.jsonb_build_object(
+    'id', p.id,
+    'email', p.email,
+    'full_name', p.full_name,
+    'university', p.university,
+    'matric_number', p.matric_number,
+    'department', p.department,
+    'course', p.course,
+    'level', p.level,
+    'avatar_url', p.avatar_url,
+    'bio', p.bio,
+    'plug_score', p.plug_score,
+    'total_sales', p.total_sales,
+    'total_earnings', p.total_earnings,
+    'badges', p.badges,
+    'is_verified', p.is_verified,
+    'is_suspended', p.is_suspended,
+    'created_at', p.created_at,
+    'updated_at', p.updated_at,
+    'referred_by', p.referred_by,
+    'referral_code', p.referral_code,
+    'referral_count', p.referral_count,
+    'streak_days', p.streak_days,
+    'tier', p.tier,
+    'tier_updated_at', p.tier_updated_at,
+    'featured_listing_id', p.featured_listing_id,
+    'top_of_feed', p.top_of_feed,
+    'juror_enabled', p.juror_enabled,
+    'rolling_accuracy', p.rolling_accuracy,
+    'juror_streak', p.juror_streak,
+    'juror_cases_today', p.juror_cases_today,
+    'juror_last_case_at', p.juror_last_case_at,
+    'magistrate_at', p.magistrate_at,
+    'free_listing_tokens', p.free_listing_tokens,
+    'priority_relist_today', p.priority_relist_today,
+    'priority_relist_this_week', p.priority_relist_this_week,
+    'last_position_reset', p.last_position_reset,
+    'last_boost_at', p.last_boost_at,
+    'boost_denials_this_week', p.boost_denials_this_week,
+    'plug_credit_balance', p.plug_credit_balance,
+    'theme_mode', p.theme_mode,
+    'accepted_terms_at', p.accepted_terms_at,
+    'is_admin', p.is_admin,
+    'balance', p.balance,
+    'preferences', p.preferences
+  )
   FROM public.profiles AS p
   WHERE p.id = (SELECT auth.uid());
 $function$;

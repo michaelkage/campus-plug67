@@ -188,7 +188,8 @@ BEGIN
          'total_earnings',
          'avg_rating',
          'rating_count',
-         'pools_created'
+         'active_listings',
+         'verified_uploads'
        ]) THEN
       RAISE EXCEPTION 'Public profile stats RPC returned an incomplete projection';
     END IF;

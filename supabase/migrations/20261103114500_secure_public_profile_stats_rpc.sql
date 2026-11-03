@@ -29,7 +29,7 @@ AS $function$
       ) AS total_earnings,
       0::integer AS verified_uploads
     FROM public.transactions AS t
-    WHERE t.seller_id IS NOT NULL
+    WHERE t.seller_id = p_profile_id
     GROUP BY t.seller_id
   ),
   rating_stats AS (
@@ -38,6 +38,7 @@ AS $function$
       COALESCE(avg(r.score), 0::numeric) AS avg_rating,
       count(*) AS rating_count
     FROM public.ratings AS r
+    WHERE r.reviewee_id = p_profile_id
     GROUP BY r.reviewee_id
   ),
   hostel_stats AS (
@@ -46,6 +47,7 @@ AS $function$
       count(*) AS hostel_reviews_count,
       COALESCE(avg(hr.rating), 0::numeric) AS hostel_avg_rating
     FROM public.hostel_reviews AS hr
+    WHERE hr.user_id = p_profile_id
     GROUP BY hr.user_id
   ),
   groupbuy_stats AS (
@@ -61,6 +63,7 @@ AS $function$
         )
       ) AS successful_pools
     FROM public.group_buy_participants AS participant
+    WHERE participant.user_id = p_profile_id
     GROUP BY participant.user_id
   ),
   pool_creator_stats AS (
@@ -69,6 +72,7 @@ AS $function$
       count(pool.id)::integer AS pools_created
     FROM public.group_buy_pools AS pool
     JOIN public.listings AS listing ON listing.id = pool.listing_id
+    WHERE listing.seller_id = p_profile_id
     GROUP BY listing.seller_id
   )
   SELECT pg_catalog.to_jsonb(stats)

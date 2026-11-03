@@ -219,13 +219,59 @@ export type Database = {
         Row: {
           id: string
           gig_id: string
-          buyer_id: string
-          status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
-          scheduled_date?: string | null
+          client_id: string
+          seller_id: string
+          slot_date: string
+          slot_time: string
+          status: 'pending' | 'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'completed' | 'cancelled'
+          notes: string | null
+          amount: number | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          gig_id: string
+          client_id: string
+          seller_id: string
+          slot_date: string
+          slot_time: string
+          status?: 'pending' | 'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'completed' | 'cancelled'
+          notes?: string | null
+          amount?: number | null
+          created_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['gig_bookings']['Row']>
+      }
+
+      // ── service_booking_quotes ───────────────────────────────────────────────
+      service_booking_quotes: {
+        Row: {
+          id: string
+          booking_id: string
+          client_id: string
+          seller_id: string
+          amount_kobo: number
+          scope: string
+          status: 'sent' | 'accepted' | 'declined' | 'expired' | 'cancelled'
+          expires_at: string
+          accepted_at: string | null
+          responded_at: string | null
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['gig_bookings']['Row'], 'id' | 'created_at'>
-        Update: Partial<Database['public']['Tables']['gig_bookings']['Row']>
+        Insert: {
+          id?: string
+          booking_id: string
+          client_id: string
+          seller_id: string
+          amount_kobo: number
+          scope: string
+          status?: 'sent' | 'accepted' | 'declined' | 'expired' | 'cancelled'
+          expires_at: string
+          accepted_at?: string | null
+          responded_at?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['service_booking_quotes']['Row']>
       }
 
       // ── listing_views ────────────────────────────────────────────────────────

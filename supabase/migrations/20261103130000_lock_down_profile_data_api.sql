@@ -280,16 +280,21 @@ AS $function$
   SELECT COALESCE(
     pg_catalog.jsonb_agg(
       pg_catalog.jsonb_build_object(
-        'id', p.id,
-        'full_name', p.full_name,
-        'created_at', p.created_at
+        'id', referred.id,
+        'full_name', referred.full_name,
+        'created_at', referred.created_at
       )
-      ORDER BY p.created_at DESC
+      ORDER BY referred.created_at DESC
     ),
     '[]'::jsonb
   )
-  FROM public.profiles AS p
-  WHERE p.referred_by = (SELECT auth.uid());
+  FROM (
+    SELECT p.id, p.full_name, p.created_at
+    FROM public.profiles AS p
+    WHERE p.referred_by = (SELECT auth.uid())
+    ORDER BY p.created_at DESC
+    LIMIT 10
+  ) AS referred;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.get_my_referrals()

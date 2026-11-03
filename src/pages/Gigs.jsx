@@ -5,7 +5,8 @@ import { supabase, formatNaira, toKobo } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRealtimeTable } from '@/hooks/useRealtime'
 import toast from 'react-hot-toast'
-import { Plus, X, Zap, GraduationCap, CalendarDays, CheckCircle, XCircle, ClipboardList, MessageCircle } from 'lucide-react'
+import { ServiceBookingActions } from '@/components/services/ServiceBookingActions'
+import { Plus, X, Zap, GraduationCap, CalendarDays, ClipboardList, MessageCircle } from 'lucide-react'
 
 const GIG_CATEGORIES = ['Tech Repair', 'Tutoring', 'Design', 'Hair & Beauty', 'Food', 'Laundry', 'Errand', 'Writing', 'Other']
 const ACADEMIC_GIGS = ['GST 101/102 Summary Notes', 'Engineering Drawing Board Rental', 'Lab Coat & Safety Goggles', 'Departmental Printing / Binding', 'Past Questions & Revision Packs']
@@ -23,10 +24,32 @@ function GigCard({ gig, onBook, isOwner, onEdit, onDelete }) {
 
 export function Gigs() {
   const { user, profile } = useAuth(); const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false); const [editingGig, setEditingGig] = useState(null); const [bookingGig, setBookingGig] = useState(null); const [booking, setBooking] = useState({ date:'', time:'', notes:'' }); const [bookingSubmitting, setBookingSubmitting] = useState(false); const [bookingActionId, setBookingActionId] = useState(null); const [form, setForm] = useState({ title: '', description: '', category: '', starting_price: '', max_price: '', available_days: [] }); const [filter, setFilter] = useState(''); const [submitting, setSubmitting] = useState(false)
+  const [showCreate, setShowCreate] = useState(false); const [editingGig, setEditingGig] = useState(null); const [bookingGig, setBookingGig] = useState(null); const [booking, setBooking] = useState({ date:'', time:'', notes:'' }); const [bookingSubmitting, setBookingSubmitting] = useState(false); const [form, setForm] = useState({ title: '', description: '', category: '', starting_price: '', max_price: '', available_days: [] }); const [filter, setFilter] = useState(''); const [submitting, setSubmitting] = useState(false)
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const { data: gigs = [], isLoading } = useQuery({ queryKey: ['gigs', filter, profile?.university], enabled: Boolean(profile?.university), queryFn: async () => { let q = supabase.from('gigs').select('*, profiles(full_name, university)').eq('active', true).eq('university', profile?.university).order('created_at', { ascending: false }); if (filter) q = q.eq('category', filter); const { data, error } = await q; if (error) throw error; return data || [] } })
   useRealtimeTable({ table: 'gigs', onInsert: g => { if (g.university === profile?.university) qc.setQueryData(['gigs', filter, profile?.university], old => [g, ...(old || [])]) } })
+  useRealtimeTable({
+    table: 'gig_bookings',
+    enabled: Boolean(profile?.id),
+    onInsert: () => qc.invalidateQueries({ queryKey: ['gig-bookings'] }),
+    onUpdate: () => qc.invalidateQueries({ queryKey: ['gig-bookings'] }),
+  })
+  useRealtimeTable({
+    table: 'service_booking_quotes',
+    enabled: Boolean(profile?.id),
+    onInsert: quote => {
+      if (quote.client_id === profile?.id || quote.seller_id === profile?.id) {
+        qc.invalidateQueries({ queryKey: ['gig-bookings'] })
+        qc.invalidateQueries({ queryKey: ['service-booking-quotes', quote.booking_id] })
+      }
+    },
+    onUpdate: quote => {
+      if (quote.client_id === profile?.id || quote.seller_id === profile?.id) {
+        qc.invalidateQueries({ queryKey: ['gig-bookings'] })
+        qc.invalidateQueries({ queryKey: ['service-booking-quotes', quote.booking_id] })
+      }
+    },
+  })
   const { data: myBookings = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ['gig-bookings', profile?.id],
     enabled: Boolean(profile?.id),
@@ -41,19 +64,6 @@ export function Gigs() {
       return data || []
     },
   })
-  const updateBooking = async (bookingRow, status) => {
-    setBookingActionId(bookingRow.id)
-    try {
-      const { error } = await supabase.from('gig_bookings').update({ status }).eq('id', bookingRow.id)
-      if (error) throw error
-      toast.success(status === 'confirmed' ? 'Booking confirmed' : status === 'completed' ? 'Booking marked complete' : 'Booking cancelled')
-      await qc.invalidateQueries({ queryKey: ['gig-bookings'] })
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not update booking')
-    } finally {
-      setBookingActionId(null)
-    }
-  }
   const openEdit = gig => { setEditingGig(gig); setForm({ title:gig.title||'', description:gig.description||'', category:gig.category||'', starting_price:String(Number(gig.starting_price)/100), max_price:gig.max_price ? String(Number(gig.max_price)/100) : '', available_days:Array.isArray(gig.available_days)?gig.available_days:[] }); setShowCreate(true) }
   const removeGig = async gig => { if (!window.confirm(`Delete “${gig.title}”? This cannot be undone.`)) return; try { const { error } = await supabase.from('gigs').delete().eq('id',gig.id).eq('seller_id',profile.id); if(error) throw error; toast.success('Skill listing deleted'); if(editingGig?.id===gig.id){setEditingGig(null);setShowCreate(false)} await qc.invalidateQueries({queryKey:['gigs']}) } catch(err){toast.error(err.message||'Could not delete listing')} }
   const handleSubmit = async e => {
@@ -125,15 +135,15 @@ export function Gigs() {
         </li>
         <li className="rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3">
           <p className="text-xs font-bold text-[var(--md-primary)]">3. Agree the details</p>
-          <p className="mt-1 text-xs leading-5 text-on-surface/60">The provider confirms or declines. Use chat to agree scope, final price and delivery details.</p>
+          <p className="mt-1 text-xs leading-5 text-on-surface/60">The provider sends a final quote with the exact scope and price. The customer reviews and accepts or declines it.</p>
         </li>
         <li className="rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3">
           <p className="text-xs font-bold text-[var(--md-primary)]">4. Service is delivered</p>
-          <p className="mt-1 text-xs leading-5 text-on-surface/60">The provider completes the work and marks the booking complete.</p>
+          <p className="mt-1 text-xs leading-5 text-on-surface/60">The provider starts the agreed work and marks it delivered. The customer confirms that the service was received.</p>
         </li>
       </ol>
       <p className="rounded-md border border-[var(--md-secondary)]/25 bg-[var(--md-secondary)]/5 p-3 text-xs leading-5 text-on-surface/70">
-        <strong className="text-[var(--md-secondary)]">Payment clarity:</strong> This service-booking flow does not charge your wallet or hold money in escrow. The displayed starting price is an initial quote. Agree the final scope and price before the service begins. Do not send money expecting PlugPay escrow protection; service bookings are not protected payments yet.
+        <strong className="text-[var(--md-secondary)]">Payment clarity:</strong> This service-booking flow does not charge your wallet or hold money in escrow. The displayed starting price is indicative. The provider sends a final quote with the agreed scope and price, and the customer accepts it before work starts. Do not send money expecting PlugPay escrow protection; service bookings are not protected payments yet.
       </p>
     </section>
     <div className="mb-5 rounded-md border border-[var(--md-secondary)]/20 bg-tertiary/5 p-4"><div className="mb-3 flex items-center gap-2"><GraduationCap size={15} className="text-[var(--md-secondary)]" /><span className="text-xs font-black uppercase tracking-widest text-[var(--md-secondary)]">Academic Emergency Plug</span></div><div className="flex flex-wrap gap-2">{ACADEMIC_GIGS.map(c => <button key={c} onClick={() => setFilter(filter === c ? '' : c)} className={`min-h-10 rounded-md border px-3 py-2 text-xs font-semibold transition-all ${filter === c ? 'border-tertiary bg-tertiary text-on-tertiary' : 'border-[var(--md-outline-variant)] bg-surface-container-high text-on-surface/60 hover:border-tertiary/40 hover:text-on-surface'}`}>{c}</button>)}</div></div>
@@ -142,15 +152,13 @@ export function Gigs() {
       <div className="mb-4 flex items-center gap-2"><ClipboardList size={17} className="text-[var(--md-primary)]"/><h2 className="font-bold">My Service Bookings</h2><span className="ml-auto text-xs text-on-surface/40">{myBookings.length}</span></div>
       {bookingsLoading ? <p className="text-sm text-on-surface/40">Loading bookings…</p> : myBookings.length === 0 ? <p className="text-sm text-on-surface-variant/45">Your booking requests and service appointments will appear here.</p> : <div className="space-y-3">{myBookings.map(b => {
         const isSeller = b.seller_id === profile.id
-        const statusLabel = ({pending:'Awaiting confirmation',confirmed:'Confirmed',completed:'Completed',cancelled:'Cancelled'})[b.status] || b.status
+        const statusLabel = ({pending:'Awaiting provider quote',quoted:'Quote awaiting decision',confirmed:'Quote accepted',in_progress:'Service in progress',delivered:'Awaiting customer confirmation',completed:'Completed',cancelled:'Cancelled'})[b.status] || b.status
         return <div key={b.id} className="rounded-md border border-[var(--md-outline-variant)] p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="min-w-0 flex-1"><p className="font-semibold">{b.gigs?.title || 'Student service'}</p><p className="mt-1 text-xs text-on-surface-variant/45">{isSeller ? 'Customer booking' : 'Your booking'} · {b.slot_date} at {b.slot_time}</p><p className="mt-1 text-xs text-on-surface/60">Status: <span className="font-semibold">{statusLabel}</span> · Starting quote: <span className="font-semibold">{formatNaira(b.amount)}</span></p><p className="mt-1 text-xs leading-5 text-on-surface-variant/60">{b.status === 'pending' ? 'Waiting for the provider to confirm. No payment has been collected.' : b.status === 'confirmed' ? 'The time is agreed. Confirm the service scope and final price in chat before work begins. This is not a protected payment.' : b.status === 'completed' ? 'The provider marked this service complete. This booking flow did not collect or release payment.' : 'This booking request was cancelled.'}</p>{b.notes && <p className="mt-2 text-sm text-on-surface/50">{b.notes}</p>}</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="min-w-0 flex-1"><p className="font-semibold">{b.gigs?.title || 'Student service'}</p><p className="mt-1 text-xs text-on-surface-variant/45">{isSeller ? 'Customer booking' : 'Your booking'} · {b.slot_date} at {b.slot_time}</p><p className="mt-1 text-xs text-on-surface/60">Status: <span className="font-semibold">{statusLabel}</span> · {['confirmed','in_progress','delivered','completed'].includes(b.status) ? 'Agreed quote' : 'Starting quote'}: <span className="font-semibold">{formatNaira(b.amount)}</span></p><p className="mt-1 text-xs leading-5 text-on-surface-variant/60">{b.status === 'pending' ? 'Waiting for the provider to send a final price and work scope.' : b.status === 'quoted' ? 'Review the provider’s final price and work scope before accepting.' : b.status === 'confirmed' ? 'The final quote is accepted. The provider can now start the service.' : b.status === 'in_progress' ? 'The provider has started the agreed work.' : b.status === 'delivered' ? 'The provider marked the work delivered. Review it and confirm that you received the service.' : b.status === 'completed' ? 'You confirmed that the agreed service was received.' : 'This booking request was cancelled.'}</p>{b.notes && <p className="mt-2 text-sm text-on-surface/50">{b.notes}</p>}</div>
+            <div className="flex min-w-0 flex-col gap-2">
               <Link to={`/workspace?other=${encodeURIComponent(isSeller ? b.client_id : b.seller_id)}`} className="btn-secondary text-xs"><MessageCircle size={13}/> Message {isSeller ? 'customer' : 'provider'}</Link>
-              {isSeller && b.status === 'pending' && <button className="btn-primary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'confirmed')}><CheckCircle size={13}/> Confirm request</button>}
-              {isSeller && b.status === 'confirmed' && <button className="btn-primary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'completed')}><CheckCircle size={13}/> Mark service complete</button>}
-              {((isSeller && ['pending','confirmed'].includes(b.status)) || (!isSeller && b.status === 'pending')) && <button className="btn-secondary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'cancelled')}><XCircle size={13}/> Cancel</button>}
+              <ServiceBookingActions booking={b} currentUserId={profile.id} />
             </div>
           </div>
         </div>
@@ -158,7 +166,7 @@ export function Gigs() {
     </section>}
     {isLoading ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-44" />)}</div> : gigs.length === 0 ? <div className="surface flex min-h-64 flex-col items-center justify-center p-8 text-center text-on-surface/30"><div className="mb-4 text-4xl">⚡</div><p className="font-semibold">No gigs listed yet</p><p className="mt-1 text-sm">Be the first to offer a service!</p></div> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{gigs.map(gig => <GigCard key={gig.id} gig={gig} onBook={setBookingGig} isOwner={gig.seller_id===profile?.id} onEdit={openEdit} onDelete={removeGig} />)}</div>}
     {showCreate && <div className="modal-backdrop"><div className="absolute inset-0" onClick={() => setShowCreate(false)} /><div className="modal-panel"><div className="modal-header"><h2 className="font-bold">{editingGig ? 'Edit Skill Listing' : 'List a Service'}</h2><button onClick={() => { setShowCreate(false); setEditingGig(null) }} className="icon-button -mr-2" aria-label="Close dialog"><X size={18} /></button></div><form onSubmit={handleSubmit} className="space-y-4 p-5"><div><label className="label">Service Title</label><input className="input" placeholder="e.g. GST 101 summary notes" value={form.title} onChange={set('title')} required /></div><div className="grid gap-3 sm:grid-cols-2"><div><label className="label">Category</label><select className="input" value={form.category} onChange={set('category')} required><option value="">Select category</option>{[...GIG_CATEGORIES, ...ACADEMIC_GIGS].map(c => <option key={c} value={c}>{c}</option>)}</select></div><div><label className="label">Minimum Price (₦)</label><input className="input" type="number" min="1" placeholder="e.g. 2500" value={form.starting_price} onChange={set('starting_price')} required /></div></div>
-          <div><label className="label">Maximum Price (₦) <span className="font-normal text-on-surface/30">(optional, for a price range)</span></label><input className="input" type="number" min={form.starting_price || 1} placeholder="Leave blank for fixed price" value={form.max_price} onChange={set('max_price')} /><p className="mt-1 text-xs text-on-surface-variant/35">The minimum is used as the initial booking quote; agree the final price before confirming.</p></div>
+          <div><label className="label">Maximum Price (₦) <span className="font-normal text-on-surface/30">(optional, for a price range)</span></label><input className="input" type="number" min={form.starting_price || 1} placeholder="Leave blank for fixed price" value={form.max_price} onChange={set('max_price')} /><p className="mt-1 text-xs text-on-surface-variant/35">The minimum is a starting price. The provider sends a separate final quote for the customer to accept.</p></div>
           <fieldset><legend className="label mb-2">Available days</legend><div className="flex flex-wrap gap-2">{['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(day=><label key={day} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-xs ${form.available_days.includes(day)?'border-primary bg-primary/10 text-primary':'border-outline-variant text-on-surface/60'}`}><input type="checkbox" checked={form.available_days.includes(day)} onChange={e=>setForm(f=>({...f,available_days:e.target.checked?[...f.available_days,day]:f.available_days.filter(d=>d!==day)}))}/>{day}</label>)}</div></fieldset><div><label className="label">Description</label><textarea className="input resize-none" rows={3} placeholder="What do you offer? Turnaround, what's included, etc." value={form.description} onChange={set('description')} /></div><button type="submit" disabled={submitting} className="btn-primary w-full">{submitting ? 'Saving...' : editingGig ? 'Save Changes' : 'Publish Skill'}</button></form></div></div>}
     {bookingGig && <div className="modal-backdrop"><div className="absolute inset-0" onClick={()=>setBookingGig(null)}/><div className="modal-panel"><div className="modal-header"><div><h2 className="font-bold">Request {bookingGig.title}</h2><p className="text-xs text-on-surface-variant/60">Choose a time for the provider to confirm. {Array.isArray(bookingGig.available_days)&&bookingGig.available_days.length>0 ? `Available: ${bookingGig.available_days.join(', ')}` : 'Availability not specified.'}</p></div><button className="icon-button" onClick={()=>setBookingGig(null)}><X size={17}/></button></div><div className="space-y-4 p-5"><div className="rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3"><p className="text-xs font-bold">Starting quote: {formatNaira(bookingGig.starting_price)}</p><p className="mt-1 text-xs leading-5 text-on-surface-variant/60">This sends a booking request only. It does not charge or hold money. Agree the final scope and price before work begins. This booking does not include PlugPay escrow protection.</p></div><div className="grid grid-cols-2 gap-3"><div><label className="label">Date</label><input className="input" type="date" min={new Date().toLocaleDateString("en-CA")} value={booking.date} onChange={e=>setBooking(b=>({...b,date:e.target.value}))}/></div><div><label className="label">Time</label><input className="input" type="time" value={booking.time} onChange={e=>setBooking(b=>({...b,time:e.target.value}))}/></div></div><textarea className="input" rows={3} placeholder="What do you need?" value={booking.notes} onChange={e=>setBooking(b=>({...b,notes:e.target.value}))}/><button className="btn-primary w-full" onClick={book} disabled={bookingSubmitting || !booking.date || !booking.time}>{bookingSubmitting ? "Sending request…" : "Send request"}</button></div></div></div>}
   </div>

@@ -312,6 +312,13 @@ BEGIN
     WHERE n.nspname = 'public'
       AND p.prosecdef
       AND p.prorettype = 'trigger'::regtype
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend AS extension_dependency
+        WHERE extension_dependency.classid = 'pg_proc'::regclass
+          AND extension_dependency.objid = p.oid
+          AND extension_dependency.deptype = 'e'
+      )
       AND EXISTS (
         SELECT 1
         FROM pg_trigger AS t
@@ -376,6 +383,13 @@ BEGIN
     WHERE n.nspname = 'public'
       AND p.prosecdef
       AND p.prorettype = 'trigger'::regtype
+      AND NOT EXISTS (
+        SELECT 1
+        FROM pg_depend AS extension_dependency
+        WHERE extension_dependency.classid = 'pg_proc'::regclass
+          AND extension_dependency.objid = p.oid
+          AND extension_dependency.deptype = 'e'
+      )
       AND EXISTS (
         SELECT 1
         FROM pg_trigger AS t

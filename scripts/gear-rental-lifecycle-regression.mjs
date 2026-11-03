@@ -24,6 +24,7 @@ const required = [
   'pickup_code_expires_at < now()',
   'pickup_code_attempts + 1 >= 5',
   'Pickup is not available before the reserved start date',
+  'Pickup codes are only available during the reserved rental dates',
   'The reserved rental period has expired',
   'return_code_expires_at < now()',
   'return_code_attempts + 1 >= 5',

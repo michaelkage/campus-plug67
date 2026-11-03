@@ -19,6 +19,8 @@ const required = [
   'gear_rentals_period_amounts_check',
   'daterange(r.start_date, r.end_date, \'[]\') && daterange(p_start_date, p_end_date, \'[]\')',
   'FOR UPDATE',
+  'v_user IS DISTINCT FROM v_rental.lender_id',
+  'v_user IS DISTINCT FROM v_rental.borrower_id',
   "t.status IN ('pending','locked','meetup_initiated','release_requested','disputed')",
   'ORDER BY p.id',
   'extensions.gen_random_bytes(4)',

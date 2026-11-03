@@ -163,6 +163,34 @@ CREATE TRIGGER guard_listing_sale_during_rental
 
 REVOKE ALL ON FUNCTION public.guard_listing_sale_during_rental() FROM PUBLIC, anon, authenticated;
 
+CREATE OR REPLACE FUNCTION public.guard_listing_active_rental_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $fn$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.gear_rentals r
+     WHERE r.listing_id = OLD.id
+       AND r.rental_status IN ('funds_escrowed','active','return_pending','disputed')
+  ) AND (
+    (NEW.status IS DISTINCT FROM OLD.status AND NEW.status <> 'active')
+    OR (NEW.listing_mode IS DISTINCT FROM OLD.listing_mode AND NEW.listing_mode <> 'both')
+  ) THEN
+    RAISE EXCEPTION 'This listing cannot be removed from sale/rental availability while a rental is active';
+  END IF;
+  RETURN NEW;
+END;
+$fn$;
+
+DROP TRIGGER IF EXISTS guard_listing_active_rental_mutation ON public.listings;
+CREATE TRIGGER guard_listing_active_rental_mutation
+  BEFORE UPDATE OF status, listing_mode ON public.listings
+  FOR EACH ROW EXECUTE FUNCTION public.guard_listing_active_rental_mutation();
+
+REVOKE ALL ON FUNCTION public.guard_listing_active_rental_mutation() FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.create_gear_rental_request(
   p_listing_id uuid,
   p_start_date date,

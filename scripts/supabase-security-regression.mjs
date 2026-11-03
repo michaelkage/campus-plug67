@@ -139,7 +139,7 @@ if (!/create or replace function private\.get_my_referrals[\s\S]*?security defin
     || !/create or replace function public\.get_my_referrals[\s\S]*?security invoker/i.test(profileDataMigration)) {
   fail('Referral reads must be scoped to the authenticated referrer');
 }
-if (!/revoke all on function public\.search_users_by_department\(text\) from public, anon, authenticated, service_role/i.test(profileDataMigration)) {
+if (!/revoke all on function public\.search_users_by_department\(text\)\s+from public, anon, authenticated, service_role/i.test(profileDataMigration)) {
   fail('Legacy full-profile search RPC must be disabled');
 }
 if (!/revoke all on function %s from public, anon, authenticated, service_role/i.test(profileDataMigration)) {

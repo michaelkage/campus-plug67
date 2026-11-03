@@ -21,9 +21,10 @@ export default function CampusWallet() {
     if (!userId) { setLoading(false); return }
     setLoading(true)
     try {
-      const { data, error } = await supabase.from('profiles').select('plug_credit_balance').eq('id', userId).single()
+      const { data, error } = await supabase.rpc('get_my_profile', {})
       if (error) throw error
-      setBalance(Number(data?.plug_credit_balance ?? 0))
+      if (!data || data.id !== userId) throw new Error('Private profile unavailable')
+      setBalance(Number(data.plug_credit_balance ?? 0))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not load wallet balance')
     } finally {

@@ -156,8 +156,22 @@ BEGIN
     RAISE EXCEPTION 'Private profile stats helper must pin an empty search_path';
   END IF;
 
+  IF NOT has_schema_privilege('anon', 'private', 'USAGE')
+     OR NOT has_schema_privilege('authenticated', 'private', 'USAGE')
+     OR NOT has_function_privilege('anon', helper_oid, 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', helper_oid, 'EXECUTE') THEN
+    RAISE EXCEPTION 'Client roles need private helper usage and execute for the public wrapper';
+  END IF;
+
   IF (SELECT prosecdef FROM pg_proc WHERE oid = public_oid) THEN
     RAISE EXCEPTION 'Public profile stats RPC must remain SECURITY INVOKER';
+  END IF;
+
+  IF NOT (
+    SELECT coalesce(proconfig, ARRAY[]::text[]) @> ARRAY['search_path=""']
+    FROM pg_proc WHERE oid = public_oid
+  ) THEN
+    RAISE EXCEPTION 'Public profile stats RPC must pin an empty search_path';
   END IF;
 
   IF NOT (

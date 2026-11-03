@@ -1,10 +1,9 @@
 -- Server-authoritative service booking availability and slot reservation.
 -- No payment or escrow is performed by this lifecycle.
 --
--- Locking the provider listing serializes concurrent requests for the same gig.
+-- Locking the provider profile serializes requests across all of their services.
 -- The partial unique index is the final protection against duplicate active slots.
 
-DROP INDEX IF EXISTS public.gig_bookings_one_active_slot_uidx;
 CREATE UNIQUE INDEX IF NOT EXISTS gig_bookings_one_active_provider_slot_uidx
   ON public.gig_bookings (seller_id, slot_date, slot_time)
   WHERE status IN ('pending', 'quoted', 'confirmed', 'in_progress', 'delivered');

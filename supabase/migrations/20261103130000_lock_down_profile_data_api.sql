@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS public.public_profiles (
 
 ALTER TABLE public.public_profiles ENABLE ROW LEVEL SECURITY;
 
+CREATE INDEX IF NOT EXISTS public_profiles_plug_score_idx
+  ON public.public_profiles (plug_score DESC NULLS LAST);
+CREATE INDEX IF NOT EXISTS public_profiles_total_sales_idx
+  ON public.public_profiles (total_sales DESC NULLS LAST);
+
 DROP POLICY IF EXISTS "Public profiles are readable by everyone" ON public.public_profiles;
 CREATE POLICY "Public profiles are readable by everyone"
   ON public.public_profiles

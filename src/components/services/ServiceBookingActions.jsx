@@ -24,22 +24,35 @@ export function ServiceBookingActions({ booking, currentUserId }) {
   const [scope, setScope] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const { data: quotes = [] } = useQuery({
+  const { data: quoteData = { recent: [], accepted: null } } = useQuery({
     queryKey: ['service-booking-quotes', booking.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('service_booking_quotes')
-        .select('id, amount_kobo, scope, status, expires_at, accepted_at, created_at')
-        .eq('booking_id', booking.id)
-        .order('created_at', { ascending: false })
-        .limit(5)
-      if (error) throw error
-      return data || []
+      const columns = 'id, amount_kobo, scope, status, expires_at, accepted_at, created_at'
+      const [recentResult, acceptedResult] = await Promise.all([
+        supabase
+          .from('service_booking_quotes')
+          .select(columns)
+          .eq('booking_id', booking.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('service_booking_quotes')
+          .select(columns)
+          .eq('booking_id', booking.id)
+          .eq('status', 'accepted')
+          .maybeSingle(),
+      ])
+      if (recentResult.error) throw recentResult.error
+      if (acceptedResult.error) throw acceptedResult.error
+      return {
+        recent: recentResult.data || [],
+        accepted: acceptedResult.data || null,
+      }
     },
   })
 
-  const latestQuote = quotes[0] || null
-  const acceptedQuote = quotes.find(quote => quote.status === 'accepted') || null
+  const latestQuote = quoteData.recent[0] || null
+  const acceptedQuote = quoteData.accepted
   const displayedQuote = acceptedQuote || latestQuote
   const quoteExpired = latestQuote?.status === 'sent' && new Date(latestQuote.expires_at).getTime() <= Date.now()
 

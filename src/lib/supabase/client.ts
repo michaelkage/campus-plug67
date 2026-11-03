@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
+import type { Database, PublicProfileVerificationStats } from '@/types/database'
 import { debugFetch } from '@/lib/debugger'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -24,6 +24,7 @@ export interface RpcDefinitions {
   get_department_leaderboard:{Args:{p_university:string};Returns:unknown}
   create_session_handoff:{Args:{p_transaction_id:string};Returns:unknown}
   write_security_audit:{Args:{p_entity_type:string;p_entity_id:string;p_action:string;p_metadata?:Record<string,unknown>|null};Returns:string}
+  get_public_profile_stats:{Args:{p_profile_id:string};Returns:PublicProfileVerificationStats}
 }
 type RpcName=keyof RpcDefinitions
 type RpcResult<Name extends RpcName>={data:RpcDefinitions[Name]['Returns']|null;error:{message:string}|null}

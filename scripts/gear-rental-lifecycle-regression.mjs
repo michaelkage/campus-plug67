@@ -25,7 +25,7 @@ const required = [
   'Gear rental security deposit returned',
   'Service role required',
   'guard_listing_sale_during_rental',
-  "v_mode = 'rental'",
+  "v_listing.listing_mode <> 'both'",
   "r.rental_status IN ('funds_escrowed','active','return_pending','disputed')",
   'REVOKE INSERT, UPDATE, DELETE ON public.gear_rentals, public.gear_rental_holds',
   'GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer) TO service_role',

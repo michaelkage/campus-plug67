@@ -15,9 +15,9 @@ const extractFunction = (sql, name) => {
 };
 
 const migrationPath = 'supabase/migrations/20261021143000_harden_cross_provider_listing_purchases.sql';
-const walletConflictMigrationPath = 'supabase/migrations/20261026103000_handle_wallet_active_purchase_conflicts.sql';
+const walletIdempotencyMigrationPath = 'supabase/migrations/20261103110000_wallet_micro_escrow_idempotent_retries.sql';
 const migration = read(migrationPath);
-const walletConflictMigration = read(walletConflictMigrationPath);
+const walletIdempotencyMigration = read(walletIdempotencyMigrationPath);
 const resolutionMigration = read('supabase/migrations/20261022180000_mark_wallet_listing_sold_on_release.sql');
 const rpcPermissions = read('supabase/migrations/20261022120000_restrict_marketplace_escrow_rpc_execution.sql');
 const legacyRpcPermissions = read('supabase/migrations/20261022124500_restrict_legacy_wallet_sku_rpc_execution.sql');
@@ -40,7 +40,7 @@ for (const signature of [
   assertIncludes(legacyRpcPermissions, `GRANT EXECUTE ON FUNCTION ${signature} TO authenticated`,
     `Legacy RPC must remain available to authenticated users: ${signature}`);
 }
-const wallet = extractFunction(walletConflictMigration, 'create_wallet_micro_escrow');
+const wallet = extractFunction(walletIdempotencyMigration, 'create_wallet_micro_escrow');
 const paystack = extractFunction(migration, 'create_pending_paystack_transaction');
 const resolve = extractFunction(resolutionMigration, 'resolve_wallet_micro_escrow');
 const integrity = read('supabase/migrations/20260926131500_protect_listing_purchase_integrity.sql');
@@ -70,6 +70,26 @@ assertIncludes(wallet, 'GET STACKED DIAGNOSTICS v_constraint_name = CONSTRAINT_N
   'Wallet must inspect the violated constraint instead of hiding unrelated uniqueness errors');
 assertIncludes(wallet, '    RAISE;',
   'Wallet must re-raise unexpected uniqueness violations');
+
+for (const retryGuard of [
+  'v_existing_transaction.buyer_id = v_buyer',
+  "v_existing_transaction.payment_method = 'campus_wallet'",
+  "v_existing_hold.status = 'held'",
+  'v_existing_hold.amount_kobo = v_existing_transaction.amount',
+  "v_listing.status = 'reserved'",
+  "'idempotent', true",
+]) {
+  assertIncludes(wallet, retryGuard, `Wallet retry recovery must verify ${retryGuard}`);
+}
+const idempotentResponseCount = (wallet.match(/'idempotent', true/g) || []).length;
+if (idempotentResponseCount !== 2) {
+  fail('Wallet must recover both an observed existing purchase and the active-index race');
+}
+const idempotentReturn = wallet.indexOf("'idempotent', true");
+if (!(idempotentReturn > 0 && idempotentReturn < wallet.indexOf('INSERT INTO public.transactions')
+    && idempotentReturn < wallet.indexOf('INSERT INTO public.plug_credit_ledger'))) {
+  fail('An idempotent retry must return before creating another transaction or ledger debit');
+}
 
 const txInsert = wallet.indexOf('INSERT INTO public.transactions');
 const ledgerInsert = wallet.indexOf('INSERT INTO public.plug_credit_ledger');

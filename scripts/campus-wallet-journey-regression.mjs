@@ -9,6 +9,7 @@ const releaseEdge = read('supabase/functions/release-escrow/index.ts');
 const refundEdge = read('supabase/functions/admin-refund-escrow/index.ts');
 const safeArrival = read('supabase/functions/safe-arrival/index.ts');
 const safeSwapPage = read('src/pages/SafeSwapZone.tsx');
+const disputeEdge = read('supabase/functions/process-dispute/index.ts');
 
 assert.ok(migration.includes("current_setting('app.escrow_transition', true) = 'true'"),
   'Sensitive transaction guard must allow only trusted escrow-transition context');
@@ -51,5 +52,8 @@ assert.ok(safeSwapPage.includes('tx?.buyer_id===user?.id'),
   'QR release scanner must only render for the buyer');
 assert.ok(listing.includes("action: 'open_case'"),
   'Campus Wallet buyer must be able to open a dispute before settlement');
+assert.ok(disputeEdge.includes('await executeVerdict(juryCase, finalVerdict)'));
+assert.ok(!disputeEdge.includes('update({ status: "decided", verdict: finalVerdict'),
+  'Dispute Edge Function must not mark the case decided before atomic settlement');
 
 console.log('Campus Wallet escrow journey regression checks passed.');

@@ -6,10 +6,10 @@ import { writeSecurityAudit } from '@/lib/audit'
 import { useAuth } from '@/contexts/AuthContext'
 import { scanLive } from '@/lib/chatScanner'
 import { Shield, AlertTriangle, Send, Lock, Info, X, Pencil, Check, Trash2, Loader } from 'lucide-react'
-import { Database } from '@/types/database'
+import { Database, PublicProfile } from '@/types/database'
 
 type Message = Database['public']['Tables']['messages']['Row']
-type Profile = Database['public']['Tables']['profiles']['Row']
+type Profile = PublicProfile
 
 interface MarketplaceChatProps {
   currentUserId: string

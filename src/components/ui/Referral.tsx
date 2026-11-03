@@ -17,21 +17,30 @@ export function useReferral() {
   const { data: referralData } = useQuery({
     queryKey: ['referral-data', profile?.id],
     queryFn:  async () => {
-      const [events, invitees] = await Promise.all([
-        supabase.from('referral_events')
-          .select('*, referee:referee_id(full_name, created_at)')
-          .eq('referrer_id', profile.id)
-          .order('created_at', { ascending: false }),
-        supabase.from('profiles')
+      const { data: events, error: eventsError } = await supabase.from('referral_events')
+        .select('*')
+        .eq('referrer_id', profile.id)
+        .order('created_at', { ascending: false })
+      if (eventsError) throw eventsError
+
+      const refereeIds = [...new Set((events || [])
+        .map(event => event.referee_id)
+        .filter(id => typeof id === 'string'))]
+      let invitees = []
+      if (refereeIds.length) {
+        const { data, error } = await supabase.from('public_profiles')
           .select('id, full_name, created_at')
-          .eq('referred_by', profile.id)
+          .in('id', refereeIds)
           .order('created_at', { ascending: false })
-          .limit(10),
-      ])
+          .limit(10)
+        if (error) throw error
+        invitees = data || []
+      }
+
       return {
-        events:   events.data  || [],
-        invitees: invitees.data || [],
-        bonusEarned: (events.data || []).filter(e => e.bonus_awarded).length * 50,
+        events: events || [],
+        invitees,
+        bonusEarned: (events || []).filter(event => event.bonus_awarded).length * 50,
       }
     },
     enabled: !!profile?.id,

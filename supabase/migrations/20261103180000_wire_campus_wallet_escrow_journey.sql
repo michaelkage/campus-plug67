@@ -392,3 +392,137 @@ $$;
 
 REVOKE ALL ON FUNCTION public.record_safe_arrival_v2(uuid, text, numeric, numeric, uuid, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.record_safe_arrival_v2(uuid, text, numeric, numeric, uuid, text) TO service_role;
+
+
+-- Dispute verdict settlement must support reserved listings and must not use
+-- ON CONFLICT inference against unrelated partial ledger indexes.
+CREATE OR REPLACE FUNCTION public.resolve_dispute_verdict(
+  p_case_id uuid,
+  p_verdict text,
+  p_admin_override boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_case public.jury_cases%ROWTYPE;
+  v_tx public.transactions%ROWTYPE;
+  v_recipient uuid;
+  v_reason text;
+BEGIN
+  IF p_admin_override THEN
+    IF NOT public.is_platform_admin() THEN
+      RAISE EXCEPTION 'Only platform admins can override dispute resolution';
+    END IF;
+  ELSIF COALESCE(auth.jwt()->>'role', '') <> 'service_role' THEN
+    RAISE EXCEPTION 'Only service_role can execute resolve_dispute_verdict';
+  END IF;
+
+  SELECT * INTO v_case
+    FROM public.jury_cases
+   WHERE id = p_case_id
+   FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Jury case % not found', p_case_id; END IF;
+  IF v_case.status IN ('closed', 'decided') THEN
+    RETURN jsonb_build_object('success', true, 'already_resolved', true);
+  END IF;
+
+  SELECT * INTO v_tx
+    FROM public.transactions
+   WHERE id = v_case.transaction_id
+   FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Associated transaction % not found', v_case.transaction_id;
+  END IF;
+  IF v_tx.status <> 'disputed' THEN
+    RAISE EXCEPTION 'Transaction must be disputed before verdict settlement';
+  END IF;
+
+  IF p_verdict = 'claimant' THEN
+    IF COALESCE(v_tx.payment_method, 'paystack') <> 'campus_wallet'
+       AND COALESCE(v_tx.refund_status, '') NOT IN ('pending', 'processing', 'processed') THEN
+      RAISE EXCEPTION 'External Paystack refund must be initiated before dispute refund settlement';
+    END IF;
+
+    v_recipient := v_tx.buyer_id;
+    v_reason := 'Dispute refund: settled in favour of buyer';
+    PERFORM set_config('app.escrow_transition', 'true', true);
+
+    UPDATE public.transactions
+       SET status = 'cancelled',
+           cancelled_at = now(),
+           updated_at = now()
+     WHERE id = v_tx.id;
+
+    UPDATE public.profiles
+       SET plug_score = greatest(coalesce(plug_score, 500) - 50, 0)
+     WHERE id = v_tx.seller_id;
+
+    UPDATE public.listings AS l
+       SET status = 'active', updated_at = now()
+     WHERE l.id = v_tx.listing_id
+       AND l.status IN ('reserved', 'sold')
+       AND NOT EXISTS (
+         SELECT 1
+           FROM public.transactions AS other
+          WHERE other.listing_id = l.id
+            AND other.id <> v_tx.id
+            AND other.status IN ('pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed')
+       );
+
+    IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN
+      INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
+      VALUES (v_recipient, v_tx.amount, v_reason, v_tx.id);
+    END IF;
+
+  ELSIF p_verdict = 'respondent' THEN
+    v_recipient := v_tx.seller_id;
+    v_reason := 'Dispute settlement: released to seller';
+    PERFORM set_config('app.escrow_transition', 'true', true);
+
+    UPDATE public.transactions
+       SET status = 'released',
+           released_at = now(),
+           completed_at = now(),
+           updated_at = now()
+     WHERE id = v_tx.id;
+
+    INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
+    VALUES (v_recipient, v_tx.amount, v_reason, v_tx.id);
+  ELSE
+    RAISE EXCEPTION 'Invalid verdict %. Must be claimant or respondent', p_verdict;
+  END IF;
+
+  UPDATE public.jury_cases
+     SET status = 'decided',
+         verdict = p_verdict,
+         verdict_decided_at = now()
+   WHERE id = v_case.id;
+
+  INSERT INTO public.audit_logs(entity_type, entity_id, user_id, action, metadata)
+  VALUES (
+    'jury_case',
+    v_case.id,
+    COALESCE(auth.uid(), v_tx.seller_id),
+    'dispute_resolved',
+    jsonb_build_object(
+      'verdict', p_verdict,
+      'transaction_id', v_tx.id,
+      'amount', v_tx.amount,
+      'recipient', v_recipient,
+      'refund_status', v_tx.refund_status
+    )
+  );
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'case_id', v_case.id,
+    'transaction_id', v_tx.id,
+    'verdict', p_verdict,
+    'recipient', v_recipient,
+    'amount', v_tx.amount
+  );
+END;
+$$;

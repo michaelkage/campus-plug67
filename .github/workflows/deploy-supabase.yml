@@ -128,6 +128,14 @@ jobs:
           # Mark those shadow versions reverted so db push can apply the canonical repo files.
           supabase migration repair 20261013162020 20261013162120 20261013162217 20261013162410 20261013162452 --status reverted --linked
 
+          # Wallet escrow migrations were also applied through the Supabase MCP. The
+          # remote history contains execution-time shadow versions; their canonical
+          # SQL files are already present in this repository. Move the shadow records
+          # out of the active history and mark the matching canonical versions applied
+          # so db push does not rerun the escrow backfills or replace their functions.
+          supabase migration repair 20261103121057 20261103121346 20261103121542 20261103121729 20261103152939 --status reverted --linked
+          supabase migration repair 20261103140000 20261103150000 20261103160000 20261103170000 20261103180000 --status applied --linked
+
       - name: Apply database migrations
         shell: bash
         run: |

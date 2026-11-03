@@ -104,6 +104,12 @@ LANGUAGE plpgsql
 SET search_path = ''
 AS $fn$
 BEGIN
+  -- Narrow SECURITY DEFINER RPCs owned by postgres validate the actor and
+  -- transition before writing status or the accepted quote amount.
+  IF current_user = 'postgres' THEN
+    RETURN NEW;
+  END IF;
+
   IF NEW.id IS DISTINCT FROM OLD.id
     OR NEW.gig_id IS DISTINCT FROM OLD.gig_id
     OR NEW.client_id IS DISTINCT FROM OLD.client_id
@@ -115,11 +121,6 @@ BEGIN
     OR NEW.created_at IS DISTINCT FROM OLD.created_at
   THEN
     RAISE EXCEPTION 'Booking details cannot be changed after submission';
-  END IF;
-
-  -- The only status writer is a SECURITY DEFINER RPC owned by postgres.
-  IF current_user = 'postgres' THEN
-    RETURN NEW;
   END IF;
 
   RAISE EXCEPTION 'Booking status changes must use the service booking actions';

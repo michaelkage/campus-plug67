@@ -85,8 +85,8 @@ if (/grant select on table public\.ratings to (anon|authenticated)/i.test(profil
 if (!/alter view public\.profile_ratings set \(security_invoker = true\)/i.test(profileStatsMigration)) {
   fail('profile_ratings must use SECURITY INVOKER');
 }
-if (!/revoke select on table public\.public_profile_stats from public, anon, authenticated/i.test(profileStatsMigration)) {
-  fail('Retire direct access to the legacy public_profile_stats view');
+if (!/revoke all privileges on table public\\.public_profile_stats from public, anon, authenticated/i.test(profileStatsMigration)) {
+  fail('Retire all direct access to the legacy public_profile_stats view');
 }
 if (!/revoke insert, update, delete on table public\.profile_ratings from authenticated/i.test(profileStatsMigration)) {
   fail('profile_ratings must remain a read-only aggregate view');

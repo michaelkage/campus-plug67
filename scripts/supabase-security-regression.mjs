@@ -130,4 +130,51 @@ for (const [file, text] of required) {
   if (!read(file).includes(text)) fail(file + ' no longer contains required server-authoritative RPC ' + text);
 }
 
+const rpcAccessMigration = read('supabase/migrations/20261103133000_restrict_security_definer_rpc_access.sql');
+const workerOnlyFunctions = [
+  ['atomic_pool_join', 'uuid, uuid, text'],
+  ['consume_session_handoff', 'text'],
+  ['expire_flash_deals', ''],
+  ['increment_view_count', 'uuid'],
+  ['update_streak', 'uuid'],
+  ['update_juror_accuracy', 'uuid'],
+];
+for (const [name, args] of workerOnlyFunctions) {
+  const signature = 'public\\\\.' + name + '\\\\(' + args.replace(/[.*+?^${}()|[\\\\]\\\\]/g, '\\\\console.log('Supabase security regression checks passed.');') + '\\\\)';
+  const revoke = new RegExp('revoke all on function ' + signature + '\\\\s+from public, anon, authenticated', 'i');
+  const grant = new RegExp('grant execute on function ' + signature + '\\\\s+to service_role', 'i');
+  if (!revoke.test(rpcAccessMigration)) fail(name + ' must be unavailable to browser roles');
+  if (!grant.test(rpcAccessMigration)) fail(name + ' must remain available to trusted Edge workers');
+}
+
+for (const name of [
+  'assign_jurors',
+  'delete_user_data',
+  'export_user_data',
+  'search_users_by_department',
+  'check_priority_relist',
+  'scan_listing_trust',
+  'reconcile_student_escrow',
+]) {
+  if (!new RegExp('revoke all on function public\\\\.' + name + '\\\\(', 'i').test(rpcAccessMigration)) {
+    fail(name + ' legacy/helper RPC must not be executable by API roles');
+  }
+}
+
+if (!/create or replace function public\\\\.check_ghost_refund[\\\\s\\\\S]*?auth\\\\.uid\\\\(\\\\)[\\\\s\\\\S]*?buyer_id = actor or seller_id = actor/i.test(rpcAccessMigration)) {
+  fail('Ghost-refund eligibility must be bound to an authenticated transaction participant');
+}
+if (!/create or replace function public\\\\.check_priority_relist_v2[\\\\s\\\\S]*?auth\\\\.uid\\\\(\\\\)[\\\\s\\\\S]*?seller_id = actor/i.test(rpcAccessMigration)) {
+  fail('Priority relist eligibility must be bound to the authenticated seller');
+}
+if (!/revoke execute on function public\\\\.st_estimatedextent/i.test(rpcAccessMigration)) {
+  fail('PostGIS helper execution must be re-revoked after extension ACL drift');
+}
+if (!/p\\\\.prorettype = 'trigger'::regtype/i.test(rpcAccessMigration)) {
+  fail('SECURITY DEFINER trigger functions must not remain directly executable by API roles');
+}
+if (/p_is_correct/.test(read('supabase/functions/process-dispute/index.ts'))) {
+  fail('update_juror_accuracy call must match the deployed one-argument RPC signature');
+}
+
 console.log('Supabase security regression checks passed.');

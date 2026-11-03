@@ -54,7 +54,7 @@ ALTER TABLE public.gear_rentals
 ALTER TABLE public.gear_rentals
   DROP CONSTRAINT IF EXISTS gear_rentals_status_check,
   ADD CONSTRAINT gear_rentals_status_check
-    CHECK (rental_status IN ('payment_pending','funds_escrowed','active','return_pending','completed','cancelled','disputed','resolved')),
+    CHECK (rental_status IN ('payment_pending','funds_escrowed','active','return_pending','return_inspection','completed','cancelled','disputed','resolved')),
   DROP CONSTRAINT IF EXISTS gear_rentals_amounts_check,
   ADD CONSTRAINT gear_rentals_amounts_check CHECK (
     (rental_fee_kobo IS NULL OR rental_fee_kobo > 0)
@@ -148,7 +148,7 @@ BEGIN
     SELECT 1
       FROM public.gear_rentals r
      WHERE r.listing_id = NEW.listing_id
-       AND r.rental_status IN ('funds_escrowed','active','return_pending','disputed')
+       AND r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed')
   ) THEN
     RAISE EXCEPTION 'This item has an active rental and cannot be purchased yet';
   END IF;
@@ -174,7 +174,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.gear_rentals r
      WHERE r.listing_id = OLD.id
-       AND r.rental_status IN ('funds_escrowed','active','return_pending','disputed')
+       AND r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed')
   ) AND (
     (NEW.status IS DISTINCT FROM OLD.status AND NEW.status IS DISTINCT FROM 'active')
     OR (NEW.listing_mode IS DISTINCT FROM OLD.listing_mode AND NEW.listing_mode IS DISTINCT FROM 'both')
@@ -275,7 +275,7 @@ BEGIN
     SELECT 1
       FROM public.gear_rentals r
      WHERE r.listing_id = p_listing_id
-       AND r.rental_status IN ('funds_escrowed','active','return_pending','disputed')
+       AND r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed')
        AND daterange(r.start_date, r.end_date, '[]') && daterange(p_start_date, p_end_date, '[]')
   ) THEN
     RAISE EXCEPTION 'This item is already reserved for part of those dates';
@@ -462,12 +462,20 @@ DECLARE
   v_hold public.gear_rental_holds%ROWTYPE;
 BEGIN
   IF v_user IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
-  IF p_return_code IS NULL OR p_return_code !~ '^[A-F0-9]{8}$' THEN RAISE EXCEPTION 'Enter the 8-character return code'; END IF;
+  IF p_return_code IS NULL OR p_return_code !~ '^[A-F0-9]{8}$' THEN
+    RAISE EXCEPTION 'Enter the 8-character return code';
+  END IF;
 
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_user <> v_rental.lender_id THEN RAISE EXCEPTION 'Only the lender can confirm item return'; END IF;
-  IF v_rental.rental_status <> 'return_pending' THEN RAISE EXCEPTION 'Rental is not awaiting return confirmation'; END IF;
-  IF v_rental.return_code_hash IS NULL OR v_rental.return_code_expires_at < now() THEN
+  IF NOT FOUND OR v_user IS DISTINCT FROM v_rental.lender_id THEN
+    RAISE EXCEPTION 'Only the lender can confirm item return';
+  END IF;
+  IF v_rental.rental_status <> 'return_pending' THEN
+    RAISE EXCEPTION 'Rental is not awaiting return confirmation';
+  END IF;
+  IF v_rental.return_code_hash IS NULL
+     OR v_rental.return_code_expires_at IS NULL
+     OR v_rental.return_code_expires_at < now() THEN
     RETURN jsonb_build_object('success', false, 'code', 'return_code_expired', 'message', 'Return code is invalid or expired');
   END IF;
   IF v_rental.return_code_hash <> encode(extensions.digest(p_return_code, 'sha256'), 'hex') THEN
@@ -481,10 +489,60 @@ BEGIN
   END IF;
 
   SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_hold.status <> 'held' THEN RAISE EXCEPTION 'Rental wallet hold is not available'; END IF;
+  IF NOT FOUND OR v_hold.status <> 'held' THEN
+    RAISE EXCEPTION 'Rental wallet hold is not available';
+  END IF;
 
-  -- Lock both wallets in a stable order to prevent opposite-direction rental
-  -- settlements between the same two students from deadlocking.
+  UPDATE public.gear_rentals
+     SET rental_status = 'return_inspection', current_state = 'returned_to_owner',
+         returned_at = now(), custody_resolved_at = now(),
+         return_code_hash = NULL, return_code_expires_at = NULL,
+         return_code_attempts = 0, updated_at = now()
+   WHERE id = p_rental_id;
+
+  INSERT INTO public.notifications (user_id, type, title, body, data)
+  VALUES
+    (v_rental.borrower_id, 'gear_rental_return_received', 'Item return received',
+     'The lender confirmed receipt. Funds remain held during the 24-hour inspection window.',
+     jsonb_build_object('rental_id', p_rental_id)),
+    (v_rental.lender_id, 'gear_rental_return_received', 'Return confirmed',
+     'A 24-hour inspection window has started. Settle the rental after the window or open a dispute if needed.',
+     jsonb_build_object('rental_id', p_rental_id));
+
+  RETURN jsonb_build_object('success', true, 'rental_status', 'return_inspection',
+    'inspection_ends_at', now() + interval '24 hours');
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.settle_gear_rental_return(p_rental_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $fn$
+DECLARE
+  v_user uuid := auth.uid();
+  v_rental public.gear_rentals%ROWTYPE;
+  v_hold public.gear_rental_holds%ROWTYPE;
+BEGIN
+  IF v_user IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
+
+  SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
+  IF NOT FOUND OR (v_user IS DISTINCT FROM v_rental.borrower_id AND v_user IS DISTINCT FROM v_rental.lender_id) THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+  IF v_rental.rental_status <> 'return_inspection' OR v_rental.returned_at IS NULL THEN
+    RAISE EXCEPTION 'Rental is not awaiting final settlement';
+  END IF;
+  IF now() < v_rental.returned_at + interval '24 hours' THEN
+    RAISE EXCEPTION 'The 24-hour return inspection window has not ended';
+  END IF;
+
+  SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
+  IF NOT FOUND OR v_hold.status <> 'held' THEN
+    RAISE EXCEPTION 'Rental wallet hold is not available';
+  END IF;
+
   PERFORM 1 FROM public.profiles p
    WHERE p.id IN (v_hold.borrower_id, v_hold.lender_id)
    ORDER BY p.id
@@ -492,7 +550,7 @@ BEGIN
 
   IF v_hold.rental_fee_kobo > 0 THEN
     INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
-    VALUES (v_hold.lender_id, v_hold.rental_fee_kobo, 'Gear rental fee released after return', p_rental_id);
+    VALUES (v_hold.lender_id, v_hold.rental_fee_kobo, 'Gear rental fee released after return inspection', p_rental_id);
   END IF;
   IF v_hold.security_deposit_kobo > 0 THEN
     INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
@@ -501,18 +559,16 @@ BEGIN
 
   UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now() WHERE id = v_hold.id;
   UPDATE public.gear_rentals
-     SET rental_status = 'completed', current_state = 'returned_to_owner',
-         returned_at = now(), return_code_hash = NULL, return_code_expires_at = NULL, return_code_attempts = 0,
-         resolved_at = now(), updated_at = now()
+     SET rental_status = 'completed', resolved_at = now(), updated_at = now()
    WHERE id = p_rental_id;
 
   INSERT INTO public.notifications (user_id, type, title, body, data)
   VALUES
     (v_hold.borrower_id, 'gear_rental_completed', 'Rental completed',
-     'The item return was confirmed and your security deposit was returned.',
+     'The inspection window ended without a dispute. Your security deposit was returned.',
      jsonb_build_object('rental_id', p_rental_id)),
     (v_hold.lender_id, 'gear_rental_completed', 'Rental completed',
-     'The item was returned and the rental fee was credited to your wallet.',
+     'The inspection window ended without a dispute. The rental fee was credited to your wallet.',
      jsonb_build_object('rental_id', p_rental_id));
 
   RETURN jsonb_build_object('success', true, 'rental_status', 'completed',
@@ -576,7 +632,7 @@ BEGIN
 
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
   IF NOT FOUND OR v_user NOT IN (v_rental.borrower_id, v_rental.lender_id) THEN RAISE EXCEPTION 'Not authorized'; END IF;
-  IF v_rental.rental_status NOT IN ('funds_escrowed','active','return_pending') THEN
+  IF v_rental.rental_status NOT IN ('funds_escrowed','active','return_pending','return_inspection') THEN
     RAISE EXCEPTION 'This rental can no longer be disputed';
   END IF;
 
@@ -776,6 +832,7 @@ REVOKE ALL ON FUNCTION public.create_gear_rental_pickup_code(uuid) FROM PUBLIC, 
 REVOKE ALL ON FUNCTION public.confirm_gear_rental_pickup(uuid,text) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.create_gear_rental_return_code(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.confirm_gear_rental_return(uuid,text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.settle_gear_rental_return(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.cancel_gear_rental_request(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.open_gear_rental_dispute(uuid,text) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.create_gear_rental_dispute_return_code(uuid) FROM PUBLIC, anon;
@@ -787,6 +844,7 @@ GRANT EXECUTE ON FUNCTION public.create_gear_rental_pickup_code(uuid) TO authent
 GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_pickup(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_gear_rental_return_code(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_return(uuid,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.settle_gear_rental_return(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_gear_rental_request(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.open_gear_rental_dispute(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_gear_rental_dispute_return_code(uuid) TO authenticated;

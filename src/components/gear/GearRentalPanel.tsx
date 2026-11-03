@@ -74,8 +74,10 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [pickupCode, setPickupCode] = useState('')
+  const [pickupCodeRentalId, setPickupCodeRentalId] = useState<string | null>(null)
   const [pickupInput, setPickupInput] = useState('')
   const [returnCode, setReturnCode] = useState('')
+  const [returnCodeRentalId, setReturnCodeRentalId] = useState<string | null>(null)
   const [returnInput, setReturnInput] = useState('')
   const [disputeReason, setDisputeReason] = useState('')
   const [disputeFor, setDisputeFor] = useState<string | null>(null)
@@ -130,7 +132,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
 
   const pickupCodeMutation = useMutation({
     mutationFn: (rentalId: string) => rentalRpc<{ pickup_code: string }>('create_gear_rental_pickup_code', { p_rental_id: rentalId }),
-    onSuccess: data => { setPickupCode(data.pickup_code); setPickupInput(''); toast.success('Pickup code generated. Share it only at the physical handoff.') },
+    onSuccess: (data, rentalId) => { setPickupCode(data.pickup_code); setPickupCodeRentalId(rentalId); setPickupInput(''); toast.success('Pickup code generated. Share it only at the physical handoff.') },
     onError: error => toast.error(error instanceof Error ? error.message : 'Could not generate pickup code'),
   })
   const confirmPickupMutation = useMutation({
@@ -140,7 +142,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
   })
   const returnCodeMutation = useMutation({
     mutationFn: (rentalId: string) => rentalRpc<{ return_code: string }>('create_gear_rental_return_code', { p_rental_id: rentalId }),
-    onSuccess: data => { setReturnCode(data.return_code); setReturnInput(''); toast.success('Return code generated. Show it to the lender when handing the item back.') },
+    onSuccess: (data, rentalId) => { setReturnCode(data.return_code); setReturnCodeRentalId(rentalId); setReturnInput(''); toast.success('Return code generated. Show it to the lender when handing the item back.') },
     onError: error => toast.error(error instanceof Error ? error.message : 'Could not generate return code'),
   })
   const confirmReturnMutation = useMutation({
@@ -260,14 +262,14 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                   </div>
                 )}
 
-                {pickupCode && lender && rental.rental_status === 'funds_escrowed' && (
+                {pickupCode && pickupCodeRentalId === rental.id && lender && rental.rental_status === 'funds_escrowed' && (
                   <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
                     <p className="text-[10px] font-bold uppercase text-primary">One-time pickup code</p>
                     <div className="mt-2 flex items-center justify-between gap-2"><code className="text-lg font-black tracking-widest">{pickupCode}</code><button type="button" onClick={() => void copyCode(pickupCode)} className="btn-secondary"><Copy size={13} /> Copy</button></div>
                     <p className="mt-1 text-[10px] text-on-surface-variant">Valid for 15 minutes. Give this to the borrower only when physically handing over the item.</p>
                   </div>
                 )}
-                {returnCode && borrower && ['active','return_pending'].includes(rental.rental_status) && (
+                {returnCode && returnCodeRentalId === rental.id && borrower && ['active','return_pending'].includes(rental.rental_status) && (
                   <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
                     <p className="text-[10px] font-bold uppercase text-primary">One-time return code</p>
                     <div className="mt-2 flex items-center justify-between gap-2"><code className="text-lg font-black tracking-widest">{returnCode}</code><button type="button" onClick={() => void copyCode(returnCode)} className="btn-secondary"><Copy size={13} /> Copy</button></div>

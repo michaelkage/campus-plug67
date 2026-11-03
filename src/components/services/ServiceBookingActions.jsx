@@ -7,7 +7,7 @@ import { CheckCircle, Clock, FileText, Play, Send, ShieldAlert, XCircle } from '
 const statusLabel = {
   pending: 'Awaiting provider quote',
   quoted: 'Quote awaiting your decision',
-  confirmed: 'Quote accepted',
+  confirmed: 'Confirmed',
   in_progress: 'Service in progress',
   delivered: 'Awaiting customer confirmation',
   completed: 'Completed',
@@ -41,6 +41,9 @@ export function ServiceBookingActions({ booking, currentUserId }) {
   const latestQuote = quotes[0] || null
   const acceptedQuote = quotes.find(quote => quote.status === 'accepted') || null
   const displayedQuote = acceptedQuote || latestQuote
+  const effectiveStatusLabel = booking.status === 'confirmed'
+    ? (acceptedQuote ? 'Quote accepted' : 'Awaiting final quote')
+    : statusLabel[booking.status] || booking.status
   const quoteExpired = latestQuote?.status === 'sent' && new Date(latestQuote.expires_at).getTime() <= Date.now()
 
   const refresh = async () => {
@@ -132,6 +135,12 @@ export function ServiceBookingActions({ booking, currentUserId }) {
         </div>
       )}
 
+      {booking.status === 'confirmed' && !isProvider && !acceptedQuote && (
+        <p className="rounded-md border border-[var(--md-outline-variant)] p-3 text-xs leading-5 text-on-surface/70">
+          This booking was confirmed before in-app quotes were introduced. The provider still needs to send a final price and work scope. Review and accept that quote before the service starts.
+        </p>
+      )}
+
       {booking.status === 'quoted' && !isProvider && latestQuote?.status === 'sent' && !quoteExpired && (
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={busy} onClick={() => respondToQuote(true)} className="btn-primary text-xs">
@@ -209,7 +218,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
         <ShieldAlert size={12} className="mt-0.5 shrink-0" />
         Service quotes and delivery confirmation do not collect or protect funds yet. Keep payment outside this workflow until protected service payments are launched.
       </p>
-      <span className="sr-only">{statusLabel[booking.status] || booking.status}</span>
+      <span className="sr-only">{effectiveStatusLabel}</span>
     </div>
   )
 }

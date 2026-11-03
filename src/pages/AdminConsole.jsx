@@ -9,7 +9,7 @@ import TransactionTimeline from '@/components/admin/TransactionTimeline'
 const tabs=[['overview','Overview',LayoutDashboard],['transactions','Transactions',CreditCard],['rentals','Rental disputes',PackageCheck],['payments','Payments',WalletCards],['security','Security',Shield],['operations','Operations',Activity]]
 
 export default function AdminConsole(){
-  const { user }=useAuth(); const [tab,setTab]=useState('overview'); const [transactionId,setTransactionId]=useState(''); const [rentalShares,setRentalShares]=useState({})
+  const { user }=useAuth(); const [tab,setTab]=useState('overview'); const [transactionId,setTransactionId]=useState(''); const [rentalShares,setRentalShares]=useState({}); const [rentalCustody,setRentalCustody]=useState({})
   const isAdmin=['admin','platform_admin'].includes(String(user?.app_metadata?.role ?? ''))
   const {data:snapshot,isLoading,isError,refetch}=useQuery({
     queryKey:['admin-console-snapshot'], enabled:isAdmin,
@@ -23,10 +23,11 @@ export default function AdminConsole(){
   })
   const resolveRental=async(rentalId,shareBps)=>{
     try{
-      const {data,error}=await supabase.functions.invoke('resolve-gear-rental-dispute',{body:{rental_id:rentalId,lender_share_bps:shareBps}})
+      const {data,error}=await supabase.functions.invoke('resolve-gear-rental-dispute',{body:{rental_id:rentalId,lender_share_bps:shareBps,custody_resolved:true}})
       if(error)throw error
       if(data?.error)throw new Error(data.error)
       toast.success('Rental dispute settled. Wallet balances updated.')
+      setRentalCustody(current=>({...current,[rentalId]:false}))
       await refetchRentalDisputes()
     }catch(error){toast.error(error instanceof Error?error.message:'Could not settle rental dispute')}
   }
@@ -47,7 +48,8 @@ export default function AdminConsole(){
         <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="font-bold">{rental.listing?.title||'Gear rental'}</h3><p className="mt-1 text-[11px] font-mono text-on-surface-variant">{rental.id}</p></div><span className="rounded-sm bg-error/10 px-2 py-1 text-[10px] font-bold uppercase text-error">Disputed</span></div>
         <div className="grid gap-2 text-xs sm:grid-cols-3"><div><span className="text-on-surface-variant">Rental dates</span><p className="font-semibold">{rental.start_date} to {rental.end_date}</p></div><div><span className="text-on-surface-variant">Rental fee</span><p className="font-semibold">{(Number(rental.rental_fee_kobo)/100).toLocaleString('en-NG',{style:'currency',currency:'NGN'})}</p></div><div><span className="text-on-surface-variant">Total held</span><p className="font-semibold">{(Number(rental.total_held_kobo)/100).toLocaleString('en-NG',{style:'currency',currency:'NGN'})}</p></div></div>
         <div className="rounded-md border border-outline-variant bg-surface-container p-3"><p className="text-[10px] font-bold uppercase text-on-surface-variant">Dispute reason</p><p className="mt-1 whitespace-pre-wrap text-sm">{rental.dispute_reason}</p></div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"><label className="space-y-1 text-xs font-semibold text-on-surface-variant">Lender share of held funds (%)<input className="input" type="number" min="0" max="100" step="1" value={rentalShares[rental.id]??100} onChange={event=>setRentalShares(current=>({...current,[rental.id]:event.target.value}))}/></label><button className="btn-primary" disabled={!Number.isFinite(Number(rentalShares[rental.id]??100))||Number(rentalShares[rental.id]??100)<0||Number(rentalShares[rental.id]??100)>100} onClick={()=>{if(window.confirm('Settle this dispute and distribute the held funds using the selected split? This cannot be reversed.'))void resolveRental(rental.id,Math.round(Number(rentalShares[rental.id]??100)*100))}}>Settle dispute</button></div>
+        <label className="flex items-start gap-2 rounded-md border border-outline-variant p-3 text-xs leading-5"><input type="checkbox" checked={rentalCustody[rental.id]===true} onChange={event=>setRentalCustody(current=>({...current,[rental.id]:event.target.checked}))}/><span>I verified the physical item is with the lender, either returned or never handed over. Settlement must not make a missing item available for another rental.</span></label>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"><label className="space-y-1 text-xs font-semibold text-on-surface-variant">Lender share of held funds (%)<input className="input" type="number" min="0" max="100" step="1" value={rentalShares[rental.id]??100} onChange={event=>setRentalShares(current=>({...current,[rental.id]:event.target.value}))}/></label><button className="btn-primary" disabled={rentalCustody[rental.id]!==true||!Number.isFinite(Number(rentalShares[rental.id]??100))||Number(rentalShares[rental.id]??100)<0||Number(rentalShares[rental.id]??100)>100} onClick={()=>{if(window.confirm('Settle this dispute and distribute the held funds using the selected split? This cannot be reversed.'))void resolveRental(rental.id,Math.round(Number(rentalShares[rental.id]??100)*100))}}>Settle dispute</button></div>
         <div className="flex flex-wrap gap-2"><button className="btn-secondary text-xs" onClick={()=>setRentalShares(current=>({...current,[rental.id]:0}))}>Full refund to borrower</button><button className="btn-secondary text-xs" onClick={()=>setRentalShares(current=>({...current,[rental.id]:100}))}>Full release to lender</button></div>
       </article>)}
     </section>}

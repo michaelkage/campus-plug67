@@ -36,6 +36,13 @@ assert.ok(disputeResolverStart >= 0);
 const disputeResolver = migration.slice(disputeResolverStart);
 assert.ok(disputeResolver.includes("l.status IN ('reserved', 'sold')"));
 assert.ok(!disputeResolver.includes('ON CONFLICT'));
+assert.ok(disputeResolver.includes('Campus Wallet dispute escrow integrity check failed'));
+assert.ok(disputeResolver.includes("SET status = 'refunded'"),
+  'Buyer-favourable wallet verdict must close the hold as refunded');
+assert.ok(disputeResolver.includes("SET status = 'released'"),
+  'Seller-favourable wallet verdict must close the hold as released');
+assert.ok(disputeResolver.includes("debit.reason = 'Campus Wallet escrow hold'"),
+  'Wallet dispute settlement must verify the original debit');
 
 assert.ok(listing.includes("tx.payment_method === 'campus_wallet'"));
 assert.ok(listing.includes("p_action: 'initiate_meetup'"));

@@ -53,7 +53,8 @@ function EscrowPanel({ tx, isSeller, onRefresh, otherUserId }) {
           p_action: 'initiate_meetup',
         })
         if (error) throw error
-        if (!data?.success) throw new Error(data?.message || 'Unable to start wallet escrow pickup')
+        const result = data as { success?: boolean; message?: string } | null
+        if (!result?.success) throw new Error(result?.message || 'Unable to start wallet escrow pickup')
         toast.success('Pickup started. Meet at an approved campus Safe Swap Zone.')
         onRefresh?.()
         return

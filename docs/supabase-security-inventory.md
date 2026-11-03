@@ -44,7 +44,8 @@ boundaries:
   are service-role-only. Their callers are trusted Edge Functions.
 - `check_ghost_refund` requires the authenticated buyer and returns no
   eligibility to the seller. `check_priority_relist_v2` requires the
-  authenticated seller and returns no eligibility to the buyer.
+  authenticated seller and returns no eligibility to the buyer. Both are
+  `SECURITY INVOKER` with an empty search path, so transaction RLS remains active.
 - Legacy functions with no repository callers are unavailable to API roles:
   `assign_jurors`, `delete_user_data`, `export_user_data`,
   `search_users_by_department`, and the legacy

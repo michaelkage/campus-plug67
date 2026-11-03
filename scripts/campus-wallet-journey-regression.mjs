@@ -78,6 +78,10 @@ assert.ok(migration.includes("v_tx.meetup_initiated_at > now() - interval '24 ho
   'Wallet release must enforce the 24-hour gate server-side');
 assert.ok(migration.includes("v_tx.mobile_release_ready_at < now() - interval '10 minutes'"),
   'Wallet release must require a fresh mobile safe-zone check');
+assert.ok(migration.includes("v_tx.seller_safe_zone_id IS DISTINCT FROM v_tx.buyer_safe_zone_id"),
+  'Both participants must verify in the same Safe Swap Zone');
+assert.ok(migration.includes("v_tx.seller_arrival_time < now() - interval '30 minutes'"),
+  'Seller Safe Swap arrival must still be fresh at release');
 assert.ok(migration.includes("CREATE OR REPLACE FUNCTION public.admin_refund_wallet_micro_escrow"));
 assert.ok(migration.includes("IF auth.role() <> 'service_role' THEN"));
 assert.ok(migration.includes("GRANT EXECUTE ON FUNCTION public.admin_refund_wallet_micro_escrow(uuid) TO service_role"));

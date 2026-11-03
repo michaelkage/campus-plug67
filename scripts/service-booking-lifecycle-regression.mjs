@@ -41,9 +41,9 @@ for (const value of [
 ]) includes(migration, value, `Service booking migration missing invariant: ${value}`)
 
 for (const value of [
-  "supabase.rpc('send_gig_booking_quote'",
-  "supabase.rpc('respond_gig_booking_quote'",
-  "supabase.rpc('transition_gig_booking'",
+  "callRpc('send_gig_booking_quote'",
+  "callRpc('respond_gig_booking_quote'",
+  "callRpc('transition_gig_booking'",
   "p_amount_kobo: toKobo(numericAmount)",
   'Accept quote',
   'Decline quote',

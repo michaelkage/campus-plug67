@@ -321,6 +321,10 @@ BEGIN
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
   IF NOT FOUND OR v_user <> v_rental.lender_id THEN RAISE EXCEPTION 'Only the lender can prepare item pickup'; END IF;
   IF v_rental.rental_status <> 'funds_escrowed' THEN RAISE EXCEPTION 'Rental is not ready for pickup'; END IF;
+  IF (now() AT TIME ZONE 'Africa/Lagos')::date < v_rental.start_date
+     OR (now() AT TIME ZONE 'Africa/Lagos')::date > v_rental.end_date THEN
+    RAISE EXCEPTION 'Pickup codes are only available during the reserved rental dates';
+  END IF;
 
   v_code := upper(encode(extensions.gen_random_bytes(4), 'hex'));
   UPDATE public.gear_rentals

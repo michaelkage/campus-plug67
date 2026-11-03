@@ -14,6 +14,7 @@ const required = [
   'CREATE OR REPLACE FUNCTION public.open_gear_rental_dispute',
   'CREATE OR REPLACE FUNCTION public.resolve_gear_rental_dispute',
   'gear_rentals_borrower_request_key_uidx',
+  'gear_rentals_period_amounts_check',
   'daterange(r.start_date, r.end_date, \'[]\') && daterange(p_start_date, p_end_date, \'[]\')',
   'FOR UPDATE',
   "t.status IN ('pending','locked','meetup_initiated','release_requested','disputed')",

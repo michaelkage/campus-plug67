@@ -74,6 +74,8 @@ assertIncludes(wallet, '    RAISE;',
 for (const retryGuard of [
   'v_existing_transaction.buyer_id = v_buyer',
   "v_existing_transaction.payment_method = 'campus_wallet'",
+  "v_existing_transaction.status IN ('locked', 'meetup_initiated', 'release_requested', 'disputed')",
+  'v_existing_transaction.seller_id = v_listing.seller_id',
   "v_existing_hold.status = 'held'",
   'v_existing_hold.amount_kobo = v_existing_transaction.amount',
   "v_listing.status = 'reserved'",

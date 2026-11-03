@@ -52,6 +52,21 @@ REVOKE ALL ON public.service_booking_quotes FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.service_booking_quotes TO authenticated;
 GRANT ALL ON public.service_booking_quotes TO service_role;
 
+-- Keep quote changes synchronized for both booking participants.
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime')
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_publication_tables
+       WHERE pubname = 'supabase_realtime'
+         AND schemaname = 'public'
+         AND tablename = 'service_booking_quotes'
+     ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.service_booking_quotes;
+  END IF;
+END;
+$;
+
 -- All booking transitions now pass through narrow RPCs. The legacy direct
 -- UPDATE path is removed so participants cannot skip quote acceptance/delivery.
 REVOKE UPDATE ON public.gig_bookings FROM authenticated;

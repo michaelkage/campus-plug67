@@ -119,7 +119,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
         <div className="rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-xs font-bold">
-              <FileText size={13} /> {acceptedQuote ? 'Accepted final quote' : 'Latest provider quote'}
+              <FileText size={13} /> {acceptedQuote ? 'Accepted final quote' : latestQuote.status === 'declined' ? 'Last declined quote' : latestQuote.status === 'expired' ? 'Expired quote' : latestQuote.status === 'cancelled' ? 'Cancelled quote' : 'Latest provider quote'}
             </span>
             <span className="font-mono text-sm font-black">{formatNaira(displayedQuote.amount_kobo)}</span>
           </div>

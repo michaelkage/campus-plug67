@@ -262,7 +262,7 @@ BEGIN
     RAISE EXCEPTION 'Wallet escrow integrity check failed';
   END IF;
   IF v_hold.status <> 'held'
-     OR v_tx.status NOT IN ('locked', 'meetup_initiated', 'release_requested', 'disputed') THEN
+     OR v_tx.status NOT IN ('locked', 'meetup_initiated', 'release_requested') THEN
     RAISE EXCEPTION 'Wallet escrow is not eligible for administrative refund';
   END IF;
   IF NOT EXISTS (

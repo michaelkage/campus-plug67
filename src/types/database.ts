@@ -20,6 +20,77 @@ export type Json =
   | { [key: string]: Json }
   | Json[]
 
+export interface PublicProfile {
+  id: string
+  full_name: string | null
+  university: string | null
+  department: string | null
+  course: string | null
+  level: string | null
+  avatar_url: string | null
+  bio: string | null
+  plug_score: number | null
+  total_sales: number | null
+  total_earnings: number | null
+  badges: string[] | null
+  is_verified: boolean | null
+  created_at: string | null
+  tier: string | null
+}
+
+export interface MyReferral {
+  id: string
+  full_name: string | null
+  created_at: string | null
+}
+
+export interface MyProfile {
+  id: string
+  email: string
+  full_name: string | null
+  university: string | null
+  matric_number: string | null
+  department: string | null
+  level: string | null
+  avatar_url: string | null
+  bio: string | null
+  plug_score: number | null
+  total_sales: number | null
+  total_earnings: number | null
+  badges: string[] | null
+  is_verified: boolean | null
+  is_suspended: boolean | null
+  created_at: string | null
+  updated_at: string | null
+  referred_by: string | null
+  referral_code: string | null
+  referral_count: number | null
+  streak_days: number | null
+  tier: string | null
+  tier_updated_at: string | null
+  featured_listing_id: string | null
+  top_of_feed: boolean | null
+  juror_enabled: boolean | null
+  rolling_accuracy: number | null
+  juror_streak: number | null
+  juror_cases_today: number | null
+  juror_last_case_at: string | null
+  magistrate_at: string | null
+  free_listing_tokens: number | null
+  priority_relist_today: number | null
+  priority_relist_this_week: number | null
+  last_position_reset: string | null
+  last_boost_at: string | null
+  boost_denials_this_week: number | null
+  plug_credit_balance: number | null
+  theme_mode: string | null
+  accepted_terms_at: string | null
+  is_admin: boolean | null
+  balance: number | null
+  preferences: Json
+  course: string | null
+}
+
 export interface PublicProfileVerificationStats {
   id: string
   full_name: string | null
@@ -600,6 +671,13 @@ export type Database = {
       }
 
       // ── profiles ─────────────────────────────────────────────────────────────
+      public_profiles: {
+        Row: PublicProfile
+        Insert: never
+        Update: never
+        Relationships: []
+      },
+
       profiles: {
         Row: {
           id: string

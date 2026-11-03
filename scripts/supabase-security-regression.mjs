@@ -127,6 +127,16 @@ if (!/alter table public\.public_profiles enable row level security/i.test(profi
     || !/create policy "Public profiles are readable by everyone"/i.test(profileDataMigration)) {
   fail('Public profile projection must be protected by an explicit RLS read policy');
 }
+const publicProjectionColumns = profileDataMigration.match(/create table if not exists public\.public_profiles\s*\(([\s\S]*?)\);/i)?.[1] ?? '';
+if (!publicProjectionColumns
+    || /\b(email|matric_number|last_known_ip|plug_credit_balance|balance|duress_code_hash|duress_qr_token_hash|collusion_flag|commission_rate)\b/i.test(publicProjectionColumns)) {
+  fail('Public profile projection must exclude private account and security fields');
+}
+for (const privateField of ['last_known_ip', 'duress_code_hash', 'duress_qr_token_hash', 'commission_rate', 'collusion_flag', 'collusion_flagged_at', 'collusion_ceiling', 'gps_spoof_flags']) {
+  if (!profileDataMigration.includes(`'${privateField}'`)) {
+    fail('Private profile RPC must exclude ' + privateField);
+  }
+}
 if (/revoke select on table public\.profiles/i.test(profileDataMigration)
     || !/profiles-table privilege cutover is intentionally a separate deployment/i.test(profileDataMigration)) {
   fail('Profile-table revocation must follow the frontend rollout in a separate migration');

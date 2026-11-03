@@ -6,6 +6,8 @@
 ALTER TABLE public.gig_bookings
   DROP CONSTRAINT IF EXISTS gig_bookings_status_check;
 ALTER TABLE public.gig_bookings
+  ALTER COLUMN status SET NOT NULL;
+ALTER TABLE public.gig_bookings
   ADD CONSTRAINT gig_bookings_status_check
   CHECK (status = ANY (ARRAY[
     'pending'::text, 'quoted'::text, 'confirmed'::text,
@@ -138,7 +140,7 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Booking not found'; END IF;
   IF v_actor <> v_booking.seller_id THEN RAISE EXCEPTION 'Only the provider can send a quote'; END IF;
-  IF v_booking.status NOT IN ('pending', 'confirmed', 'quoted') THEN
+  IF v_booking.status IS NULL OR v_booking.status NOT IN ('pending', 'confirmed', 'quoted') THEN
     RAISE EXCEPTION 'Booking is not eligible for a quote';
   END IF;
 
@@ -216,7 +218,7 @@ BEGIN
   IF v_quote.status <> 'sent' THEN RAISE EXCEPTION 'Quote is no longer awaiting a response'; END IF;
 
   IF v_quote.booking_id <> v_booking.id THEN RAISE EXCEPTION 'Quote booking mismatch'; END IF;
-  IF v_booking.status <> 'quoted' THEN RAISE EXCEPTION 'Booking is not awaiting quote acceptance'; END IF;
+  IF v_booking.status IS DISTINCT FROM 'quoted' THEN RAISE EXCEPTION 'Booking is not awaiting quote acceptance'; END IF;
 
   IF v_quote.expires_at <= now() THEN
     UPDATE public.service_booking_quotes SET status = 'expired', responded_at = now() WHERE id = v_quote.id;
@@ -269,7 +271,7 @@ BEGIN
   CASE p_action
     WHEN 'start' THEN
       IF v_actor <> v_booking.seller_id THEN RAISE EXCEPTION 'Only the provider can start the service'; END IF;
-      IF v_booking.status <> 'confirmed' THEN RAISE EXCEPTION 'Accept the final quote before starting work'; END IF;
+      IF v_booking.status IS DISTINCT FROM 'confirmed' THEN RAISE EXCEPTION 'Accept the final quote before starting work'; END IF;
       IF NOT EXISTS (
         SELECT 1 FROM public.service_booking_quotes
         WHERE booking_id = v_booking.id AND status = 'accepted'
@@ -277,17 +279,17 @@ BEGIN
       v_target_status := 'in_progress';
     WHEN 'deliver' THEN
       IF v_actor <> v_booking.seller_id THEN RAISE EXCEPTION 'Only the provider can mark the service delivered'; END IF;
-      IF v_booking.status <> 'in_progress' THEN RAISE EXCEPTION 'Service must be in progress before delivery'; END IF;
+      IF v_booking.status IS DISTINCT FROM 'in_progress' THEN RAISE EXCEPTION 'Service must be in progress before delivery'; END IF;
       v_target_status := 'delivered';
     WHEN 'confirm' THEN
       IF v_actor <> v_booking.client_id THEN RAISE EXCEPTION 'Only the customer can confirm delivery'; END IF;
-      IF v_booking.status <> 'delivered' THEN RAISE EXCEPTION 'The provider must mark the service delivered first'; END IF;
+      IF v_booking.status IS DISTINCT FROM 'delivered' THEN RAISE EXCEPTION 'The provider must mark the service delivered first'; END IF;
       v_target_status := 'completed';
     WHEN 'cancel' THEN
       IF v_actor <> v_booking.client_id AND v_actor <> v_booking.seller_id THEN
         RAISE EXCEPTION 'Only booking participants can cancel';
       END IF;
-      IF v_booking.status NOT IN ('pending', 'quoted', 'confirmed') THEN
+      IF v_booking.status IS NULL OR v_booking.status NOT IN ('pending', 'quoted', 'confirmed') THEN
         RAISE EXCEPTION 'A service cannot be cancelled after work has started';
       END IF;
       UPDATE public.service_booking_quotes

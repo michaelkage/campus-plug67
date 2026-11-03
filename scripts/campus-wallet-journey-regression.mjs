@@ -52,6 +52,8 @@ assert.ok(listing.includes("tx.payment_method !== 'campus_wallet' && tx.status =
 assert.ok(releaseEdge.includes('transaction?.payment_method === "campus_wallet"'));
 assert.ok(releaseEdge.includes('p_qr_secret: rpcArgs.p_qr_secret'));
 assert.ok(releaseEdge.includes('resolve_wallet_micro_escrow'));
+assert.ok(releaseEdge.includes('payment_method.is.null,payment_method.neq.campus_wallet'),
+  'Generic timed auto-release must not process Campus Wallet holds');
 
 const walletRefundStart = refundEdge.indexOf('if ((tx.payment_method ?? "paystack") === "campus_wallet")');
 const paystackRefundStart = refundEdge.indexOf('if (!tx.paystack_ref)', walletRefundStart);

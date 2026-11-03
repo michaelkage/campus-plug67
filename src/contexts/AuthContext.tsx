@@ -23,6 +23,11 @@ export function AuthProvider({children}:{children:ReactNode}){
    return null;
   }
   if(existing){
+   if(existing.id!==userId){
+    trace.fail('Private profile identity mismatch',{userId,profileId:existing.id});
+    debugWarn('auth','Private profile RPC returned a different identity',{userId,profileId:existing.id});
+    return null;
+   }
    let resolved=existing;
    // Profiles created directly in Supabase Auth may exist without a university.
    // Hydrate that missing field from the verified education email.

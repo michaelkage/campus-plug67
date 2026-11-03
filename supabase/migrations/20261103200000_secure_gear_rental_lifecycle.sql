@@ -106,6 +106,9 @@ ALTER TABLE public.gear_rentals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gear_rental_holds ENABLE ROW LEVEL SECURITY;
 GRANT SELECT ON public.gear_rentals, public.gear_rental_holds TO authenticated;
 
+DROP POLICY IF EXISTS "Rental borrowers and lenders can create rentals" ON public.gear_rentals;
+DROP POLICY IF EXISTS "Rental participants can update gear rentals" ON public.gear_rentals;
+DROP POLICY IF EXISTS "Rental participants can access gear rentals" ON public.gear_rentals;
 DROP POLICY IF EXISTS gear_rentals_participant_select ON public.gear_rentals;
 CREATE POLICY gear_rentals_participant_select
   ON public.gear_rentals FOR SELECT TO authenticated

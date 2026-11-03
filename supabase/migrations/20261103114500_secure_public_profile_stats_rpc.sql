@@ -140,12 +140,20 @@ BEGIN
     RAISE EXCEPTION 'profile_ratings must use SECURITY INVOKER';
   END IF;
 
-  IF has_column_privilege('anon', 'public.ratings', 'reviewee_id', 'SELECT')
+  IF has_table_privilege('anon', 'public.ratings', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.ratings', 'SELECT')
+     OR has_column_privilege('anon', 'public.ratings', 'reviewer_id', 'SELECT')
+     OR has_column_privilege('anon', 'public.ratings', 'reviewee_id', 'SELECT')
      OR has_column_privilege('anon', 'public.ratings', 'score', 'SELECT')
+     OR has_column_privilege('anon', 'public.ratings', 'comment', 'SELECT')
+     OR has_column_privilege('anon', 'public.ratings', 'transaction_id', 'SELECT')
+     OR has_column_privilege('anon', 'public.ratings', 'created_at', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.ratings', 'reviewer_id', 'SELECT')
      OR has_column_privilege('authenticated', 'public.ratings', 'reviewee_id', 'SELECT')
      OR has_column_privilege('authenticated', 'public.ratings', 'score', 'SELECT')
-     OR has_column_privilege('authenticated', 'public.ratings', 'reviewer_id', 'SELECT')
-     OR has_column_privilege('authenticated', 'public.ratings', 'comment', 'SELECT') THEN
+     OR has_column_privilege('authenticated', 'public.ratings', 'comment', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.ratings', 'transaction_id', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.ratings', 'created_at', 'SELECT') THEN
     RAISE EXCEPTION 'Raw rating rows must remain inaccessible to client roles';
   END IF;
 

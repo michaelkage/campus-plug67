@@ -30,6 +30,7 @@ type Rental = {
   total_held_kobo: number
   created_at: string
   dispute_reason: string | null
+  custody_resolved_at: string | null
 }
 
 function localDateInputValue() {
@@ -81,6 +82,9 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
   const [returnInput, setReturnInput] = useState('')
   const [disputeReason, setDisputeReason] = useState('')
   const [disputeFor, setDisputeFor] = useState<string | null>(null)
+  const [disputeReturnCode, setDisputeReturnCode] = useState('')
+  const [disputeReturnCodeRentalId, setDisputeReturnCodeRentalId] = useState<string | null>(null)
+  const [disputeReturnInput, setDisputeReturnInput] = useState('')
 
   const isOwner = user?.id === listing.seller_id
   const days = inclusiveDays(startDate, endDate)
@@ -96,7 +100,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
     queryFn: async () => {
       const { data, error } = await supabase
         .from('gear_rentals')
-        .select('id,listing_id,borrower_id,lender_id,rental_status,start_date,end_date,rental_fee_kobo,security_deposit_kobo,total_held_kobo,created_at,dispute_reason')
+        .select('id,listing_id,borrower_id,lender_id,rental_status,start_date,end_date,rental_fee_kobo,security_deposit_kobo,total_held_kobo,created_at,dispute_reason,custody_resolved_at')
         .eq('listing_id', listing.id)
         .or(`borrower_id.eq.${user!.id},lender_id.eq.${user!.id}`)
         .order('created_at', { ascending: false })
@@ -150,6 +154,16 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
     onSuccess: async () => { setReturnInput(''); toast.success('Return confirmed. Rental fee released and deposit refunded.'); await invalidate() },
     onError: error => toast.error(error instanceof Error ? error.message : 'Return verification failed'),
   })
+  const disputeReturnCodeMutation = useMutation({
+    mutationFn: (rentalId: string) => rentalRpc<{ return_code: string }>('create_gear_rental_dispute_return_code', { p_rental_id: rentalId }),
+    onSuccess: (data, rentalId) => { setDisputeReturnCode(data.return_code); setDisputeReturnCodeRentalId(rentalId); setDisputeReturnInput(''); toast.success('Disputed return code generated. Give it to the lender at handoff.') },
+    onError: error => toast.error(error instanceof Error ? error.message : 'Could not generate disputed return code'),
+  })
+  const confirmDisputeReturnMutation = useMutation({
+    mutationFn: (rentalId: string) => rentalRpc('confirm_gear_rental_dispute_return', { p_rental_id: rentalId, p_return_code: disputeReturnInput.trim().toUpperCase() }),
+    onSuccess: async () => { setDisputeReturnInput(''); setDisputeReturnCode(''); setDisputeReturnCodeRentalId(null); toast.success('Physical return verified. Rental funds remain held for admin review.'); await invalidate() },
+    onError: error => toast.error(error instanceof Error ? error.message : 'Could not verify disputed return'),
+  })
   const cancelMutation = useMutation({
     mutationFn: (rentalId: string) => rentalRpc('cancel_gear_rental_request', { p_rental_id: rentalId }),
     onSuccess: async () => { toast.success('Rental cancelled and wallet hold refunded.'); await invalidate() },
@@ -162,7 +176,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
   })
 
   const busy = createMutation.isPending || pickupCodeMutation.isPending || confirmPickupMutation.isPending ||
-    returnCodeMutation.isPending || confirmReturnMutation.isPending || cancelMutation.isPending || disputeMutation.isPending
+    returnCodeMutation.isPending || confirmReturnMutation.isPending || disputeReturnCodeMutation.isPending || confirmDisputeReturnMutation.isPending || cancelMutation.isPending || disputeMutation.isPending
 
   const copyCode = async (code: string) => {
     try {
@@ -293,7 +307,25 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                   </div>
                 )}
                 {rental.rental_status === 'completed' && <div className="flex items-center gap-2 text-xs text-primary"><CheckCircle2 size={14} /> Return verified and funds settled</div>}
-                {rental.rental_status === 'disputed' && <div className="flex items-center gap-2 text-xs text-tertiary"><ShieldAlert size={14} /> Under Campus Plug review</div>}
+                {rental.rental_status === 'disputed' && !rental.custody_resolved_at && borrower && (
+                  <button type="button" className="btn-secondary w-full" disabled={busy} onClick={() => disputeReturnCodeMutation.mutate(rental.id)}>
+                    <KeyRound size={14} /> Generate disputed return code
+                  </button>
+                )}
+                {rental.rental_status === 'disputed' && !rental.custody_resolved_at && lender && (
+                  <div className="flex gap-2">
+                    <input className="input min-w-0" value={disputeReturnInput} onChange={event => setDisputeReturnInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character return code" autoComplete="one-time-code" />
+                    <button type="button" className="btn-primary shrink-0" disabled={busy || disputeReturnInput.trim().length !== 8} onClick={() => confirmDisputeReturnMutation.mutate(rental.id)}>Verify return</button>
+                  </div>
+                )}
+                {disputeReturnCode && disputeReturnCodeRentalId === rental.id && borrower && rental.rental_status === 'disputed' && (
+                  <div className="rounded-md border border-tertiary/30 bg-tertiary/5 p-3">
+                    <p className="text-[10px] font-bold uppercase text-tertiary">Disputed return code</p>
+                    <div className="mt-2 flex items-center justify-between gap-2"><code className="text-lg font-black tracking-widest">{disputeReturnCode}</code><button type="button" onClick={() => void copyCode(disputeReturnCode)} className="btn-secondary"><Copy size={13} /> Copy</button></div>
+                    <p className="mt-1 text-[10px] text-on-surface-variant">Valid for 15 minutes. Funds remain held until the admin completes review.</p>
+                  </div>
+                )}
+                {rental.rental_status === 'disputed' && <div className="flex items-center gap-2 text-xs text-tertiary"><ShieldAlert size={14} /> {rental.custody_resolved_at ? 'Item custody verified. Funds remain held for admin settlement.' : 'Under Campus Plug review. Return the item to the lender to complete custody verification.'}</div>}
                 {rental.rental_status === 'resolved' && <div className="flex items-center gap-2 text-xs text-primary"><CheckCircle2 size={14} /> Dispute settlement complete</div>}
               </article>
             )

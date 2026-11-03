@@ -131,6 +131,7 @@ for (const [file, text] of required) {
 }
 
 const rpcAccessMigration = read('supabase/migrations/20261103133000_restrict_security_definer_rpc_access.sql');
+const compactRpcMigration = rpcAccessMigration.toLowerCase().replace(/\\s+/g, '');
 const workerOnlyFunctions = [
   ['atomic_pool_join', 'uuid, uuid, text'],
   ['consume_session_handoff', 'text'],
@@ -140,11 +141,13 @@ const workerOnlyFunctions = [
   ['update_juror_accuracy', 'uuid'],
 ];
 for (const [name, args] of workerOnlyFunctions) {
-  const signature = 'public\\\\.' + name + '\\\\(' + args.replace(/[.*+?^${}()|[\\\\]\\\\]/g, '\\\\console.log('Supabase security regression checks passed.');') + '\\\\)';
-  const revoke = new RegExp('revoke all on function ' + signature + '\\\\s+from public, anon, authenticated', 'i');
-  const grant = new RegExp('grant execute on function ' + signature + '\\\\s+to service_role', 'i');
-  if (!revoke.test(rpcAccessMigration)) fail(name + ' must be unavailable to browser roles');
-  if (!grant.test(rpcAccessMigration)) fail(name + ' must remain available to trusted Edge workers');
+  const signature = 'public.' + name + '(' + args.replace(/\\s/g, '') + ')';
+  if (!compactRpcMigration.includes('revokeallonfunction' + signature + 'frompublic,anon,authenticated')) {
+    fail(name + ' must be unavailable to browser roles');
+  }
+  if (!compactRpcMigration.includes('grantexecuteonfunction' + signature + 'toservice_role')) {
+    fail(name + ' must remain available to trusted Edge workers');
+  }
 }
 
 for (const name of [
@@ -156,21 +159,30 @@ for (const name of [
   'scan_listing_trust',
   'reconcile_student_escrow',
 ]) {
-  if (!new RegExp('revoke all on function public\\\\.' + name + '\\\\(', 'i').test(rpcAccessMigration)) {
+  if (!compactRpcMigration.includes('revokeallonfunctionpublic.' + name + '(')) {
     fail(name + ' legacy/helper RPC must not be executable by API roles');
   }
 }
 
-if (!/create or replace function public\\\\.check_ghost_refund[\\\\s\\\\S]*?auth\\\\.uid\\\\(\\\\)[\\\\s\\\\S]*?buyer_id = actor or seller_id = actor/i.test(rpcAccessMigration)) {
-  fail('Ghost-refund eligibility must be bound to an authenticated transaction participant');
+const ghostStart = rpcAccessMigration.indexOf('CREATE OR REPLACE FUNCTION public.check_ghost_refund');
+const priorityStart = rpcAccessMigration.indexOf('CREATE OR REPLACE FUNCTION public.check_priority_relist_v2');
+const postgisStart = rpcAccessMigration.indexOf('-- The installed PostGIS package');
+const ghostBody = rpcAccessMigration.slice(ghostStart, priorityStart);
+const priorityBody = rpcAccessMigration.slice(priorityStart, postgisStart);
+if (ghostStart < 0 || priorityStart < 0 || !ghostBody.includes('auth.uid()') ||
+    !ghostBody.includes('buyer_id = actor OR seller_id = actor') ||
+    !ghostBody.includes('IF tx.buyer_id <> actor')) {
+  fail('Ghost-refund eligibility must be bound to the authenticated buyer/transaction participant');
 }
-if (!/create or replace function public\\\\.check_priority_relist_v2[\\\\s\\\\S]*?auth\\\\.uid\\\\(\\\\)[\\\\s\\\\S]*?seller_id = actor/i.test(rpcAccessMigration)) {
-  fail('Priority relist eligibility must be bound to the authenticated seller');
+if (!priorityBody.includes('auth.uid()') ||
+    !priorityBody.includes('buyer_id = actor OR seller_id = actor') ||
+    !priorityBody.includes('IF tx.seller_id <> actor')) {
+  fail('Priority relist eligibility must be bound to the authenticated seller/transaction participant');
 }
-if (!/revoke execute on function public\\\\.st_estimatedextent/i.test(rpcAccessMigration)) {
+if (!compactRpcMigration.includes('revokeexecuteonfunctionpublic.st_estimatedextent')) {
   fail('PostGIS helper execution must be re-revoked after extension ACL drift');
 }
-if (!/p\\\\.prorettype = 'trigger'::regtype/i.test(rpcAccessMigration)) {
+if (!rpcAccessMigration.includes("p.prorettype = 'trigger'::regtype")) {
   fail('SECURITY DEFINER trigger functions must not remain directly executable by API roles');
 }
 if (/p_is_correct/.test(read('supabase/functions/process-dispute/index.ts'))) {

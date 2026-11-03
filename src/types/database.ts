@@ -26,21 +26,16 @@ export interface PublicProfileVerificationStats {
   university: string | null
   department: string | null
   level: string | null
-  is_verified: boolean | null
-  created_at: string | null
   plug_score: number | null
-  badges: string[] | null
   total_sales: number
   total_earnings: number
-  verified_uploads: number
+  badges: string[] | null
+  is_verified: boolean | null
+  created_at: string | null
   avg_rating: number
   rating_count: number
-  hostel_reviews_count: number
-  hostel_avg_rating: number
-  pools_joined: number
-  pools_created: number
-  total_contributions: number
-  successful_pools: number
+  active_listings: number
+  verified_uploads: number
 }
 
 // ── Database schema ───────────────────────────────────────────────────────────

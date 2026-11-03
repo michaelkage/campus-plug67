@@ -28,6 +28,28 @@ export function Gigs() {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const { data: gigs = [], isLoading } = useQuery({ queryKey: ['gigs', filter, profile?.university], enabled: Boolean(profile?.university), queryFn: async () => { let q = supabase.from('gigs').select('*, profiles(full_name, university)').eq('active', true).eq('university', profile?.university).order('created_at', { ascending: false }); if (filter) q = q.eq('category', filter); const { data, error } = await q; if (error) throw error; return data || [] } })
   useRealtimeTable({ table: 'gigs', onInsert: g => { if (g.university === profile?.university) qc.setQueryData(['gigs', filter, profile?.university], old => [g, ...(old || [])]) } })
+  useRealtimeTable({
+    table: 'gig_bookings',
+    enabled: Boolean(profile?.id),
+    onInsert: () => qc.invalidateQueries({ queryKey: ['gig-bookings'] }),
+    onUpdate: () => qc.invalidateQueries({ queryKey: ['gig-bookings'] }),
+  })
+  useRealtimeTable({
+    table: 'service_booking_quotes',
+    enabled: Boolean(profile?.id),
+    onInsert: quote => {
+      if (quote.client_id === profile?.id || quote.seller_id === profile?.id) {
+        qc.invalidateQueries({ queryKey: ['gig-bookings'] })
+        qc.invalidateQueries({ queryKey: ['service-booking-quotes', quote.booking_id] })
+      }
+    },
+    onUpdate: quote => {
+      if (quote.client_id === profile?.id || quote.seller_id === profile?.id) {
+        qc.invalidateQueries({ queryKey: ['gig-bookings'] })
+        qc.invalidateQueries({ queryKey: ['service-booking-quotes', quote.booking_id] })
+      }
+    },
+  })
   const { data: myBookings = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ['gig-bookings', profile?.id],
     enabled: Boolean(profile?.id),

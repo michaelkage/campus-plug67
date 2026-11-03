@@ -75,7 +75,7 @@ REVOKE ALL ON FUNCTION public.reconcile_student_escrow()
 CREATE OR REPLACE FUNCTION public.check_ghost_refund(p_transaction_id uuid)
 RETURNS json
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = ''
 AS $function$
 DECLARE
@@ -135,7 +135,7 @@ GRANT EXECUTE ON FUNCTION public.check_ghost_refund(uuid)
 CREATE OR REPLACE FUNCTION public.check_priority_relist_v2(p_transaction_id uuid)
 RETURNS json
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = ''
 AS $function$
 DECLARE

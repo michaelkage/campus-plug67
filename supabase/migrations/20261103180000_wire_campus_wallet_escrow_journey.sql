@@ -380,7 +380,6 @@ BEGIN
   IF p_role = 'buyer' THEN
     UPDATE public.transactions
        SET buyer_arrived = true,
-           buyer_location_captured_at = now(),
            buyer_lat = p_lat,
            buyer_lng = p_lng,
            buyer_location_captured_at = now(),
@@ -390,7 +389,6 @@ BEGIN
   ELSE
     UPDATE public.transactions
        SET seller_arrived = true,
-           seller_location_captured_at = now(),
            seller_lat = p_lat,
            seller_lng = p_lng,
            seller_location_captured_at = now(),

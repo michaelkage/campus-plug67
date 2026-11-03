@@ -128,11 +128,10 @@ GRANT EXECUTE ON FUNCTION public.get_public_profile_stats(uuid) TO anon, authent
 -- SECURITY INVOKER definition would otherwise require broad base-table grants.
 REVOKE ALL PRIVILEGES ON TABLE public.public_profile_stats FROM PUBLIC, anon, authenticated;
 
--- The profile page needs only aggregate ratings. Grant the two source columns
--- required by the invoker view, not reviewer IDs, transaction IDs, or comments.
-GRANT SELECT (reviewee_id, score) ON TABLE public.ratings TO authenticated;
+-- Retire direct access to the aggregate view as well. Both profile surfaces
+-- now consume the narrowly scoped public stats RPC; raw rating rows stay private.
 ALTER VIEW public.profile_ratings SET (security_invoker = true);
-REVOKE INSERT, UPDATE, DELETE ON TABLE public.profile_ratings FROM PUBLIC, anon, authenticated;
+REVOKE ALL PRIVILEGES ON TABLE public.profile_ratings FROM PUBLIC, anon, authenticated;
 
 DO $assertions$
 DECLARE
@@ -181,19 +180,20 @@ BEGIN
     RAISE EXCEPTION 'profile_ratings must use SECURITY INVOKER';
   END IF;
 
-  IF has_column_privilege('authenticated', 'public.ratings', 'reviewee_id', 'SELECT') IS NOT TRUE
-     OR has_column_privilege('authenticated', 'public.ratings', 'score', 'SELECT') IS NOT TRUE THEN
-    RAISE EXCEPTION 'Authenticated users need the two source columns for profile_ratings';
-  END IF;
-
-  IF has_column_privilege('authenticated', 'public.ratings', 'reviewer_id', 'SELECT')
+  IF has_column_privilege('anon', 'public.ratings', 'reviewee_id', 'SELECT')
+     OR has_column_privilege('anon', 'public.ratings', 'score', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.ratings', 'reviewee_id', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.ratings', 'score', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.ratings', 'reviewer_id', 'SELECT')
      OR has_column_privilege('authenticated', 'public.ratings', 'comment', 'SELECT') THEN
-    RAISE EXCEPTION 'Rating reviewer identity and comments must remain private';
+    RAISE EXCEPTION 'Raw rating rows must remain inaccessible to client roles';
   END IF;
 
   IF has_table_privilege('anon', 'public.public_profile_stats', 'SELECT')
-     OR has_table_privilege('authenticated', 'public.public_profile_stats', 'SELECT') THEN
-    RAISE EXCEPTION 'Direct access to the legacy public profile stats view must be revoked';
+     OR has_table_privilege('authenticated', 'public.public_profile_stats', 'SELECT')
+     OR has_table_privilege('anon', 'public.profile_ratings', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.profile_ratings', 'SELECT') THEN
+    RAISE EXCEPTION 'Direct access to legacy profile aggregate views must be revoked';
   END IF;
 
   IF NOT has_function_privilege('anon', public_oid, 'EXECUTE')

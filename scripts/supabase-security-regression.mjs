@@ -131,7 +131,7 @@ for (const [file, text] of required) {
 }
 
 const rpcAccessMigration = read('supabase/migrations/20261103133000_restrict_security_definer_rpc_access.sql');
-const compactRpcMigration = rpcAccessMigration.toLowerCase().replace(/\\s+/g, '');
+const compactRpcMigration = rpcAccessMigration.toLowerCase().replace(/\s+/g, '');
 const workerOnlyFunctions = [
   ['atomic_pool_join', 'uuid, uuid, text'],
   ['consume_session_handoff', 'text'],
@@ -141,7 +141,7 @@ const workerOnlyFunctions = [
   ['update_juror_accuracy', 'uuid'],
 ];
 for (const [name, args] of workerOnlyFunctions) {
-  const signature = 'public.' + name + '(' + args.replace(/\\s/g, '') + ')';
+  const signature = 'public.' + name + '(' + args.replace(/\s/g, '') + ')';
   if (!compactRpcMigration.includes('revokeallonfunction' + signature + 'frompublic,anon,authenticated')) {
     fail(name + ' must be unavailable to browser roles');
   }

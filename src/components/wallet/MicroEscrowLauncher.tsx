@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 
 const LIMIT_KOBO = 1_000_000
 type MicroListing = { id: string; title: string; price: number; seller_id: string; status: string }
-type WalletRpcResult = { success?: boolean; code?: string; transaction_id?: string; message?: string }
+type WalletRpcResult = { success?: boolean; idempotent?: boolean; code?: string; transaction_id?: string; message?: string }
 
 export default function MicroEscrowLauncher() {
   const { user } = useAuth(); const location = useLocation(); const navigate = useNavigate(); const qc = useQueryClient()
@@ -53,7 +53,7 @@ export default function MicroEscrowLauncher() {
         }
         throw new Error(result?.message || 'Campus Wallet purchase failed')
       }
-      toast.success('🔐 Wallet escrow locked — no Paystack checkout needed.')
+      toast.success(result.idempotent ? 'Existing wallet escrow restored. No second debit was made.' : '🔐 Wallet escrow locked. No Paystack checkout needed.')
       qc.invalidateQueries({ queryKey: ['listings'] })
       qc.invalidateQueries({ queryKey: ['transaction', listing.id, user.id] })
       navigate(`/marketplace/${listing.id}`)

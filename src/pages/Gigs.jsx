@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRealtimeTable } from '@/hooks/useRealtime'
 import toast from 'react-hot-toast'
 import { ServiceBookingActions } from '@/components/services/ServiceBookingActions'
-import { Plus, X, Zap, GraduationCap, CalendarDays, CheckCircle, XCircle, ClipboardList, MessageCircle } from 'lucide-react'
+import { Plus, X, Zap, GraduationCap, CalendarDays, ClipboardList, MessageCircle } from 'lucide-react'
 
 const GIG_CATEGORIES = ['Tech Repair', 'Tutoring', 'Design', 'Hair & Beauty', 'Food', 'Laundry', 'Errand', 'Writing', 'Other']
 const ACADEMIC_GIGS = ['GST 101/102 Summary Notes', 'Engineering Drawing Board Rental', 'Lab Coat & Safety Goggles', 'Departmental Printing / Binding', 'Past Questions & Revision Packs']

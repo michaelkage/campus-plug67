@@ -35,6 +35,8 @@ const required = [
   'p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000',
   'IF p_admin_id IS NULL THEN RAISE EXCEPTION \'Admin identity is required\'; END IF;',
   'resolved_by = p_admin_id',
+  'p_custody_resolved IS DISTINCT FROM true',
+  'custody_resolved_at = now()',
   'guard_listing_sale_during_rental',
   'guard_listing_active_rental_mutation',
   'NEW.status IS DISTINCT FROM \'active\'',
@@ -44,7 +46,7 @@ const required = [
   'DROP POLICY IF EXISTS "Rental borrowers and lenders can create rentals" ON public.gear_rentals',
   'DROP POLICY IF EXISTS "Rental participants can update gear rentals" ON public.gear_rentals',
   'REVOKE INSERT, UPDATE, DELETE ON public.gear_rentals, public.gear_rental_holds',
-  'GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid) TO service_role',
+  'GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) TO service_role',
 ]
 for (const item of required) assert.ok(migration.includes(item), `Missing rental lifecycle invariant: ${item}`)
 
@@ -97,7 +99,7 @@ for (const item of ['gear_rentals', 'GearRentalPanel', 'allowRequest={false}', '
 }
 
 const adminFunction = read('supabase/functions/resolve-gear-rental-dispute/index.ts')
-for (const item of ['getAuthenticatedUser(req)', 'user.app_metadata?.role', 'platform_admin', 'resolve_gear_rental_dispute', 'p_admin_id: user.id', 'lender_share_bps']) {
+for (const item of ['getAuthenticatedUser(req)', 'user.app_metadata?.role', 'platform_admin', 'resolve_gear_rental_dispute', 'p_admin_id: user.id', 'p_custody_resolved: custodyResolved', 'custody_resolved === true', 'lender_share_bps']) {
   assert.ok(adminFunction.includes(item), `Admin rental settlement endpoint missing: ${item}`)
 }
 const adminQueue = read('supabase/functions/admin-gear-rentals/index.ts')
@@ -105,7 +107,7 @@ assert.ok(adminQueue.includes('user.app_metadata?.role'), 'Rental dispute queue 
 assert.ok(adminQueue.includes(".eq(\"rental_status\", \"disputed\")"), 'Admin queue must return only open rental disputes')
 
 const adminUi = read('src/pages/AdminConsole.jsx')
-for (const item of ["['rentals','Rental disputes',PackageCheck]", "admin-gear-rentals", "resolve-gear-rental-dispute", 'lender_share_bps', 'Full refund to borrower', 'Full release to lender']) {
+for (const item of ["['rentals','Rental disputes',PackageCheck]", "admin-gear-rentals", "resolve-gear-rental-dispute", 'lender_share_bps', 'Full refund to borrower', 'Full release to lender', 'rentalCustody[rental.id]!==true']) {
   assert.ok(adminUi.includes(item), `Admin rental dispute UI missing: ${item}`)
 }
 console.log('Secure gear rental lifecycle regression checks passed.')

@@ -39,4 +39,31 @@ assert.ok(migration.includes("UPDATE public.gear_rentals\n     SET rental_status
 assert.ok(migration.includes("UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now()"), 'Settlement must be one-time')
 assert.ok(!migration.includes('public.transactions ('), 'Rentals must not enter purchase transaction settlement')
 
+
+const marketplace = read('src/pages/Marketplace.jsx')
+for (const item of [
+  "listing_mode: 'sale'",
+  'rental_daily_rate_kobo:',
+  'rental_security_deposit_kobo:',
+  "option value=\"both\">Sell and rent</option>",
+  'Rental rate per day (₦)',
+]) assert.ok(marketplace.includes(item), `Marketplace listing form missing: ${item}`)
+
+const detail = read('src/pages/ListingDetail.jsx')
+assert.ok(detail.includes("import GearRentalPanel from '@/components/gear/GearRentalPanel'"), 'Listing detail must expose the rental workflow')
+assert.ok(detail.includes('{listing.listing_mode === \'both\' && <GearRentalPanel listing={listing} />}'), 'Dual-mode listings must show rental actions')
+
+const panel = read('src/components/gear/GearRentalPanel.tsx')
+for (const item of [
+  "create_gear_rental_request",
+  "create_gear_rental_pickup_code",
+  "confirm_gear_rental_pickup",
+  "create_gear_rental_return_code",
+  "confirm_gear_rental_return",
+  "cancel_gear_rental_request",
+  "open_gear_rental_dispute",
+  "Campus Wallet escrow",
+  "15 minutes",
+]) assert.ok(panel.includes(item), `Rental UI missing lifecycle action: ${item}`)
+
 console.log('Secure gear rental lifecycle regression checks passed.')

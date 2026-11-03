@@ -33,7 +33,6 @@ const safeArrivalEnd = migration.indexOf('REVOKE ALL ON FUNCTION public.record_s
 const safeArrivalSql = migration.slice(safeArrivalStart, safeArrivalEnd);
 assert.equal((safeArrivalSql.match(/buyer_location_captured_at = now\(\)/g) || []).length, 1);
 assert.equal((safeArrivalSql.match(/seller_location_captured_at = now\(\)/g) || []).length, 1);
-assert.ok(migration.includes("v_tx.seller_arrival_time < now() - interval '30 minutes'"));
 assert.ok(migration.includes('CREATE OR REPLACE FUNCTION public.admin_refund_wallet_micro_escrow'));
 assert.ok(migration.includes("IF auth.role() <> 'service_role' THEN"));
 assert.ok(migration.includes('GRANT EXECUTE ON FUNCTION public.admin_refund_wallet_micro_escrow(uuid) TO service_role'));

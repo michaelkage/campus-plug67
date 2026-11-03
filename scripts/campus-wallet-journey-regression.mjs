@@ -25,6 +25,9 @@ assert.ok(migration.includes('p_qr_secret IS DISTINCT FROM COALESCE(v_tx.qr_secr
 assert.ok(migration.includes("v_tx.meetup_initiated_at > now() - interval '24 hours'"));
 assert.ok(migration.includes("v_tx.mobile_release_ready_at < now() - interval '10 minutes'"));
 assert.ok(migration.includes('v_tx.seller_safe_zone_id IS DISTINCT FROM v_tx.buyer_safe_zone_id'));
+assert.ok(migration.includes('v_tx.seller_location_captured_at < now() - interval \'30 minutes\''));
+assert.ok(!migration.includes('seller_arrival_time'));
+assert.ok(!migration.includes('buyer_arrival_time'));
 assert.ok(migration.includes("v_tx.seller_arrival_time < now() - interval '30 minutes'"));
 assert.ok(migration.includes('CREATE OR REPLACE FUNCTION public.admin_refund_wallet_micro_escrow'));
 assert.ok(migration.includes("IF auth.role() <> 'service_role' THEN"));

@@ -31,6 +31,7 @@ type Rental = {
   created_at: string
   dispute_reason: string | null
   custody_resolved_at: string | null
+  returned_at: string | null
 }
 
 function localDateInputValue() {
@@ -63,6 +64,7 @@ const STATUS_COPY: Record<string, string> = {
   funds_escrowed: 'Payment and security deposit are held. The lender must generate a pickup code, then the borrower confirms the handoff.',
   active: 'The borrower has the item. Keep it safe and return it to the lender by the agreed end date.',
   return_pending: 'The borrower generated a return code. The lender must inspect the item and confirm receipt.',
+  return_inspection: 'The lender confirmed physical return. Funds remain held for 24 hours so either party can raise a dispute before settlement.',
   completed: 'Return confirmed. The rental fee was released to the lender and the security deposit was returned to the borrower.',
   cancelled: 'Cancelled before pickup. The full wallet hold was refunded to the borrower.',
   disputed: 'Funds remain held while Campus Plug reviews the dispute. Neither party can settle this rental directly.',
@@ -100,7 +102,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
     queryFn: async () => {
       const { data, error } = await supabase
         .from('gear_rentals')
-        .select('id,listing_id,borrower_id,lender_id,rental_status,start_date,end_date,rental_fee_kobo,security_deposit_kobo,total_held_kobo,created_at,dispute_reason,custody_resolved_at')
+        .select('id,listing_id,borrower_id,lender_id,rental_status,start_date,end_date,rental_fee_kobo,security_deposit_kobo,total_held_kobo,created_at,dispute_reason,custody_resolved_at,returned_at')
         .eq('listing_id', listing.id)
         .or(`borrower_id.eq.${user!.id},lender_id.eq.${user!.id}`)
         .order('created_at', { ascending: false })
@@ -169,6 +171,11 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
     onSuccess: async () => { toast.success('Rental cancelled and wallet hold refunded.'); await invalidate() },
     onError: error => toast.error(error instanceof Error ? error.message : 'Could not cancel rental'),
   })
+  const settleReturnMutation = useMutation({
+    mutationFn: (rentalId: string) => rentalRpc('settle_gear_rental_return', { p_rental_id: rentalId }),
+    onSuccess: async () => { toast.success('Inspection window complete. Rental fee released and security deposit refunded.'); await invalidate() },
+    onError: error => toast.error(error instanceof Error ? error.message : 'Could not settle rental'),
+  })
   const disputeMutation = useMutation({
     mutationFn: ({ rentalId, reason }: { rentalId: string; reason: string }) => rentalRpc('open_gear_rental_dispute', { p_rental_id: rentalId, p_reason: reason }),
     onSuccess: async () => { setDisputeFor(null); setDisputeReason(''); toast.success('Dispute opened. Funds remain held pending review.'); await invalidate() },
@@ -176,7 +183,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
   })
 
   const busy = createMutation.isPending || pickupCodeMutation.isPending || confirmPickupMutation.isPending ||
-    returnCodeMutation.isPending || confirmReturnMutation.isPending || disputeReturnCodeMutation.isPending || confirmDisputeReturnMutation.isPending || cancelMutation.isPending || disputeMutation.isPending
+    returnCodeMutation.isPending || confirmReturnMutation.isPending || disputeReturnCodeMutation.isPending || confirmDisputeReturnMutation.isPending || settleReturnMutation.isPending || cancelMutation.isPending || disputeMutation.isPending
 
   const copyCode = async (code: string) => {
     try {
@@ -224,7 +231,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
           <button type="button" className="btn-primary w-full" disabled={!estimateValid || busy || createMutation.isPending} onClick={() => createMutation.mutate()}>
             {createMutation.isPending ? 'Securing rental…' : 'Reserve dates and hold wallet funds'}
           </button>
-          <p className="text-[11px] leading-5 text-on-surface-variant">Funds stay in Campus Wallet escrow. The lender receives the rental fee only after confirming the item has been returned. The security deposit is refunded at the same time. No cash handoff is required.</p>
+          <p className="text-[11px] leading-5 text-on-surface-variant">Funds stay in Campus Wallet escrow. After the lender confirms return, a 24-hour inspection window allows either party to dispute. If no dispute is opened, either party can settle the rental fee and refundable deposit. No cash handoff is required.</p>
         </div>
       )}
       {!user && <p className="text-xs text-on-surface-variant">Sign in to reserve this item.</p>}
@@ -269,6 +276,15 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                     Generate a fresh return code
                   </button>
                 )}
+                {rental.rental_status === 'return_inspection' && (
+                  <div className="rounded-md border border-tertiary/30 bg-tertiary/5 p-3 space-y-2">
+                    <p className="text-xs font-semibold">24-hour return inspection</p>
+                    <p className="text-[11px] leading-5 text-on-surface-variant">Funds are still held. Either participant can report damage or another return issue during this window.</p>
+                    {rental.returned_at && Date.parse(rental.returned_at) + 24 * 60 * 60 * 1000 <= Date.now()
+                      ? <button type="button" className="btn-primary w-full" disabled={busy} onClick={() => settleReturnMutation.mutate(rental.id)}>Release rental fee and refund deposit</button>
+                      : <p className="text-[11px] font-semibold text-tertiary">Settlement unlocks 24 hours after the lender confirmed return.</p>}
+                  </div>
+                )}
                 {rental.rental_status === 'return_pending' && lender && (
                   <div className="flex gap-2">
                     <input className="input min-w-0" value={returnInput} onChange={event => setReturnInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character return code" autoComplete="one-time-code" />
@@ -296,7 +312,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                     if (window.confirm('Cancel this rental before pickup? The full wallet hold will be refunded to the borrower.')) cancelMutation.mutate(rental.id)
                   }}>Cancel before pickup</button>
                 )}
-                {['funds_escrowed','active','return_pending'].includes(rental.rental_status) && (
+                {['funds_escrowed','active','return_pending','return_inspection'].includes(rental.rental_status) && (
                   <div className="space-y-2">
                     {disputeFor === rental.id ? (
                       <>

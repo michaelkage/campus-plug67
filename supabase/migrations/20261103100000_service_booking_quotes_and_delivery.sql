@@ -215,11 +215,7 @@ BEGIN
   IF v_actor <> v_quote.client_id THEN RAISE EXCEPTION 'Only the customer can respond to this quote'; END IF;
   IF v_quote.status <> 'sent' THEN RAISE EXCEPTION 'Quote is no longer awaiting a response'; END IF;
 
-  SELECT * INTO v_booking
-  FROM public.gig_bookings
-  WHERE id = v_quote.booking_id
-  FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Booking not found'; END IF;
+  IF v_quote.booking_id <> v_booking.id THEN RAISE EXCEPTION 'Quote booking mismatch'; END IF;
   IF v_booking.status <> 'quoted' THEN RAISE EXCEPTION 'Booking is not awaiting quote acceptance'; END IF;
 
   IF v_quote.expires_at <= now() THEN

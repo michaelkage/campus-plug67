@@ -67,6 +67,8 @@ for (const item of [
   "create_gear_rental_pickup_code",
   "confirm_gear_rental_pickup",
   "create_gear_rental_return_code",
+  'pickupCodeRentalId === rental.id',
+  'returnCodeRentalId === rental.id',
   "confirm_gear_rental_return",
   "cancel_gear_rental_request",
   "open_gear_rental_dispute",

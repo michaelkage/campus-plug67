@@ -138,6 +138,8 @@ DO $assertions$
 DECLARE
   helper_oid oid := to_regprocedure('private.get_public_profile_stats(uuid)');
   public_oid oid := to_regprocedure('public.get_public_profile_stats(uuid)');
+  sample_profile_id uuid;
+  sample_stats jsonb;
 BEGIN
   IF helper_oid IS NULL OR public_oid IS NULL THEN
     RAISE EXCEPTION 'Public profile stats RPC functions were not created';
@@ -189,6 +191,30 @@ BEGIN
      OR has_table_privilege('authenticated', 'public.profile_ratings', 'UPDATE')
      OR has_table_privilege('authenticated', 'public.profile_ratings', 'DELETE') THEN
     RAISE EXCEPTION 'Aggregate profile_ratings view must be read-only';
+  END IF;
+
+  SELECT p.id
+  INTO sample_profile_id
+  FROM public.profiles AS p
+  ORDER BY p.created_at DESC
+  LIMIT 1;
+
+  IF sample_profile_id IS NOT NULL THEN
+    sample_stats := public.get_public_profile_stats(sample_profile_id);
+
+    IF sample_stats IS NULL
+       OR sample_stats->>'id' IS DISTINCT FROM sample_profile_id::text
+       OR NOT (sample_stats ?& ARRAY[
+         'full_name',
+         'university',
+         'total_sales',
+         'total_earnings',
+         'avg_rating',
+         'rating_count',
+         'pools_created'
+       ]) THEN
+      RAISE EXCEPTION 'Public profile stats RPC returned an incomplete projection';
+    END IF;
   END IF;
 END;
 $assertions$;

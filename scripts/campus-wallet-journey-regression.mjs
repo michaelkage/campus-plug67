@@ -8,6 +8,7 @@ const listing = read('src/pages/ListingDetail.jsx');
 const releaseEdge = read('supabase/functions/release-escrow/index.ts');
 const refundEdge = read('supabase/functions/admin-refund-escrow/index.ts');
 const safeArrival = read('supabase/functions/safe-arrival/index.ts');
+const safeSwapPage = read('src/pages/SafeSwapZone.tsx');
 
 assert.ok(migration.includes("current_setting('app.escrow_transition', true) = 'true'"),
   'Sensitive transaction guard must allow only trusted escrow-transition context');
@@ -29,6 +30,13 @@ assert.ok(migration.includes("IF auth.role() <> 'service_role' THEN"));
 assert.ok(migration.includes("GRANT EXECUTE ON FUNCTION public.admin_refund_wallet_micro_escrow(uuid) TO service_role"));
 assert.ok(migration.includes("tx.status NOT IN ('meetup_initiated', 'release_requested')"),
   'Safe arrival must require an initiated meetup');
+const disputeResolverStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.resolve_dispute_verdict');
+assert.ok(disputeResolverStart >= 0, 'Dispute verdict resolver must be hardened in this migration');
+const disputeResolver = migration.slice(disputeResolverStart);
+assert.ok(disputeResolver.includes("l.status IN ('reserved', 'sold')"),
+  'Buyer-favourable dispute verdict must restore reserved listings');
+assert.ok(!disputeResolver.includes('ON CONFLICT'),
+  'Dispute ledger inserts must not infer non-existent partial unique indexes');
 
 assert.ok(listing.includes("tx.payment_method === 'campus_wallet'"));
 assert.ok(listing.includes("p_action: 'initiate_meetup'"));
@@ -39,5 +47,9 @@ assert.ok(refundEdge.includes('admin_refund_wallet_micro_escrow'));
 assert.ok(!refundEdge.includes('admin.rpc("process_escrow_action", { p_transaction_id: tx.id, p_action: "refund"'),
   'Admin Campus Wallet refunds must not call the Paystack-only escrow state machine');
 assert.ok(safeArrival.includes('safe-arrival'));
+assert.ok(safeSwapPage.includes('tx?.buyer_id===user?.id'),
+  'QR release scanner must only render for the buyer');
+assert.ok(listing.includes("action: 'open_case'"),
+  'Campus Wallet buyer must be able to open a dispute before settlement');
 
 console.log('Campus Wallet escrow journey regression checks passed.');

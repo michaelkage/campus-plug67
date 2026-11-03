@@ -106,6 +106,7 @@ for (const value of [
   'v_weekday = ANY(v_gig.available_days)',
   "b.status IN ('pending', 'quoted', 'confirmed', 'in_progress', 'delivered')",
   'gig_bookings_one_active_slot_uidx',
+  'GET STACKED DIAGNOSTICS v_constraint_name = CONSTRAINT_NAME',
   'REVOKE INSERT ON public.gig_bookings FROM PUBLIC, anon, authenticated',
   'GRANT EXECUTE ON FUNCTION public.create_gig_booking_request',
   'slot_unavailable',

@@ -30,11 +30,13 @@ const required = [
   'Gear rental fee released after return',
   'Gear rental security deposit returned',
   'Service role required',
+  'IF p_admin_id IS NULL THEN RAISE EXCEPTION \'Admin identity is required\'; END IF;',
+  'resolved_by = p_admin_id',
   'guard_listing_sale_during_rental',
   "v_listing.listing_mode <> 'both'",
   "r.rental_status IN ('funds_escrowed','active','return_pending','disputed')",
   'REVOKE INSERT, UPDATE, DELETE ON public.gear_rentals, public.gear_rental_holds',
-  'GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer) TO service_role',
+  'GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid) TO service_role',
 ]
 for (const item of required) assert.ok(migration.includes(item), `Missing rental lifecycle invariant: ${item}`)
 

@@ -88,7 +88,7 @@ async function exportPDF(profile, ratings, verifyUrl) {
   doc.text(meta, 14, y); y += 6
 
   doc.setTextColor(0, 150, 100); doc.setFontSize(9)
-  doc.text(`Email: ${profile.email}`, 14, y); y += 12
+  if (profile.email) { doc.text(`Email: ${profile.email}`, 14, y); y += 12 }
 
   // Divider
   doc.setDrawColor(220, 230, 240); doc.setLineWidth(0.3)
@@ -294,7 +294,7 @@ export default function Profile() {
   const handleExportPDF = async () => {
     setExporting(true)
     try {
-      await exportPDF(profile, ratings, verifyUrl)
+      await exportPDF({ ...profile, email: profile.id === user?.id ? user?.email : null }, ratings, verifyUrl)
       toast.success('Resume downloaded! PDF includes live verification QR.')
     } catch (e) {
       toast.error('Export failed: ' + e.message)

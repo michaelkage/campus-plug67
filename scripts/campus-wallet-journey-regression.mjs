@@ -72,6 +72,9 @@ assert.ok(migration.includes("IF p_action = 'initiate_meetup' THEN"));
 assert.ok(migration.includes("Only the seller can initiate the wallet meetup"));
 assert.ok(migration.includes("IF p_action = 'release' THEN"));
 assert.ok(migration.includes("Only the buyer can release Campus Wallet escrow"));
+assert.ok(migration.includes("handle_transaction_update() atomically marks"));
+assert.ok(migration.includes("WHERE id = v_listing_id AND status = 'sold'"),
+  'Wallet release must verify the transaction release trigger finalized the listing');
 assert.ok(migration.includes("p_qr_secret IS DISTINCT FROM COALESCE(v_tx.qr_secret, v_tx.release_code)"),
   'Wallet release must validate the seller QR secret without NULL comparison gaps');
 assert.ok(migration.includes("v_tx.meetup_initiated_at > now() - interval '24 hours'"),

@@ -175,6 +175,7 @@ DECLARE
   v_booking public.gig_bookings%ROWTYPE;
 BEGIN
   IF v_actor IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
+  IF p_accept IS NULL THEN RAISE EXCEPTION 'A quote decision is required'; END IF;
   SELECT * INTO v_quote
   FROM public.service_booking_quotes
   WHERE id = p_quote_id
@@ -297,6 +298,67 @@ REVOKE ALL ON FUNCTION public.transition_gig_booking(uuid, text)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.transition_gig_booking(uuid, text)
   TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.notify_gig_booking_status_changed()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $fn$
+DECLARE
+  recipient_id uuid;
+  gig_title text;
+  notification_type text;
+  notification_title text;
+  notification_body text;
+BEGIN
+  IF NEW.status IS NOT DISTINCT FROM OLD.status THEN RETURN NEW; END IF;
+
+  IF (SELECT auth.uid()) = NEW.seller_id THEN
+    recipient_id := NEW.client_id;
+  ELSE
+    recipient_id := NEW.seller_id;
+  END IF;
+
+  SELECT g.title INTO gig_title
+  FROM public.gigs AS g
+  WHERE g.id = NEW.gig_id;
+
+  notification_type := CASE NEW.status
+    WHEN 'quoted' THEN 'service_quote_received'
+    WHEN 'confirmed' THEN 'booking_confirmed'
+    WHEN 'in_progress' THEN 'service_started'
+    WHEN 'delivered' THEN 'service_delivered'
+    WHEN 'completed' THEN 'booking_completed'
+    WHEN 'cancelled' THEN 'booking_cancelled'
+    ELSE 'booking_updated'
+  END;
+  notification_title := CASE NEW.status
+    WHEN 'quoted' THEN '💬 Final Service Quote Ready'
+    WHEN 'confirmed' THEN '✅ Service Booking Confirmed'
+    WHEN 'in_progress' THEN '🛠️ Service Started'
+    WHEN 'delivered' THEN '📦 Service Marked Delivered'
+    WHEN 'completed' THEN '🎉 Service Received'
+    WHEN 'cancelled' THEN '❌ Booking Cancelled'
+    ELSE 'Service Booking Updated'
+  END;
+  notification_body := COALESCE(gig_title, 'Your service booking') ||
+    ' for ' || NEW.slot_date::text || ' at ' || NEW.slot_time ||
+    ' is now ' || replace(NEW.status, '_', ' ') || '.';
+
+  INSERT INTO public.notifications (user_id, type, title, body, data)
+  VALUES (
+    recipient_id,
+    notification_type,
+    notification_title,
+    notification_body,
+    jsonb_build_object('gig_id', NEW.gig_id, 'booking_id', NEW.id, 'status', NEW.status)
+  );
+  RETURN NEW;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION public.notify_gig_booking_status_changed() FROM PUBLIC, anon, authenticated;
 
 COMMENT ON TABLE public.service_booking_quotes IS
   'Provider-issued final service scope and price. Quote acceptance does not collect or escrow payment.';

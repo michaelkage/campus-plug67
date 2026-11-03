@@ -297,7 +297,7 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
       <div className="flex shrink-0 items-center justify-between border-b border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-gradient-to-br from-primary to-tertiary text-sm font-black text-on-primary">{otherUser?.avatar_url ? <img src={otherUser.avatar_url} alt="" className="h-full w-full rounded-sm object-cover" /> : otherUserInitials}</div>
-          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-on-surface">{otherUser?.full_name || otherUser?.username || 'Unknown User'}</div><div className="flex items-center gap-1 text-[10px] font-semibold text-primary"><Shield size={9} />PlugPay Protected · 60s edit window</div></div>
+          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-on-surface">{otherUser?.full_name || 'Unknown User'}</div><div className="flex items-center gap-1 text-[10px] font-semibold text-primary"><Shield size={9} />PlugPay Protected · 60s edit window</div></div>
         </div>
         {transactionId && <div className="flex items-center gap-1 font-mono text-[10px] text-[var(--md-on-surface-variant)]"><Lock size={9} />Evidence log</div>}
       </div>

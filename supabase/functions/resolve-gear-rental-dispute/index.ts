@@ -38,6 +38,7 @@ Deno.serve(async (req: Request) => {
   const { data, error } = await admin.rpc("resolve_gear_rental_dispute", {
     p_rental_id: rentalId,
     p_lender_share_bps: lenderShareBps,
+    p_admin_id: user.id,
   })
   if (error) return jsonResponse({ error: error.message }, 409, {}, req)
   return jsonResponse({ ...data, rental_id: rentalId, resolved_by: user.id }, 200, {}, req)

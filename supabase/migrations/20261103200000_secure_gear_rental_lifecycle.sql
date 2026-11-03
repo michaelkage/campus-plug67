@@ -36,8 +36,10 @@ ALTER TABLE public.gear_rentals
   ADD COLUMN IF NOT EXISTS request_key uuid,
   ADD COLUMN IF NOT EXISTS pickup_code_hash text,
   ADD COLUMN IF NOT EXISTS pickup_code_expires_at timestamptz,
+  ADD COLUMN IF NOT EXISTS pickup_code_attempts smallint NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS return_code_hash text,
   ADD COLUMN IF NOT EXISTS return_code_expires_at timestamptz,
+  ADD COLUMN IF NOT EXISTS return_code_attempts smallint NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS picked_up_at timestamptz,
   ADD COLUMN IF NOT EXISTS returned_at timestamptz,
   ADD COLUMN IF NOT EXISTS cancelled_at timestamptz,
@@ -302,6 +304,7 @@ BEGIN
   UPDATE public.gear_rentals
      SET pickup_code_hash = encode(extensions.digest(v_code, 'sha256'), 'hex'),
          pickup_code_expires_at = now() + interval '15 minutes',
+         pickup_code_attempts = 0,
          updated_at = now(),
          logistics_meta = COALESCE(logistics_meta, '{}'::jsonb) - 'pickup_code_hash'
    WHERE id = p_rental_id;
@@ -327,14 +330,22 @@ BEGIN
   IF NOT FOUND OR v_user <> v_rental.borrower_id THEN RAISE EXCEPTION 'Only the borrower can confirm pickup'; END IF;
   IF v_rental.rental_status <> 'funds_escrowed' THEN RAISE EXCEPTION 'Rental is not awaiting pickup';
   END IF;
-  IF v_rental.pickup_code_hash IS NULL OR v_rental.pickup_code_expires_at < now()
-     OR v_rental.pickup_code_hash <> encode(extensions.digest(p_pickup_code, 'sha256'), 'hex') THEN
-    RAISE EXCEPTION 'Pickup code is invalid or expired';
+  IF v_rental.pickup_code_hash IS NULL OR v_rental.pickup_code_expires_at < now() THEN
+    RETURN jsonb_build_object('success', false, 'code', 'pickup_code_expired', 'message', 'Pickup code is invalid or expired');
+  END IF;
+  IF v_rental.pickup_code_hash <> encode(extensions.digest(p_pickup_code, 'sha256'), 'hex') THEN
+    UPDATE public.gear_rentals
+       SET pickup_code_attempts = pickup_code_attempts + 1,
+           pickup_code_hash = CASE WHEN pickup_code_attempts + 1 >= 5 THEN NULL ELSE pickup_code_hash END,
+           pickup_code_expires_at = CASE WHEN pickup_code_attempts + 1 >= 5 THEN NULL ELSE pickup_code_expires_at END,
+           updated_at = now()
+     WHERE id = p_rental_id;
+    RETURN jsonb_build_object('success', false, 'code', 'invalid_pickup_code', 'message', 'Pickup code is incorrect or locked after too many attempts');
   END IF;
 
   UPDATE public.gear_rentals
      SET rental_status = 'active', current_state = 'received_by_borrower',
-         picked_up_at = now(), pickup_code_hash = NULL, pickup_code_expires_at = NULL,
+         picked_up_at = now(), pickup_code_hash = NULL, pickup_code_expires_at = NULL, pickup_code_attempts = 0,
          updated_at = now()
    WHERE id = p_rental_id;
 
@@ -370,6 +381,7 @@ BEGIN
      SET rental_status = 'return_pending', current_state = 'return_deposited',
          return_code_hash = encode(extensions.digest(v_code, 'sha256'), 'hex'),
          return_code_expires_at = now() + interval '15 minutes',
+         return_code_attempts = 0,
          updated_at = now()
    WHERE id = p_rental_id;
 
@@ -394,9 +406,17 @@ BEGIN
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
   IF NOT FOUND OR v_user <> v_rental.lender_id THEN RAISE EXCEPTION 'Only the lender can confirm item return'; END IF;
   IF v_rental.rental_status <> 'return_pending' THEN RAISE EXCEPTION 'Rental is not awaiting return confirmation'; END IF;
-  IF v_rental.return_code_hash IS NULL OR v_rental.return_code_expires_at < now()
-     OR v_rental.return_code_hash <> encode(extensions.digest(p_return_code, 'sha256'), 'hex') THEN
-    RAISE EXCEPTION 'Return code is invalid or expired';
+  IF v_rental.return_code_hash IS NULL OR v_rental.return_code_expires_at < now() THEN
+    RETURN jsonb_build_object('success', false, 'code', 'return_code_expired', 'message', 'Return code is invalid or expired');
+  END IF;
+  IF v_rental.return_code_hash <> encode(extensions.digest(p_return_code, 'sha256'), 'hex') THEN
+    UPDATE public.gear_rentals
+       SET return_code_attempts = return_code_attempts + 1,
+           return_code_hash = CASE WHEN return_code_attempts + 1 >= 5 THEN NULL ELSE return_code_hash END,
+           return_code_expires_at = CASE WHEN return_code_attempts + 1 >= 5 THEN NULL ELSE return_code_expires_at END,
+           updated_at = now()
+     WHERE id = p_rental_id;
+    RETURN jsonb_build_object('success', false, 'code', 'invalid_return_code', 'message', 'Return code is incorrect or locked after too many attempts');
   END IF;
 
   SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
@@ -414,7 +434,7 @@ BEGIN
   UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now() WHERE id = v_hold.id;
   UPDATE public.gear_rentals
      SET rental_status = 'completed', current_state = 'returned_to_owner',
-         returned_at = now(), return_code_hash = NULL, return_code_expires_at = NULL,
+         returned_at = now(), return_code_hash = NULL, return_code_expires_at = NULL, return_code_attempts = 0,
          resolved_at = now(), updated_at = now()
    WHERE id = p_rental_id;
 
@@ -458,7 +478,7 @@ BEGIN
   UPDATE public.gear_rental_holds SET status = 'refunded', settled_at = now() WHERE id = v_hold.id;
   UPDATE public.gear_rentals
      SET rental_status = 'cancelled', current_state = 'funds_released_or_disputed',
-         cancelled_at = now(), pickup_code_hash = NULL, pickup_code_expires_at = NULL,
+         cancelled_at = now(), pickup_code_hash = NULL, pickup_code_expires_at = NULL, pickup_code_attempts = 0,
          updated_at = now()
    WHERE id = p_rental_id;
 
@@ -496,7 +516,7 @@ BEGIN
      SET rental_status = 'disputed', current_state = 'funds_released_or_disputed',
          disputed_at = now(), dispute_reason = trim(p_reason),
          pickup_code_hash = NULL, pickup_code_expires_at = NULL,
-         return_code_hash = NULL, return_code_expires_at = NULL,
+         return_code_hash = NULL, return_code_expires_at = NULL, return_code_attempts = 0,
          updated_at = now()
    WHERE id = p_rental_id;
 

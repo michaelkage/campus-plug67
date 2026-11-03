@@ -641,220 +641,7 @@ DECLARE
   v_rental public.gear_rentals%ROWTYPE;
 BEGIN
   IF v_user IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
-  IF p_return_code IS NULL OR p_return_code !~ '^[A-F0-9]{8}
-  IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
-    RAISE EXCEPTION 'Service role required';
-  END IF;
-  IF p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000 THEN RAISE EXCEPTION 'Invalid settlement split'; END IF;
-  IF p_admin_id IS NULL THEN RAISE EXCEPTION 'Admin identity is required'; END IF;
-  IF p_custody_resolved IS DISTINCT FROM true THEN RAISE EXCEPTION 'Confirm that the item is with the lender before settling this dispute'; END IF;
-
-  SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_rental.rental_status <> 'disputed' THEN RAISE EXCEPTION 'Rental dispute not found'; END IF;
-  IF v_rental.custody_resolved_at IS NULL THEN RAISE EXCEPTION 'The disputed item must be physically returned to the lender before settlement'; END IF;
-
-  SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_hold.status <> 'held' THEN RAISE EXCEPTION 'Rental wallet hold is not available'; END IF;
-
-  PERFORM 1 FROM public.profiles p
-   WHERE p.id IN (v_hold.borrower_id, v_hold.lender_id)
-   ORDER BY p.id
-   FOR UPDATE;
-
-  v_lender_amount := (v_hold.total_held_kobo * p_lender_share_bps) / 10000;
-  v_borrower_amount := v_hold.total_held_kobo - v_lender_amount;
-
-  IF v_lender_amount > 0 THEN
-    INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
-    VALUES (v_hold.lender_id, v_lender_amount, 'Gear rental dispute settlement', p_rental_id);
-  END IF;
-  IF v_borrower_amount > 0 THEN
-    INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
-    VALUES (v_hold.borrower_id, v_borrower_amount, 'Gear rental dispute settlement refund', p_rental_id);
-  END IF;
-
-  UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now() WHERE id = v_hold.id;
-  UPDATE public.gear_rentals
-     SET rental_status = 'resolved', current_state = 'funds_released_or_disputed',
-         resolved_at = now(), resolved_by = p_admin_id, custody_resolved_at = now(),
-         settlement_lender_share_bps = p_lender_share_bps, updated_at = now()
-   WHERE id = p_rental_id;
-
-  INSERT INTO public.notifications (user_id, type, title, body, data)
-  VALUES
-    (v_hold.borrower_id, 'gear_rental_dispute_resolved', 'Rental dispute resolved',
-     'Campus Plug has settled the rental hold. Check your Campus Wallet.',
-     jsonb_build_object('rental_id', p_rental_id)),
-    (v_hold.lender_id, 'gear_rental_dispute_resolved', 'Rental dispute resolved',
-     'Campus Plug has settled the rental hold. Check your Campus Wallet.',
-     jsonb_build_object('rental_id', p_rental_id));
-
-  RETURN jsonb_build_object('success', true, 'rental_status', 'resolved',
-    'lender_credit_kobo', v_lender_amount, 'borrower_refund_kobo', v_borrower_amount);
-END;
-$fn$;
-
-REVOKE ALL ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_gear_rental_pickup_code(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.confirm_gear_rental_pickup(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_gear_rental_return_code(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.confirm_gear_rental_return(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.cancel_gear_rental_request(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.open_gear_rental_dispute(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_gear_rental_dispute_return_code(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.confirm_gear_rental_dispute_return(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) FROM PUBLIC, anon, authenticated;
-
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_pickup_code(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_pickup(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_return_code(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_return(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.cancel_gear_rental_request(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.open_gear_rental_dispute(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_dispute_return_code(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_dispute_return(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) TO service_role;
-
-COMMENT ON TABLE public.gear_rental_holds IS
-  'Separate wallet escrow holds for rentals. Never linked to marketplace transactions because purchase settlement marks listings sold.';
-COMMENT ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) IS
-  'Reserves an item date range and atomically debits Campus Wallet into a rental-specific hold. Maximum total hold is ₦10,000.';
-COMMENT ON FUNCTION public.confirm_gear_rental_return(uuid,text) IS
-  'Confirms lender receipt of returned gear, releases the rental fee and refunds the security deposit atomically.';
- THEN RAISE EXCEPTION 'Enter the 8-character disputed return code'; END IF;
-
-  SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_user <> v_rental.lender_id THEN RAISE EXCEPTION 'Only the lender can confirm the disputed item return'; END IF;
-  IF v_rental.rental_status <> 'disputed' OR v_rental.picked_up_at IS NULL OR v_rental.custody_resolved_at IS NOT NULL THEN
-    RAISE EXCEPTION 'This disputed rental is not awaiting a physical return';
-  END IF;
-  IF v_rental.return_code_hash IS NULL OR v_rental.return_code_expires_at < now() THEN
-    RETURN jsonb_build_object('success', false, 'code', 'dispute_return_code_expired', 'message', 'Return code is invalid or expired');
-  END IF;
-  IF v_rental.return_code_hash <> encode(extensions.digest(p_return_code, 'sha256'), 'hex') THEN
-    UPDATE public.gear_rentals
-       SET return_code_attempts = return_code_attempts + 1,
-           return_code_hash = CASE WHEN return_code_attempts + 1 >= 5 THEN NULL ELSE return_code_hash END,
-           return_code_expires_at = CASE WHEN return_code_attempts + 1 >= 5 THEN NULL ELSE return_code_expires_at END,
-           updated_at = now()
-     WHERE id = p_rental_id;
-    RETURN jsonb_build_object('success', false, 'code', 'invalid_dispute_return_code', 'message', 'Return code is incorrect or locked after too many attempts');
-  END IF;
-
-  UPDATE public.gear_rentals
-     SET returned_at = now(), custody_resolved_at = now(),
-         current_state = 'returned_to_owner',
-         return_code_hash = NULL, return_code_expires_at = NULL,
-         return_code_attempts = 0, updated_at = now()
-   WHERE id = p_rental_id;
-
-  INSERT INTO public.notifications (user_id, type, title, body, data)
-  VALUES
-    (v_rental.borrower_id, 'gear_rental_dispute_returned', 'Disputed item return verified',
-     'The lender confirmed receipt. Rental funds remain held until admin review is complete.',
-     jsonb_build_object('rental_id', p_rental_id)),
-    (v_rental.lender_id, 'gear_rental_dispute_returned', 'Disputed item return verified',
-     'Item custody is confirmed. Campus Plug can now settle the held funds.',
-     jsonb_build_object('rental_id', p_rental_id));
-
-  RETURN jsonb_build_object('success', true, 'rental_status', 'disputed', 'custody_resolved', true);
-END;
-$fn$;
-
-CREATE OR REPLACE FUNCTION public.resolve_gear_rental_dispute(
-  p_rental_id uuid,
-  p_lender_share_bps integer,
-  p_admin_id uuid,
-  p_custody_resolved boolean
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $fn$
-DECLARE
-  v_rental public.gear_rentals%ROWTYPE;
-  v_hold public.gear_rental_holds%ROWTYPE;
-  v_lender_amount bigint;
-  v_borrower_amount bigint;
-BEGIN
-  IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
-    RAISE EXCEPTION 'Service role required';
-  END IF;
-  IF p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000 THEN RAISE EXCEPTION 'Invalid settlement split'; END IF;
-  IF p_admin_id IS NULL THEN RAISE EXCEPTION 'Admin identity is required'; END IF;
-  IF p_custody_resolved IS DISTINCT FROM true THEN RAISE EXCEPTION 'Confirm that the item is with the lender before settling this dispute'; END IF;
-
-  SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_rental.rental_status <> 'disputed' THEN RAISE EXCEPTION 'Rental dispute not found'; END IF;
-
-  SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_hold.status <> 'held' THEN RAISE EXCEPTION 'Rental wallet hold is not available'; END IF;
-
-  PERFORM 1 FROM public.profiles p
-   WHERE p.id IN (v_hold.borrower_id, v_hold.lender_id)
-   ORDER BY p.id
-   FOR UPDATE;
-
-  v_lender_amount := (v_hold.total_held_kobo * p_lender_share_bps) / 10000;
-  v_borrower_amount := v_hold.total_held_kobo - v_lender_amount;
-
-  IF v_lender_amount > 0 THEN
-    INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
-    VALUES (v_hold.lender_id, v_lender_amount, 'Gear rental dispute settlement', p_rental_id);
-  END IF;
-  IF v_borrower_amount > 0 THEN
-    INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
-    VALUES (v_hold.borrower_id, v_borrower_amount, 'Gear rental dispute settlement refund', p_rental_id);
-  END IF;
-
-  UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now() WHERE id = v_hold.id;
-  UPDATE public.gear_rentals
-     SET rental_status = 'resolved', current_state = 'funds_released_or_disputed',
-         resolved_at = now(), resolved_by = p_admin_id, custody_resolved_at = now(),
-         settlement_lender_share_bps = p_lender_share_bps, updated_at = now()
-   WHERE id = p_rental_id;
-
-  INSERT INTO public.notifications (user_id, type, title, body, data)
-  VALUES
-    (v_hold.borrower_id, 'gear_rental_dispute_resolved', 'Rental dispute resolved',
-     'Campus Plug has settled the rental hold. Check your Campus Wallet.',
-     jsonb_build_object('rental_id', p_rental_id)),
-    (v_hold.lender_id, 'gear_rental_dispute_resolved', 'Rental dispute resolved',
-     'Campus Plug has settled the rental hold. Check your Campus Wallet.',
-     jsonb_build_object('rental_id', p_rental_id));
-
-  RETURN jsonb_build_object('success', true, 'rental_status', 'resolved',
-    'lender_credit_kobo', v_lender_amount, 'borrower_refund_kobo', v_borrower_amount);
-END;
-$fn$;
-
-REVOKE ALL ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_gear_rental_pickup_code(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.confirm_gear_rental_pickup(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_gear_rental_return_code(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.confirm_gear_rental_return(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.cancel_gear_rental_request(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.open_gear_rental_dispute(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) FROM PUBLIC, anon, authenticated;
-
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_pickup_code(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_pickup(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_return_code(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_return(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.cancel_gear_rental_request(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.open_gear_rental_dispute(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) TO service_role;
-
-COMMENT ON TABLE public.gear_rental_holds IS
-  'Separate wallet escrow holds for rentals. Never linked to marketplace transactions because purchase settlement marks listings sold.';
-COMMENT ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) IS
-  'Reserves an item date range and atomically debits Campus Wallet into a rental-specific hold. Maximum total hold is ₦10,000.';
-COMMENT ON FUNCTION public.confirm_gear_rental_return(uuid,text) IS
-  'Confirms lender receipt of returned gear, releases the rental fee and refunds the security deposit atomically.';
- THEN
+  IF p_return_code IS NULL OR p_return_code !~ '^[A-F0-9]{8}$' THEN
     RAISE EXCEPTION 'Enter the 8-character disputed return code';
   END IF;
 
@@ -862,10 +649,14 @@ COMMENT ON FUNCTION public.confirm_gear_rental_return(uuid,text) IS
   IF NOT FOUND OR v_user IS DISTINCT FROM v_rental.lender_id THEN
     RAISE EXCEPTION 'Only the lender can confirm the disputed item return';
   END IF;
-  IF v_rental.rental_status <> 'disputed' OR v_rental.picked_up_at IS NULL OR v_rental.custody_resolved_at IS NOT NULL THEN
+  IF v_rental.rental_status <> 'disputed'
+     OR v_rental.picked_up_at IS NULL
+     OR v_rental.custody_resolved_at IS NOT NULL THEN
     RAISE EXCEPTION 'This disputed rental is not awaiting a physical return';
   END IF;
-  IF v_rental.return_code_hash IS NULL OR v_rental.return_code_expires_at < now() THEN
+  IF v_rental.return_code_hash IS NULL
+     OR v_rental.return_code_expires_at IS NULL
+     OR v_rental.return_code_expires_at < now() THEN
     RETURN jsonb_build_object('success', false, 'code', 'dispute_return_code_expired', 'message', 'Return code is invalid or expired');
   END IF;
   IF v_rental.return_code_hash <> encode(extensions.digest(p_return_code, 'sha256'), 'hex') THEN
@@ -918,16 +709,26 @@ BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
     RAISE EXCEPTION 'Service role required';
   END IF;
-  IF p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000 THEN RAISE EXCEPTION 'Invalid settlement split'; END IF;
+  IF p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000 THEN
+    RAISE EXCEPTION 'Invalid settlement split';
+  END IF;
   IF p_admin_id IS NULL THEN RAISE EXCEPTION 'Admin identity is required'; END IF;
-  IF p_custody_resolved IS DISTINCT FROM true THEN RAISE EXCEPTION 'Confirm that the item is with the lender before settling this dispute'; END IF;
+  IF p_custody_resolved IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Confirm that the item is with the lender before settling this dispute';
+  END IF;
 
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_rental.rental_status <> 'disputed' THEN RAISE EXCEPTION 'Rental dispute not found'; END IF;
-  IF v_rental.custody_resolved_at IS NULL THEN RAISE EXCEPTION 'The disputed item must be physically returned to the lender before settlement'; END IF;
+  IF NOT FOUND OR v_rental.rental_status <> 'disputed' THEN
+    RAISE EXCEPTION 'Rental dispute not found';
+  END IF;
+  IF v_rental.custody_resolved_at IS NULL THEN
+    RAISE EXCEPTION 'The disputed item must be physically returned to the lender before settlement';
+  END IF;
 
   SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_hold.status <> 'held' THEN RAISE EXCEPTION 'Rental wallet hold is not available'; END IF;
+  IF NOT FOUND OR v_hold.status <> 'held' THEN
+    RAISE EXCEPTION 'Rental wallet hold is not available';
+  END IF;
 
   PERFORM 1 FROM public.profiles p
    WHERE p.id IN (v_hold.borrower_id, v_hold.lender_id)
@@ -946,10 +747,13 @@ BEGIN
     VALUES (v_hold.borrower_id, v_borrower_amount, 'Gear rental dispute settlement refund', p_rental_id);
   END IF;
 
-  UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now() WHERE id = v_hold.id;
+  UPDATE public.gear_rental_holds
+     SET status = 'settled', settled_at = now()
+   WHERE id = v_hold.id;
   UPDATE public.gear_rentals
      SET rental_status = 'resolved', current_state = 'funds_released_or_disputed',
-         resolved_at = now(), resolved_by = p_admin_id, custody_resolved_at = now(),
+         resolved_at = now(), resolved_by = p_admin_id,
+         custody_resolved_at = COALESCE(custody_resolved_at, now()),
          settlement_lender_share_bps = p_lender_share_bps, updated_at = now()
    WHERE id = p_rental_id;
 
@@ -987,138 +791,6 @@ GRANT EXECUTE ON FUNCTION public.cancel_gear_rental_request(uuid) TO authenticat
 GRANT EXECUTE ON FUNCTION public.open_gear_rental_dispute(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_gear_rental_dispute_return_code(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_dispute_return(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) TO service_role;
-
-COMMENT ON TABLE public.gear_rental_holds IS
-  'Separate wallet escrow holds for rentals. Never linked to marketplace transactions because purchase settlement marks listings sold.';
-COMMENT ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) IS
-  'Reserves an item date range and atomically debits Campus Wallet into a rental-specific hold. Maximum total hold is ₦10,000.';
-COMMENT ON FUNCTION public.confirm_gear_rental_return(uuid,text) IS
-  'Confirms lender receipt of returned gear, releases the rental fee and refunds the security deposit atomically.';
- THEN RAISE EXCEPTION 'Enter the 8-character disputed return code'; END IF;
-
-  SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_user <> v_rental.lender_id THEN RAISE EXCEPTION 'Only the lender can confirm the disputed item return'; END IF;
-  IF v_rental.rental_status <> 'disputed' OR v_rental.picked_up_at IS NULL OR v_rental.custody_resolved_at IS NOT NULL THEN
-    RAISE EXCEPTION 'This disputed rental is not awaiting a physical return';
-  END IF;
-  IF v_rental.return_code_hash IS NULL OR v_rental.return_code_expires_at < now() THEN
-    RETURN jsonb_build_object('success', false, 'code', 'dispute_return_code_expired', 'message', 'Return code is invalid or expired');
-  END IF;
-  IF v_rental.return_code_hash <> encode(extensions.digest(p_return_code, 'sha256'), 'hex') THEN
-    UPDATE public.gear_rentals
-       SET return_code_attempts = return_code_attempts + 1,
-           return_code_hash = CASE WHEN return_code_attempts + 1 >= 5 THEN NULL ELSE return_code_hash END,
-           return_code_expires_at = CASE WHEN return_code_attempts + 1 >= 5 THEN NULL ELSE return_code_expires_at END,
-           updated_at = now()
-     WHERE id = p_rental_id;
-    RETURN jsonb_build_object('success', false, 'code', 'invalid_dispute_return_code', 'message', 'Return code is incorrect or locked after too many attempts');
-  END IF;
-
-  UPDATE public.gear_rentals
-     SET returned_at = now(), custody_resolved_at = now(),
-         current_state = 'returned_to_owner',
-         return_code_hash = NULL, return_code_expires_at = NULL,
-         return_code_attempts = 0, updated_at = now()
-   WHERE id = p_rental_id;
-
-  INSERT INTO public.notifications (user_id, type, title, body, data)
-  VALUES
-    (v_rental.borrower_id, 'gear_rental_dispute_returned', 'Disputed item return verified',
-     'The lender confirmed receipt. Rental funds remain held until admin review is complete.',
-     jsonb_build_object('rental_id', p_rental_id)),
-    (v_rental.lender_id, 'gear_rental_dispute_returned', 'Disputed item return verified',
-     'Item custody is confirmed. Campus Plug can now settle the held funds.',
-     jsonb_build_object('rental_id', p_rental_id));
-
-  RETURN jsonb_build_object('success', true, 'rental_status', 'disputed', 'custody_resolved', true);
-END;
-$fn$;
-
-CREATE OR REPLACE FUNCTION public.resolve_gear_rental_dispute(
-  p_rental_id uuid,
-  p_lender_share_bps integer,
-  p_admin_id uuid,
-  p_custody_resolved boolean
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $fn$
-DECLARE
-  v_rental public.gear_rentals%ROWTYPE;
-  v_hold public.gear_rental_holds%ROWTYPE;
-  v_lender_amount bigint;
-  v_borrower_amount bigint;
-BEGIN
-  IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
-    RAISE EXCEPTION 'Service role required';
-  END IF;
-  IF p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000 THEN RAISE EXCEPTION 'Invalid settlement split'; END IF;
-  IF p_admin_id IS NULL THEN RAISE EXCEPTION 'Admin identity is required'; END IF;
-  IF p_custody_resolved IS DISTINCT FROM true THEN RAISE EXCEPTION 'Confirm that the item is with the lender before settling this dispute'; END IF;
-
-  SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_rental.rental_status <> 'disputed' THEN RAISE EXCEPTION 'Rental dispute not found'; END IF;
-
-  SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_hold.status <> 'held' THEN RAISE EXCEPTION 'Rental wallet hold is not available'; END IF;
-
-  PERFORM 1 FROM public.profiles p
-   WHERE p.id IN (v_hold.borrower_id, v_hold.lender_id)
-   ORDER BY p.id
-   FOR UPDATE;
-
-  v_lender_amount := (v_hold.total_held_kobo * p_lender_share_bps) / 10000;
-  v_borrower_amount := v_hold.total_held_kobo - v_lender_amount;
-
-  IF v_lender_amount > 0 THEN
-    INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
-    VALUES (v_hold.lender_id, v_lender_amount, 'Gear rental dispute settlement', p_rental_id);
-  END IF;
-  IF v_borrower_amount > 0 THEN
-    INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
-    VALUES (v_hold.borrower_id, v_borrower_amount, 'Gear rental dispute settlement refund', p_rental_id);
-  END IF;
-
-  UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now() WHERE id = v_hold.id;
-  UPDATE public.gear_rentals
-     SET rental_status = 'resolved', current_state = 'funds_released_or_disputed',
-         resolved_at = now(), resolved_by = p_admin_id, custody_resolved_at = now(),
-         settlement_lender_share_bps = p_lender_share_bps, updated_at = now()
-   WHERE id = p_rental_id;
-
-  INSERT INTO public.notifications (user_id, type, title, body, data)
-  VALUES
-    (v_hold.borrower_id, 'gear_rental_dispute_resolved', 'Rental dispute resolved',
-     'Campus Plug has settled the rental hold. Check your Campus Wallet.',
-     jsonb_build_object('rental_id', p_rental_id)),
-    (v_hold.lender_id, 'gear_rental_dispute_resolved', 'Rental dispute resolved',
-     'Campus Plug has settled the rental hold. Check your Campus Wallet.',
-     jsonb_build_object('rental_id', p_rental_id));
-
-  RETURN jsonb_build_object('success', true, 'rental_status', 'resolved',
-    'lender_credit_kobo', v_lender_amount, 'borrower_refund_kobo', v_borrower_amount);
-END;
-$fn$;
-
-REVOKE ALL ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_gear_rental_pickup_code(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.confirm_gear_rental_pickup(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_gear_rental_return_code(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.confirm_gear_rental_return(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.cancel_gear_rental_request(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.open_gear_rental_dispute(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) FROM PUBLIC, anon, authenticated;
-
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_pickup_code(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_pickup(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_gear_rental_return_code(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_return(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.cancel_gear_rental_request(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.open_gear_rental_dispute(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) TO service_role;
 
 COMMENT ON TABLE public.gear_rental_holds IS

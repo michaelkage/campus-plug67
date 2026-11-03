@@ -47,8 +47,9 @@ export async function logActivity(options: ActivityLogOptions): Promise<void> {
 }
 
 export async function getPublicProfileStats(profileId: string) {
-  const { data, error } = await supabase.from('public_profile_stats').select('*').eq('id', profileId).single()
-  if (error) throw error
+  const { data, error } = await supabase.rpc('get_public_profile_stats', { p_profile_id: profileId })
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('Profile not found')
   return data
 }
 

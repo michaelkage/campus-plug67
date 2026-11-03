@@ -175,8 +175,8 @@ BEGIN
      WHERE r.listing_id = OLD.id
        AND r.rental_status IN ('funds_escrowed','active','return_pending','disputed')
   ) AND (
-    (NEW.status IS DISTINCT FROM OLD.status AND NEW.status <> 'active')
-    OR (NEW.listing_mode IS DISTINCT FROM OLD.listing_mode AND NEW.listing_mode <> 'both')
+    (NEW.status IS DISTINCT FROM OLD.status AND NEW.status IS DISTINCT FROM 'active')
+    OR (NEW.listing_mode IS DISTINCT FROM OLD.listing_mode AND NEW.listing_mode IS DISTINCT FROM 'both')
   ) THEN
     RAISE EXCEPTION 'This listing cannot be removed from sale/rental availability while a rental is active';
   END IF;

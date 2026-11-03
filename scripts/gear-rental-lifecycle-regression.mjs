@@ -12,6 +12,8 @@ const required = [
   'CREATE OR REPLACE FUNCTION public.confirm_gear_rental_return',
   'CREATE OR REPLACE FUNCTION public.cancel_gear_rental_request',
   'CREATE OR REPLACE FUNCTION public.open_gear_rental_dispute',
+  'CREATE OR REPLACE FUNCTION public.create_gear_rental_dispute_return_code',
+  'CREATE OR REPLACE FUNCTION public.confirm_gear_rental_dispute_return',
   'CREATE OR REPLACE FUNCTION public.resolve_gear_rental_dispute',
   'gear_rentals_borrower_request_key_uidx',
   'gear_rentals_period_amounts_check',
@@ -46,6 +48,8 @@ const required = [
   'DROP POLICY IF EXISTS "Rental borrowers and lenders can create rentals" ON public.gear_rentals',
   'DROP POLICY IF EXISTS "Rental participants can update gear rentals" ON public.gear_rentals',
   'REVOKE INSERT, UPDATE, DELETE ON public.gear_rentals, public.gear_rental_holds',
+  'GRANT EXECUTE ON FUNCTION public.create_gear_rental_dispute_return_code(uuid) TO authenticated',
+  'GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_dispute_return(uuid,text) TO authenticated',
   'GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) TO service_role',
 ]
 for (const item of required) assert.ok(migration.includes(item), `Missing rental lifecycle invariant: ${item}`)
@@ -80,6 +84,8 @@ for (const item of [
   "confirm_gear_rental_return",
   "cancel_gear_rental_request",
   "open_gear_rental_dispute",
+  'create_gear_rental_dispute_return_code',
+  'confirm_gear_rental_dispute_return',
   "Campus Wallet escrow",
   "15 minutes",
 ]) assert.ok(panel.includes(item), `Rental UI missing lifecycle action: ${item}`)
@@ -107,7 +113,7 @@ assert.ok(adminQueue.includes('user.app_metadata?.role'), 'Rental dispute queue 
 assert.ok(adminQueue.includes(".eq(\"rental_status\", \"disputed\")"), 'Admin queue must return only open rental disputes')
 
 const adminUi = read('src/pages/AdminConsole.jsx')
-for (const item of ["['rentals','Rental disputes',PackageCheck]", "admin-gear-rentals", "resolve-gear-rental-dispute", 'lender_share_bps', 'Full refund to borrower', 'Full release to lender', 'rentalCustody[rental.id]!==true']) {
+for (const item of ["['rentals','Rental disputes',PackageCheck]", "admin-gear-rentals", "resolve-gear-rental-dispute", 'lender_share_bps', 'Full refund to borrower', 'Full release to lender', 'rentalCustody[rental.id]!==true', 'custody_resolved_at']) {
   assert.ok(adminUi.includes(item), `Admin rental dispute UI missing: ${item}`)
 }
 console.log('Secure gear rental lifecycle regression checks passed.')

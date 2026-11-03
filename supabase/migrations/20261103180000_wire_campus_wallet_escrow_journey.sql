@@ -423,6 +423,7 @@ AS $$
 DECLARE
   v_case public.jury_cases%ROWTYPE;
   v_tx public.transactions%ROWTYPE;
+  v_hold public.wallet_escrow_holds%ROWTYPE;
   v_recipient uuid;
   v_reason text;
 BEGIN
@@ -452,6 +453,30 @@ BEGIN
   END IF;
   IF v_tx.status <> 'disputed' THEN
     RAISE EXCEPTION 'Transaction must be disputed before verdict settlement';
+  END IF;
+
+  IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN
+    SELECT * INTO v_hold
+      FROM public.wallet_escrow_holds
+     WHERE transaction_id = v_tx.id
+     FOR UPDATE;
+    IF NOT FOUND
+       OR v_hold.status <> 'held'
+       OR v_hold.buyer_id <> v_tx.buyer_id
+       OR v_hold.seller_id <> v_tx.seller_id
+       OR v_hold.amount_kobo <> v_tx.amount THEN
+      RAISE EXCEPTION 'Campus Wallet dispute escrow integrity check failed';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1
+        FROM public.plug_credit_ledger AS debit
+       WHERE debit.reference_id = v_tx.id
+         AND debit.user_id = v_tx.buyer_id
+         AND debit.amount = -v_tx.amount
+         AND debit.reason = 'Campus Wallet escrow hold'
+    ) THEN
+      RAISE EXCEPTION 'Original Campus Wallet debit could not be verified';
+    END IF;
   END IF;
 
   IF p_verdict = 'claimant' THEN
@@ -489,6 +514,14 @@ BEGIN
     IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN
       INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
       VALUES (v_recipient, v_tx.amount, v_reason, v_tx.id);
+
+      UPDATE public.wallet_escrow_holds
+         SET status = 'refunded',
+             resolved_at = now()
+       WHERE id = v_hold.id AND status = 'held';
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Campus Wallet hold changed during dispute refund';
+      END IF;
     END IF;
 
   ELSIF p_verdict = 'respondent' THEN
@@ -505,6 +538,16 @@ BEGIN
 
     INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
     VALUES (v_recipient, v_tx.amount, v_reason, v_tx.id);
+
+    IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN
+      UPDATE public.wallet_escrow_holds
+         SET status = 'released',
+             resolved_at = now()
+       WHERE id = v_hold.id AND status = 'held';
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Campus Wallet hold changed during dispute release';
+      END IF;
+    END IF;
   ELSE
     RAISE EXCEPTION 'Invalid verdict %. Must be claimant or respondent', p_verdict;
   END IF;

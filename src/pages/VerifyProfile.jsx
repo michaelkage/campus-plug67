@@ -24,13 +24,11 @@ export default function VerifyProfile() {
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['verify-profile', profileId],
     queryFn: async () => {
-      // Uses the public_profile_stats view (anon access granted)
-      const { data, error } = await supabase
-        .from('public_profile_stats')
-        .select('*')
-        .eq('id', profileId)
-        .single()
-      if (error) throw error
+      const { data, error } = await supabase.rpc('get_public_profile_stats', {
+        p_profile_id: profileId,
+      })
+      if (error) throw new Error(error.message)
+      if (!data) throw new Error('Profile not found')
       return data
     },
     staleTime: 60_000,

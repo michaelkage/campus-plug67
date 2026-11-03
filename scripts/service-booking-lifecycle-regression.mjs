@@ -77,7 +77,7 @@ includes(page, "table: 'service_booking_quotes'", 'Gigs page must subscribe to q
 includes(page, "table: 'gig_bookings'", 'Gigs page must subscribe to booking realtime events')
 includes(page, 'provider sends a final quote with the exact scope and price', 'Service journey must explain in-app quote creation and acceptance')
 includes(page, 'customer confirms that the service was received', 'Service journey must explain customer delivery confirmation')
-includes(page, 'confirmed:'Confirmed'', 'Legacy confirmed bookings must not imply quote acceptance')
+includes(page, "confirmed:'Confirmed'", 'Legacy confirmed bookings must not imply quote acceptance')
 
 
 if (page.includes(".from('gig_bookings').update(")) fail('Direct client-side booking status updates must remain disabled')

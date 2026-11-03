@@ -263,9 +263,10 @@ export default function Profile() {
   })
 
   const { data: ratings } = useQuery({
-    queryKey: ['ratings', targetId],
+    queryKey: ['profile-stats', targetId],
     queryFn: async () => {
-      const { data } = await supabase.from('profile_ratings').select('*').eq('profile_id', targetId).maybeSingle()
+      const { data, error } = await supabase.rpc('get_public_profile_stats', { p_profile_id: targetId })
+      if (error) throw new Error(error.message)
       return data
     },
     enabled: !!targetId,

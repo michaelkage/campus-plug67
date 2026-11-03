@@ -20,6 +20,24 @@ export type Json =
   | { [key: string]: Json }
   | Json[]
 
+export interface PublicProfileVerificationStats {
+  id: string
+  full_name: string | null
+  university: string | null
+  department: string | null
+  level: string | null
+  plug_score: number | null
+  total_sales: number
+  total_earnings: number
+  badges: string[] | null
+  is_verified: boolean | null
+  created_at: string | null
+  avg_rating: number
+  rating_count: number
+  active_listings: number
+  verified_uploads: number
+}
+
 // ── Database schema ───────────────────────────────────────────────────────────
 export type Database = {
   public: {
@@ -202,16 +220,12 @@ export type Database = {
       // ── profile_ratings ──────────────────────────────────────────────────────
       profile_ratings: {
         Row: {
-          id: string
           profile_id: string
-          overall_rating: number
-          total_reviews: number
-          reliability_score: number
-          response_time_score: number
-          updated_at: string
+          avg_rating: number
+          rating_count: number
         }
-        Insert: Omit<Database['public']['Tables']['profile_ratings']['Row'], 'id' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['profile_ratings']['Row']>
+        Insert: never
+        Update: never
       }
 
       // ── gig_bookings ─────────────────────────────────────────────────────────
@@ -549,19 +563,9 @@ export type Database = {
 
       // ── public_profile_stats ─────────────────────────────────────────────────
       public_profile_stats: {
-        Row: {
-          id: string
-          user_id: string
-          total_listings: number
-          total_sales: number
-          total_purchases: number
-          response_rate: number
-          avg_response_time: number
-          reputation_score: number
-          updated_at: string
-        }
-        Insert: Omit<Database['public']['Tables']['public_profile_stats']['Row'], 'id' | 'updated_at'>
-        Update: Partial<Database['public']['Tables']['public_profile_stats']['Row']>
+        Row: PublicProfileVerificationStats
+        Insert: never
+        Update: never
       }
 
       // ── safe_zones ───────────────────────────────────────────────────────────

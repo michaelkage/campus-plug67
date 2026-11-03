@@ -186,11 +186,25 @@ SET search_path = public, pg_temp
 AS $fn$
 DECLARE
   v_actor uuid := auth.uid();
+  v_booking_id uuid;
   v_quote public.service_booking_quotes%ROWTYPE;
   v_booking public.gig_bookings%ROWTYPE;
 BEGIN
   IF v_actor IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
   IF p_accept IS NULL THEN RAISE EXCEPTION 'A quote decision is required'; END IF;
+
+  -- Lock booking before quote, matching quote creation and cancellation.
+  SELECT booking_id INTO v_booking_id
+  FROM public.service_booking_quotes
+  WHERE id = p_quote_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Quote not found'; END IF;
+
+  SELECT * INTO v_booking
+  FROM public.gig_bookings
+  WHERE id = v_booking_id
+  FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Booking not found'; END IF;
+
   SELECT * INTO v_quote
   FROM public.service_booking_quotes
   WHERE id = p_quote_id

@@ -40,19 +40,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user || cancelled) return
-      supabase
-        .from('profiles')
-        .select('theme_mode')
-        .eq('id', session.user.id)
-        .single()
-        .then(({ data }) => {
-          if (cancelled) return
-          const stored = data?.theme_mode
-          if (stored === 'light' || stored === 'dark' || stored === 'amoled') {
-            setThemeState(stored)
-            setMode(stored)
-          }
-        })
+      supabase.rpc('get_my_profile', {}).then(({ data }) => {
+        if (cancelled) return
+        const stored = data?.theme_mode
+        if (stored === 'light' || stored === 'dark' || stored === 'amoled') {
+          setThemeState(stored)
+          setMode(stored)
+        }
+      })
     })
     return () => {
       cancelled = true

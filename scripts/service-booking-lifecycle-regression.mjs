@@ -16,6 +16,10 @@ const packageJson = JSON.parse(read('package.json'))
 
 for (const value of [
   'CREATE TABLE IF NOT EXISTS public.service_booking_quotes',
+  'REFERENCES public.gig_bookings(id) ON DELETE CASCADE',
+  'CREATE OR REPLACE FUNCTION public.notify_service_booking_quote_created()',
+  'AFTER INSERT ON public.service_booking_quotes',
+  "IF NEW.status = 'quoted' THEN RETURN NEW; END IF;",
   'ALTER TABLE public.gig_bookings',
   'ALTER COLUMN status SET NOT NULL',
   "v_booking.status IS DISTINCT FROM 'quoted'",

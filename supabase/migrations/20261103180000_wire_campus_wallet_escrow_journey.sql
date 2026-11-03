@@ -138,8 +138,8 @@ BEGIN
     IF v_tx.seller_arrived IS DISTINCT FROM true
        OR v_tx.seller_safe_zone_id IS NULL
        OR v_tx.seller_safe_zone_id IS DISTINCT FROM v_tx.buyer_safe_zone_id
-       OR v_tx.seller_arrival_time IS NULL
-       OR v_tx.seller_arrival_time < now() - interval '30 minutes' THEN
+       OR v_tx.seller_location_captured_at IS NULL
+       OR v_tx.seller_location_captured_at < now() - interval '30 minutes' THEN
       RAISE EXCEPTION 'Seller must verify arrival in the same Safe Swap Zone within 30 minutes';
     END IF;
     IF p_qr_secret IS NULL
@@ -380,7 +380,7 @@ BEGIN
   IF p_role = 'buyer' THEN
     UPDATE public.transactions
        SET buyer_arrived = true,
-           buyer_arrival_time = now(),
+           buyer_location_captured_at = now(),
            buyer_lat = p_lat,
            buyer_lng = p_lng,
            buyer_location_captured_at = now(),
@@ -390,7 +390,7 @@ BEGIN
   ELSE
     UPDATE public.transactions
        SET seller_arrived = true,
-           seller_arrival_time = now(),
+           seller_location_captured_at = now(),
            seller_lat = p_lat,
            seller_lng = p_lng,
            seller_location_captured_at = now(),

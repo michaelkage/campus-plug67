@@ -21,7 +21,7 @@ export default function MicroEscrowLauncher() {
     void (async () => {
       const [{ data: item }, { data: profile }] = await Promise.all([
         supabase.from('listings').select('id,title,price,seller_id,status').eq('id', listingId).maybeSingle(),
-        supabase.from('profiles').select('plug_credit_balance').eq('id', user.id).maybeSingle(),
+        supabase.rpc('get_my_profile', {}),
       ])
       if (active) { setListing(item as MicroListing | null); setBalance(Number(profile?.plug_credit_balance || 0)) }
     })()

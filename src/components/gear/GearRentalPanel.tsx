@@ -323,18 +323,18 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                   </div>
                 )}
                 {rental.rental_status === 'completed' && <div className="flex items-center gap-2 text-xs text-primary"><CheckCircle2 size={14} /> Return verified and funds settled</div>}
-                {rental.rental_status === 'disputed' && !rental.custody_resolved_at && borrower && (
+                {['disputed','resolved'].includes(rental.rental_status) && !rental.custody_resolved_at && borrower && (
                   <button type="button" className="btn-secondary w-full" disabled={busy} onClick={() => disputeReturnCodeMutation.mutate(rental.id)}>
                     <KeyRound size={14} /> Generate disputed return code
                   </button>
                 )}
-                {rental.rental_status === 'disputed' && !rental.custody_resolved_at && lender && (
+                {['disputed','resolved'].includes(rental.rental_status) && !rental.custody_resolved_at && lender && (
                   <div className="flex gap-2">
                     <input className="input min-w-0" value={disputeReturnInput} onChange={event => setDisputeReturnInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character return code" autoComplete="one-time-code" />
                     <button type="button" className="btn-primary shrink-0" disabled={busy || disputeReturnInput.trim().length !== 8} onClick={() => confirmDisputeReturnMutation.mutate(rental.id)}>Verify return</button>
                   </div>
                 )}
-                {disputeReturnCode && disputeReturnCodeRentalId === rental.id && borrower && rental.rental_status === 'disputed' && (
+                {disputeReturnCode && disputeReturnCodeRentalId === rental.id && borrower && ['disputed','resolved'].includes(rental.rental_status) && (
                   <div className="rounded-md border border-tertiary/30 bg-tertiary/5 p-3">
                     <p className="text-[10px] font-bold uppercase text-tertiary">Disputed return code</p>
                     <div className="mt-2 flex items-center justify-between gap-2"><code className="text-lg font-black tracking-widest">{disputeReturnCode}</code><button type="button" onClick={() => void copyCode(disputeReturnCode)} className="btn-secondary"><Copy size={13} /> Copy</button></div>
@@ -342,6 +342,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                   </div>
                 )}
                 {rental.rental_status === 'disputed' && <div className="flex items-center gap-2 text-xs text-tertiary"><ShieldAlert size={14} /> {rental.custody_resolved_at ? 'Item custody verified. Funds remain held for admin settlement.' : 'Under Campus Plug review. Return the item to the lender to complete custody verification.'}</div>}
+                {rental.rental_status === 'resolved' && !rental.custody_resolved_at && <p className="text-xs text-tertiary">Funds have been settled, but this item remains unavailable for new rentals or sale until the lender verifies its physical return. Use the disputed return code above.</p>}
                 {rental.rental_status === 'resolved' && <div className="flex items-center gap-2 text-xs text-primary"><CheckCircle2 size={14} /> Dispute settlement complete</div>}
               </article>
             )

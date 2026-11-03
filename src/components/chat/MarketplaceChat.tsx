@@ -166,8 +166,8 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   const fetchMessages = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase.from('messages').select('*').or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`)
-      .eq('transaction_id', transactionId ?? null).order('created_at', { ascending: true })
+      const conversationQuery = supabase.from('messages').select('*').or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`)
+      const { data, error } = await (transactionId ? conversationQuery.eq('transaction_id', transactionId) : conversationQuery.is('transaction_id', null)).order('created_at', { ascending: true })
       if (error) throw error
       setMessages((data || []).map(msg => ({ ...msg, isOptimistic: false, scanStatus: 'safe' as const })))
     } catch (err: any) { console.error('Error fetching messages:', err) } finally { setLoading(false) }
@@ -189,7 +189,6 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
             .update({ read: true })
             .eq('id', newMsg.id)
             .eq('receiver_id', currentUserId)
-            .eq('transaction_id', transactionId ?? null)
             .eq('read', false)
             .select('id')
             .maybeSingle()
@@ -208,11 +207,11 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
     subscriptionRef.current = subscription
   }
   const markMessagesAsRead = async () => {
-    const { error } = await supabase.from('messages')
+    const unreadQuery = supabase.from('messages')
       .update({ read: true })
       .eq('sender_id', otherUserId)
       .eq('receiver_id', currentUserId)
-      .eq('transaction_id', transactionId ?? null)
+    const { error } = await (transactionId ? unreadQuery.eq('transaction_id', transactionId) : unreadQuery.is('transaction_id', null))
       .eq('read', false)
       .select('id')
     if (error) {
@@ -222,11 +221,10 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
 
     // PostgREST can return no error when RLS filters every UPDATE row.
     // Verify the persisted state before marking the conversation read locally.
-    const { data: remainingUnread, error: verifyError } = await supabase.from('messages')
-      .select('id')
+    const verifyQuery = supabase.from('messages').select('id')
       .eq('sender_id', otherUserId)
       .eq('receiver_id', currentUserId)
-      .eq('transaction_id', transactionId ?? null)
+    const { data: remainingUnread, error: verifyError } = await (transactionId ? verifyQuery.eq('transaction_id', transactionId) : verifyQuery.is('transaction_id', null))
       .eq('read', false)
       .limit(1)
     if (verifyError || remainingUnread?.length) {

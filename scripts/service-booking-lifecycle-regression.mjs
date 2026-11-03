@@ -40,7 +40,7 @@ for (const value of [
   'An accepted final quote is required',
   'Only the customer can confirm delivery',
   'A service cannot be cancelled after work has started',
-  'DO $publication
+  'DO $publication',
   'service_quote_received',
   'service_delivered',
   'REVOKE ALL ON FUNCTION public.send_gig_booking_quote',

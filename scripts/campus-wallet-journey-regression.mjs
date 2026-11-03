@@ -200,7 +200,11 @@ assert.ok(releaseEdge.includes('transaction?.payment_method === "campus_wallet"'
 assert.ok(releaseEdge.includes('p_qr_secret: rpcArgs.p_qr_secret'));
 assert.ok(releaseEdge.includes('resolve_wallet_micro_escrow'));
 assert.ok(refundEdge.includes('admin_refund_wallet_micro_escrow'));
-assert.ok(!refundEdge.includes('admin.rpc("process_escrow_action", { p_transaction_id: tx.id, p_action: "refund"'),
+const walletRefundStart = refundEdge.indexOf('if ((tx.payment_method ?? "paystack") === "campus_wallet")');
+const paystackRefundStart = refundEdge.indexOf('if (!tx.paystack_ref)', walletRefundStart);
+const walletRefundBranch = refundEdge.slice(walletRefundStart, paystackRefundStart);
+assert.ok(walletRefundBranch.includes('admin_refund_wallet_micro_escrow'));
+assert.ok(!walletRefundBranch.includes('process_escrow_action'),
   'Admin Campus Wallet refunds must not call the Paystack-only escrow state machine');
 assert.ok(safeArrival.includes('safe-arrival'));
 assert.ok(safeSwapPage.includes('tx?.buyer_id===user?.id'),

@@ -57,6 +57,8 @@ for (const value of [
 includes(page, "import { ServiceBookingActions } from '@/components/services/ServiceBookingActions'", 'Gigs page must use the server-authoritative booking controls')
 includes(page, "table: 'service_booking_quotes'", 'Gigs page must subscribe to quote realtime events')
 includes(page, "table: 'gig_bookings'", 'Gigs page must subscribe to booking realtime events')
+includes(page, 'provider sends a final quote with the exact scope and price', 'Service journey must explain in-app quote creation and acceptance')
+includes(page, 'customer confirms that the service was received', 'Service journey must explain customer delivery confirmation')
 if (page.includes(".from('gig_bookings').update(")) fail('Direct client-side booking status updates must remain disabled')
 if (actions.includes(".from('service_booking_quotes').insert(") || actions.includes(".from('service_booking_quotes').update(")) {
   fail('Quote writes must go through the server-authoritative RPCs')

@@ -185,15 +185,10 @@ BEGIN
    WHERE id = p_listing_id
    FOR UPDATE;
 
-  IF NOT FOUND OR v_listing.status IS DISTINCT FROM 'active' THEN
-    RAISE EXCEPTION 'This listing is no longer available';
-  END IF;
-  IF v_listing.listing_mode <> 'both' THEN
-    RAISE EXCEPTION 'This listing is not available for rental';
-  END IF;
-  IF v_listing.seller_id = v_borrower THEN RAISE EXCEPTION 'You cannot rent your own item'; END IF;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Listing not found'; END IF;
 
-  -- Retry recovery is scoped to the caller and the caller-supplied idempotency key.
+  -- Retry recovery precedes listing availability checks so a committed request
+  -- can still be recovered after the item has subsequently been sold or edited.
   SELECT * INTO v_existing
     FROM public.gear_rentals
    WHERE borrower_id = v_borrower AND request_key = p_request_key;
@@ -209,6 +204,14 @@ BEGIN
       'rental_status', v_existing.rental_status, 'total_held_kobo', v_existing.total_held_kobo
     );
   END IF;
+
+  IF v_listing.status IS DISTINCT FROM 'active' THEN
+    RAISE EXCEPTION 'This listing is no longer available';
+  END IF;
+  IF v_listing.listing_mode <> 'both' THEN
+    RAISE EXCEPTION 'This listing is not available for rental';
+  END IF;
+  IF v_listing.seller_id = v_borrower THEN RAISE EXCEPTION 'You cannot rent your own item'; END IF;
 
   IF p_start_date < (now() AT TIME ZONE 'Africa/Lagos')::date THEN
     RAISE EXCEPTION 'Choose today or a future rental start date';

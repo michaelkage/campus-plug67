@@ -194,7 +194,7 @@ serve(async (req: Request) => {
     if (!finalVerdict) return ok(req, { success: true, votes_cast: juryCase.votes_cast + 1, verdict: null, case_closed: false });
     await admin.from("jury_cases").update({ status: "decided", verdict: finalVerdict, verdict_decided_at: new Date().toISOString() }).eq("id", caseId);
     await executeVerdict(juryCase, finalVerdict);
-    for (const vote of votes ?? []) { const correct = vote.verdict === finalVerdict; await rewardJuror(vote.juror_id, correct, caseId); await admin.rpc("update_juror_accuracy", { p_juror_id: vote.juror_id, p_is_correct: correct }); }
+    for (const vote of votes ?? []) { const correct = vote.verdict === finalVerdict; await rewardJuror(vote.juror_id, correct, caseId); await admin.rpc("update_juror_accuracy", { p_juror_id: vote.juror_id }); }
     const minsElapsed = Math.round((Date.now() - new Date(juryCase.created_at).getTime()) / 60_000);
     await admin.from("ticker_events").insert({ university: juryCase.dispute_campus ?? "", emoji: "⚖️", text: `Cross-campus dispute resolved in ${minsElapsed} minutes. Justice served.`, category: "dispute" });
     return ok(req, { success: true, verdict: finalVerdict, case_closed: true });

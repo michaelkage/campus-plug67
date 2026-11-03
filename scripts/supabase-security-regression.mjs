@@ -130,4 +130,72 @@ for (const [file, text] of required) {
   if (!read(file).includes(text)) fail(file + ' no longer contains required server-authoritative RPC ' + text);
 }
 
+const rpcAccessMigration = read('supabase/migrations/20261103133000_restrict_security_definer_rpc_access.sql');
+const compactRpcMigration = rpcAccessMigration.toLowerCase().replace(/\s+/g, '');
+const workerOnlyFunctions = [
+  ['atomic_pool_join', 'uuid, uuid, text'],
+  ['consume_session_handoff', 'text'],
+  ['expire_flash_deals', ''],
+  ['increment_view_count', 'uuid'],
+  ['update_streak', 'uuid'],
+  ['update_juror_accuracy', 'uuid'],
+];
+for (const [name, args] of workerOnlyFunctions) {
+  const signature = 'public.' + name + '(' + args.replace(/\s/g, '') + ')';
+  if (!compactRpcMigration.includes('revokeallonfunction' + signature + 'frompublic,anon,authenticated')) {
+    fail(name + ' must be unavailable to browser roles');
+  }
+  if (!compactRpcMigration.includes('grantexecuteonfunction' + signature + 'toservice_role')) {
+    fail(name + ' must remain available to trusted Edge workers');
+  }
+}
+
+for (const name of [
+  'assign_jurors',
+  'delete_user_data',
+  'export_user_data',
+  'search_users_by_department',
+  'check_priority_relist',
+  'scan_listing_trust',
+  'reconcile_student_escrow',
+]) {
+  if (!compactRpcMigration.includes('revokeallonfunctionpublic.' + name + '(')) {
+    fail(name + ' legacy/helper RPC must not be executable by API roles');
+  }
+}
+
+const ghostStart = rpcAccessMigration.indexOf('CREATE OR REPLACE FUNCTION public.check_ghost_refund');
+const priorityStart = rpcAccessMigration.indexOf('CREATE OR REPLACE FUNCTION public.check_priority_relist_v2');
+const postgisStart = rpcAccessMigration.indexOf('-- The installed PostGIS package');
+const ghostBody = rpcAccessMigration.slice(ghostStart, priorityStart);
+const priorityBody = rpcAccessMigration.slice(priorityStart, postgisStart);
+if (ghostStart < 0 || priorityStart < 0 || !ghostBody.includes('auth.uid()') ||
+    !ghostBody.includes('buyer_id = actor OR seller_id = actor') ||
+    !ghostBody.includes('IF tx.buyer_id <> actor')) {
+  fail('Ghost-refund eligibility must be bound to the authenticated buyer/transaction participant');
+}
+if (!priorityBody.includes('auth.uid()') ||
+    !priorityBody.includes('buyer_id = actor OR seller_id = actor') ||
+    !priorityBody.includes('IF tx.seller_id <> actor')) {
+  fail('Priority relist eligibility must be bound to the authenticated seller/transaction participant');
+}
+if (!ghostBody.includes('SECURITY INVOKER') || !priorityBody.includes('SECURITY INVOKER')) {
+  fail('Read-only eligibility RPCs must run as SECURITY INVOKER and obey transaction RLS');
+}
+if (ghostBody.includes('SECURITY DEFINER') || priorityBody.includes('SECURITY DEFINER')) {
+  fail('Read-only eligibility RPCs must not bypass RLS');
+}
+if (!ghostBody.includes("SET search_path = ''") || !priorityBody.includes("SET search_path = ''")) {
+  fail('Browser-callable SECURITY DEFINER eligibility functions must use an empty search_path');
+}
+if (!compactRpcMigration.includes('revokeexecuteonfunctionpublic.st_estimatedextent')) {
+  fail('PostGIS helper execution must be re-revoked after extension ACL drift');
+}
+if (!rpcAccessMigration.includes("p.prorettype = 'trigger'::regtype")) {
+  fail('SECURITY DEFINER trigger functions must not remain directly executable by API roles');
+}
+if (/p_is_correct/.test(read('supabase/functions/process-dispute/index.ts'))) {
+  fail('update_juror_accuracy call must match the deployed one-argument RPC signature');
+}
+
 console.log('Supabase security regression checks passed.');

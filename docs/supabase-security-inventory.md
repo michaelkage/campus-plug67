@@ -32,6 +32,36 @@ This inventory records the security-sensitive Supabase surfaces verified from th
 | `check_device_ban` | `supabase/functions/security-gate/index.ts` | Security decision using server-side fingerprint context. |
 | `consume_rate_limit` | `supabase/functions/_shared/rateLimit.ts` | Shared server-side rate-limit state. |
 
+## Privileged RPC access boundary (2026-11-03)
+
+The production audit found that several worker-only functions had drifted back to
+browser execution grants. Migration
+`20261103133000_restrict_security_definer_rpc_access.sql` restores the intended
+boundaries:
+
+- `atomic_pool_join`, `consume_session_handoff`, `expire_flash_deals`,
+  `increment_view_count`, `update_streak`, and `update_juror_accuracy`
+  are service-role-only. Their callers are trusted Edge Functions.
+- `check_ghost_refund` requires the authenticated buyer and returns no
+  eligibility to the seller. `check_priority_relist_v2` requires the
+  authenticated seller and returns no eligibility to the buyer. Both are
+  `SECURITY INVOKER` with an empty search path, so transaction RLS remains active.
+- Legacy functions with no repository callers are unavailable to API roles:
+  `assign_jurors`, `delete_user_data`, `export_user_data`,
+  `search_users_by_department`, and the legacy
+  `check_priority_relist`.
+- `scan_listing_trust` remains an internal trigger helper. The
+  `on_listing_change` SECURITY DEFINER trigger invokes it as its owner.
+  `reconcile_student_escrow` is not attached to a production trigger and is
+  not exposed to API roles.
+- SECURITY DEFINER trigger-return functions have direct client EXECUTE
+  revoked. Existing triggers remain installed; PostgreSQL requires EXECUTE
+  when creating a trigger, while the trigger itself executes as part of the
+  triggering statement.
+
+The same migration reasserts the PostGIS `ST_EstimatedExtent` client revokes,
+which had drifted in production despite the earlier hardening migration.
+
 ## Affected tables / access intent
 
 The following application tables were explicitly hardened with RLS and role-appropriate policies in prior migrations:

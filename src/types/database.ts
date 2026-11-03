@@ -676,7 +676,7 @@ export type Database = {
         Insert: never
         Update: never
         Relationships: []
-      }
+      },
 
       profiles: {
         Row: {

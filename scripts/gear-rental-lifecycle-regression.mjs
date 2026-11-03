@@ -46,8 +46,9 @@ const required = [
   'p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000',
   'IF p_admin_id IS NULL THEN RAISE EXCEPTION \'Admin identity is required\'; END IF;',
   'resolved_by = p_admin_id',
-  'p_custody_resolved IS DISTINCT FROM true',
   'custody_resolved_at = now()',
+  'CASE WHEN p_custody_resolved IS TRUE THEN COALESCE(custody_resolved_at, now()) ELSE custody_resolved_at END',
+  "r.rental_status = 'resolved' AND r.custody_resolved_at IS NULL",
   'v_rental.picked_up_at IS NULL OR v_rental.returned_at IS NOT NULL',
   'guard_listing_sale_during_rental',
   'guard_listing_active_rental_mutation',
@@ -126,7 +127,7 @@ assert.ok(adminQueue.includes('user.app_metadata?.role'), 'Rental dispute queue 
 assert.ok(adminQueue.includes(".eq(\"rental_status\", \"disputed\")"), 'Admin queue must return only open rental disputes')
 
 const adminUi = read('src/pages/AdminConsole.jsx')
-for (const item of ["['rentals','Rental disputes',PackageCheck]", "admin-gear-rentals", "resolve-gear-rental-dispute", 'lender_share_bps', 'Full refund to borrower', 'Full release to lender', 'rentalCustody[rental.id]!==true', 'custody_resolved_at']) {
+for (const item of ["['rentals','Rental disputes',PackageCheck]", "admin-gear-rentals", "resolve-gear-rental-dispute", 'lender_share_bps', 'Full refund to borrower', 'Full release to lender', 'rentalCustody[rental.id]===true', 'custody_resolved_at']) {
   assert.ok(adminUi.includes(item), `Admin rental dispute UI missing: ${item}`)
 }
 console.log('Secure gear rental lifecycle regression checks passed.')

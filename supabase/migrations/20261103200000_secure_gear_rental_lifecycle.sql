@@ -683,7 +683,7 @@ GRANT EXECUTE ON FUNCTION public.create_gear_rental_return_code(uuid) TO authent
 GRANT EXECUTE ON FUNCTION public.confirm_gear_rental_return(uuid,text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.cancel_gear_rental_request(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.open_gear_rental_dispute(uuid,text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid,boolean) TO service_role;
 
 COMMENT ON TABLE public.gear_rental_holds IS
   'Separate wallet escrow holds for rentals. Never linked to marketplace transactions because purchase settlement marks listings sold.';

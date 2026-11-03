@@ -192,3 +192,5 @@ BEGIN
   END IF;
 END;
 $assertions$;
+
+NOTIFY pgrst, 'reload schema';

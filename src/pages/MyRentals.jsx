@@ -5,28 +5,17 @@ import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import GearRentalPanel from '@/components/gear/GearRentalPanel'
 
-type RentalListing = {
-  id: string
-  title: string
-  seller_id: string
-  status: string
-  listing_mode: 'sale' | 'both'
-  rental_daily_rate_kobo: number | null
-  rental_security_deposit_kobo: number
-  rental_min_days: number
-  rental_max_days: number
-}
-
 export default function MyRentals() {
   const { user } = useAuth()
+  const userId = user?.id
   const { data: rentalRows = [], isLoading: rentalsLoading, error: rentalsError } = useQuery({
-    queryKey: ['my-gear-rentals', user?.id],
-    enabled: Boolean(user?.id),
+    queryKey: ['my-gear-rentals', userId],
+    enabled: Boolean(userId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('gear_rentals')
         .select('id,listing_id')
-        .or(`borrower_id.eq.${user.id},lender_id.eq.${user.id}`)
+        .or(`borrower_id.eq.${userId},lender_id.eq.${userId}`)
         .order('created_at', { ascending: false })
         .limit(100)
       if (error) throw error
@@ -35,7 +24,7 @@ export default function MyRentals() {
     refetchInterval: 15_000,
   })
   const listingIds = useMemo(() => [...new Set(rentalRows.map(row => row.listing_id).filter(Boolean))], [rentalRows])
-  const { data: listings = [], isLoading: listingsLoading, error: listingsError } = useQuery<RentalListing[]>({
+  const { data: listings = [], isLoading: listingsLoading, error: listingsError } = useQuery({
     queryKey: ['my-gear-rental-listings', listingIds],
     enabled: listingIds.length > 0,
     queryFn: async () => {
@@ -44,7 +33,7 @@ export default function MyRentals() {
         .select('id,title,seller_id,status,listing_mode,rental_daily_rate_kobo,rental_security_deposit_kobo,rental_min_days,rental_max_days')
         .in('id', listingIds)
       if (error) throw error
-      return (data || []) as RentalListing[]
+      return data || []
     },
   })
 

@@ -557,7 +557,8 @@ $fn$;
 
 CREATE OR REPLACE FUNCTION public.resolve_gear_rental_dispute(
   p_rental_id uuid,
-  p_lender_share_bps integer
+  p_lender_share_bps integer,
+  p_admin_id uuid
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -574,6 +575,7 @@ BEGIN
     RAISE EXCEPTION 'Service role required';
   END IF;
   IF p_lender_share_bps NOT BETWEEN 0 AND 10000 THEN RAISE EXCEPTION 'Invalid settlement split'; END IF;
+  IF p_admin_id IS NULL THEN RAISE EXCEPTION 'Admin identity is required'; END IF;
 
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
   IF NOT FOUND OR v_rental.rental_status <> 'disputed' THEN RAISE EXCEPTION 'Rental dispute not found'; END IF;
@@ -601,7 +603,7 @@ BEGIN
   UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now() WHERE id = v_hold.id;
   UPDATE public.gear_rentals
      SET rental_status = 'resolved', current_state = 'funds_released_or_disputed',
-         resolved_at = now(), resolved_by = auth.uid(),
+         resolved_at = now(), resolved_by = p_admin_id,
          settlement_lender_share_bps = p_lender_share_bps, updated_at = now()
    WHERE id = p_rental_id;
 
@@ -626,7 +628,7 @@ REVOKE ALL ON FUNCTION public.create_gear_rental_return_code(uuid) FROM PUBLIC, 
 REVOKE ALL ON FUNCTION public.confirm_gear_rental_return(uuid,text) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.cancel_gear_rental_request(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.open_gear_rental_dispute(uuid,text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.resolve_gear_rental_dispute(uuid,integer,uuid) FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION public.create_gear_rental_request(uuid,date,date,uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.create_gear_rental_pickup_code(uuid) TO authenticated;

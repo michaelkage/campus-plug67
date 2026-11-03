@@ -47,6 +47,17 @@ function EscrowPanel({ tx, isSeller, onRefresh, otherUserId }) {
   const edge = async (action, extra = {}) => {
     setLoading(action)
     try {
+      if (action === 'initiate_meetup' && tx.payment_method === 'campus_wallet') {
+        const { data, error } = await supabase.rpc('resolve_wallet_micro_escrow', {
+          p_transaction_id: tx.id,
+          p_action: 'initiate_meetup',
+        })
+        if (error) throw error
+        if (!data?.success) throw new Error(data?.message || 'Unable to start wallet escrow pickup')
+        toast.success('Pickup started. Meet at an approved campus Safe Swap Zone.')
+        onRefresh?.()
+        return
+      }
       const r = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/release-escrow`,
         {

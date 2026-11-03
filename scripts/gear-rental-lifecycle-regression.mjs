@@ -44,6 +44,7 @@ const required = [
   'resolved_by = p_admin_id',
   'p_custody_resolved IS DISTINCT FROM true',
   'custody_resolved_at = now()',
+  'v_rental.picked_up_at IS NULL OR v_rental.returned_at IS NOT NULL',
   'guard_listing_sale_during_rental',
   'guard_listing_active_rental_mutation',
   'NEW.status IS DISTINCT FROM \'active\'',

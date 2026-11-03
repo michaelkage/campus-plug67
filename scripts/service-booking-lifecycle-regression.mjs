@@ -10,6 +10,7 @@ const includes = (source, value, message) => {
 
 const migration = read('supabase/migrations/20261103100000_service_booking_quotes_and_delivery.sql')
 const actions = read('src/components/services/ServiceBookingActions.jsx')
+const databaseTypes = read('src/types/database.ts')
 const page = read('src/pages/Gigs.jsx')
 const packageJson = JSON.parse(read('package.json'))
 
@@ -70,6 +71,10 @@ for (const value of [
   'The customer has 24 hours to accept or decline',
 ]) includes(actions, value, `Service booking UI missing invariant: ${value}`)
 
+includes(actions, ".eq('status', 'accepted')", 'Accepted quotes must be fetched independently of the recent quote history limit')
+includes(actions, '.maybeSingle()', 'Accepted quote lookup must return the authoritative accepted quote')
+includes(databaseTypes, 'service_booking_quotes:', 'Database types must include service booking quotes')
+includes(databaseTypes, "'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'completed'", 'Database types must include the full service booking state machine')
 includes(page, "import { ServiceBookingActions } from '@/components/services/ServiceBookingActions'", 'Gigs page must use the server-authoritative booking controls')
 includes(page, "table: 'service_booking_quotes'", 'Gigs page must subscribe to quote realtime events')
 includes(page, "table: 'gig_bookings'", 'Gigs page must subscribe to booking realtime events')

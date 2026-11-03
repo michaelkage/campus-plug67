@@ -12,14 +12,14 @@ ALTER TABLE public.listings
 ALTER TABLE public.listings
   DROP CONSTRAINT IF EXISTS listings_listing_mode_check,
   ADD CONSTRAINT listings_listing_mode_check
-    CHECK (listing_mode IN ('sale', 'rental', 'both')),
+    CHECK (listing_mode IN ('sale', 'both')),
   DROP CONSTRAINT IF EXISTS listings_rental_pricing_check,
   ADD CONSTRAINT listings_rental_pricing_check CHECK (
     (listing_mode = 'sale'
       AND rental_daily_rate_kobo IS NULL
       AND rental_security_deposit_kobo = 0)
     OR
-    (listing_mode IN ('rental', 'both')
+    (listing_mode = 'both'
       AND rental_daily_rate_kobo > 0
       AND rental_security_deposit_kobo >= 0
       AND rental_min_days BETWEEN 1 AND 90
@@ -130,10 +130,6 @@ BEGIN
 
   IF NOT FOUND THEN RAISE EXCEPTION 'Listing not found'; END IF;
 
-  IF v_mode = 'rental' THEN
-    RAISE EXCEPTION 'This listing is available for rental, not purchase';
-  END IF;
-
   IF EXISTS (
     SELECT 1
       FROM public.gear_rentals r
@@ -190,7 +186,7 @@ BEGIN
   IF NOT FOUND OR v_listing.status IS DISTINCT FROM 'active' THEN
     RAISE EXCEPTION 'This listing is no longer available';
   END IF;
-  IF v_listing.listing_mode NOT IN ('rental','both') THEN
+  IF v_listing.listing_mode <> 'both' THEN
     RAISE EXCEPTION 'This listing is not available for rental';
   END IF;
   IF v_listing.seller_id = v_borrower THEN RAISE EXCEPTION 'You cannot rent your own item'; END IF;

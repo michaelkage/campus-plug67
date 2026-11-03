@@ -136,6 +136,13 @@ BEGIN
        OR v_tx.mobile_release_ready_at < now() - interval '10 minutes' THEN
       RAISE EXCEPTION 'Fresh buyer Safe Swap Zone verification is required';
     END IF;
+    IF v_tx.seller_arrived IS DISTINCT FROM true
+       OR v_tx.seller_safe_zone_id IS NULL
+       OR v_tx.seller_safe_zone_id IS DISTINCT FROM v_tx.buyer_safe_zone_id
+       OR v_tx.seller_arrival_time IS NULL
+       OR v_tx.seller_arrival_time < now() - interval '30 minutes' THEN
+      RAISE EXCEPTION 'Seller must verify arrival in the same Safe Swap Zone within 30 minutes';
+    END IF;
     IF p_qr_secret IS NULL
        OR COALESCE(v_tx.qr_secret, v_tx.release_code) IS NULL
        OR p_qr_secret IS DISTINCT FROM COALESCE(v_tx.qr_secret, v_tx.release_code) THEN

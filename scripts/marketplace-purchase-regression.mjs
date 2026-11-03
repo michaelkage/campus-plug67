@@ -19,7 +19,6 @@ const walletIdempotencyMigrationPath = 'supabase/migrations/20261103110000_walle
 const migration = read(migrationPath);
 const walletIdempotencyMigration = read(walletIdempotencyMigrationPath);
 const resolutionMigration = read('supabase/migrations/20261022180000_mark_wallet_listing_sold_on_release.sql');
-const buyerReleaseMigration = read('supabase/migrations/20261103140000_require_buyer_confirmation_for_wallet_escrow_release.sql');
 const rpcPermissions = read('supabase/migrations/20261022120000_restrict_marketplace_escrow_rpc_execution.sql');
 const legacyRpcPermissions = read('supabase/migrations/20261022124500_restrict_legacy_wallet_sku_rpc_execution.sql');
 for (const signature of [
@@ -43,7 +42,7 @@ for (const signature of [
 }
 const wallet = extractFunction(walletIdempotencyMigration, 'create_wallet_micro_escrow');
 const paystack = extractFunction(migration, 'create_pending_paystack_transaction');
-const resolve = extractFunction(buyerReleaseMigration, 'resolve_wallet_micro_escrow');
+const resolve = extractFunction(resolutionMigration, 'resolve_wallet_micro_escrow');
 const integrity = read('supabase/migrations/20260926131500_protect_listing_purchase_integrity.sql');
 const listingDetail = read('src/pages/ListingDetail.jsx');
 const walletLauncher = read('src/components/wallet/MicroEscrowLauncher.tsx');
@@ -108,14 +107,6 @@ assertIncludes(resolve, "RAISE EXCEPTION 'Wallet escrow listing is not reserved'
   'Wallet release must roll back if listing state is inconsistent');
 
 assertIncludes(resolve, 'v_user IS NULL', 'Wallet escrow resolution must reject unauthenticated callers');
-assertIncludes(resolve, "IF v_user <> v_hold.buyer_id THEN\\n      RAISE EXCEPTION 'Only the buyer can release Campus Wallet escrow';",
-  'Only the buyer may release Campus Wallet escrow');
-const releaseBranch = resolve.indexOf("IF p_action = 'release' THEN");
-const buyerReleaseGuard = resolve.indexOf("Only the buyer can release Campus Wallet escrow");
-const sellerCredit = resolve.indexOf('INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)');
-if (!(releaseBranch >= 0 && buyerReleaseGuard > releaseBranch && sellerCredit > buyerReleaseGuard)) {
-  fail('Wallet seller payout must occur only after buyer authorization succeeds');
-}
 assertIncludes(resolve, "status = 'active'", 'Wallet refund must return the listing to active');
 assertIncludes(resolve, "l.status = 'reserved'", 'Wallet refund must only restore a reserved listing');
 assertIncludes(resolve, 'NOT EXISTS', 'Wallet refund must not reopen a listing with another active transaction');

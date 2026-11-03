@@ -189,8 +189,8 @@ if (!ghostBody.includes("SET search_path = ''") || !priorityBody.includes("SET s
   fail('Browser-callable SECURITY DEFINER eligibility functions must use an empty search_path');
 }
 const profileBoundaryMigration = read('supabase/migrations/20261103140000_profile_public_private_boundary.sql');
-const compactProfileMigration = profileBoundaryMigration.toLowerCase().replace(/\\s+/g, '');
-if (!compactProfileMigration.includes('revokeallon tablepublic.profilesfrompublic,anon,authenticated'.replace(/ /g, ''))) {
+const compactProfileMigration = profileBoundaryMigration.toLowerCase().replace(/\s+/g, '');
+if (!compactProfileMigration.includes('revokeallontablepublic.profilesfrompublic,anon,authenticated')) {
   fail('Private profiles table must not be selectable by anon or public');
 }
 if (!compactProfileMigration.includes('grantselect,insert,updateontablepublic.profilestoauthenticated')) {
@@ -204,8 +204,11 @@ if (!profileBoundaryMigration.includes('security_barrier = true, security_invoke
   fail('Public profile projection must be an explicit safe owner-backed view');
 }
 const publicViewStart = profileBoundaryMigration.indexOf('CREATE OR REPLACE VIEW public.public_profiles');
-const publicViewSelect = profileBoundaryMigration.indexOf('AS\\nSELECT', publicViewStart);
+const publicViewSelect = profileBoundaryMigration.indexOf('AS\nSELECT', publicViewStart);
 const publicViewFrom = profileBoundaryMigration.indexOf('FROM public.profiles', publicViewSelect);
+if (publicViewStart < 0 || publicViewSelect < 0 || publicViewFrom < 0) {
+  fail('Safe public profile view definition is missing');
+}
 const publicProjection = profileBoundaryMigration.slice(publicViewSelect, publicViewFrom);
 for (const privateColumn of [
   'email', 'matric_number', 'balance', 'plug_credit_balance',
@@ -216,7 +219,7 @@ for (const privateColumn of [
     fail('Public profile projection must not expose ' + privateColumn);
   }
 }
-if (!compactProfileMigration.includes('revokeallon tablepublic.public_profile_statsfrompublic,anon,authenticated'.replace(/ /g, ''))) {
+if (!compactProfileMigration.includes('revokeallontablepublic.public_profile_statsfrompublic,anon,authenticated')) {
   fail('The aggregate view must remain behind its safe public stats RPC');
 }
 if (read('src/lib/passkeys.ts').includes(".from('profiles')")) {

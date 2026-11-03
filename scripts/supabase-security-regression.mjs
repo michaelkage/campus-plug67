@@ -179,6 +179,9 @@ if (!priorityBody.includes('auth.uid()') ||
     !priorityBody.includes('IF tx.seller_id <> actor')) {
   fail('Priority relist eligibility must be bound to the authenticated seller/transaction participant');
 }
+if (!ghostBody.includes("SET search_path = ''") || !priorityBody.includes("SET search_path = ''")) {
+  fail('Browser-callable SECURITY DEFINER eligibility functions must use an empty search_path');
+}
 if (!compactRpcMigration.includes('revokeexecuteonfunctionpublic.st_estimatedextent')) {
   fail('PostGIS helper execution must be re-revoked after extension ACL drift');
 }

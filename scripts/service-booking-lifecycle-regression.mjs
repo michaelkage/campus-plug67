@@ -66,7 +66,7 @@ for (const value of [
   'Start service',
   'Mark delivered',
   'Confirm service received',
-  'does not collect or protect funds yet',
+  'do not collect or protect funds yet',
   'The customer has 24 hours to accept or decline',
 ]) includes(actions, value, `Service booking UI missing invariant: ${value}`)
 

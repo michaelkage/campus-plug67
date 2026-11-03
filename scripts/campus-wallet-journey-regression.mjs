@@ -28,6 +28,11 @@ assert.ok(migration.includes('v_tx.seller_safe_zone_id IS DISTINCT FROM v_tx.buy
 assert.ok(migration.includes('v_tx.seller_location_captured_at < now() - interval \'30 minutes\''));
 assert.ok(!migration.includes('seller_arrival_time'));
 assert.ok(!migration.includes('buyer_arrival_time'));
+const safeArrivalStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.record_safe_arrival_v2');
+const safeArrivalEnd = migration.indexOf('REVOKE ALL ON FUNCTION public.record_safe_arrival_v2', safeArrivalStart);
+const safeArrivalSql = migration.slice(safeArrivalStart, safeArrivalEnd);
+assert.equal((safeArrivalSql.match(/buyer_location_captured_at = now\(\)/g) || []).length, 1);
+assert.equal((safeArrivalSql.match(/seller_location_captured_at = now\(\)/g) || []).length, 1);
 assert.ok(migration.includes("v_tx.seller_arrival_time < now() - interval '30 minutes'"));
 assert.ok(migration.includes('CREATE OR REPLACE FUNCTION public.admin_refund_wallet_micro_escrow'));
 assert.ok(migration.includes("IF auth.role() <> 'service_role' THEN"));

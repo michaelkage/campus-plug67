@@ -179,6 +179,12 @@ if (!priorityBody.includes('auth.uid()') ||
     !priorityBody.includes('IF tx.seller_id <> actor')) {
   fail('Priority relist eligibility must be bound to the authenticated seller/transaction participant');
 }
+if (!ghostBody.includes('SECURITY INVOKER') || !priorityBody.includes('SECURITY INVOKER')) {
+  fail('Read-only eligibility RPCs must run as SECURITY INVOKER and obey transaction RLS');
+}
+if (ghostBody.includes('SECURITY DEFINER') || priorityBody.includes('SECURITY DEFINER')) {
+  fail('Read-only eligibility RPCs must not bypass RLS');
+}
 if (!ghostBody.includes("SET search_path = ''") || !priorityBody.includes("SET search_path = ''")) {
   fail('Browser-callable SECURITY DEFINER eligibility functions must use an empty search_path');
 }

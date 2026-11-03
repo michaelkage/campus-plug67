@@ -56,7 +56,10 @@ export function ServiceBookingActions({ booking, currentUserId }) {
       const { data, error } = await supabase.rpc(name, args)
       if (error) throw error
       if (data?.success === false) {
-        if (data.code === 'quote_expired') throw new Error('That quote expired. Ask the provider for an updated quote.')
+        if (data.code === 'quote_expired') {
+          await refresh()
+          throw new Error('That quote expired. Ask the provider for an updated quote.')
+        }
         throw new Error(data.message || 'The booking could not be updated.')
       }
       toast.success(successMessage)

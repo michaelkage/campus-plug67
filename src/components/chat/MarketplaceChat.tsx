@@ -172,7 +172,7 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
     } catch (err: any) { console.error('Error fetching messages:', err) } finally { setLoading(false) }
   }
   const fetchOtherUser = async () => {
-    try { const { data, error } = await supabase.from('profiles').select('*').eq('id', otherUserId).single(); if (error) throw error; setOtherUser(data) }
+    try { const { data, error } = await supabase.from('public_profiles').select('*').eq('id', otherUserId).single(); if (error) throw error; setOtherUser(data) }
     catch (err: any) { console.error('Error fetching chat user profile:', err) }
   }
   const setupRealtimeSubscription = () => {

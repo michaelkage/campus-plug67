@@ -59,7 +59,6 @@ DECLARE
   v_user uuid := auth.uid();
   v_tx public.transactions%ROWTYPE;
   v_listing_id uuid;
-  v_rows integer;
 BEGIN
   SELECT *
     INTO v_hold
@@ -149,6 +148,13 @@ BEGIN
       RAISE EXCEPTION 'Invalid release credential';
     END IF;
 
+    IF NOT EXISTS (
+      SELECT 1 FROM public.listings
+       WHERE id = v_listing_id AND status = 'reserved'
+    ) THEN
+      RAISE EXCEPTION 'Wallet escrow listing is not reserved';
+    END IF;
+
     PERFORM set_config('app.escrow_transition', 'true', true);
 
     INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
@@ -163,6 +169,8 @@ BEGIN
        SET status = 'released', resolved_at = now()
      WHERE id = v_hold.id AND status = 'held';
 
+    -- handle_transaction_update() atomically marks the listing sold and updates
+    -- seller statistics when the transaction enters released state.
     UPDATE public.transactions
        SET status = 'released',
            released_at = now(),
@@ -170,12 +178,11 @@ BEGIN
            payout_status = 'paid'
      WHERE id = v_hold.transaction_id;
 
-    UPDATE public.listings
-       SET status = 'sold', updated_at = now()
-     WHERE id = v_listing_id AND status = 'reserved';
-    GET DIAGNOSTICS v_rows = ROW_COUNT;
-    IF v_rows <> 1 THEN
-      RAISE EXCEPTION 'Wallet escrow listing is not reserved';
+    IF NOT EXISTS (
+      SELECT 1 FROM public.listings
+       WHERE id = v_listing_id AND status = 'sold'
+    ) THEN
+      RAISE EXCEPTION 'Wallet escrow release did not finalize the listing';
     END IF;
 
   ELSIF p_action = 'refund' THEN

@@ -290,7 +290,7 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   }
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }
   const grouped = messages.reduce((acc: any, msg: any) => { const day = new Date(msg.created_at).toDateString(); if (!acc[day]) acc[day] = []; acc[day].push(msg); return acc }, {})
-  const otherUserInitials = otherUser?.username?.slice(0, 2).toUpperCase() || '??'
+  const otherUserInitials = otherUser?.full_name?.slice(0, 2).toUpperCase() || '??'
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] font-sans">

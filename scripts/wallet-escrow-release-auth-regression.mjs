@@ -19,7 +19,7 @@ assert.ok(releaseStart >= 0, 'Wallet release branch must exist');
 assert.ok(buyerGuard > releaseStart, 'Buyer authorization must be inside the release branch');
 assert.ok(denial > buyerGuard, 'Seller release attempts must be rejected');
 assert.ok(sellerCredit > denial, 'Seller payout must happen only after buyer authorization');
-assert.match(migration, /REVOKE ALL ON FUNCTION public\\.resolve_wallet_micro_escrow\\(uuid,text\\) FROM PUBLIC, anon/i);
-assert.match(migration, /GRANT EXECUTE ON FUNCTION public\\.resolve_wallet_micro_escrow\\(uuid,text\\) TO authenticated/i);
+assert.ok(migration.includes('REVOKE ALL ON FUNCTION public.resolve_wallet_micro_escrow(uuid,text) FROM PUBLIC, anon'));
+assert.ok(migration.includes('GRANT EXECUTE ON FUNCTION public.resolve_wallet_micro_escrow(uuid,text) TO authenticated'));
 
 console.log('Wallet escrow release authorization regression checks passed.');

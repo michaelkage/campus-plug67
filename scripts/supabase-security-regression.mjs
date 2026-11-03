@@ -70,37 +70,37 @@ if (!/alter function public\.touch_group_chat_activity\(\)\s+set search_path = '
 }
 
 const profileStatsMigration = read('supabase/migrations/20261103114500_secure_public_profile_stats_rpc.sql');
-if (!/create or replace function private\\.get_public_profile_stats[\\s\\S]*?security definer[\\s\\S]*?set search_path = ''/i.test(profileStatsMigration)) {
+if (!/create or replace function private\.get_public_profile_stats[\s\S]*?security definer[\s\S]*?set search_path = ''/i.test(profileStatsMigration)) {
   fail('Private public-profile stats helper must be SECURITY DEFINER with an empty search_path');
 }
-if (!/create or replace function public\\.get_public_profile_stats[\\s\\S]*?security invoker[\\s\\S]*?set search_path = ''/i.test(profileStatsMigration)) {
+if (!/create or replace function public\.get_public_profile_stats[\s\S]*?security invoker[\s\S]*?set search_path = ''/i.test(profileStatsMigration)) {
   fail('Exposed public-profile stats RPC must be SECURITY INVOKER with an empty search_path');
 }
-if (!/grant select\\s*\\(\\s*reviewee_id\\s*,\\s*score\\s*\\)\\s*on table public\\.ratings to authenticated/i.test(profileStatsMigration)) {
+if (!/grant select\s*\(\s*reviewee_id\s*,\s*score\s*\)\s*on table public\.ratings to authenticated/i.test(profileStatsMigration)) {
   fail('profile_ratings must use least-privilege source-column grants');
 }
-if (/grant select on table public\\.ratings to (anon|authenticated)/i.test(profileStatsMigration)) {
+if (/grant select on table public\.ratings to (anon|authenticated)/i.test(profileStatsMigration)) {
   fail('Do not grant broad ratings table access to client roles');
 }
-if (!/alter view public\\.profile_ratings set \\(security_invoker = true\\)/i.test(profileStatsMigration)) {
+if (!/alter view public\.profile_ratings set \(security_invoker = true\)/i.test(profileStatsMigration)) {
   fail('profile_ratings must use SECURITY INVOKER');
 }
-if (!/revoke select on table public\\.public_profile_stats from public, anon, authenticated/i.test(profileStatsMigration)) {
+if (!/revoke select on table public\.public_profile_stats from public, anon, authenticated/i.test(profileStatsMigration)) {
   fail('Retire direct access to the legacy public_profile_stats view');
 }
-if (!/revoke insert, update, delete on table public\\.profile_ratings from authenticated/i.test(profileStatsMigration)) {
+if (!/revoke insert, update, delete on table public\.profile_ratings from authenticated/i.test(profileStatsMigration)) {
   fail('profile_ratings must remain a read-only aggregate view');
 }
-if (!/rpc\\('get_public_profile_stats'/i.test(read('src/pages/VerifyProfile.jsx'))) {
+if (!/rpc\('get_public_profile_stats'/i.test(read('src/pages/VerifyProfile.jsx'))) {
   fail('Public resume verification must use the least-privilege stats RPC');
 }
-if (!/rpc\\('get_public_profile_stats'/i.test(read('src/lib/supabase/queries.ts'))) {
+if (!/rpc\('get_public_profile_stats'/i.test(read('src/lib/supabase/queries.ts'))) {
   fail('getPublicProfileStats must use the least-privilege stats RPC');
 }
-if (/from\\('public_profile_stats'\\)/i.test(read('src/pages/VerifyProfile.jsx'))) {
+if (/from\('public_profile_stats'\)/i.test(read('src/pages/VerifyProfile.jsx'))) {
   fail('Public resume verification must not query the legacy view directly');
 }
-if (/schemas\\s*=\\s*\\[[^\\]]*["']private["']/i.test(config)) {
+if (/schemas\s*=\s*\[[^\]]*["']private["']/i.test(config)) {
   fail('The private helper schema must not be exposed through the Supabase Data API');
 }
 

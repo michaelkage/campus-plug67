@@ -341,6 +341,12 @@ BEGIN
   IF NOT FOUND OR v_user <> v_rental.borrower_id THEN RAISE EXCEPTION 'Only the borrower can confirm pickup'; END IF;
   IF v_rental.rental_status <> 'funds_escrowed' THEN RAISE EXCEPTION 'Rental is not awaiting pickup';
   END IF;
+  IF (now() AT TIME ZONE 'Africa/Lagos')::date < v_rental.start_date THEN
+    RAISE EXCEPTION 'Pickup is not available before the reserved start date';
+  END IF;
+  IF (now() AT TIME ZONE 'Africa/Lagos')::date > v_rental.end_date THEN
+    RAISE EXCEPTION 'The reserved rental period has expired. Cancel or dispute this reservation.';
+  END IF;
   IF v_rental.pickup_code_hash IS NULL OR v_rental.pickup_code_expires_at < now() THEN
     RETURN jsonb_build_object('success', false, 'code', 'pickup_code_expired', 'message', 'Pickup code is invalid or expired');
   END IF;

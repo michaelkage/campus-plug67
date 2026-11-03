@@ -65,7 +65,8 @@ const required = [
 for (const item of required) assert.ok(migration.includes(item), `Missing rental lifecycle invariant: ${item}`)
 
 assert.ok(migration.indexOf('INSERT INTO public.gear_rental_holds') < migration.indexOf('INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)\n  VALUES (v_borrower'), 'Rental hold and debit must be committed in the same RPC transaction')
-assert.ok(migration.includes("UPDATE public.gear_rentals\n     SET rental_status = 'completed', current_state = 'returned_to_owner'"), 'Return confirmation must complete custody')
+assert.ok(migration.includes("SET rental_status = 'return_inspection', current_state = 'returned_to_owner'"), 'Lender return confirmation must begin the inspection window')
+assert.ok(migration.includes("SET rental_status = 'completed', resolved_at = now()"), 'Final rental settlement must complete the lifecycle')
 assert.ok(migration.includes("UPDATE public.gear_rental_holds SET status = 'settled', settled_at = now()"), 'Settlement must be one-time')
 assert.ok(!migration.includes('public.transactions ('), 'Rentals must not enter purchase transaction settlement')
 

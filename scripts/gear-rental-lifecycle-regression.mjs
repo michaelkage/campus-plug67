@@ -85,4 +85,17 @@ const dashboard = read('src/pages/MyRentals.jsx')
 for (const item of ['gear_rentals', 'GearRentalPanel', 'allowRequest={false}', 'My Rentals', 'Campus Wallet only']) {
   assert.ok(dashboard.includes(item), `My Rentals dashboard missing: ${item}`)
 }
+
+const adminFunction = read('supabase/functions/resolve-gear-rental-dispute/index.ts')
+for (const item of ['getAuthenticatedUser(req)', 'user.app_metadata?.role', 'platform_admin', 'resolve_gear_rental_dispute', 'p_admin_id: user.id', 'lender_share_bps']) {
+  assert.ok(adminFunction.includes(item), `Admin rental settlement endpoint missing: ${item}`)
+}
+const adminQueue = read('supabase/functions/admin-gear-rentals/index.ts')
+assert.ok(adminQueue.includes('user.app_metadata?.role'), 'Rental dispute queue must enforce platform-admin access')
+assert.ok(adminQueue.includes(".eq(\"rental_status\", \"disputed\")"), 'Admin queue must return only open rental disputes')
+
+const adminUi = read('src/pages/AdminConsole.jsx')
+for (const item of ["['rentals','Rental disputes',PackageCheck]", "admin-gear-rentals", "resolve-gear-rental-dispute", 'lender_share_bps', 'Full refund to borrower', 'Full release to lender']) {
+  assert.ok(adminUi.includes(item), `Admin rental dispute UI missing: ${item}`)
+}
 console.log('Secure gear rental lifecycle regression checks passed.')

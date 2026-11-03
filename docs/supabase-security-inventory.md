@@ -59,8 +59,34 @@ boundaries:
   when creating a trigger, while the trigger itself executes as part of the
   triggering statement.
 
-The same migration reasserts the PostGIS `ST_EstimatedExtent` client revokes,
-which had drifted in production despite the earlier hardening migration.
+Production verification shows the three PostGIS `ST_EstimatedExtent` overloads
+still retain PUBLIC EXECUTE. They are owned by `supabase_admin`; the application
+migration's revoke attempt did not change those ACLs. Treat this as unresolved
+and use the Supabase Support-assisted PostGIS remediation path.
+
+## Private profile boundary (2026-11-03)
+
+Migration `20261103140000_profile_public_private_boundary.sql` removes the
+`Profiles viewable by all` policy and replaces it with an authenticated
+owner-only SELECT policy on `public.profiles`. Browser roles no longer have
+direct access to another user's full profile row. The `anon` role has no
+direct table privileges; `authenticated` retains only SELECT, INSERT, and
+UPDATE, constrained by the existing owner policies. Trusted Edge Functions
+and the `auth.users` profile-creation trigger retain their privileged access.
+
+Public-facing surfaces use `public.public_profiles`, an explicit
+security-barrier view containing only public card fields. It is deliberately
+owner-backed (`security_invoker = false`) so it can expose that narrow
+projection while the underlying table remains owner-only. It excludes email,
+matriculation identifiers, wallet balances, duress credential hashes, device
+telemetry, admin/moderation flags, and private settings.
+
+The old `public_profile_stats` view is no longer directly readable by browser
+roles. Public aggregate statistics remain available through the restricted
+`get_public_profile_stats` RPC. Chat, leaderboard, public profile, and
+referral surfaces read the safe projection. Passkey login resolves an email
+through the server-side `passkey-auth` Edge Function rather than querying
+`profiles` from the browser.
 
 ## Affected tables / access intent
 
@@ -84,7 +110,11 @@ The following application tables were explicitly hardened with RLS and role-appr
 
 ## PostGIS API surface
 
-The application retains PostGIS because spatial functionality is used. Migration `049_postgis_api_hardening.sql` revokes direct `EXECUTE` for the three known `ST_EstimatedExtent` overloads from `public`, `anon`, and `authenticated`. The extension itself is not removed or moved, so spatial columns and migrations remain intact.
+The application retains PostGIS because spatial functionality is used. Migration `049_postgis_api_hardening.sql` attempts to revoke direct `EXECUTE`
+for the three known `ST_EstimatedExtent` overloads, but production verification
+shows the extension-owned ACLs still grant PUBLIC EXECUTE. The extension itself
+is not removed or moved; a supported PostGIS relocation/remediation is still
+required to close this finding without damaging spatial columns.
 
 ## Client-secret boundary
 

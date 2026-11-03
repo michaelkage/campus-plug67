@@ -188,9 +188,61 @@ if (ghostBody.includes('SECURITY DEFINER') || priorityBody.includes('SECURITY DE
 if (!ghostBody.includes("SET search_path = ''") || !priorityBody.includes("SET search_path = ''")) {
   fail('Browser-callable SECURITY DEFINER eligibility functions must use an empty search_path');
 }
-if (!compactRpcMigration.includes('revokeexecuteonfunctionpublic.st_estimatedextent')) {
-  fail('PostGIS helper execution must be re-revoked after extension ACL drift');
+const profileBoundaryMigration = read('supabase/migrations/20261103140000_profile_public_private_boundary.sql');
+const compactProfileMigration = profileBoundaryMigration.toLowerCase().replace(/\s+/g, '');
+if (!compactProfileMigration.includes('revokeallontablepublic.profilesfrompublic,anon,authenticated')) {
+  fail('Private profiles table must not be selectable by anon or public');
 }
+if (!compactProfileMigration.includes('grantselect,insert,updateontablepublic.profilestoauthenticated')) {
+  fail('Authenticated profile access must be limited to owner-scoped CRUD privileges');
+}
+if (!profileBoundaryMigration.includes('DROP POLICY IF EXISTS "Profiles viewable by all"') ||
+    !profileBoundaryMigration.includes('CREATE POLICY "Users view own profile"')) {
+  fail('Profiles table must replace broad SELECT policy with owner-only SELECT');
+}
+if (!profileBoundaryMigration.includes('security_barrier = true, security_invoker = false')) {
+  fail('Public profile projection must be an explicit safe owner-backed view');
+}
+const publicViewStart = profileBoundaryMigration.indexOf('CREATE OR REPLACE VIEW public.public_profiles');
+const publicViewSelect = profileBoundaryMigration.indexOf('AS\nSELECT', publicViewStart);
+const publicViewFrom = profileBoundaryMigration.indexOf('FROM public.profiles', publicViewSelect);
+if (publicViewStart < 0 || publicViewSelect < 0 || publicViewFrom < 0) {
+  fail('Safe public profile view definition is missing');
+}
+const publicProjection = profileBoundaryMigration.slice(publicViewSelect, publicViewFrom);
+for (const privateColumn of [
+  'email', 'matric_number', 'balance', 'plug_credit_balance',
+  'duress_code_hash', 'duress_qr_token_hash', 'last_known_ip',
+  'is_admin', 'collusion_flag', 'referral_code', 'referred_by',
+]) {
+  if (publicProjection.includes('p.' + privateColumn)) {
+    fail('Public profile projection must not expose ' + privateColumn);
+  }
+}
+if (!compactProfileMigration.includes('revokeallontablepublic.public_profile_statsfrompublic,anon,authenticated')) {
+  fail('The aggregate view must remain behind its safe public stats RPC');
+}
+if (read('src/lib/passkeys.ts').includes(".from('profiles')")) {
+  fail('Passkey login must not query private profiles from the browser');
+}
+if (!read('src/lib/passkeys.ts').includes('userEmail: email.trim().toLowerCase()') ||
+    !read('supabase/functions/passkey-auth/index.ts').includes('eq("email",normalizedEmail)')) {
+  fail('Passkey account lookup must happen server-side');
+}
+if (!read('src/pages/Profile.jsx').includes("viewingOwn ? 'profiles' : 'public_profiles'")) {
+  fail('Profile page must use the private table only for the signed-in owner');
+}
+for (const path of [
+  'src/pages/Leaderboard.jsx',
+  'src/pages/Chat.jsx',
+  'src/components/chat/MarketplaceChat.tsx',
+  'src/components/ui/Referral.tsx',
+]) {
+  if (!read(path).includes(".from('public_profiles')")) {
+    fail(path + ' must use the safe public profile view');
+  }
+}
+
 if (!rpcAccessMigration.includes("p.prorettype = 'trigger'::regtype")) {
   fail('SECURITY DEFINER trigger functions must not remain directly executable by API roles');
 }

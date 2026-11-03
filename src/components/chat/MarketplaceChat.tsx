@@ -9,7 +9,7 @@ import { Shield, AlertTriangle, Send, Lock, Info, X, Pencil, Check, Trash2, Load
 import { Database } from '@/types/database'
 
 type Message = Database['public']['Tables']['messages']['Row']
-type Profile = Database['public']['Tables']['profiles']['Row']
+type Profile = Database['public']['Views']['public_profiles']['Row']
 
 interface MarketplaceChatProps {
   currentUserId: string
@@ -172,7 +172,7 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
     } catch (err: any) { console.error('Error fetching messages:', err) } finally { setLoading(false) }
   }
   const fetchOtherUser = async () => {
-    try { const { data, error } = await supabase.from('profiles').select('*').eq('id', otherUserId).single(); if (error) throw error; setOtherUser(data) }
+    try { const { data, error } = await supabase.from('public_profiles').select('*').eq('id', otherUserId).single(); if (error) throw error; setOtherUser(data) }
     catch (err: any) { console.error('Error fetching chat user profile:', err) }
   }
   const setupRealtimeSubscription = () => {
@@ -290,14 +290,14 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   }
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }
   const grouped = messages.reduce((acc: any, msg: any) => { const day = new Date(msg.created_at).toDateString(); if (!acc[day]) acc[day] = []; acc[day].push(msg); return acc }, {})
-  const otherUserInitials = otherUser?.username?.slice(0, 2).toUpperCase() || '??'
+  const otherUserInitials = otherUser?.full_name?.slice(0, 2).toUpperCase() || '??'
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] font-sans">
       <div className="flex shrink-0 items-center justify-between border-b border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-gradient-to-br from-primary to-tertiary text-sm font-black text-on-primary">{otherUser?.avatar_url ? <img src={otherUser.avatar_url} alt="" className="h-full w-full rounded-sm object-cover" /> : otherUserInitials}</div>
-          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-on-surface">{otherUser?.full_name || otherUser?.username || 'Unknown User'}</div><div className="flex items-center gap-1 text-[10px] font-semibold text-primary"><Shield size={9} />PlugPay Protected · 60s edit window</div></div>
+          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-on-surface">{otherUser?.full_name || 'Unknown User'}</div><div className="flex items-center gap-1 text-[10px] font-semibold text-primary"><Shield size={9} />PlugPay Protected · 60s edit window</div></div>
         </div>
         {transactionId && <div className="flex items-center gap-1 font-mono text-[10px] text-[var(--md-on-surface-variant)]"><Lock size={9} />Evidence log</div>}
       </div>

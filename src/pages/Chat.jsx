@@ -39,7 +39,7 @@ export default function Chat() {
   const { data: profiles = [] } = useQuery({
     queryKey: ['chat-inbox-profiles', conversationUserIds],
     enabled: conversationUserIds.length > 0,
-    queryFn: async () => { const { data, error } = await supabase.from('profiles').select('id,full_name,avatar_url,university').in('id', conversationUserIds); if (error) throw error; return data ?? [] },
+    queryFn: async () => { const { data, error } = await supabase.from('public_profiles').select('id,full_name,avatar_url,university').in('id', conversationUserIds); if (error) throw error; return data ?? [] },
   })
   const conversations = useMemo(() => {
     const profileMap = new Map(profiles.map(profile => [profile.id, profile]))

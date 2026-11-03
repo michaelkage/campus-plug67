@@ -17,6 +17,11 @@ const packageJson = JSON.parse(read('package.json'))
 for (const value of [
   'CREATE TABLE IF NOT EXISTS public.service_booking_quotes',
   'ALTER TABLE public.gig_bookings',
+  'ALTER COLUMN status SET NOT NULL',
+  "v_booking.status IS DISTINCT FROM 'quoted'",
+  "v_booking.status IS DISTINCT FROM 'confirmed'",
+  "v_booking.status IS DISTINCT FROM 'in_progress'",
+  "v_booking.status IS DISTINCT FROM 'delivered'",
   "'quoted'::text",
   "'in_progress'::text",
   "'delivered'::text",

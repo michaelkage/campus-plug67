@@ -49,6 +49,13 @@ for (const value of [
   'Quote acceptance does not collect or escrow payment',
 ]) includes(migration, value, `Service booking migration missing invariant: ${value}`)
 
+const guardStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.guard_gig_booking_update()')
+const privilegedWrite = migration.indexOf("IF current_user = 'postgres' THEN", guardStart)
+const immutableFieldGuard = migration.indexOf('IF NEW.id IS DISTINCT FROM OLD.id', guardStart)
+if (guardStart < 0 || privilegedWrite < 0 || immutableFieldGuard < 0 || privilegedWrite > immutableFieldGuard) {
+  fail('Validated SECURITY DEFINER booking RPCs must pass the guard before immutable-field checks')
+}
+
 for (const value of [
   "callRpc('send_gig_booking_quote'",
   "callRpc('respond_gig_booking_quote'",

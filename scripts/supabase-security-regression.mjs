@@ -127,9 +127,9 @@ if (!/alter table public\.public_profiles enable row level security/i.test(profi
     || !/create policy "Public profiles are readable by everyone"/i.test(profileDataMigration)) {
   fail('Public profile projection must be protected by an explicit RLS read policy');
 }
-if (!/revoke select on table public\.profiles from public, anon, authenticated/i.test(profileDataMigration)
-    || !/grant select \(id\) on table public\.profiles to authenticated/i.test(profileDataMigration)) {
-  fail('Direct profile reads must be revoked except for the caller-scoped id needed by updates');
+if (/revoke select on table public\.profiles/i.test(profileDataMigration)
+    || !/profiles-table privilege cutover is intentionally a separate deployment/i.test(profileDataMigration)) {
+  fail('Profile-table revocation must follow the frontend rollout in a separate migration');
 }
 if (!/create or replace function private\.get_my_profile[\s\S]*?security definer[\s\S]*?set search_path = ''[\s\S]*?auth\.uid\(\)/i.test(profileDataMigration)
     || !/create or replace function public\.get_my_profile[\s\S]*?security invoker[\s\S]*?set search_path = ''/i.test(profileDataMigration)) {

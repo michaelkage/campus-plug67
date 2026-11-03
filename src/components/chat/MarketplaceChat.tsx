@@ -9,7 +9,7 @@ import { Shield, AlertTriangle, Send, Lock, Info, X, Pencil, Check, Trash2, Load
 import { Database } from '@/types/database'
 
 type Message = Database['public']['Tables']['messages']['Row']
-type Profile = Database['public']['Tables']['profiles']['Row']
+type Profile = Database['public']['Views']['public_profiles']['Row']
 
 interface MarketplaceChatProps {
   currentUserId: string
@@ -172,7 +172,7 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
     } catch (err: any) { console.error('Error fetching messages:', err) } finally { setLoading(false) }
   }
   const fetchOtherUser = async () => {
-    try { const { data, error } = await supabase.from('profiles').select('*').eq('id', otherUserId).single(); if (error) throw error; setOtherUser(data) }
+    try { const { data, error } = await supabase.from('public_profiles').select('*').eq('id', otherUserId).single(); if (error) throw error; setOtherUser(data) }
     catch (err: any) { console.error('Error fetching chat user profile:', err) }
   }
   const setupRealtimeSubscription = () => {
@@ -290,7 +290,7 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   }
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }
   const grouped = messages.reduce((acc: any, msg: any) => { const day = new Date(msg.created_at).toDateString(); if (!acc[day]) acc[day] = []; acc[day].push(msg); return acc }, {})
-  const otherUserInitials = otherUser?.username?.slice(0, 2).toUpperCase() || '??'
+  const otherUserInitials = otherUser?.full_name?.slice(0, 2).toUpperCase() || '??'
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] font-sans">

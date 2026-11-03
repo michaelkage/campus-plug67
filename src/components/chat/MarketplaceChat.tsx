@@ -166,7 +166,8 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   const fetchMessages = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase.from('messages').select('*').or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`).order('created_at', { ascending: true })
+      const conversationQuery = supabase.from('messages').select('*').or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`)
+      const { data, error } = await (transactionId ? conversationQuery.eq('transaction_id', transactionId) : conversationQuery.is('transaction_id', null)).order('created_at', { ascending: true })
       if (error) throw error
       setMessages((data || []).map(msg => ({ ...msg, isOptimistic: false, scanStatus: 'safe' as const })))
     } catch (err: any) { console.error('Error fetching messages:', err) } finally { setLoading(false) }
@@ -176,10 +177,10 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
     catch (err: any) { console.error('Error fetching chat user profile:', err) }
   }
   const setupRealtimeSubscription = () => {
-    const subscription = supabase.channel(`chat:${[currentUserId, otherUserId].sort().join(':')}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+    const subscription = supabase.channel(`chat:${[currentUserId, otherUserId].sort().join(':')}:${transactionId ?? 'general'}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
       const newMsg = payload.new as Message
       if (!newMsg) return
-      const relevant = (newMsg.sender_id === currentUserId && newMsg.receiver_id === otherUserId) || (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId)
+      const relevant = ((newMsg.sender_id === currentUserId && newMsg.receiver_id === otherUserId) || (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId)) && (newMsg.transaction_id ?? null) === (transactionId ?? null)
       if (!relevant) return
       if (payload.eventType === 'INSERT') {
         setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), { ...newMsg, isOptimistic: false, scanStatus: 'safe' as const }])
@@ -206,10 +207,11 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
     subscriptionRef.current = subscription
   }
   const markMessagesAsRead = async () => {
-    const { error } = await supabase.from('messages')
+    const unreadQuery = supabase.from('messages')
       .update({ read: true })
       .eq('sender_id', otherUserId)
       .eq('receiver_id', currentUserId)
+    const { error } = await (transactionId ? unreadQuery.eq('transaction_id', transactionId) : unreadQuery.is('transaction_id', null))
       .eq('read', false)
       .select('id')
     if (error) {
@@ -219,10 +221,10 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
 
     // PostgREST can return no error when RLS filters every UPDATE row.
     // Verify the persisted state before marking the conversation read locally.
-    const { data: remainingUnread, error: verifyError } = await supabase.from('messages')
-      .select('id')
+    const verifyQuery = supabase.from('messages').select('id')
       .eq('sender_id', otherUserId)
       .eq('receiver_id', currentUserId)
+    const { data: remainingUnread, error: verifyError } = await (transactionId ? verifyQuery.eq('transaction_id', transactionId) : verifyQuery.is('transaction_id', null))
       .eq('read', false)
       .limit(1)
     if (verifyError || remainingUnread?.length) {
@@ -231,7 +233,7 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
     }
 
     setMessages(prev => prev.map(message =>
-      message.sender_id === otherUserId && message.receiver_id === currentUserId
+      message.sender_id === otherUserId && message.receiver_id === currentUserId && (message.transaction_id ?? null) === (transactionId ?? null)
         ? { ...message, read: true }
         : message
     ))

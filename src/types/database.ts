@@ -20,6 +20,29 @@ export type Json =
   | { [key: string]: Json }
   | Json[]
 
+export interface PublicProfileVerificationStats {
+  id: string
+  full_name: string | null
+  university: string | null
+  department: string | null
+  level: string | null
+  is_verified: boolean | null
+  created_at: string | null
+  plug_score: number | null
+  badges: string[] | null
+  total_sales: number
+  total_earnings: number
+  verified_uploads: number
+  avg_rating: number
+  rating_count: number
+  hostel_reviews_count: number
+  hostel_avg_rating: number
+  pools_joined: number
+  pools_created: number
+  total_contributions: number
+  successful_pools: number
+}
+
 // ── Database schema ───────────────────────────────────────────────────────────
 export type Database = {
   public: {

@@ -2,6 +2,17 @@
 -- This phase intentionally does not move money. Payment/escrow is a separate,
 -- follow-up migration so no booking can imply funds are protected before that exists.
 
+-- Extend the existing booking status constraint for the quote/delivery state machine.
+ALTER TABLE public.gig_bookings
+  DROP CONSTRAINT IF EXISTS gig_bookings_status_check;
+ALTER TABLE public.gig_bookings
+  ADD CONSTRAINT gig_bookings_status_check
+  CHECK (status = ANY (ARRAY[
+    'pending'::text, 'quoted'::text, 'confirmed'::text,
+    'in_progress'::text, 'delivered'::text, 'completed'::text,
+    'cancelled'::text
+  ]));
+
 CREATE TABLE IF NOT EXISTS public.service_booking_quotes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id uuid NOT NULL REFERENCES public.gig_bookings(id) ON DELETE RESTRICT,

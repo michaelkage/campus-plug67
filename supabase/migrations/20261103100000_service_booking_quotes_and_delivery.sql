@@ -74,6 +74,29 @@ REVOKE ALL ON FUNCTION public.guard_gig_booking_update() FROM PUBLIC, anon, auth
 -- All booking transitions now pass through narrow RPCs. The legacy direct
 -- UPDATE path is removed so participants cannot skip quote acceptance/delivery.
 REVOKE UPDATE ON public.gig_bookings FROM authenticated;
+DROP POLICY IF EXISTS "Parties update bookings" ON public.gig_bookings;
+
+-- A customer may only create a fresh request for an active provider listing,
+-- using that listing's current starting price. Clients cannot insert a booking
+-- directly into quoted/confirmed/delivered/completed states.
+DROP POLICY IF EXISTS "Clients create bookings" ON public.gig_bookings;
+CREATE POLICY "Clients create bookings"
+  ON public.gig_bookings
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    (SELECT auth.uid()) = client_id
+    AND client_id <> seller_id
+    AND status = 'pending'
+    AND EXISTS (
+      SELECT 1
+      FROM public.gigs AS g
+      WHERE g.id = gig_bookings.gig_id
+        AND g.seller_id = gig_bookings.seller_id
+        AND g.active = true
+        AND gig_bookings.amount = g.starting_price
+    )
+  );
 
 CREATE OR REPLACE FUNCTION public.guard_gig_booking_update()
 RETURNS trigger

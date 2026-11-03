@@ -1,5 +1,5 @@
 -- Keep public resume verification available without granting anonymous
--- access to the underlying transaction, rating, or hostel tables.
+-- access to the underlying transaction or rating tables.
 --
 -- The exposed RPC is SECURITY INVOKER. Its narrowly scoped helper lives in
 -- the unexposed private schema and returns only the public profile projection.

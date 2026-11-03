@@ -21,7 +21,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
   const [amount, setAmount] = useState(
     booking.amount ? (Number(booking.amount) / 100).toString() : '',
   )
-  const [scope, setScope] = useState(booking.notes || '')
+  const [scope, setScope] = useState('')
   const [busy, setBusy] = useState(false)
 
   const { data: quotes = [] } = useQuery({
@@ -139,7 +139,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
         </div>
       )}
 
-      {isProvider && ['pending', 'quoted'].includes(booking.status) && (
+      {isProvider && (['pending', 'quoted'].includes(booking.status) || (booking.status === 'confirmed' && !acceptedQuote)) && (
         <div className="space-y-2">
           {!showQuoteForm ? (
             <button type="button" disabled={busy} onClick={() => setShowQuoteForm(true)} className="btn-primary text-xs">
@@ -180,7 +180,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
         </div>
       )}
 
-      {isProvider && booking.status === 'confirmed' && (
+      {isProvider && booking.status === 'confirmed' && acceptedQuote && (
         <button type="button" disabled={busy} onClick={() => transition('start')} className="btn-primary text-xs">
           <Play size={13} /> Start service
         </button>

@@ -17,7 +17,7 @@ ALTER TABLE public.gig_bookings
 
 CREATE TABLE IF NOT EXISTS public.service_booking_quotes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  booking_id uuid NOT NULL REFERENCES public.gig_bookings(id) ON DELETE RESTRICT,
+  booking_id uuid NOT NULL REFERENCES public.gig_bookings(id) ON DELETE CASCADE,
   client_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
   seller_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
   amount_kobo bigint NOT NULL CHECK (amount_kobo > 0),
@@ -351,6 +351,44 @@ REVOKE ALL ON FUNCTION public.transition_gig_booking(uuid, text)
 GRANT EXECUTE ON FUNCTION public.transition_gig_booking(uuid, text)
   TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.notify_service_booking_quote_created()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $fn$
+DECLARE
+  v_gig_title text;
+BEGIN
+  SELECT g.title INTO v_gig_title
+  FROM public.gig_bookings AS b
+  JOIN public.gigs AS g ON g.id = b.gig_id
+  WHERE b.id = NEW.booking_id;
+
+  INSERT INTO public.notifications (user_id, type, title, body, data)
+  VALUES (
+    NEW.client_id,
+    'service_quote_received',
+    '💬 Final Service Quote Ready',
+    COALESCE(v_gig_title, 'Your service booking') ||
+      ' has a final price and work scope. Review the quote before it expires.',
+    jsonb_build_object(
+      'booking_id', NEW.booking_id,
+      'quote_id', NEW.id,
+      'amount_kobo', NEW.amount_kobo,
+      'expires_at', NEW.expires_at
+    )
+  );
+  RETURN NEW;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION public.notify_service_booking_quote_created() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS notify_service_booking_quote_created ON public.service_booking_quotes;
+CREATE TRIGGER notify_service_booking_quote_created
+  AFTER INSERT ON public.service_booking_quotes
+  FOR EACH ROW EXECUTE FUNCTION public.notify_service_booking_quote_created();
+
 CREATE OR REPLACE FUNCTION public.notify_gig_booking_status_changed()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -365,6 +403,7 @@ DECLARE
   notification_body text;
 BEGIN
   IF NEW.status IS NOT DISTINCT FROM OLD.status THEN RETURN NEW; END IF;
+  IF NEW.status = 'quoted' THEN RETURN NEW; END IF;
 
   IF (SELECT auth.uid()) = NEW.seller_id THEN
     recipient_id := NEW.client_id;

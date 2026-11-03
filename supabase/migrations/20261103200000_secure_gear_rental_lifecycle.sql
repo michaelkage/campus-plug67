@@ -213,6 +213,14 @@ BEGIN
   END IF;
   IF v_listing.seller_id = v_borrower THEN RAISE EXCEPTION 'You cannot rent your own item'; END IF;
 
+  IF EXISTS (
+    SELECT 1 FROM public.transactions t
+     WHERE t.listing_id = p_listing_id
+       AND t.status IN ('pending','locked','meetup_initiated','release_requested','disputed')
+  ) THEN
+    RAISE EXCEPTION 'This item has an active purchase checkout and cannot be rented yet';
+  END IF;
+
   IF p_start_date < (now() AT TIME ZONE 'Africa/Lagos')::date THEN
     RAISE EXCEPTION 'Choose today or a future rental start date';
   END IF;
@@ -425,6 +433,13 @@ BEGIN
   SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
   IF NOT FOUND OR v_hold.status <> 'held' THEN RAISE EXCEPTION 'Rental wallet hold is not available'; END IF;
 
+  -- Lock both wallets in a stable order to prevent opposite-direction rental
+  -- settlements between the same two students from deadlocking.
+  PERFORM 1 FROM public.profiles p
+   WHERE p.id IN (v_hold.borrower_id, v_hold.lender_id)
+   ORDER BY p.id
+   FOR UPDATE;
+
   IF v_hold.rental_fee_kobo > 0 THEN
     INSERT INTO public.plug_credit_ledger (user_id, amount, reason, reference_id)
     VALUES (v_hold.lender_id, v_hold.rental_fee_kobo, 'Gear rental fee released after return', p_rental_id);
@@ -559,6 +574,11 @@ BEGIN
 
   SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
   IF NOT FOUND OR v_hold.status <> 'held' THEN RAISE EXCEPTION 'Rental wallet hold is not available'; END IF;
+
+  PERFORM 1 FROM public.profiles p
+   WHERE p.id IN (v_hold.borrower_id, v_hold.lender_id)
+   ORDER BY p.id
+   FOR UPDATE;
 
   v_lender_amount := (v_hold.total_held_kobo * p_lender_share_bps) / 10000;
   v_borrower_amount := v_hold.total_held_kobo - v_lender_amount;

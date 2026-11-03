@@ -64,5 +64,9 @@ assert.ok(safeSwapPage.includes('sellerCheckinFresh'), 'Buyer QR scanner must wa
 assert.ok(rpcTypes.includes('p_qr_secret?:string|null'));
 assert.ok(disputeEdge.includes('await executeVerdict(juryCase, finalVerdict)'));
 assert.ok(!disputeEdge.includes('update({ status: "decided", verdict: finalVerdict'));
+assert.ok(disputeEdge.includes('if (finalVerdict === "split")'));
+assert.ok(disputeEdge.includes('status: "escalated"'),
+  'Split jury verdicts must escalate without settling held funds');
+assert.ok(disputeEdge.includes('Your escrow remains protected while the case is reviewed.'));
 
 console.log('Campus Wallet escrow journey regression checks passed.');

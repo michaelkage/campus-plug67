@@ -150,7 +150,7 @@ BEGIN
     SELECT 1
       FROM public.gear_rentals r
      WHERE r.listing_id = NEW.listing_id
-       AND r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed')
+       AND (r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed') OR (r.rental_status = 'resolved' AND r.custody_resolved_at IS NULL))
   ) THEN
     RAISE EXCEPTION 'This item has an active rental and cannot be purchased yet';
   END IF;
@@ -176,7 +176,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.gear_rentals r
      WHERE r.listing_id = OLD.id
-       AND r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed')
+       AND (r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed') OR (r.rental_status = 'resolved' AND r.custody_resolved_at IS NULL))
   ) AND (
     (NEW.status IS DISTINCT FROM OLD.status AND NEW.status IS DISTINCT FROM 'active')
     OR (NEW.listing_mode IS DISTINCT FROM OLD.listing_mode AND NEW.listing_mode IS DISTINCT FROM 'both')
@@ -277,7 +277,7 @@ BEGIN
     SELECT 1
       FROM public.gear_rentals r
      WHERE r.listing_id = p_listing_id
-       AND r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed')
+       AND (r.rental_status IN ('funds_escrowed','active','return_pending','return_inspection','disputed') OR (r.rental_status = 'resolved' AND r.custody_resolved_at IS NULL))
        AND daterange(r.start_date, r.end_date, '[]') && daterange(p_start_date, p_end_date, '[]')
   ) THEN
     RAISE EXCEPTION 'This item is already reserved for part of those dates';
@@ -672,7 +672,7 @@ BEGIN
   IF v_user IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
   IF NOT FOUND OR v_user <> v_rental.borrower_id THEN RAISE EXCEPTION 'Only the borrower can prepare the disputed item return'; END IF;
-  IF v_rental.rental_status <> 'disputed' OR v_rental.picked_up_at IS NULL OR v_rental.custody_resolved_at IS NOT NULL THEN
+  IF v_rental.rental_status NOT IN ('disputed','resolved') OR v_rental.picked_up_at IS NULL OR v_rental.custody_resolved_at IS NOT NULL THEN
     RAISE EXCEPTION 'This disputed rental is not awaiting a physical return';
   END IF;
 
@@ -707,7 +707,7 @@ BEGIN
   IF NOT FOUND OR v_user IS DISTINCT FROM v_rental.lender_id THEN
     RAISE EXCEPTION 'Only the lender can confirm the disputed item return';
   END IF;
-  IF v_rental.rental_status <> 'disputed'
+  IF v_rental.rental_status NOT IN ('disputed','resolved')
      OR v_rental.picked_up_at IS NULL
      OR v_rental.custody_resolved_at IS NOT NULL THEN
     RAISE EXCEPTION 'This disputed rental is not awaiting a physical return';
@@ -771,16 +771,10 @@ BEGIN
     RAISE EXCEPTION 'Invalid settlement split';
   END IF;
   IF p_admin_id IS NULL THEN RAISE EXCEPTION 'Admin identity is required'; END IF;
-  IF p_custody_resolved IS DISTINCT FROM true THEN
-    RAISE EXCEPTION 'Confirm that the item is with the lender before settling this dispute';
-  END IF;
 
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
   IF NOT FOUND OR v_rental.rental_status <> 'disputed' THEN
     RAISE EXCEPTION 'Rental dispute not found';
-  END IF;
-  IF v_rental.custody_resolved_at IS NULL THEN
-    RAISE EXCEPTION 'The disputed item must be physically returned to the lender before settlement';
   END IF;
 
   SELECT * INTO v_hold FROM public.gear_rental_holds WHERE rental_id = p_rental_id FOR UPDATE;
@@ -811,7 +805,7 @@ BEGIN
   UPDATE public.gear_rentals
      SET rental_status = 'resolved', current_state = 'funds_released_or_disputed',
          resolved_at = now(), resolved_by = p_admin_id,
-         custody_resolved_at = COALESCE(custody_resolved_at, now()),
+         custody_resolved_at = CASE WHEN p_custody_resolved IS TRUE THEN COALESCE(custody_resolved_at, now()) ELSE custody_resolved_at END,
          settlement_lender_share_bps = p_lender_share_bps, updated_at = now()
    WHERE id = p_rental_id;
 

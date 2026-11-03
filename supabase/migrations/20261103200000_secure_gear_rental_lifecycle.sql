@@ -631,7 +631,7 @@ BEGIN
   END IF;
 
   SELECT * INTO v_rental FROM public.gear_rentals WHERE id = p_rental_id FOR UPDATE;
-  IF NOT FOUND OR v_user NOT IN (v_rental.borrower_id, v_rental.lender_id) THEN RAISE EXCEPTION 'Not authorized'; END IF;
+  IF NOT FOUND OR (v_user IS DISTINCT FROM v_rental.borrower_id AND v_user IS DISTINCT FROM v_rental.lender_id) THEN RAISE EXCEPTION 'Not authorized'; END IF;
   IF v_rental.rental_status NOT IN ('funds_escrowed','active','return_pending','return_inspection') THEN
     RAISE EXCEPTION 'This rental can no longer be disputed';
   END IF;

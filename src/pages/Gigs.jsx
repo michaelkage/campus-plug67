@@ -5,6 +5,7 @@ import { supabase, formatNaira, toKobo } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRealtimeTable } from '@/hooks/useRealtime'
 import toast from 'react-hot-toast'
+import { ServiceBookingActions } from '@/components/services/ServiceBookingActions'
 import { Plus, X, Zap, GraduationCap, CalendarDays, CheckCircle, XCircle, ClipboardList, MessageCircle } from 'lucide-react'
 
 const GIG_CATEGORIES = ['Tech Repair', 'Tutoring', 'Design', 'Hair & Beauty', 'Food', 'Laundry', 'Errand', 'Writing', 'Other']
@@ -23,7 +24,7 @@ function GigCard({ gig, onBook, isOwner, onEdit, onDelete }) {
 
 export function Gigs() {
   const { user, profile } = useAuth(); const qc = useQueryClient()
-  const [showCreate, setShowCreate] = useState(false); const [editingGig, setEditingGig] = useState(null); const [bookingGig, setBookingGig] = useState(null); const [booking, setBooking] = useState({ date:'', time:'', notes:'' }); const [bookingSubmitting, setBookingSubmitting] = useState(false); const [bookingActionId, setBookingActionId] = useState(null); const [form, setForm] = useState({ title: '', description: '', category: '', starting_price: '', max_price: '', available_days: [] }); const [filter, setFilter] = useState(''); const [submitting, setSubmitting] = useState(false)
+  const [showCreate, setShowCreate] = useState(false); const [editingGig, setEditingGig] = useState(null); const [bookingGig, setBookingGig] = useState(null); const [booking, setBooking] = useState({ date:'', time:'', notes:'' }); const [bookingSubmitting, setBookingSubmitting] = useState(false); const [form, setForm] = useState({ title: '', description: '', category: '', starting_price: '', max_price: '', available_days: [] }); const [filter, setFilter] = useState(''); const [submitting, setSubmitting] = useState(false)
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const { data: gigs = [], isLoading } = useQuery({ queryKey: ['gigs', filter, profile?.university], enabled: Boolean(profile?.university), queryFn: async () => { let q = supabase.from('gigs').select('*, profiles(full_name, university)').eq('active', true).eq('university', profile?.university).order('created_at', { ascending: false }); if (filter) q = q.eq('category', filter); const { data, error } = await q; if (error) throw error; return data || [] } })
   useRealtimeTable({ table: 'gigs', onInsert: g => { if (g.university === profile?.university) qc.setQueryData(['gigs', filter, profile?.university], old => [g, ...(old || [])]) } })
@@ -41,19 +42,6 @@ export function Gigs() {
       return data || []
     },
   })
-  const updateBooking = async (bookingRow, status) => {
-    setBookingActionId(bookingRow.id)
-    try {
-      const { error } = await supabase.from('gig_bookings').update({ status }).eq('id', bookingRow.id)
-      if (error) throw error
-      toast.success(status === 'confirmed' ? 'Booking confirmed' : status === 'completed' ? 'Booking marked complete' : 'Booking cancelled')
-      await qc.invalidateQueries({ queryKey: ['gig-bookings'] })
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not update booking')
-    } finally {
-      setBookingActionId(null)
-    }
-  }
   const openEdit = gig => { setEditingGig(gig); setForm({ title:gig.title||'', description:gig.description||'', category:gig.category||'', starting_price:String(Number(gig.starting_price)/100), max_price:gig.max_price ? String(Number(gig.max_price)/100) : '', available_days:Array.isArray(gig.available_days)?gig.available_days:[] }); setShowCreate(true) }
   const removeGig = async gig => { if (!window.confirm(`Delete “${gig.title}”? This cannot be undone.`)) return; try { const { error } = await supabase.from('gigs').delete().eq('id',gig.id).eq('seller_id',profile.id); if(error) throw error; toast.success('Skill listing deleted'); if(editingGig?.id===gig.id){setEditingGig(null);setShowCreate(false)} await qc.invalidateQueries({queryKey:['gigs']}) } catch(err){toast.error(err.message||'Could not delete listing')} }
   const handleSubmit = async e => {
@@ -142,15 +130,13 @@ export function Gigs() {
       <div className="mb-4 flex items-center gap-2"><ClipboardList size={17} className="text-[var(--md-primary)]"/><h2 className="font-bold">My Service Bookings</h2><span className="ml-auto text-xs text-on-surface/40">{myBookings.length}</span></div>
       {bookingsLoading ? <p className="text-sm text-on-surface/40">Loading bookings…</p> : myBookings.length === 0 ? <p className="text-sm text-on-surface-variant/45">Your booking requests and service appointments will appear here.</p> : <div className="space-y-3">{myBookings.map(b => {
         const isSeller = b.seller_id === profile.id
-        const statusLabel = ({pending:'Awaiting confirmation',confirmed:'Confirmed',completed:'Completed',cancelled:'Cancelled'})[b.status] || b.status
+        const statusLabel = ({pending:'Awaiting provider quote',quoted:'Quote awaiting decision',confirmed:'Quote accepted',in_progress:'Service in progress',delivered:'Awaiting customer confirmation',completed:'Completed',cancelled:'Cancelled'})[b.status] || b.status
         return <div key={b.id} className="rounded-md border border-[var(--md-outline-variant)] p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="min-w-0 flex-1"><p className="font-semibold">{b.gigs?.title || 'Student service'}</p><p className="mt-1 text-xs text-on-surface-variant/45">{isSeller ? 'Customer booking' : 'Your booking'} · {b.slot_date} at {b.slot_time}</p><p className="mt-1 text-xs text-on-surface/60">Status: <span className="font-semibold">{statusLabel}</span> · Starting quote: <span className="font-semibold">{formatNaira(b.amount)}</span></p><p className="mt-1 text-xs leading-5 text-on-surface-variant/60">{b.status === 'pending' ? 'Waiting for the provider to confirm. No payment has been collected.' : b.status === 'confirmed' ? 'The time is agreed. Confirm the service scope and final price in chat before work begins. This is not a protected payment.' : b.status === 'completed' ? 'The provider marked this service complete. This booking flow did not collect or release payment.' : 'This booking request was cancelled.'}</p>{b.notes && <p className="mt-2 text-sm text-on-surface/50">{b.notes}</p>}</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="min-w-0 flex-1"><p className="font-semibold">{b.gigs?.title || 'Student service'}</p><p className="mt-1 text-xs text-on-surface-variant/45">{isSeller ? 'Customer booking' : 'Your booking'} · {b.slot_date} at {b.slot_time}</p><p className="mt-1 text-xs text-on-surface/60">Status: <span className="font-semibold">{statusLabel}</span> · {['confirmed','in_progress','delivered','completed'].includes(b.status) ? 'Agreed quote' : 'Starting quote'}: <span className="font-semibold">{formatNaira(b.amount)}</span></p><p className="mt-1 text-xs leading-5 text-on-surface-variant/60">{b.status === 'pending' ? 'Waiting for the provider to send a final price and work scope.' : b.status === 'quoted' ? 'Review the provider’s final price and work scope before accepting.' : b.status === 'confirmed' ? 'The final quote is accepted. The provider can now start the service.' : b.status === 'in_progress' ? 'The provider has started the agreed work.' : b.status === 'delivered' ? 'The provider marked the work delivered. Review it and confirm that you received the service.' : b.status === 'completed' ? 'You confirmed that the agreed service was received.' : 'This booking request was cancelled.'}</p>{b.notes && <p className="mt-2 text-sm text-on-surface/50">{b.notes}</p>}</div>
+            <div className="flex min-w-0 flex-col gap-2">
               <Link to={`/workspace?other=${encodeURIComponent(isSeller ? b.client_id : b.seller_id)}`} className="btn-secondary text-xs"><MessageCircle size={13}/> Message {isSeller ? 'customer' : 'provider'}</Link>
-              {isSeller && b.status === 'pending' && <button className="btn-primary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'confirmed')}><CheckCircle size={13}/> Confirm request</button>}
-              {isSeller && b.status === 'confirmed' && <button className="btn-primary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'completed')}><CheckCircle size={13}/> Mark service complete</button>}
-              {((isSeller && ['pending','confirmed'].includes(b.status)) || (!isSeller && b.status === 'pending')) && <button className="btn-secondary text-xs" disabled={bookingActionId === b.id} onClick={() => updateBooking(b,'cancelled')}><XCircle size={13}/> Cancel</button>}
+              <ServiceBookingActions booking={b} currentUserId={profile.id} />
             </div>
           </div>
         </div>

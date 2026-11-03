@@ -30,6 +30,7 @@ const required = [
   'Gear rental fee released after return',
   'Gear rental security deposit returned',
   'Service role required',
+  'p_lender_share_bps IS NULL OR p_lender_share_bps NOT BETWEEN 0 AND 10000',
   'IF p_admin_id IS NULL THEN RAISE EXCEPTION \'Admin identity is required\'; END IF;',
   'resolved_by = p_admin_id',
   'guard_listing_sale_during_rental',

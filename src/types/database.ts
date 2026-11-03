@@ -945,11 +945,34 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['gps_spoof_log']['Row']>
       }
 
+    },
+    Views: {
+      public_profiles: {
+        Row: {
+          id: string
+          full_name: string | null
+          university: string | null
+          department: string | null
+          level: string | null
+          avatar_url: string | null
+          bio: string | null
+          plug_score: number | null
+          total_sales: number | null
+          total_earnings: number | null
+          badges: string[] | null
+          is_verified: boolean | null
+          created_at: string | null
+          streak_days: number | null
+          tier: string | null
+          course: string | null
+        }
+        Relationships: []
+      }
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────────────
 // Named row-type aliases — convenience re-exports for component consumption.
 // These are NOW declared AFTER `Database` so there is no forward-reference
 // or circular dependency issue under `isolatedModules: true`.

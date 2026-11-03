@@ -253,9 +253,10 @@ export default function Profile() {
   const verifyUrl  = `${import.meta.env.VITE_APP_URL || 'https://campusplug.ng'}/verify/${targetId}`
 
   const { data: profile, isLoading } = useQuery({
-    queryKey: ['profile', targetId],
+    queryKey: ['profile', targetId, viewingOwn],
     queryFn: async () => {
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', targetId).single()
+      const source = viewingOwn ? 'profiles' : 'public_profiles'
+      const { data, error } = await supabase.from(source).select('*').eq('id', targetId).single()
       if (error) throw error
       return data
     },

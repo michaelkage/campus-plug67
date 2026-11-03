@@ -55,7 +55,6 @@ export function HighConfidenceBadge({ transaction, profile }: { transaction?: an
     { met: score >= 650,    label: 'Trusted reputation' },
     { met: sales >= 10,     label: '10+ completed trades' },
     { met: profile?.tier === 'trusted' || profile?.tier === 'elite', label: 'Verified tier' },
-    { met: !profile?.collusion_flag, label: 'No collusion flags' },
   ]
 
   const confidencePct  = Math.round((criteria.filter(c => c.met).length / criteria.length) * 100)

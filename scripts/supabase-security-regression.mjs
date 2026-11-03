@@ -132,9 +132,13 @@ if (!publicProjectionColumns
     || /\b(email|matric_number|last_known_ip|plug_credit_balance|balance|duress_code_hash|duress_qr_token_hash|collusion_flag|commission_rate)\b/i.test(publicProjectionColumns)) {
   fail('Public profile projection must exclude private account and security fields');
 }
+const privateProfileBody = profileDataMigration.match(/create or replace function private\.get_my_profile\(\)[\s\S]*?as \$function\$([\s\S]*?)\$function\$/i)?.[1] ?? '';
+if (!/jsonb_build_object/i.test(privateProfileBody)) {
+  fail('Private profile RPC must construct an explicit allowlisted response');
+}
 for (const privateField of ['last_known_ip', 'duress_code_hash', 'duress_qr_token_hash', 'commission_rate', 'collusion_flag', 'collusion_flagged_at', 'collusion_ceiling', 'gps_spoof_flags']) {
-  if (!profileDataMigration.includes(`'${privateField}'`)) {
-    fail('Private profile RPC must exclude ' + privateField);
+  if (privateProfileBody.includes(`'${privateField}'`)) {
+    fail('Private profile RPC must not return ' + privateField);
   }
 }
 if (/revoke select on table public\.profiles/i.test(profileDataMigration)

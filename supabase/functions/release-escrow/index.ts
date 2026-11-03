@@ -26,7 +26,7 @@ serve(async (req: Request) => {
 
   if (action === "auto_release") {
     if (!isServiceRoleRequest(req)) return jsonResponse({ error: "Forbidden" }, 403, {}, req);
-    const { data: due, error } = await admin.from("transactions").select("id").eq("status", "release_requested").lte("auto_release_at", new Date().toISOString()).limit(100);
+    const { data: due, error } = await admin.from("transactions").select("id").eq("status", "release_requested").or("payment_method.is.null,payment_method.neq.campus_wallet").lte("auto_release_at", new Date().toISOString()).limit(100);
     if (error) return jsonResponse({ error: error.message }, 500, {}, req);
     let released = 0;
     for (const tx of due ?? []) {

@@ -68,7 +68,7 @@ const STATUS_COPY: Record<string, string> = {
   resolved: 'Campus Plug reviewed the dispute and settled the held funds.',
 }
 
-export default function GearRentalPanel({ listing }: { listing: ListingForRental }) {
+export default function GearRentalPanel({ listing, allowRequest = true }: { listing: ListingForRental; allowRequest?: boolean }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [startDate, setStartDate] = useState('')
@@ -171,7 +171,7 @@ export default function GearRentalPanel({ listing }: { listing: ListingForRental
     }
   }
 
-  const canRequest = Boolean(user && !isOwner && listing.status === 'active' && listing.listing_mode === 'both')
+  const canRequest = Boolean(allowRequest && user && !isOwner && listing.status === 'active' && listing.listing_mode === 'both')
 
   return (
     <section className="surface space-y-4 p-4 sm:p-5" aria-labelledby="gear-rental-title">
@@ -213,7 +213,7 @@ export default function GearRentalPanel({ listing }: { listing: ListingForRental
       )}
       {!user && <p className="text-xs text-on-surface-variant">Sign in to reserve this item.</p>}
       {isOwner && <p className="text-xs text-on-surface-variant">This is your listing. You can manage incoming rental requests below.</p>}
-      {listing.listing_mode !== 'both' && <p className="text-xs text-on-surface-variant">The owner has not enabled rentals for this listing.</p>}
+      {allowRequest && listing.listing_mode !== 'both' && <p className="text-xs text-on-surface-variant">The owner has not enabled rentals for this listing.</p>}
 
       {user && (
         <div className="space-y-3 border-t border-outline-variant pt-4">

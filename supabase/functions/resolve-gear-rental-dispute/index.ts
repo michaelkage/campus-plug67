@@ -29,8 +29,10 @@ Deno.serve(async (req: Request) => {
   const lenderShareBps = body && typeof body === "object" && Number.isInteger(body.lender_share_bps)
     ? body.lender_share_bps
     : null
+  const custodyResolved = body && typeof body === "object" && body.custody_resolved === true
 
   if (!UUID_RE.test(rentalId)) return jsonResponse({ error: "A valid rental_id is required" }, 400, {}, req)
+  if (custodyResolved !== true) return jsonResponse({ error: "Confirm the item is physically with the lender before settlement" }, 400, {}, req)
   if (lenderShareBps === null || lenderShareBps < 0 || lenderShareBps > 10_000) {
     return jsonResponse({ error: "lender_share_bps must be an integer from 0 to 10000" }, 400, {}, req)
   }
@@ -39,6 +41,7 @@ Deno.serve(async (req: Request) => {
     p_rental_id: rentalId,
     p_lender_share_bps: lenderShareBps,
     p_admin_id: user.id,
+    p_custody_resolved: custodyResolved,
   })
   if (error) return jsonResponse({ error: error.message }, 409, {}, req)
   return jsonResponse({ ...data, rental_id: rentalId, resolved_by: user.id }, 200, {}, req)

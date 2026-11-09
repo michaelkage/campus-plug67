@@ -431,14 +431,9 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
     return jsonResponse({ error: "Only a transaction participant can sync this receipt" }, 403, {}, req);
   }
 
-  const syncGraceUntil = parseIso(claims.sync_grace_until);
-  if (syncGraceUntil === null || Date.now() > syncGraceUntil) {
-    return jsonResponse({ error: "Offline receipt sync window has expired" }, 409, {}, req);
-  }
-
   const voucherHash = await sha256Hex(voucherToken);
   try {
-    await validateReceiptCore(receipt.core, claims, voucherHash);
+    validateReceiptCore(receipt.core, claims, voucherHash);
   } catch {
     return jsonResponse({ error: "Offline receipt does not match the signed voucher" }, 400, {}, req);
   }
@@ -451,81 +446,84 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
 
   const { data: existing, error: existingError } = await admin
     .from("escrow_offline_receipts")
-    .select("receipt_hash")
+    .select("receipt_hash,sync_status")
     .eq("voucher_id", claims.jti)
     .maybeSingle();
   if (existingError) throw existingError;
-  const alreadyReconciled = async () => {
-    const { data: transaction } = await admin
-      .from("transactions")
-      .select("status,auto_release_at")
-      .eq("id", claims.transaction_id)
-      .maybeSingle();
-    return jsonResponse({
-      success: true,
-      already_reconciled: true,
-      status: transaction?.status ?? "reconciled",
-      inspection_state: transaction?.status === "release_requested" ? "inspection_pending" : transaction?.status ?? "reconciled",
-      transaction_id: claims.transaction_id,
-      inspection_expires_at: transaction?.auto_release_at ?? null,
-      funds_released: transaction?.status === "released",
-    }, 200, {}, req);
-  };
-
-  if (existing) {
-    if (existing.receipt_hash === receiptHash) return await alreadyReconciled();
+  if (existing && existing.receipt_hash !== receiptHash) {
     return jsonResponse({ error: "A different receipt has already been accepted" }, 409, {}, req);
   }
 
-  const { data: credential, error: passkeyError } = await admin
-    .from("passkey_credentials")
-    .select("credential_id,public_key,sign_count,transports")
-    .eq("user_id", claims.seller_id)
-    .eq("credential_id", credentialId)
-    .maybeSingle();
-  if (passkeyError) throw passkeyError;
-  if (!credential) return jsonResponse({ error: "Seller passkey is no longer registered" }, 403, {}, req);
+  let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>> | null = null;
+  let credential: {
+    credential_id: string;
+    public_key: string;
+    sign_count: number | string | null;
+    transports: string[] | null;
+  } | null = null;
 
-  const challenge = encodeBase64Url(await sha256(new TextEncoder().encode(canonicalJson(receipt.core))));
-  let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>;
-  try {
-    verification = await verifyAuthenticationResponse({
-      response: receipt.assertion,
-      expectedChallenge: challenge,
-      expectedOrigin: APP_ORIGIN,
-      expectedRPID: RP_ID,
-      authenticator: {
-        credentialID: credential.credential_id,
-        credentialPublicKey: decodeBase64Url(credential.public_key),
-        // Offline assertions may be synchronized after a later online passkey
-        // use has advanced the authenticator counter. Signature + UV + one-time
-        // receipt nonce remain mandatory; the online ceremony still enforces counters.
-        counter: 0,
-        transports: Array.isArray(credential.transports) ? credential.transports : undefined,
-      },
-      requireUserVerification: true,
-    });
-  } catch {
-    const { data: racedReceipt } = await admin
-      .from("escrow_offline_receipts")
-      .select("receipt_hash")
-      .eq("voucher_id", claims.jti)
+  // A previously verified receipt can be synced by the other participant later,
+  // even after the voucher's initial sync grace has elapsed. This is how a seller
+  // can sync first without starting the buyer's inspection clock.
+  if (!existing) {
+    const syncGraceUntil = parseIso(claims.sync_grace_until);
+    if (syncGraceUntil === null || Date.now() > syncGraceUntil) {
+      return jsonResponse({ error: "Offline receipt sync window has expired" }, 409, {}, req);
+    }
+
+    const { data: passkey, error: passkeyError } = await admin
+      .from("passkey_credentials")
+      .select("credential_id,public_key,sign_count,transports")
+      .eq("user_id", claims.seller_id)
+      .eq("credential_id", credentialId)
       .maybeSingle();
-    if (racedReceipt?.receipt_hash === receiptHash) return await alreadyReconciled();
-    return jsonResponse({ error: "Seller passkey receipt verification failed" }, 403, {}, req);
+    if (passkeyError) throw passkeyError;
+    if (!passkey) return jsonResponse({ error: "Seller passkey is no longer registered" }, 403, {}, req);
+    credential = passkey;
+
+    const challenge = encodeBase64Url(await sha256(new TextEncoder().encode(canonicalJson(receipt.core))));
+    try {
+      verification = await verifyAuthenticationResponse({
+        response: receipt.assertion,
+        expectedChallenge: challenge,
+        expectedOrigin: APP_ORIGIN,
+        expectedRPID: RP_ID,
+        authenticator: {
+          credentialID: credential.credential_id,
+          credentialPublicKey: decodeBase64Url(credential.public_key),
+          // Offline assertions may sync after a later online ceremony has advanced
+          // the authenticator counter. Signature, UV, RP ID and the one-time voucher
+          // receipt nonce remain mandatory; this offline proof is not counter-based.
+          counter: 0,
+          transports: Array.isArray(credential.transports) ? credential.transports : undefined,
+        },
+        requireUserVerification: true,
+      });
+    } catch {
+      const { data: racedReceipt } = await admin
+        .from("escrow_offline_receipts")
+        .select("receipt_hash")
+        .eq("voucher_id", claims.jti)
+        .maybeSingle();
+      if (racedReceipt?.receipt_hash !== receiptHash) {
+        return jsonResponse({ error: "Seller passkey receipt verification failed" }, 403, {}, req);
+      }
+    }
+
+    if (verification && !verification.verified) {
+      const { data: racedReceipt } = await admin
+        .from("escrow_offline_receipts")
+        .select("receipt_hash")
+        .eq("voucher_id", claims.jti)
+        .maybeSingle();
+      if (racedReceipt?.receipt_hash !== receiptHash) {
+        return jsonResponse({ error: "Seller passkey receipt verification failed" }, 403, {}, req);
+      }
+      verification = null;
+    }
   }
 
-  if (!verification.verified) {
-    const { data: racedReceipt } = await admin
-      .from("escrow_offline_receipts")
-      .select("receipt_hash")
-      .eq("voucher_id", claims.jti)
-      .maybeSingle();
-    if (racedReceipt?.receipt_hash === receiptHash) return await alreadyReconciled();
-    return jsonResponse({ error: "Seller passkey receipt verification failed" }, 403, {}, req);
-  }
-
-  const { data: result, error: reconcileError } = await admin.rpc("reconcile_offline_escrow_receipt", {
+  const reconcileArgs = {
     p_voucher_id: claims.jti,
     p_transaction_id: claims.transaction_id,
     p_buyer_id: claims.buyer_id,
@@ -538,34 +536,48 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
     p_synced_by: userId,
     p_scanned_at: receipt.core.scanned_at,
     p_receipt_payload: receipt,
-  });
+  };
+
+  let { data: result, error: reconcileError } = await admin.rpc(
+    "reconcile_offline_escrow_receipt",
+    reconcileArgs,
+  );
   if (reconcileError) {
     const { data: racedReceipt } = await admin
       .from("escrow_offline_receipts")
       .select("receipt_hash")
       .eq("voucher_id", claims.jti)
       .maybeSingle();
-    if (racedReceipt?.receipt_hash === receiptHash) return await alreadyReconciled();
+    if (racedReceipt?.receipt_hash === receiptHash) {
+      const retry = await admin.rpc("reconcile_offline_escrow_receipt", reconcileArgs);
+      result = retry.data;
+      reconcileError = retry.error;
+    }
+  }
+  if (reconcileError) {
     console.error("offline receipt reconciliation failed", reconcileError.message);
     return jsonResponse({ error: "Receipt reconciliation failed" }, 409, {}, req);
   }
 
-  const newCounter = verification.authenticationInfo.newCounter;
-  if (newCounter > Number(credential.sign_count ?? 0)) {
-    const { error: counterError } = await admin
-      .from("passkey_credentials")
-      .update({ sign_count: newCounter, last_used_at: new Date().toISOString() })
-      .eq("user_id", claims.seller_id)
-      .eq("credential_id", credentialId);
-    if (counterError) {
-      console.error("offline escrow passkey counter update failed", counterError.message);
+  if (verification?.verified && credential && !result?.already_reconciled) {
+    const newCounter = verification.authenticationInfo.newCounter;
+    if (newCounter > Number(credential.sign_count ?? 0)) {
+      const { error: counterError } = await admin
+        .from("passkey_credentials")
+        .update({ sign_count: newCounter, last_used_at: new Date().toISOString() })
+        .eq("user_id", claims.seller_id)
+        .eq("credential_id", credentialId);
+      if (counterError) {
+        console.error("offline escrow passkey counter update failed", counterError.message);
+      }
     }
   }
 
   return jsonResponse(result ?? {
     success: true,
-    status: "release_requested",
-    inspection_state: "inspection_pending",
+    status: "meetup_initiated",
+    inspection_state: "awaiting_buyer_sync",
+    awaiting_buyer_sync: true,
     transaction_id: claims.transaction_id,
     funds_released: false,
   }, 200, {}, req);

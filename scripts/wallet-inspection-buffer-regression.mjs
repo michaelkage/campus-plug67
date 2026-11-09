@@ -24,6 +24,11 @@ const releaseBranch = migration.slice(releaseStart, refundStart)
 
 for (const value of [
   "v_tx.status <> 'meetup_initiated'",
+  "v_tx.buyer_arrived IS DISTINCT FROM true",
+  "v_tx.mobile_release_ready_at < now() - interval '10 minutes'",
+  "v_tx.seller_arrived IS DISTINCT FROM true",
+  "v_tx.seller_location_captured_at < now() - interval '30 minutes'",
+  "v_tx.seller_safe_zone_id IS DISTINCT FROM v_tx.buyer_safe_zone_id",
   "p_qr_secret IS DISTINCT FROM COALESCE(v_tx.qr_secret, v_tx.release_code)",
   "SET status = 'release_requested'",
   'auto_release_at = v_inspection_expires_at',
@@ -46,6 +51,10 @@ if (genericStart < 0 || genericReleaseStart < 0 || genericDisputeStart < 0) {
   fail('Generic escrow release must enter the inspection state')
 }
 const genericRelease = migration.slice(genericReleaseStart, genericDisputeStart)
+const genericRequestStart = migration.indexOf("WHEN 'request_release' THEN", genericStart)
+const genericRequest = migration.slice(genericRequestStart, genericReleaseStart)
+includes(genericRequest, "now() - interval '24 hours'", 'Seller-requested release must retain its separate 24-hour eligibility gate')
+includes(genericRequest, "now() + interval '48 hours'", 'Seller-requested release must retain its separate 48-hour dispute window')
 for (const value of [
   "tx.status = 'release_requested' AND tx.handshake_receipt_buffer IS NOT NULL",
   "SET status = 'release_requested'",

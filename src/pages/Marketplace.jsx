@@ -59,7 +59,7 @@ function ExifStatus({ status }) {
 
 function CreateListingModal({ onClose, profile }) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({ title: '', description: '', category: '', subcategory: '', price: '', hostel: '' })
+  const [form, setForm] = useState({ title: '', description: '', category: '', subcategory: '', price: '', hostel: '', listing_mode: 'sale', rental_daily_rate: '', rental_security_deposit: '0', rental_min_days: '1', rental_max_days: '30' })
   const [images, setImages] = useState([])
   const [suggestion, setSuggestion] = useState(null)
   const [floorData, setFloorData] = useState(null)
@@ -119,12 +119,25 @@ function CreateListingModal({ onClose, profile }) {
     if (!form.title.trim()) { toast.error('Enter a listing title'); return }
     if (!form.category) { toast.error('Select a category'); return }
     if (floorData && !tokenOverride) { toast.error('Price is below the floor. Adjust price or use an emergency token.'); return }
+    const rentalDailyRate = Number(form.rental_daily_rate)
+    const rentalDeposit = Number(form.rental_security_deposit || 0)
+    const rentalMinDays = Number(form.rental_min_days)
+    const rentalMaxDays = Number(form.rental_max_days)
+    if (form.listing_mode === 'both' && (!Number.isFinite(rentalDailyRate) || rentalDailyRate <= 0 || !Number.isFinite(rentalDeposit) || rentalDeposit < 0 || !Number.isInteger(rentalMinDays) || rentalMinDays < 1 || !Number.isInteger(rentalMaxDays) || rentalMaxDays < rentalMinDays || rentalMaxDays > 90)) {
+      toast.error('Enter a valid daily rental rate, deposit and rental duration (1–90 days).')
+      return
+    }
     setSubmitting(true)
     try {
       const uploadedUrls = await Promise.all(images.map(({ file }) => uploadImage(file, 'listings')))
       const { data: listing, error } = await supabase.from('listings').insert({
         seller_id: profile.id, title: form.title, description: form.description, category: form.category, subcategory: form.subcategory || null,
         price: toKobo(form.price), images: uploadedUrls, university: profile.university, hostel: form.hostel || null,
+        listing_mode: form.listing_mode,
+        rental_daily_rate_kobo: form.listing_mode === 'both' ? toKobo(rentalDailyRate) : null,
+        rental_security_deposit_kobo: form.listing_mode === 'both' ? toKobo(rentalDeposit) : 0,
+        rental_min_days: form.listing_mode === 'both' ? rentalMinDays : 1,
+        rental_max_days: form.listing_mode === 'both' ? rentalMaxDays : 30,
         floor_override: !!tokenOverride, emergency_token_id: tokenOverride || null,
       }).select().single()
       if (error) throw error
@@ -201,6 +214,20 @@ function CreateListingModal({ onClose, profile }) {
             <div><label className="label">Category</label><select aria-label="Category" className="input" value={form.category} onChange={handleCategoryChange} required><option value="">Select category</option>{CATEGORY_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.items.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>)}</select></div>
             <div><label className="label">Price (₦)</label><input aria-label="Price (₦)" className="input" type="number" placeholder="0.00" min="1" value={form.price} onChange={handlePriceChange} required /></div>
           </div>
+          <div className="space-y-3 rounded-md border border-outline-variant bg-surface-container p-4">
+            <div><label className="label">How can students use this listing?</label><select aria-label="Listing mode" className="input" value={form.listing_mode} onChange={set('listing_mode')}><option value="sale">Sell only</option><option value="both">Sell and rent</option></select><p className="mt-1 text-[10px] text-on-surface-variant">Rental reservations use Campus Wallet escrow and are separate from a purchase.</p></div>
+            {form.listing_mode === 'both' && <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">Rental rate per day (₦)</label><input className="input" type="number" min="1" step="1" value={form.rental_daily_rate} onChange={set('rental_daily_rate')} placeholder="e.g. 1500" required /></div>
+                <div><label className="label">Refundable deposit (₦)</label><input className="input" type="number" min="0" step="1" value={form.rental_security_deposit} onChange={set('rental_security_deposit')} placeholder="e.g. 3000" required /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">Minimum days</label><input className="input" type="number" min="1" max="90" value={form.rental_min_days} onChange={set('rental_min_days')} required /></div>
+                <div><label className="label">Maximum days</label><input className="input" type="number" min={form.rental_min_days || 1} max="90" value={form.rental_max_days} onChange={set('rental_max_days')} required /></div>
+              </div>
+              <p className="text-[10px] leading-4 text-on-surface-variant">The borrower pays the rental fee plus refundable deposit upfront. Both stay held until you confirm the item is returned. Rental holds are limited to ₦10,000 per reservation.</p>
+            </div>}
+          </div>
           <div><label className="label">Subcategory <span className="text-on-surface/30">(optional)</span></label><select aria-label="Subcategory" className="input" value={form.subcategory} onChange={set('subcategory')}><option value="">Select subcategory</option>{(SUBCATEGORIES[form.category] || []).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
           <div><label className="label">Hostel / Area</label><select aria-label="Hostel / Area" className="input" value={form.hostel} onChange={set('hostel')}><option value="">Select where the item is</option>{UNILAG_HOSTELS.map(h => <option key={h} value={h}>{h}</option>)}</select><p className="text-[10px] text-on-surface/30 mt-1">Helps nearby students choose low-effort swaps.</p></div>
           <AnimatePresence>{floorData && !tokenOverride && <PriceFloorWarning floorData={floorData} onUseToken={handleUseToken} onAdjust={handleAdjustPrice} using={usingToken} />}</AnimatePresence>
@@ -218,7 +245,7 @@ function CreateListingModal({ onClose, profile }) {
 function ListingCard({ listing }) {
   return <Link to={`/marketplace/${listing.id}`} className="surface surface-interactive rounded-md overflow-hidden transition-all duration-200 group">
     <div className="aspect-video bg-surface-container-highest overflow-hidden relative">{listing.images?.[0] ? <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>}{listing.metadata_verified && <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary/90 text-on-primary text-[9px] font-bold px-1.5 py-0.5 rounded-sm"><Shield size={8} /> VERIFIED</div>}{listing.exif_flagged && <div className="absolute top-2 left-2 flex items-center gap-1 bg-error/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm"><AlertTriangle size={8} /> UNVERIFIED SOURCE</div>}{listing.floor_override && <div className="absolute top-2 right-2 flex items-center gap-1 bg-tertiary/90 text-on-primary text-[9px] font-bold px-1.5 py-0.5 rounded-sm">🎟️ SALE</div>}</div>
-    <div className="p-4"><div className="flex items-start justify-between gap-2 mb-2"><h3 className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3><span className="font-mono font-black text-primary text-sm flex-shrink-0">{formatNaira(listing.price)}</span></div><div className="flex items-center justify-between"><div className="flex gap-1 flex-wrap"><span className="tag tag-cyan text-[10px]">{listing.category}</span>{listing.hostel && <span className="tag tag-purple text-[10px] flex items-center gap-1"><Home size={9} />{listing.hostel}</span>}</div><span className="flex items-center gap-1 text-xs text-on-surface/30">{listing.profiles?.is_verified && <Shield size={10} className="text-primary" />}{listing.profiles?.full_name?.split(' ')[0]}</span></div></div>
+    <div className="p-4"><div className="flex items-start justify-between gap-2 mb-2"><h3 className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3><div className="text-right flex-shrink-0"><span className="block font-mono font-black text-primary text-sm">{formatNaira(listing.price)}</span>{listing.listing_mode === 'both' && <span className="block text-[10px] font-semibold text-secondary">{formatNaira(listing.rental_daily_rate_kobo)} / day rent</span>}</div></div><div className="flex items-center justify-between"><div className="flex gap-1 flex-wrap"><span className="tag tag-cyan text-[10px]">{listing.category}</span>{listing.hostel && <span className="tag tag-purple text-[10px] flex items-center gap-1"><Home size={9} />{listing.hostel}</span>}</div><span className="flex items-center gap-1 text-xs text-on-surface/30">{listing.profiles?.is_verified && <Shield size={10} className="text-primary" />}{listing.profiles?.full_name?.split(' ')[0]}</span></div></div>
   </Link>
 }
 

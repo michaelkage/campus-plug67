@@ -53,6 +53,8 @@ type ReceiptCore = {
   voucher_hash: string;
   receipt_nonce: string;
   scanned_at: string;
+  qr_counter: number;
+  qr_code: string;
 };
 
 type OfflineReceipt = {
@@ -268,7 +270,7 @@ async function verifyVoucherToken(
   return claims;
 }
 
-function validateReceiptCore(core: ReceiptCore, claims: VoucherClaims, voucherHash: string) {
+async function validateReceiptCore(core: ReceiptCore, claims: VoucherClaims, voucherHash: string) {
   if (!core || core.v !== 1
     || core.voucher_id !== claims.jti
     || core.transaction_id !== claims.transaction_id
@@ -278,7 +280,10 @@ function validateReceiptCore(core: ReceiptCore, claims: VoucherClaims, voucherHa
     || core.voucher_hash !== voucherHash
     || typeof core.receipt_nonce !== "string"
     || core.receipt_nonce.length < 16
-    || core.receipt_nonce.length > 128) {
+    || core.receipt_nonce.length > 128
+    || !Number.isSafeInteger(core.qr_counter)
+    || typeof core.qr_code !== "string"
+    || !/^[0-9a-f]{64}$/.test(core.qr_code)) {
     throw new Error("Offline receipt does not match the signed voucher");
   }
 
@@ -289,6 +294,18 @@ function validateReceiptCore(core: ReceiptCore, claims: VoucherClaims, voucherHa
   if (scannedAt === null || issuedAt === null || expiresAt === null
     || scannedAt < issuedAt - skew || scannedAt > expiresAt + skew) {
     throw new Error("Receipt timestamp is outside the voucher validity window");
+  }
+
+  // The QR rotates every 30 seconds. The passkey assertion signs this counter
+  // and proof, so a copied old screenshot cannot be replayed as a fresh scan.
+  const expectedCode = await sha256Hex(`${claims.nonce}:${core.qr_counter}`);
+  const scannedCounter = Math.floor(scannedAt / (QR_STEP_SECONDS * 1000));
+  const counterTime = core.qr_counter * QR_STEP_SECONDS * 1000;
+  if (expectedCode !== core.qr_code
+    || Math.abs(scannedCounter - core.qr_counter) > 1
+    || counterTime < issuedAt - 30_000
+    || counterTime > expiresAt + 30_000) {
+    throw new Error("Rotating QR proof is invalid or stale");
   }
 }
 
@@ -421,7 +438,7 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
 
   const voucherHash = await sha256Hex(voucherToken);
   try {
-    validateReceiptCore(receipt.core, claims, voucherHash);
+    await validateReceiptCore(receipt.core, claims, voucherHash);
   } catch {
     return jsonResponse({ error: "Offline receipt does not match the signed voucher" }, 400, {}, req);
   }
@@ -480,7 +497,10 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
       authenticator: {
         credentialID: credential.credential_id,
         credentialPublicKey: decodeBase64Url(credential.public_key),
-        counter: Number(credential.sign_count ?? 0),
+        // Offline assertions may be synchronized after a later online passkey
+        // use has advanced the authenticator counter. Signature + UV + one-time
+        // receipt nonce remain mandatory; the online ceremony still enforces counters.
+        counter: 0,
         transports: Array.isArray(credential.transports) ? credential.transports : undefined,
       },
       requireUserVerification: true,

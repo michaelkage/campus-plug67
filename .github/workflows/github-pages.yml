@@ -57,12 +57,12 @@ jobs:
         if: steps.backend.outputs.needs_backend == 'true'
         shell: bash
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: https://etwsfdovcgofhqseejjo.supabase.co
           SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
           [[ -n "$SUPABASE_URL" && -n "$SUPABASE_ANON_KEY" ]] || { echo "Supabase deployment gate credentials are missing."; exit 1; }
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 90); do
             response="$(curl --fail --silent --show-error --max-time 10 \
               -H "apikey: $SUPABASE_ANON_KEY" \
               -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
@@ -71,7 +71,7 @@ jobs:
               echo "The matching Supabase migration and Edge Function deployment is live."
               exit 0
             fi
-            echo "Waiting for Supabase deployment (attempt $attempt/60)..."
+            echo "Waiting for Supabase deployment (attempt $attempt/90)..."
             sleep 10
           done
           echo "Supabase deployment did not reach the expected version; refusing to publish the frontend."

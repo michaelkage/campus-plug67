@@ -97,7 +97,7 @@ for (const value of [
 for (const value of [
   "action: 'open_case'",
   "transaction_id: transactionId",
-  "tx?.payment_method === 'campus_wallet'",
+  "supabase.functions.invoke('process-dispute'",
   'funds remain held while the case is reviewed',
   'updated.handshake_receipt_buffer',
   "tx?.payment_method !== 'campus_wallet'",

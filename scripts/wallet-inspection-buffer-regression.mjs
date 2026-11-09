@@ -134,7 +134,7 @@ includes(meetup, 'Funds remain protected for a 2-hour inspection window', 'QR UI
 includes(safeSwap, 'Funds remain locked for a two-hour inspection window', 'Safe Swap must explain the provisional handoff')
 includes(safeSwap, 'qrInspection', 'Safe Swap must distinguish QR inspection from seller-requested release')
 includes(safeSwap, 'auto_release_at', 'Safe Swap must display the authoritative inspection expiry')
-includes(safeSwap, 'Campus Wallet automatically releases the seller payout', 'Safe Swap must explain automatic settlement')
+includes(safeSwap, 'Campus Plug automatically processes the seller payout', 'Safe Swap must explain automatic settlement')
 includes(escrowState, "label: 'Handoff / inspection'", 'Escrow progress must show the inspection stage')
 includes(listingDetail, 'tx.handshake_receipt_buffer', 'Transaction details must distinguish QR handoff inspection from seller-requested release')
 includes(listingDetail, 'process-dispute', 'Campus Wallet dispute action must create a jury case during inspection')

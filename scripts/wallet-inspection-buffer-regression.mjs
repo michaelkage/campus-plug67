@@ -70,7 +70,7 @@ includes(hook, "status === 'meetup_initiated'", 'Buyer QR release must only be a
 includes(hook, "status === 'release_requested'", 'Buyer dispute must remain available during the inspection state')
 includes(meetup, 'Funds remain protected for a 2-hour inspection window', 'QR UI must explain that handoff does not immediately pay the seller')
 includes(safeSwap, 'Funds remain locked for a two-hour inspection window', 'Safe Swap must explain the provisional handoff')
-includes(safeSwap, 'inspection_expires_at', 'Safe Swap must display the authoritative inspection expiry')
+includes(safeSwap, 'auto_release_at', 'Safe Swap must display the authoritative inspection expiry')
 includes(safeSwap, 'Campus Wallet automatically releases the seller payout', 'Safe Swap must explain automatic settlement')
 includes(escrowState, "label: 'Inspection'", 'Escrow progress must show the inspection stage')
 

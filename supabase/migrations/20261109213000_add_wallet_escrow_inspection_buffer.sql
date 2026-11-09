@@ -507,7 +507,7 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.sync_wallet_inspection_schedule() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.sync_escrow_inspection_schedule() FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.settle_due_wallet_inspections(p_limit integer DEFAULT 100)
 RETURNS jsonb

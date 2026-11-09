@@ -181,7 +181,8 @@ BEGIN
        AND NOT executed;
 
     UPDATE public.notifications
-       SET body = 'Handoff confirmed. Funds remain protected for a two-hour inspection window. File a dispute before it ends if you find a problem.',
+       SET title = 'Handoff confirmed · inspection window',
+           body = 'Handoff confirmed. Funds remain protected for a two-hour inspection window. File a dispute before it ends if you find a problem.',
            data = COALESCE(data, '{}'::jsonb) || jsonb_build_object(
              'inspection_expires_at', NEW.auto_release_at,
              'inspection_hours', 2,

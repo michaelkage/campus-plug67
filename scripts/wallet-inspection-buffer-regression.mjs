@@ -102,6 +102,8 @@ for (const value of [
   "'campus-paystack-inspection-settlement'",
   "'SELECT public.settle_due_paystack_inspections(100);'",
   "t.status = 'release_requested'",
+  't.handshake_receipt_buffer IS NOT NULL',
+  'v_tx.handshake_receipt_buffer IS NULL',
   "t.payment_method = 'campus_wallet'",
   "t.auto_release_at <= now()",
   'FOR UPDATE OF h SKIP LOCKED',

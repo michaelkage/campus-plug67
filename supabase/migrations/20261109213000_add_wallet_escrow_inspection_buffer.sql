@@ -171,9 +171,9 @@ SECURITY DEFINER
 SET search_path = ''
 AS $function$
 BEGIN
-  IF NEW.payment_method = 'campus_wallet'
+  IF NEW.handshake_receipt_buffer IS NOT NULL
      AND NEW.status = 'release_requested'
-     AND OLD.status IS DISTINCT FROM 'release_requested' THEN
+     AND OLD.handshake_receipt_buffer IS DISTINCT FROM NEW.handshake_receipt_buffer THEN
     UPDATE public.scheduled_jobs
        SET run_at = NEW.auto_release_at
      WHERE entity_id = NEW.id
@@ -200,6 +200,150 @@ CREATE TRIGGER wallet_inspection_schedule
 AFTER UPDATE OF status ON public.transactions
 FOR EACH ROW
 EXECUTE FUNCTION public.sync_wallet_inspection_schedule();
+
+CREATE OR REPLACE FUNCTION public.process_escrow_action(
+  p_transaction_id uuid,
+  p_action text,
+  p_qr_secret text DEFAULT NULL,
+  p_reason text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  tx public.transactions%ROWTYPE;
+  actor uuid := auth.uid();
+  privileged boolean := COALESCE(auth.jwt() ->> 'role', '') = 'service_role';
+BEGIN
+  IF actor IS NULL AND NOT privileged THEN RAISE EXCEPTION 'Authentication required'; END IF;
+
+  SELECT * INTO tx
+    FROM public.transactions
+   WHERE id = p_transaction_id
+   FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Transaction not found'; END IF;
+  IF COALESCE(tx.payment_method, 'paystack') = 'campus_wallet' THEN
+    RAISE EXCEPTION 'Campus Wallet escrow must be resolved through resolve_wallet_micro_escrow';
+  END IF;
+  IF NOT privileged AND actor <> tx.buyer_id AND actor <> tx.seller_id THEN
+    RAISE EXCEPTION 'Not authorized for this transaction';
+  END IF;
+
+  PERFORM set_config('app.escrow_transition', 'true', true);
+
+  CASE p_action
+    WHEN 'initiate_meetup' THEN
+      IF privileged OR actor <> tx.seller_id THEN RAISE EXCEPTION 'Only the seller can initiate the meetup'; END IF;
+      IF tx.status <> 'locked' THEN RAISE EXCEPTION 'Meetup can only start from locked state'; END IF;
+      UPDATE public.transactions
+         SET status = 'meetup_initiated',
+             meetup_initiated_at = COALESCE(meetup_initiated_at, now())
+       WHERE id = tx.id;
+
+    WHEN 'request_release' THEN
+      IF privileged OR actor <> tx.seller_id THEN RAISE EXCEPTION 'Only the seller can request release'; END IF;
+      IF tx.status <> 'meetup_initiated' THEN RAISE EXCEPTION 'Release can only be requested after meetup initiation'; END IF;
+      IF tx.meetup_initiated_at IS NULL OR tx.meetup_initiated_at > now() - interval '24 hours' THEN
+        RAISE EXCEPTION '24-hour release gate has not elapsed';
+      END IF;
+      UPDATE public.transactions
+         SET status = 'release_requested',
+             release_requested_at = COALESCE(release_requested_at, now()),
+             auto_release_at = now() + interval '48 hours',
+             handshake_receipt_buffer = NULL
+       WHERE id = tx.id;
+
+    WHEN 'release' THEN
+      IF privileged OR actor <> tx.buyer_id THEN RAISE EXCEPTION 'Only the buyer can confirm handoff'; END IF;
+      IF tx.status = 'release_requested' AND tx.handshake_receipt_buffer IS NOT NULL THEN
+        RETURN jsonb_build_object(
+          'success', true, 'transaction_id', tx.id, 'action', p_action,
+          'status', 'inspection_pending', 'inspection_expires_at', tx.auto_release_at,
+          'funds_released', false, 'already_confirmed', true
+        );
+      END IF;
+      IF tx.status <> 'meetup_initiated' THEN RAISE EXCEPTION 'Escrow is not ready for buyer handoff confirmation'; END IF;
+      IF p_qr_secret IS NULL OR p_qr_secret IS DISTINCT FROM COALESCE(tx.qr_secret, tx.release_code) THEN
+        RAISE EXCEPTION 'Invalid release credential';
+      END IF;
+
+      UPDATE public.transactions
+         SET status = 'release_requested',
+             release_requested_at = now(),
+             auto_release_at = now() + interval '2 hours',
+             handshake_receipt_buffer = now()
+       WHERE id = tx.id;
+
+    WHEN 'dispute' THEN
+      IF privileged OR actor <> tx.buyer_id THEN RAISE EXCEPTION 'Only the buyer can dispute'; END IF;
+      IF tx.status <> 'release_requested' THEN RAISE EXCEPTION 'Transaction is not in the dispute window'; END IF;
+      IF tx.auto_release_at IS NOT NULL AND tx.auto_release_at <= now() THEN
+        RAISE EXCEPTION 'Dispute window has expired';
+      END IF;
+      IF p_reason IS NULL OR length(trim(p_reason)) < 20 THEN
+        RAISE EXCEPTION 'Dispute reason must be at least 20 characters';
+      END IF;
+      UPDATE public.transactions
+         SET status = 'disputed', disputed_at = now(), dispute_reason = trim(p_reason)
+       WHERE id = tx.id;
+
+    WHEN 'refund' THEN
+      IF NOT privileged THEN RAISE EXCEPTION 'Refund is an administrative action'; END IF;
+      IF tx.status NOT IN ('locked', 'meetup_initiated', 'release_requested', 'disputed') THEN
+        RAISE EXCEPTION 'Transaction cannot be refunded';
+      END IF;
+      UPDATE public.transactions
+         SET status = 'cancelled', cancelled_at = now()
+       WHERE id = tx.id;
+      INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
+      VALUES (tx.buyer_id, tx.amount, 'Escrow refund', tx.id)
+      ON CONFLICT DO NOTHING;
+      UPDATE public.listings
+         SET status = 'active', updated_at = now()
+       WHERE id = tx.listing_id AND status = 'sold';
+
+    WHEN 'auto_release' THEN
+      IF NOT privileged THEN RAISE EXCEPTION 'Auto-release is service-only'; END IF;
+      IF tx.status <> 'release_requested'
+         OR tx.auto_release_at IS NULL
+         OR tx.auto_release_at > now() THEN
+        RAISE EXCEPTION 'Transaction is not due for auto-release';
+      END IF;
+      UPDATE public.transactions
+         SET status = 'released', released_at = now(), completed_at = now()
+       WHERE id = tx.id;
+      INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
+      VALUES (tx.seller_id, tx.amount, 'Escrow auto-release', tx.id)
+      ON CONFLICT DO NOTHING;
+
+    ELSE
+      RAISE EXCEPTION 'Invalid escrow action: %', p_action;
+  END CASE;
+
+  INSERT INTO public.audit_logs(user_id, entity_type, entity_id, action, metadata)
+  VALUES (
+    COALESCE(actor, tx.seller_id),
+    'transaction',
+    tx.id,
+    'escrow_' || p_action,
+    jsonb_build_object(
+      'previous_status', tx.status,
+      'inspection_started', p_action = 'release',
+      'inspection_expires_at', CASE WHEN p_action = 'release' THEN now() + interval '2 hours' ELSE NULL END
+    )
+  );
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'transaction_id', tx.id,
+    'action', p_action,
+    'status', CASE WHEN p_action = 'release' THEN 'inspection_pending' ELSE p_action END,
+    'funds_released', p_action <> 'release'
+  );
+END;
+$function$;
 
 REVOKE ALL ON FUNCTION public.sync_wallet_inspection_schedule() FROM PUBLIC, anon, authenticated;
 

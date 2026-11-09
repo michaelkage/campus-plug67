@@ -51,6 +51,11 @@ for (const value of [
   "SET status = 'release_requested'",
   "auto_release_at = now() + interval '2 hours'",
   'handshake_receipt_buffer = now()',
+  'tx.buyer_arrived IS DISTINCT FROM true',
+  'tx.mobile_release_ready_at < now() - interval \'10 minutes\'',
+  'tx.seller_arrived IS DISTINCT FROM true',
+  'tx.seller_location_captured_at < now() - interval \'30 minutes\'',
+  'tx.seller_safe_zone_id IS DISTINCT FROM tx.buyer_safe_zone_id',
   "'inspection_pending'",
 ]) includes(genericRelease, value, `Paystack QR handoff must enter inspection: ${value}`)
 if (genericRelease.includes('INSERT INTO public.plug_credit_ledger')) {
@@ -97,6 +102,7 @@ includes(safeSwap, 'Campus Wallet automatically releases the seller payout', 'Sa
 includes(escrowState, "label: 'Handoff / inspection'", 'Escrow progress must show the inspection stage')
 includes(listingDetail, 'tx.handshake_receipt_buffer', 'Transaction details must distinguish QR handoff inspection from seller-requested release')
 includes(listingDetail, 'process-dispute', 'Campus Wallet dispute action must create a jury case during inspection')
+includes(listingDetail, 'Continue to Safe Swap handoff', 'Every buyer must use server-verified Safe Swap arrival before QR handoff')
 
 if (!packageJson.scripts['test:platform-integrity'].includes('wallet-inspection-buffer-regression.mjs')) {
   fail('Wallet inspection regression must run in the platform-integrity suite')

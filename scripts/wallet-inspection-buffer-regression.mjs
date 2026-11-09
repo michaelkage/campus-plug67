@@ -62,7 +62,7 @@ for (const value of [
   "action: 'open_case'",
   "transaction_id: transactionId",
   "tx?.payment_method === 'campus_wallet'",
-  'Funds remain held while the case is reviewed',
+  'funds remain held while the case is reviewed',
   "tx?.payment_method !== 'campus_wallet'",
 ]) includes(hook, value, `Wallet inspection UI missing invariant: ${value}`)
 

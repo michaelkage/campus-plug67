@@ -115,7 +115,7 @@ async function rewardJuror(jurorId: string, correct: boolean, caseId: string) {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return optionsResponse(req);
-  if (req.method === "GET" && new URL(req.url).pathname.endsWith("/ping")) return ok(req, { status: "warm", ts: Date.now(), fn: "process-dispute-v6.7" });
+  if (req.method === "GET" && new URL(req.url).pathname.endsWith("/ping")) return ok(req, { status: "warm", ts: Date.now(), fn: "process-dispute-v6.8" });
   if (req.method !== "POST") return bad(req, "Method not allowed", 405);
   let body: Body; try { body = await req.json(); } catch { return bad(req, "Invalid JSON"); }
   const action = typeof body.action === "string" ? body.action : "";
@@ -126,7 +126,7 @@ serve(async (req: Request) => {
     const transactionId = typeof body.transaction_id === "string" ? body.transaction_id : "";
     const reason = typeof body.reason === "string" ? body.reason : "";
     if (!transactionId || reason.trim().length < 20) return bad(req, "Dispute reason must be at least 20 characters");
-    const { data: rawTx } = await admin.from("transactions").select("*, listings(title, university)").eq("id", transactionId).in("status", ["release_requested", "meetup_initiated", "locked"]).maybeSingle();
+    const { data: rawTx } = await admin.from("transactions").select("*, listings(title, university)").eq("id", transactionId).in("status", ["release_requested", "meetup_initiated", "locked", "disputed"]).maybeSingle();
     const tx = rawTx as TransactionRow | null;
     if (!tx) return bad(req, "Transaction not found or not in a disputable state", 404);
     if (tx.buyer_id !== user.id && tx.seller_id !== user.id) return bad(req, "You are not a party to this transaction", 403);
@@ -135,16 +135,46 @@ serve(async (req: Request) => {
     const respondentId = tx.buyer_id === user.id ? tx.seller_id : tx.buyer_id;
     const { data: rawMessages } = await admin.from("messages").select("id, sender_id, body, created_at, flagged, flag_type, is_system_msg").eq("transaction_id", transactionId).is("deleted_at", null);
     const evidence = sanitizeEvidence((rawMessages ?? []) as EvidenceMessage[], user.id);
-    const { data: rawCase, error: caseError } = await admin.from("jury_cases").insert({ transaction_id: transactionId, claimant_id: user.id, respondent_id: respondentId, dispute_reason: reason.trim(), dispute_campus: disputeCampus, high_value: tx.amount > 100000 }).select().single();
-    const juryCase = rawCase as DisputeCase | null;
-    if (caseError || !juryCase) return bad(req, "Failed to open case: " + (caseError?.message ?? "Unknown error"), 500);
-    await admin.from("transactions").update({ status: "disputed", disputed_at: new Date().toISOString(), dispute_reason: reason.trim() }).eq("id", transactionId);
-    const required = juryCase.high_value ? 4 : 3;
-    const jurors = await assignJurors(juryCase.id, required, [user.id, respondentId], disputeCampus, 0);
+    const { data: opened, error: openError } = await admin.rpc("open_escrow_dispute_case", {
+      p_transaction_id: transactionId,
+      p_claimant_id: user.id,
+      p_reason: reason.trim(),
+      p_dispute_campus: disputeCampus,
+      p_evidence_messages: evidence,
+    });
+    if (openError || !opened?.success || !opened.case_id) {
+      return bad(req, "Failed to open case: " + (openError?.message ?? "Unknown error"), 409);
+    }
+
+    const caseId = opened.case_id as string;
+    const highValue = Boolean(opened.high_value);
+    const required = Number(opened.required_votes) || (highValue ? 4 : 3);
+    let jurors = Array.isArray(opened.jurors_assigned) ? opened.jurors_assigned as string[] : [];
+    if (!opened.already_open || jurors.length === 0) {
+      jurors = await assignJurors(caseId, required, [user.id, respondentId], disputeCampus, 0);
+    }
+
     const university = tx.listings?.university ?? disputeCampus;
-    if (university) await admin.from("ticker_events").insert({ university, emoji: "⚖️", text: "A dispute is being reviewed by a cross-campus jury. Justice is blind.", category: "dispute" });
-    await admin.rpc("increment_config_counter", { p_key: "peer_jury" });
-    return ok(req, { success: true, case_id: juryCase.id, jurors_count: jurors.length, high_value: juryCase.high_value, required_votes: required, cross_campus: true, dispute_campus: disputeCampus });
+    if (!opened.already_open && university) {
+      await admin.from("ticker_events").insert({
+        university,
+        emoji: "⚖️",
+        text: "A dispute is being reviewed by a cross-campus jury. Justice is blind.",
+        category: "dispute",
+      });
+      await admin.rpc("increment_config_counter", { p_key: "peer_jury" });
+    }
+
+    return ok(req, {
+      success: true,
+      case_id: caseId,
+      jurors_count: jurors.length,
+      high_value: highValue,
+      required_votes: required,
+      cross_campus: true,
+      dispute_campus: disputeCampus,
+      already_open: Boolean(opened.already_open),
+    });
   }
 
   if (action === "open_for_review") {

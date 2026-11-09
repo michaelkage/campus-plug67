@@ -21,12 +21,14 @@ assertIncludes(listing, 'PlugPay holds the money',
   'Marketplace guidance must explain that payment is held before pickup');
 assertIncludes(listing, 'Inspect the item first.',
   'Buyer guidance must require item inspection before QR confirmation');
-assertIncludes(listing, 'QR release unlocks 24 hours',
-  'Marketplace guidance must disclose the 24-hour release gate');
+assertIncludes(listing, 'The separate seller-requested release option unlocks after 24 hours.',
+  'Marketplace guidance must retain the 24-hour eligibility gate for seller-requested release');
+assertIncludes(listing, 'No 24-hour wait is required for buyer QR confirmation.',
+  'Buyer QR handoff must not inherit the seller-requested release eligibility gate');
 assertIncludes(listing, '48 hours to dispute',
   'Marketplace guidance must disclose the dispute window');
 
-for (const label of ['Funds held', 'Pickup', 'Handoff', 'Complete']) {
+for (const label of ['Funds held', 'Pickup', 'Protected release window', 'Complete']) {
   assertIncludes(states, `label: '${label}'`,
     `Marketplace progress must include the ${label} step`);
 }

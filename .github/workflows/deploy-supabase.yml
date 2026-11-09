@@ -84,33 +84,6 @@ jobs:
       - name: Normalize migrations
         run: node scripts/normalize-migrations.mjs
 
-      - name: Deploy Edge Functions
-        shell: bash
-        run: |
-          set -euo pipefail
-          for dir in supabase/functions/*; do
-            [[ -d "$dir" ]] || continue
-            fn="$(basename "$dir")"
-            [[ "$fn" == "_shared" ]] && continue
-            echo "→ Deploying ${fn}..."
-            deployed=false
-            for attempt in 1 2 3; do
-              if supabase functions deploy "$fn" --project-ref "${{ steps.project.outputs.ref }}"; then
-                deployed=true
-                break
-              fi
-              if [[ "$attempt" -lt 3 ]]; then
-                delay=$((attempt * 5))
-                echo "Deployment of ${fn} failed on attempt ${attempt}; retrying in ${delay}s (transient network or bundling failure may clear)."
-                sleep "$delay"
-              fi
-            done
-            if [[ "$deployed" != true ]]; then
-              echo "Deployment of ${fn} failed after 3 attempts."
-              exit 1
-            fi
-          done
-
       - name: Link project for database deployment
         run: supabase link --project-ref "${{ steps.project.outputs.ref }}" --password "$SUPABASE_DB_PASSWORD"
 
@@ -141,6 +114,34 @@ jobs:
         run: |
           set -euo pipefail
           supabase db push --linked --include-all
+
+      # Deploy functions only after their database RPCs, tables, and columns exist.
+      - name: Deploy Edge Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for dir in supabase/functions/*; do
+            [[ -d "$dir" ]] || continue
+            fn="$(basename "$dir")"
+            [[ "$fn" == "_shared" ]] && continue
+            echo "→ Deploying ${fn}..."
+            deployed=false
+            for attempt in 1 2 3; do
+              if supabase functions deploy "$fn" --project-ref "${{ steps.project.outputs.ref }}"; then
+                deployed=true
+                break
+              fi
+              if [[ "$attempt" -lt 3 ]]; then
+                delay=$((attempt * 5))
+                echo "Deployment of ${fn} failed on attempt ${attempt}; retrying in ${delay}s (transient network or bundling failure may clear)."
+                sleep "$delay"
+              fi
+            done
+            if [[ "$deployed" != true ]]; then
+              echo "Deployment of ${fn} failed after 3 attempts."
+              exit 1
+            fi
+          done
 
       - name: Verify deployed function endpoints
         env:

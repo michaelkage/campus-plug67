@@ -24,8 +24,11 @@ jobs:
   build:
     name: Build site
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -34,6 +37,47 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Build
         run: npm run build
+      - name: Detect backend changes
+        id: backend
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+            # Manual dispatches cannot diff a push; require the backend marker instead of bypassing the gate.
+            echo "needs_backend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA")"
+          if grep -Eq '^(supabase/|scripts/normalize-migrations\.mjs$|\.github/workflows/deploy-supabase\.yml$)' <<<"$changed"; then
+            echo "needs_backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_backend=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Wait for matching Supabase deployment
+        if: steps.backend.outputs.needs_backend == 'true'
+        shell: bash
+        env:
+          SUPABASE_URL: https://etwsfdovcgofhqseejjo.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SUPABASE_URL" && -n "$SUPABASE_ANON_KEY" ]] || { echo "Supabase deployment gate credentials are missing."; exit 1; }
+          for attempt in $(seq 1 120); do
+            response="$(curl --fail --silent --show-error --max-time 10 \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/functions/v1/process-dispute/ping" 2>/dev/null || true)"
+            if grep -q '"fn":"process-dispute-v6.8"' <<<"$response"; then
+              echo "The matching Supabase migration and Edge Function deployment is live."
+              exit 0
+            fi
+            echo "Waiting for Supabase deployment (attempt $attempt/120)..."
+            sleep 10
+          done
+          echo "Supabase deployment did not reach the expected version; refusing to publish the frontend."
+          exit 1
       - name: Verify deployment bundle
         run: |
           test -f dist/index.html

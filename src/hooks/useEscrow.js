@@ -199,10 +199,10 @@ export function useEscrow({
       return Promise.resolve({ success: false })
     }
     return edgeCall('request_release')
-  }, [edgeCall, isSeller, tx, transactionId])
+  }, [edgeCall, isSeller])
 
   /**
-   * BUYER: File a formal dispute within the 48h window.
+   * BUYER: File a formal dispute during the applicable inspection/release window.
    * Triggers: release_requested → disputed
    * Cancels the pending auto-release job.
    * Requires a reason string of at least 20 characters.
@@ -247,7 +247,7 @@ export function useEscrow({
       })
     }
     return edgeCall('dispute', { reason: reason.trim() })
-  }, [edgeCall, isSeller])
+  }, [edgeCall, isSeller, tx, transactionId])
 
   // ── Derived state ──────────────────────────────────────────────────────────
 

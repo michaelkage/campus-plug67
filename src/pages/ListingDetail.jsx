@@ -80,10 +80,6 @@ function EscrowPanel({ tx, isSeller, onRefresh, otherUserId }) {
       toast.error('Describe the issue in at least 20 characters.')
       return
     }
-    if (tx.payment_method !== 'campus_wallet') {
-      await edge('dispute', { reason })
-      return
-    }
     setLoading('dispute')
     try {
       const { data, error } = await supabase.functions.invoke('process-dispute', {
@@ -91,7 +87,7 @@ function EscrowPanel({ tx, isSeller, onRefresh, otherUserId }) {
       })
       if (error) throw error
       if (!data?.success) throw new Error(data?.error || 'Could not open the dispute')
-      toast.success('Dispute filed. Campus Wallet funds remain held while the case is reviewed.')
+      toast.success('Dispute filed. Escrow funds remain held while the case is reviewed.')
       setShowDispute(false)
       onRefresh?.()
     } catch (error) {

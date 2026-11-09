@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { AlertTriangle, Camera, CheckCircle2, CloudOff, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import {
   createOfflineReceipt,
   issueOfflineVoucher,
@@ -40,7 +39,8 @@ export default function OfflineEscrowHandoff({
   releaseUnlocked,
   onReconciled,
 }: Props) {
-  const online = useOnlineStatus()
+  const [online, setOnline] = useState(() => navigator.onLine)
+  const onReconciledRef = useRef(onReconciled)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [voucher, setVoucher] = useState<IssuedOfflineVoucher | null>(null)
@@ -57,6 +57,20 @@ export default function OfflineEscrowHandoff({
     streamRef.current?.getTracks().forEach(track => track.stop())
     streamRef.current = null
     setScanning(false)
+  }, [])
+
+  useEffect(() => {
+    onReconciledRef.current = onReconciled
+  }, [onReconciled])
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine)
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+    }
   }, [])
 
   useEffect(() => () => {
@@ -87,11 +101,11 @@ export default function OfflineEscrowHandoff({
       if (completed) {
         setReceiptPending(false)
         setLastMessage('Offline receipt synchronized. The two-hour inspection window has started.')
-        onReconciled?.()
+        onReconciledRef.current?.()
       }
     })
     return () => { cancelled = true }
-  }, [online, userId, onReconciled])
+  }, [online, userId])
 
   useEffect(() => {
     if (!voucher) {
@@ -140,6 +154,7 @@ export default function OfflineEscrowHandoff({
       })
       streamRef.current = stream
       setScanning(true)
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
       const video = videoRef.current
       if (!video) throw new Error('Camera preview is unavailable')
       video.srcObject = stream
@@ -188,7 +203,7 @@ export default function OfflineEscrowHandoff({
           const result = await syncOfflineEscrowReceipt(stored)
           setReceiptPending(false)
           setLastMessage(result?.message || 'Receipt synchronized. The two-hour inspection window has started.')
-          onReconciled?.()
+          onReconciledRef.current?.()
           toast.success('Handoff verified. Funds remain protected for two hours.')
         } catch {
           toast.success('Receipt saved securely. It will sync when the connection returns.')
@@ -295,7 +310,7 @@ export default function OfflineEscrowHandoff({
         <div className="rounded-md border border-tertiary/30 bg-tertiary/10 p-3 text-xs">
           <div className="flex items-center gap-2 font-bold"><CloudOff size={15}/>Receipt saved on this phone</div>
           <p className="mt-1 text-on-surface-variant">No money has been paid out. The receipt will synchronize when this device is online.</p>
-          {online && <button onClick={() => void syncPendingOfflineEscrowReceipts(userId).then(results => { if (results.some(result => result.success)) { setReceiptPending(false); setLastMessage('Receipt synchronized. Inspection window started.'); onReconciled?.() } })} className="mt-2 inline-flex items-center gap-2 text-primary font-bold"><RefreshCw size={13}/>Retry sync</button>}
+          {online && <button onClick={() => void syncPendingOfflineEscrowReceipts(userId).then(results => { if (results.some(result => result.success)) { setReceiptPending(false); setLastMessage('Receipt synchronized. Inspection window started.'); onReconciledRef.current?.() } })} className="mt-2 inline-flex items-center gap-2 text-primary font-bold"><RefreshCw size={13}/>Retry sync</button>}
         </div>
       )}
       {lastMessage && <p className="text-xs text-primary">{lastMessage}</p>}

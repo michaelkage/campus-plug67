@@ -67,6 +67,8 @@ ALTER TABLE public.escrow_offline_vouchers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.escrow_offline_receipts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.escrow_offline_vouchers FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE public.escrow_offline_receipts FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.escrow_offline_vouchers TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.escrow_offline_receipts TO service_role;
 
 CREATE OR REPLACE FUNCTION public.store_escrow_voucher_signing_key(
   p_key_id text,

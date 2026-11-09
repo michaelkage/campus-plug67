@@ -35,6 +35,7 @@ type VoucherClaims = {
   payment_method: "campus_wallet" | "paystack";
   amount_kobo: number;
   safe_zone_id: string;
+  rp_id: string;
   seller_credentials: SellerCredential[];
   nonce: string;
   issued_at: string;
@@ -323,6 +324,7 @@ async function issueVoucher(req: Request, userId: string, admin: ReturnType<type
     payment_method: tx.payment_method === "campus_wallet" ? "campus_wallet" : "paystack",
     amount_kobo: amountKobo,
     safe_zone_id: tx.buyer_safe_zone_id,
+    rp_id: RP_ID,
     seller_credentials: credentials.map((credential) => ({
       id: credential.credential_id,
       transports: Array.isArray(credential.transports) ? credential.transports : [],

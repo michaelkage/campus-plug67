@@ -349,7 +349,7 @@ DROP TRIGGER IF EXISTS escrow_inspection_schedule ON public.transactions;
 CREATE TRIGGER wallet_inspection_schedule
 AFTER UPDATE OF status ON public.transactions
 FOR EACH ROW
-EXECUTE FUNCTION public.sync_wallet_inspection_schedule();
+EXECUTE FUNCTION public.sync_escrow_inspection_schedule();
 
 CREATE OR REPLACE FUNCTION public.process_escrow_action(
   p_transaction_id uuid,

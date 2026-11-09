@@ -261,7 +261,9 @@ BEGIN
         RETURN jsonb_build_object(
           'success', true, 'transaction_id', tx.id, 'action', p_action,
           'status', 'inspection_pending', 'inspection_expires_at', tx.auto_release_at,
-          'funds_released', false, 'already_confirmed', true
+          'funds_released', false,
+          'message', 'Handoff already confirmed. Funds remain protected for the two-hour inspection window.',
+          'already_confirmed', true
         );
       END IF;
       IF tx.status <> 'meetup_initiated' THEN RAISE EXCEPTION 'Escrow is not ready for buyer handoff confirmation'; END IF;
@@ -340,7 +342,8 @@ BEGIN
     'transaction_id', tx.id,
     'action', p_action,
     'status', CASE WHEN p_action = 'release' THEN 'inspection_pending' ELSE p_action END,
-    'funds_released', p_action <> 'release'
+    'funds_released', p_action = 'auto_release',
+    'message', CASE WHEN p_action = 'release' THEN 'Handoff confirmed. Funds remain protected for a two-hour inspection window.' ELSE 'Escrow action completed.' END
   );
 END;
 $function$;

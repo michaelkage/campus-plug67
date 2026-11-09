@@ -16,6 +16,7 @@ const listingDetail = read('src/pages/ListingDetail.jsx')
 const disputeFunction = read('supabase/functions/process-dispute/index.ts')
 const escrowState = read('src/lib/escrowState.js')
 const packageJson = JSON.parse(read('package.json'))
+const deploymentWorkflow = read('.github/workflows/deploy-supabase.yml')
 
 const releaseStart = migration.indexOf("ELSIF p_action = 'release' THEN")
 const refundStart = migration.indexOf("ELSIF p_action = 'refund' THEN", releaseStart)
@@ -33,6 +34,11 @@ if (/FROM public\.jury_cases\s+WHERE transaction_id = p_transaction_id\s+FOR UPD
   fail('Dispute creation must not lock jury_cases before transactions; that reverses the verdict settlement lock order')
 }
 includes(disputeRpc, 'FROM public.transactions', 'Dispute creation must lock the transaction row to serialize concurrent case creation')
+const applyMigrationsAt = deploymentWorkflow.indexOf('name: Apply database migrations')
+const deployFunctionsAt = deploymentWorkflow.indexOf('name: Deploy Edge Functions')
+if (applyMigrationsAt < 0 || deployFunctionsAt < 0 || applyMigrationsAt > deployFunctionsAt) {
+  fail('Production deployment must apply database migrations before deploying Edge Functions that call new RPCs')
+}
 includes(walletResolver, "v_tx.status = 'release_requested'\n       AND v_tx.handshake_receipt_buffer IS NOT NULL", 'Wallet QR retries must only be idempotent for an actual QR handoff, never a seller-requested release')
 
 for (const value of [

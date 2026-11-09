@@ -26,7 +26,7 @@ assertIncludes(listing, 'QR release unlocks 24 hours',
 assertIncludes(listing, '48 hours to dispute',
   'Marketplace guidance must disclose the dispute window');
 
-for (const label of ['Funds held', 'Pickup', 'Handoff', 'Complete']) {
+for (const label of ['Funds held', 'Pickup', 'Handoff / inspection', 'Complete']) {
   assertIncludes(states, `label: '${label}'`,
     `Marketplace progress must include the ${label} step`);
 }

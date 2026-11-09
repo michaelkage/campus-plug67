@@ -24,7 +24,6 @@ const releaseBranch = migration.slice(releaseStart, refundStart)
 
 for (const value of [
   "v_tx.status <> 'meetup_initiated'",
-  "v_tx.meetup_initiated_at > now() - interval '24 hours'",
   "p_qr_secret IS DISTINCT FROM COALESCE(v_tx.qr_secret, v_tx.release_code)",
   "SET status = 'release_requested'",
   'auto_release_at = v_inspection_expires_at',
@@ -59,6 +58,8 @@ for (const value of [
   'tx.seller_safe_zone_id IS DISTINCT FROM tx.buyer_safe_zone_id',
   "'inspection_pending'",
 ]) includes(genericRelease, value, `Paystack QR handoff must enter inspection: ${value}`)
+if (genericRelease.includes("now() - interval '24 hours'") || genericRelease.includes('24-hour release gate')) fail('Paystack QR handoff must not have a 24-hour delay')
+if (releaseBranch.includes("now() - interval '24 hours'") || releaseBranch.includes('24-hour release gate')) fail('Campus Wallet QR handoff must not have a 24-hour delay')
 if (genericRelease.includes('INSERT INTO public.plug_credit_ledger')) {
   fail('Paystack QR confirmation must not credit the seller before inspection ends')
 }
@@ -138,6 +139,9 @@ for (const value of [
 includes(hook, "status === 'meetup_initiated'", 'Buyer QR release must only be available before handoff confirmation')
 includes(hook, "status === 'release_requested'", 'Buyer dispute must remain available during the inspection state')
 includes(meetup, 'Funds remain protected for a 2-hour inspection window', 'QR UI must explain that handoff does not immediately pay the seller')
+includes(meetup, 'Waiting for both Safe Swap check-ins', 'QR UI must wait for verified arrivals rather than an arbitrary timer')
+includes(safeSwap, 'bothCheckinsFresh', 'QR unlock must require fresh check-ins from both participants in the same zone')
+if (safeSwap.includes('24-hour release gate') || safeSwap.includes('isReleaseGateOpen')) fail('Safe Swap UI must not enforce the obsolete 24-hour gate')
 includes(safeSwap, 'Funds remain locked for a two-hour inspection window', 'Safe Swap must explain the provisional handoff')
 includes(safeSwap, 'qrInspection', 'Safe Swap must distinguish QR inspection from seller-requested release')
 includes(safeSwap, 'QRCodeSVG', 'Seller handoff QR must be available inside Safe Swap')

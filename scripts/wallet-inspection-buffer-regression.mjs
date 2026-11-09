@@ -65,6 +65,17 @@ includes(migration, 'NEW.handshake_receipt_buffer IS NOT NULL', 'Inspection noti
 
 for (const value of [
   'CREATE OR REPLACE FUNCTION public.settle_due_wallet_inspections',
+  'CREATE OR REPLACE FUNCTION public.settle_due_paystack_inspections',
+  't.handshake_receipt_buffer IS NOT NULL',
+  "t.auto_release_at <= now()",
+  "COALESCE(t.payment_method, 'paystack') <> 'campus_wallet'",
+  'FOR UPDATE OF t SKIP LOCKED',
+  "'Escrow auto-release'",
+  "SET status = 'released'",
+  "REVOKE ALL ON FUNCTION public.settle_due_paystack_inspections(integer) FROM PUBLIC, anon, authenticated",
+  "GRANT EXECUTE ON FUNCTION public.settle_due_paystack_inspections(integer) TO service_role",
+  "'campus-paystack-inspection-settlement'",
+  "'SELECT public.settle_due_paystack_inspections(100);'",
   "t.status = 'release_requested'",
   "t.payment_method = 'campus_wallet'",
   "t.auto_release_at <= now()",

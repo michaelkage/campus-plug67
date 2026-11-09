@@ -1,3 +1,4 @@
+CREATE SCHEMA IF NOT EXISTS vault;
 CREATE EXTENSION IF NOT EXISTS supabase_vault WITH SCHEMA vault;
 
 -- Offline escrow vouchers are provisional handoff evidence, never settlement.

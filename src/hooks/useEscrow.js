@@ -179,7 +179,7 @@ export function useEscrow({
   /**
    * SELLER: Confirm the physical meetup has started.
    * Triggers: locked → meetup_initiated
-   * Starts the 24-hour release gate.
+   * Starts the separate 24-hour eligibility timer for seller-requested release. Buyer QR handoff can be confirmed earlier after both fresh Safe Swap check-ins.
    */
   const initiateMeetup = useCallback((meetupSpot = null) => {
     return edgeCall('initiate_meetup', {

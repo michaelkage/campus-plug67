@@ -162,6 +162,8 @@ includes(meetup, 'Waiting for both Safe Swap check-ins', 'QR UI must wait for ve
 includes(safeSwap, 'bothCheckinsFresh', 'QR unlock must require fresh check-ins from both participants in the same zone')
 if (safeSwap.includes('24-hour release gate') || safeSwap.includes('isReleaseGateOpen')) fail('Safe Swap UI must not enforce the obsolete 24-hour gate')
 includes(safeSwap, 'Funds remain locked for a two-hour inspection window', 'Safe Swap must explain the provisional handoff')
+includes(safeSwap, 'The buyer can open a dispute before it expires', 'Safe Swap dispute copy must match the buyer-only dispute action')
+if (safeSwap.includes('Either party can open a dispute')) fail('Safe Swap must not promise an unsupported seller dispute action')
 includes(safeSwap, 'qrInspection', 'Safe Swap must distinguish QR inspection from seller-requested release')
 includes(safeSwap, 'QRCodeSVG', 'Seller handoff QR must be available inside Safe Swap')
 includes(safeSwap, 'tx.seller_id===user?.id', 'Only the transaction seller can display the handoff QR')

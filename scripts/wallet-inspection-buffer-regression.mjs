@@ -178,7 +178,7 @@ includes(safeSwap, 'tx.seller_id===user?.id', 'Only the transaction seller can d
 if (listingDetail.includes('QRCodeSVG')) fail('Seller QR must not be exposed outside the verified Safe Swap flow')
 includes(safeSwap, 'auto_release_at', 'Safe Swap must display the authoritative inspection expiry')
 includes(safeSwap, 'Campus Plug automatically processes the seller payout', 'Safe Swap must explain automatic settlement')
-includes(escrowState, "label: 'Handoff / inspection'", 'Escrow progress must show the inspection stage')
+includes(escrowState, "label: 'Protected release window'", 'Escrow progress must show the inspection stage')
 includes(listingDetail, 'tx.handshake_receipt_buffer', 'Transaction details must distinguish QR handoff inspection from seller-requested release')
 includes(listingDetail, 'process-dispute', 'Campus Wallet dispute action must create a jury case during inspection')
 includes(listingDetail, 'Continue to Safe Swap handoff', 'Every buyer must use server-verified Safe Swap arrival before QR handoff')

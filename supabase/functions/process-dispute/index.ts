@@ -115,7 +115,7 @@ async function rewardJuror(jurorId: string, correct: boolean, caseId: string) {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return optionsResponse(req);
-  if (req.method === "GET" && new URL(req.url).pathname.endsWith("/ping")) return ok(req, { status: "warm", ts: Date.now(), fn: "process-dispute-v6.7" });
+  if (req.method === "GET" && new URL(req.url).pathname.endsWith("/ping")) return ok(req, { status: "warm", ts: Date.now(), fn: "process-dispute-v6.8" });
   if (req.method !== "POST") return bad(req, "Method not allowed", 405);
   let body: Body; try { body = await req.json(); } catch { return bad(req, "Invalid JSON"); }
   const action = typeof body.action === "string" ? body.action : "";

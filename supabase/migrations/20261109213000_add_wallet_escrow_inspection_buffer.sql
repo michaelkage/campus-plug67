@@ -1,5 +1,5 @@
--- Buyer-confirmed handoff is provisional. Campus Wallet remains held for a
--- two-hour inspection window; only the database worker can settle it.
+-- Buyer-confirmed QR handoff is provisional for every payment method. Escrow
+-- remains held for two hours; database workers alone can settle the handoff.
 ALTER TABLE public.jury_cases
   ADD COLUMN IF NOT EXISTS dispute_campus text;
 
@@ -317,7 +317,7 @@ GRANT EXECUTE ON FUNCTION public.resolve_wallet_micro_escrow(uuid, text, text) T
 -- The legacy AFTER trigger creates a 48-hour scheduled job and copy. Rewrite
 -- those presentation records for Campus Wallet only; the database cron below
 -- is the authoritative two-hour settlement mechanism.
-CREATE OR REPLACE FUNCTION public.sync_wallet_inspection_schedule()
+CREATE OR REPLACE FUNCTION public.sync_escrow_inspection_schedule()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -349,7 +349,7 @@ BEGIN
 END;
 $function$;
 
-DROP TRIGGER IF EXISTS wallet_inspection_schedule ON public.transactions;
+DROP TRIGGER IF EXISTS escrow_inspection_schedule ON public.transactions;
 CREATE TRIGGER wallet_inspection_schedule
 AFTER UPDATE OF status ON public.transactions
 FOR EACH ROW

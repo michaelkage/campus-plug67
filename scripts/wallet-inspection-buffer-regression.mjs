@@ -62,8 +62,8 @@ for (const value of [
 if (genericRelease.includes('INSERT INTO public.plug_credit_ledger')) {
   fail('Paystack QR confirmation must not credit the seller before inspection ends')
 }
-const genericAutoReleaseStart = migration.indexOf("WHEN 'auto_release' THEN", genericDisputeStart)
-const genericDispute = migration.slice(genericDisputeStart, genericAutoReleaseStart)
+const genericRefundStart = migration.indexOf("WHEN 'refund' THEN", genericDisputeStart)
+const genericDispute = migration.slice(genericDisputeStart, genericRefundStart)
 includes(genericDispute, 'Use process-dispute to open a jury case and freeze escrow atomically', 'Legacy dispute action must not bypass atomic jury-case creation')
 if (genericDispute.includes('UPDATE public.transactions')) fail('Legacy dispute action must not freeze escrow without creating a jury case')
 includes(migration, 'NEW.handshake_receipt_buffer IS NOT NULL', 'Inspection notifications and scheduled jobs must apply to QR handoffs for every payment method')

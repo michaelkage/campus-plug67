@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS supabase_vault WITH SCHEMA vault;
+
 -- Offline escrow vouchers are provisional handoff evidence, never settlement.
 -- The server signs short-lived vouchers with an Ed25519 key held in Supabase Vault.
 -- A seller passkey signs the offline receipt; either participant may later sync it.

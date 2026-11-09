@@ -309,6 +309,7 @@ DECLARE
   v_tx public.transactions%ROWTYPE;
   v_hold public.wallet_escrow_holds%ROWTYPE;
   v_inspection_expires_at timestamptz;
+  v_current_status text;
 BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
     RAISE EXCEPTION 'Service role required';
@@ -344,12 +345,13 @@ BEGIN
 
   IF FOUND THEN
     IF v_existing.receipt_hash = p_receipt_hash THEN
-      SELECT auto_release_at INTO v_inspection_expires_at
+      SELECT status, auto_release_at
+        INTO v_current_status, v_inspection_expires_at
         FROM public.transactions WHERE id = p_transaction_id;
       RETURN jsonb_build_object(
         'success', true,
         'already_reconciled', true,
-        'status', 'inspection_pending',
+        'status', v_current_status,
         'transaction_id', p_transaction_id,
         'inspection_expires_at', v_inspection_expires_at
       );
@@ -363,7 +365,7 @@ BEGIN
   IF now() > v_voucher.sync_grace_until THEN
     RAISE EXCEPTION 'Offline receipt sync window has expired';
   END IF;
-  IF p_scanned_at < v_voucher.issued_at OR p_scanned_at > v_voucher.expires_at THEN
+  IF p_scanned_at < v_voucher.issued_at - interval '5 minutes' OR p_scanned_at > v_voucher.expires_at + interval '5 minutes' THEN
     RAISE EXCEPTION 'Receipt timestamp is outside the voucher validity window';
   END IF;
   IF p_synced_by <> v_voucher.buyer_id AND p_synced_by <> v_voucher.seller_id THEN
@@ -388,7 +390,9 @@ BEGIN
      OR v_tx.buyer_id <> v_voucher.buyer_id
      OR v_tx.seller_id <> v_voucher.seller_id
      OR v_tx.amount <> v_voucher.amount_kobo
-     OR COALESCE(v_tx.payment_method, 'paystack') <> v_voucher.payment_method THEN
+     OR COALESCE(v_tx.payment_method, 'paystack') <> v_voucher.payment_method
+     OR v_tx.buyer_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id
+     OR v_tx.seller_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id THEN
     RAISE EXCEPTION 'Transaction changed after the offline voucher was issued';
   END IF;
 

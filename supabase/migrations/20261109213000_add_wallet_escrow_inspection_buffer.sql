@@ -5,6 +5,11 @@ CREATE INDEX IF NOT EXISTS transactions_wallet_inspection_due_idx
   WHERE status = 'release_requested'
     AND payment_method = 'campus_wallet';
 
+CREATE INDEX IF NOT EXISTS transactions_qr_inspection_due_idx
+  ON public.transactions (auto_release_at, id)
+  WHERE status = 'release_requested'
+    AND handshake_receipt_buffer IS NOT NULL;
+
 CREATE OR REPLACE FUNCTION public.resolve_wallet_micro_escrow(
   p_transaction_id uuid,
   p_action text,

@@ -25,7 +25,7 @@ const walletResolverStart = migration.indexOf('CREATE OR REPLACE FUNCTION public
 const walletResolverEnd = migration.indexOf('CREATE OR REPLACE FUNCTION public.sync_escrow_inspection_schedule', walletResolverStart)
 if (walletResolverStart < 0 || walletResolverEnd < 0) fail('Wallet resolver must be defined before the inspection schedule trigger')
 const walletResolver = migration.slice(walletResolverStart, walletResolverEnd)
-includes(walletResolver, "v_tx.status = 'release_requested' AND v_tx.handshake_receipt_buffer IS NOT NULL", 'Wallet QR retries must only be idempotent for an actual QR handoff, never a seller-requested release')
+includes(walletResolver, "v_tx.status = 'release_requested'\\n       AND v_tx.handshake_receipt_buffer IS NOT NULL", 'Wallet QR retries must only be idempotent for an actual QR handoff, never a seller-requested release')
 
 for (const value of [
   "v_tx.status <> 'meetup_initiated'",

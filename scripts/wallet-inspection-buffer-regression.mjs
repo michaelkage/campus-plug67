@@ -72,6 +72,8 @@ for (const value of [
   'FROM public.transactions',
   'FOR UPDATE',
   "v_tx.auto_release_at <= now()",
+  "v_case.status IN ('open', 'deliberating', 'appealed', 'escalated')",
+  "SET status = 'disputed'",
   "SET status = 'disputed'",
   "REVOKE ALL ON FUNCTION public.open_escrow_dispute_case",
   "GRANT EXECUTE ON FUNCTION public.open_escrow_dispute_case",

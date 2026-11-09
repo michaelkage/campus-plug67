@@ -13,6 +13,7 @@ const hook = read('src/hooks/useEscrow.js')
 const meetup = read('src/components/meetup/MobileMeetupMode.tsx')
 const safeSwap = read('src/pages/SafeSwapZone.tsx')
 const listingDetail = read('src/pages/ListingDetail.jsx')
+const disputeFunction = read('supabase/functions/process-dispute/index.ts')
 const escrowState = read('src/lib/escrowState.js')
 const packageJson = JSON.parse(read('package.json'))
 
@@ -62,6 +63,28 @@ if (genericRelease.includes('INSERT INTO public.plug_credit_ledger')) {
   fail('Paystack QR confirmation must not credit the seller before inspection ends')
 }
 includes(migration, 'NEW.handshake_receipt_buffer IS NOT NULL', 'Inspection notifications and scheduled jobs must apply to QR handoffs for every payment method')
+
+for (const value of [
+  'ALTER TABLE public.jury_cases',
+  'ADD COLUMN IF NOT EXISTS dispute_campus text',
+  "'escalated'::text",
+  'CREATE OR REPLACE FUNCTION public.open_escrow_dispute_case',
+  'FROM public.transactions',
+  'FOR UPDATE',
+  "v_tx.auto_release_at <= now()",
+  "SET status = 'disputed'",
+  "REVOKE ALL ON FUNCTION public.open_escrow_dispute_case",
+  "GRANT EXECUTE ON FUNCTION public.open_escrow_dispute_case",
+]) includes(migration, value, \`Atomic dispute workflow missing invariant: \${value}\`)
+
+const openCaseStart = disputeFunction.indexOf('if (action === "open_case")')
+const openReviewStart = disputeFunction.indexOf('if (action === "open_for_review")', openCaseStart)
+if (openCaseStart < 0 || openReviewStart < 0) fail('Dispute open-case handler must exist')
+const openCaseHandler = disputeFunction.slice(openCaseStart, openReviewStart)
+includes(openCaseHandler, 'admin.rpc("open_escrow_dispute_case"', 'Dispute handler must atomically lock the transaction and open the case')
+if (openCaseHandler.includes('.from("jury_cases").insert(') || openCaseHandler.includes('.from("transactions").update(')) {
+  fail('Dispute creation and transaction freeze must be one atomic database operation')
+}
 
 for (const value of [
   'CREATE OR REPLACE FUNCTION public.settle_due_wallet_inspections',

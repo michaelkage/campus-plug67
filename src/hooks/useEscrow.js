@@ -199,7 +199,7 @@ export function useEscrow({
       return Promise.resolve({ success: false })
     }
     return edgeCall('request_release')
-  }, [edgeCall, isSeller])
+  }, [edgeCall, isSeller, tx, transactionId])
 
   /**
    * BUYER: File a formal dispute within the 48h window.
@@ -216,6 +216,36 @@ export function useEscrow({
       toast.error('Only the buyer can file a dispute')
       return Promise.resolve({ success: false })
     }
+    if (tx?.payment_method === 'campus_wallet') {
+      setLoading('dispute')
+      setError(null)
+      return supabase.functions.invoke('process-dispute', {
+        body: { action: 'open_case', transaction_id: transactionId, reason: reason.trim() },
+      }).then(({ data, error: invokeError }) => {
+        setLoading(null)
+        if (invokeError) {
+          setError(invokeError.message)
+          toast.error(invokeError.message)
+          return { success: false, error: invokeError.message }
+        }
+        if (!data?.success) {
+          const message = data?.error || 'Could not open the Campus Wallet dispute'
+          setError(message)
+          toast.error(message)
+          return { success: false, error: message }
+        }
+        toast.success('Dispute filed. Campus Wallet funds remain held while the case is reviewed.')
+        void supabase.from('transactions').select('*').eq('id', transactionId).single()
+          .then(({ data: fresh }) => fresh && setTx(fresh))
+        return { success: true, data }
+      }).catch(invokeError => {
+        setLoading(null)
+        const message = invokeError instanceof Error ? invokeError.message : 'Could not open the Campus Wallet dispute'
+        setError(message)
+        toast.error(message)
+        return { success: false, error: message }
+      })
+    }
     return edgeCall('dispute', { reason: reason.trim() })
   }, [edgeCall, isSeller])
 
@@ -229,7 +259,7 @@ export function useEscrow({
   const canInitiateMeetup  = isSeller  && status === 'locked'
   const canShowQR          = isSeller  && status === 'meetup_initiated'
   const canRelease         = !isSeller && status === 'meetup_initiated'
-  const canRequestRelease  = isSeller  && status === 'meetup_initiated'
+  const canRequestRelease  = isSeller  && status === 'meetup_initiated' && tx?.payment_method !== 'campus_wallet'
   const canDispute         = !isSeller && status === 'release_requested'
   const isTerminal         = status === 'released' || status === 'cancelled'
   const isDisputed         = status === 'disputed'

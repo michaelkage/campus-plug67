@@ -228,10 +228,6 @@ BEGIN
       END IF;
       RAISE EXCEPTION 'Wallet escrow is not ready for buyer confirmation';
     END IF;
-    IF v_tx.meetup_initiated_at IS NULL
-       OR v_tx.meetup_initiated_at > now() - interval '24 hours' THEN
-      RAISE EXCEPTION '24-hour release gate has not elapsed';
-    END IF;
     IF v_tx.buyer_arrived IS DISTINCT FROM true
        OR v_tx.buyer_safe_zone_id IS NULL
        OR v_tx.mobile_release_ready_at IS NULL
@@ -421,9 +417,6 @@ BEGIN
         );
       END IF;
       IF tx.status <> 'meetup_initiated' THEN RAISE EXCEPTION 'Escrow is not ready for buyer handoff confirmation'; END IF;
-      IF tx.meetup_initiated_at IS NULL OR tx.meetup_initiated_at > now() - interval '24 hours' THEN
-        RAISE EXCEPTION '24-hour release gate has not elapsed';
-      END IF;
       IF tx.buyer_arrived IS DISTINCT FROM true
          OR tx.buyer_safe_zone_id IS NULL
          OR tx.mobile_release_ready_at IS NULL

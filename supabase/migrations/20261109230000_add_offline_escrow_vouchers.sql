@@ -54,8 +54,15 @@ CREATE TABLE IF NOT EXISTS public.escrow_offline_receipts (
   receipt_hash text NOT NULL UNIQUE CHECK (receipt_hash ~ '^[0-9a-f]{64}$'),
   seller_credential_id text NOT NULL,
   synced_by uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  sync_status text NOT NULL DEFAULT 'seller_synced'
+    CHECK (sync_status IN ('seller_synced', 'buyer_confirmed')),
+  buyer_confirmed_at timestamptz,
   scanned_at timestamptz NOT NULL,
   receipt_payload jsonb NOT NULL,
+  CHECK (
+    (sync_status = 'seller_synced' AND buyer_confirmed_at IS NULL)
+    OR (sync_status = 'buyer_confirmed' AND buyer_confirmed_at IS NOT NULL)
+  ),
   reconciled_at timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK (pg_column_size(receipt_payload) <= 16384)
@@ -336,6 +343,7 @@ DECLARE
   v_hold public.wallet_escrow_holds%ROWTYPE;
   v_inspection_expires_at timestamptz;
   v_current_status text;
+  v_sync_status text;
 BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
     RAISE EXCEPTION 'Service role required';
@@ -349,18 +357,11 @@ BEGIN
     RAISE EXCEPTION 'Invalid offline receipt';
   END IF;
 
-  -- Keep the global lock order consistent with voucher issuance and the
-  -- transaction state-change trigger: transaction first, then voucher.
-  SELECT * INTO v_tx
-    FROM public.transactions
-   WHERE id = p_transaction_id
-   FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Transaction not found'; END IF;
-
+  -- Read the voucher to discover its transaction, then lock in transaction -> voucher
+  -- order. This matches the transaction-state trigger and avoids lock-order deadlocks.
   SELECT * INTO v_voucher
     FROM public.escrow_offline_vouchers
-   WHERE id = p_voucher_id
-   FOR UPDATE;
+   WHERE id = p_voucher_id;
   IF NOT FOUND THEN RAISE EXCEPTION 'Offline voucher not found'; END IF;
 
   IF v_voucher.transaction_id <> p_transaction_id
@@ -371,26 +372,149 @@ BEGIN
     RAISE EXCEPTION 'Offline receipt does not match its voucher';
   END IF;
 
+  SELECT * INTO v_tx
+    FROM public.transactions
+   WHERE id = v_voucher.transaction_id
+   FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Transaction not found'; END IF;
+
+  SELECT * INTO v_voucher
+    FROM public.escrow_offline_vouchers
+   WHERE id = p_voucher_id
+   FOR UPDATE;
+  IF NOT FOUND
+     OR v_voucher.transaction_id <> p_transaction_id
+     OR v_voucher.buyer_id <> p_buyer_id
+     OR v_voucher.seller_id <> p_seller_id
+     OR v_voucher.nonce <> p_nonce
+     OR v_voucher.voucher_hash <> p_voucher_hash THEN
+    RAISE EXCEPTION 'Offline voucher changed during reconciliation';
+  END IF;
+
+  IF p_synced_by <> v_voucher.buyer_id AND p_synced_by <> v_voucher.seller_id THEN
+    RAISE EXCEPTION 'Only a transaction participant can sync this receipt';
+  END IF;
+
   SELECT * INTO v_existing
     FROM public.escrow_offline_receipts
    WHERE voucher_id = p_voucher_id
    FOR UPDATE;
 
   IF FOUND THEN
-    IF v_existing.receipt_hash = p_receipt_hash THEN
-      SELECT status, auto_release_at
-        INTO v_current_status, v_inspection_expires_at
-        FROM public.transactions WHERE id = p_transaction_id;
-      RETURN jsonb_build_object(
-        'success', true,
-        'already_reconciled', true,
-        'status', v_current_status,
-        'inspection_state', CASE WHEN v_current_status = 'release_requested' THEN 'inspection_pending' ELSE v_current_status END,
-        'transaction_id', p_transaction_id,
-        'inspection_expires_at', v_inspection_expires_at
-      );
+    IF v_existing.receipt_hash <> p_receipt_hash THEN
+      RAISE EXCEPTION 'A different receipt has already been accepted for this voucher';
     END IF;
-    RAISE EXCEPTION 'A different receipt has already been accepted for this voucher';
+
+    -- A seller sync stores the cryptographically verified handoff but does not
+    -- start the buyer's inspection clock. The buyer's own sync starts the buffer.
+    IF p_synced_by = v_voucher.buyer_id
+       AND v_existing.sync_status = 'seller_synced' THEN
+      IF v_tx.status = 'meetup_initiated' THEN
+        IF v_tx.handshake_receipt_buffer IS NOT NULL
+           OR v_tx.buyer_id <> v_voucher.buyer_id
+           OR v_tx.seller_id <> v_voucher.seller_id
+           OR v_tx.amount <> v_voucher.amount_kobo
+           OR COALESCE(v_tx.payment_method, 'paystack') <> v_voucher.payment_method
+           OR v_tx.buyer_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id
+           OR v_tx.seller_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id
+           OR v_tx.buyer_arrived IS DISTINCT FROM true
+           OR v_tx.seller_arrived IS DISTINCT FROM true THEN
+          RAISE EXCEPTION 'Transaction no longer satisfies offline handoff requirements';
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM public.listings
+           WHERE id = v_tx.listing_id AND status = 'reserved'
+        ) THEN
+          RAISE EXCEPTION 'Escrow listing is no longer reserved';
+        END IF;
+
+        IF v_voucher.payment_method = 'campus_wallet' THEN
+          SELECT * INTO v_hold
+            FROM public.wallet_escrow_holds
+           WHERE transaction_id = v_tx.id
+           FOR UPDATE;
+          IF NOT FOUND
+             OR v_hold.status <> 'held'
+             OR v_hold.buyer_id <> v_tx.buyer_id
+             OR v_hold.seller_id <> v_tx.seller_id
+             OR v_hold.amount_kobo <> v_tx.amount THEN
+            RAISE EXCEPTION 'Campus Wallet escrow hold could not be verified';
+          END IF;
+        END IF;
+
+        UPDATE public.escrow_offline_receipts
+           SET sync_status = 'buyer_confirmed',
+               buyer_confirmed_at = now()
+         WHERE id = v_existing.id;
+        IF NOT FOUND THEN RAISE EXCEPTION 'Offline receipt confirmation failed'; END IF;
+
+        v_inspection_expires_at := now() + interval '2 hours';
+        PERFORM set_config('app.escrow_transition', 'true', true);
+        UPDATE public.transactions
+           SET status = 'release_requested',
+               release_requested_at = now(),
+               auto_release_at = v_inspection_expires_at,
+               handshake_receipt_buffer = now(),
+               payout_status = CASE WHEN v_voucher.payment_method = 'campus_wallet' THEN 'not_applicable' ELSE payout_status END
+         WHERE id = v_tx.id
+           AND status = 'meetup_initiated'
+           AND handshake_receipt_buffer IS NULL;
+        IF NOT FOUND THEN RAISE EXCEPTION 'Transaction state changed during buyer confirmation'; END IF;
+
+        INSERT INTO public.audit_logs(user_id, entity_type, entity_id, action, metadata)
+        VALUES (
+          p_synced_by,
+          'transaction',
+          v_tx.id,
+          'offline_escrow_buyer_confirmed',
+          jsonb_build_object(
+            'voucher_id', p_voucher_id,
+            'receipt_hash', p_receipt_hash,
+            'inspection_expires_at', v_inspection_expires_at,
+            'payment_method', v_voucher.payment_method
+          )
+        );
+
+        RETURN jsonb_build_object(
+          'success', true,
+          'already_reconciled', false,
+          'status', 'release_requested',
+          'inspection_state', 'inspection_pending',
+          'awaiting_buyer_sync', false,
+          'transaction_id', v_tx.id,
+          'inspection_started_at', now(),
+          'inspection_expires_at', v_inspection_expires_at,
+          'funds_released', false
+        );
+      ELSE
+        UPDATE public.escrow_offline_receipts
+           SET sync_status = 'buyer_confirmed',
+               buyer_confirmed_at = now()
+         WHERE id = v_existing.id;
+        IF NOT FOUND THEN RAISE EXCEPTION 'Offline receipt confirmation failed'; END IF;
+      END IF;
+    END IF;
+
+    SELECT status, auto_release_at
+      INTO v_current_status, v_inspection_expires_at
+      FROM public.transactions
+     WHERE id = v_tx.id;
+
+    RETURN jsonb_build_object(
+      'success', true,
+      'already_reconciled', true,
+      'status', v_current_status,
+      'inspection_state', CASE
+        WHEN v_existing.sync_status = 'seller_synced' THEN 'awaiting_buyer_sync'
+        WHEN v_current_status = 'release_requested' THEN 'inspection_pending'
+        ELSE v_current_status
+      END,
+      'awaiting_buyer_sync', v_existing.sync_status = 'seller_synced',
+      'transaction_id', v_tx.id,
+      'inspection_expires_at', v_inspection_expires_at,
+      'funds_released', v_current_status = 'released'
+    );
   END IF;
 
   IF v_voucher.status <> 'issued' THEN
@@ -399,11 +523,9 @@ BEGIN
   IF now() > v_voucher.sync_grace_until THEN
     RAISE EXCEPTION 'Offline receipt sync window has expired';
   END IF;
-  IF p_scanned_at < v_voucher.issued_at - interval '5 minutes' OR p_scanned_at > v_voucher.expires_at + interval '5 minutes' THEN
+  IF p_scanned_at < v_voucher.issued_at - interval '5 minutes'
+     OR p_scanned_at > v_voucher.expires_at + interval '5 minutes' THEN
     RAISE EXCEPTION 'Receipt timestamp is outside the voucher validity window';
-  END IF;
-  IF p_synced_by <> v_voucher.buyer_id AND p_synced_by <> v_voucher.seller_id THEN
-    RAISE EXCEPTION 'Only a transaction participant can sync this receipt';
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM public.passkey_credentials
@@ -413,9 +535,7 @@ BEGIN
     RAISE EXCEPTION 'Seller passkey credential is no longer registered';
   END IF;
 
-  IF NOT FOUND
-     OR v_tx.id <> v_voucher.transaction_id
-     OR v_tx.status <> 'meetup_initiated'
+  IF v_tx.status <> 'meetup_initiated'
      OR v_tx.handshake_receipt_buffer IS NOT NULL
      OR v_tx.buyer_id <> v_voucher.buyer_id
      OR v_tx.seller_id <> v_voucher.seller_id
@@ -447,18 +567,22 @@ BEGIN
        OR v_hold.amount_kobo <> v_tx.amount THEN
       RAISE EXCEPTION 'Campus Wallet escrow hold could not be verified';
     END IF;
-  ELSIF v_voucher.payment_method = 'paystack'
-        AND v_tx.payment_verified IS DISTINCT FROM true THEN
-    RAISE EXCEPTION 'Paystack payment is no longer verified';
   END IF;
+
+  v_sync_status := CASE
+    WHEN p_synced_by = v_voucher.buyer_id THEN 'buyer_confirmed'
+    ELSE 'seller_synced'
+  END;
 
   INSERT INTO public.escrow_offline_receipts(
     voucher_id, transaction_id, buyer_id, seller_id, receipt_nonce, receipt_hash,
-    seller_credential_id, synced_by, scanned_at, receipt_payload
+    seller_credential_id, synced_by, sync_status, buyer_confirmed_at, scanned_at, receipt_payload
   )
   VALUES (
     p_voucher_id, v_tx.id, v_tx.buyer_id, v_tx.seller_id, p_receipt_nonce, p_receipt_hash,
-    p_seller_credential_id, p_synced_by, p_scanned_at, p_receipt_payload
+    p_seller_credential_id, p_synced_by, v_sync_status,
+    CASE WHEN p_synced_by = v_voucher.buyer_id THEN now() ELSE NULL END,
+    p_scanned_at, p_receipt_payload
   );
 
   UPDATE public.escrow_offline_vouchers
@@ -466,30 +590,59 @@ BEGIN
    WHERE id = p_voucher_id AND status = 'issued';
   IF NOT FOUND THEN RAISE EXCEPTION 'Offline voucher was consumed concurrently'; END IF;
 
-  v_inspection_expires_at := now() + interval '2 hours';
-  PERFORM set_config('app.escrow_transition', 'true', true);
-  UPDATE public.transactions
-     SET status = 'release_requested',
-         release_requested_at = now(),
-         auto_release_at = v_inspection_expires_at,
-         handshake_receipt_buffer = now(),
-         payout_status = CASE WHEN v_voucher.payment_method = 'campus_wallet' THEN 'not_applicable' ELSE payout_status END
-   WHERE id = v_tx.id
-     AND status = 'meetup_initiated'
-     AND handshake_receipt_buffer IS NULL;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Transaction state changed during offline receipt reconciliation'; END IF;
+  IF p_synced_by = v_voucher.buyer_id THEN
+    v_inspection_expires_at := now() + interval '2 hours';
+    PERFORM set_config('app.escrow_transition', 'true', true);
+    UPDATE public.transactions
+       SET status = 'release_requested',
+           release_requested_at = now(),
+           auto_release_at = v_inspection_expires_at,
+           handshake_receipt_buffer = now(),
+           payout_status = CASE WHEN v_voucher.payment_method = 'campus_wallet' THEN 'not_applicable' ELSE payout_status END
+     WHERE id = v_tx.id
+       AND status = 'meetup_initiated'
+       AND handshake_receipt_buffer IS NULL;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Transaction state changed during offline receipt reconciliation'; END IF;
+
+    INSERT INTO public.audit_logs(user_id, entity_type, entity_id, action, metadata)
+    VALUES (
+      p_synced_by,
+      'transaction',
+      v_tx.id,
+      'offline_escrow_receipt_reconciled',
+      jsonb_build_object(
+        'voucher_id', p_voucher_id,
+        'receipt_hash', p_receipt_hash,
+        'seller_credential_id', p_seller_credential_id,
+        'inspection_expires_at', v_inspection_expires_at,
+        'payment_method', v_voucher.payment_method
+      )
+    );
+
+    RETURN jsonb_build_object(
+      'success', true,
+      'already_reconciled', false,
+      'status', 'release_requested',
+      'inspection_state', 'inspection_pending',
+      'awaiting_buyer_sync', false,
+      'transaction_id', v_tx.id,
+      'inspection_started_at', now(),
+      'inspection_expires_at', v_inspection_expires_at,
+      'funds_released', false
+    );
+  END IF;
 
   INSERT INTO public.audit_logs(user_id, entity_type, entity_id, action, metadata)
   VALUES (
     p_synced_by,
     'transaction',
     v_tx.id,
-    'offline_escrow_receipt_reconciled',
+    'offline_escrow_receipt_seller_synced',
     jsonb_build_object(
       'voucher_id', p_voucher_id,
       'receipt_hash', p_receipt_hash,
       'seller_credential_id', p_seller_credential_id,
-      'inspection_expires_at', v_inspection_expires_at,
+      'awaiting_buyer_sync', true,
       'payment_method', v_voucher.payment_method
     )
   );
@@ -497,11 +650,11 @@ BEGIN
   RETURN jsonb_build_object(
     'success', true,
     'already_reconciled', false,
-    'status', 'release_requested',
-    'inspection_state', 'inspection_pending',
+    'status', 'meetup_initiated',
+    'inspection_state', 'awaiting_buyer_sync',
+    'awaiting_buyer_sync', true,
     'transaction_id', v_tx.id,
-    'inspection_started_at', now(),
-    'inspection_expires_at', v_inspection_expires_at,
+    'inspection_expires_at', NULL,
     'funds_released', false
   );
 END;

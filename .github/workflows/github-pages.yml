@@ -24,6 +24,7 @@ jobs:
   build:
     name: Build site
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,7 +63,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ -n "$SUPABASE_URL" && -n "$SUPABASE_ANON_KEY" ]] || { echo "Supabase deployment gate credentials are missing."; exit 1; }
-          for attempt in $(seq 1 90); do
+          for attempt in $(seq 1 120); do
             response="$(curl --fail --silent --show-error --max-time 10 \
               -H "apikey: $SUPABASE_ANON_KEY" \
               -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
@@ -71,7 +72,7 @@ jobs:
               echo "The matching Supabase migration and Edge Function deployment is live."
               exit 0
             fi
-            echo "Waiting for Supabase deployment (attempt $attempt/90)..."
+            echo "Waiting for Supabase deployment (attempt $attempt/120)..."
             sleep 10
           done
           echo "Supabase deployment did not reach the expected version; refusing to publish the frontend."

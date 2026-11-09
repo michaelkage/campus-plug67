@@ -12,7 +12,7 @@ export const TX_STEPS = Object.freeze([
   { key: TX_STATUS.PENDING, label: 'Pay' },
   { key: TX_STATUS.LOCKED, label: 'Funds held' },
   { key: TX_STATUS.MEETUP_INITIATED, label: 'Pickup' },
-  { key: TX_STATUS.RELEASE_REQUESTED, label: 'Handoff' },
+  { key: TX_STATUS.RELEASE_REQUESTED, label: 'Inspection' },
   { key: TX_STATUS.RELEASED, label: 'Complete' },
 ])
 
@@ -20,7 +20,7 @@ export const TX_STATUS_META = Object.freeze({
   pending: { label: 'Payment being verified', icon: '⏳', color: 'amber', step: 0 },
   locked: { label: 'Funds protected in escrow', icon: '🔐', color: 'cyan', step: 1 },
   meetup_initiated: { label: 'Pickup arranged', icon: '📍', color: 'cyan', step: 2 },
-  release_requested: { label: 'Handoff awaiting release', icon: '⏰', color: 'amber', step: 3 },
+  release_requested: { label: 'Handoff confirmed · funds protected', icon: '🛡️', color: 'amber', step: 3 },
   released: { label: 'Funds released · exchange complete', icon: '✅', color: 'green', step: 4 },
   disputed: { label: 'Under Dispute Review', icon: '🚨', color: 'red', step: -1 },
   cancelled: { label: 'Transaction Cancelled', icon: '❌', color: 'red', step: -1 },

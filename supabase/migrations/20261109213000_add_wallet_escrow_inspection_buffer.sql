@@ -46,10 +46,12 @@ BEGIN
     RAISE EXCEPTION 'You are not a party to this transaction';
   END IF;
 
+  -- The transaction row lock above serializes concurrent dispute creation.
+  -- Do not lock jury_cases here: resolve_dispute_verdict locks case then transaction,
+  -- so locking the case in this function would invert the global lock order.
   SELECT * INTO v_case
     FROM public.jury_cases
-   WHERE transaction_id = p_transaction_id
-   FOR UPDATE;
+   WHERE transaction_id = p_transaction_id;
   IF FOUND THEN
     IF v_case.status IN ('open', 'deliberating', 'appealed', 'escalated') THEN
       IF v_tx.status <> 'disputed' THEN

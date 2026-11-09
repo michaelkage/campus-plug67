@@ -268,8 +268,30 @@ BEGIN
         );
       END IF;
       IF tx.status <> 'meetup_initiated' THEN RAISE EXCEPTION 'Escrow is not ready for buyer handoff confirmation'; END IF;
+      IF tx.meetup_initiated_at IS NULL OR tx.meetup_initiated_at > now() - interval '24 hours' THEN
+        RAISE EXCEPTION '24-hour release gate has not elapsed';
+      END IF;
+      IF tx.buyer_arrived IS DISTINCT FROM true
+         OR tx.buyer_safe_zone_id IS NULL
+         OR tx.mobile_release_ready_at IS NULL
+         OR tx.mobile_release_ready_at < now() - interval '10 minutes' THEN
+        RAISE EXCEPTION 'Fresh buyer Safe Swap Zone verification is required';
+      END IF;
+      IF tx.seller_arrived IS DISTINCT FROM true
+         OR tx.seller_safe_zone_id IS NULL
+         OR tx.seller_safe_zone_id IS DISTINCT FROM tx.buyer_safe_zone_id
+         OR tx.seller_location_captured_at IS NULL
+         OR tx.seller_location_captured_at < now() - interval '30 minutes' THEN
+        RAISE EXCEPTION 'Seller must verify arrival in the same Safe Swap Zone within 30 minutes';
+      END IF;
       IF p_qr_secret IS NULL OR p_qr_secret IS DISTINCT FROM COALESCE(tx.qr_secret, tx.release_code) THEN
         RAISE EXCEPTION 'Invalid release credential';
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM public.listings
+         WHERE id = tx.listing_id AND status = 'reserved'
+      ) THEN
+        RAISE EXCEPTION 'Escrow listing is not reserved';
       END IF;
 
       UPDATE public.transactions

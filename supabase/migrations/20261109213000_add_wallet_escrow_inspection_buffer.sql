@@ -486,6 +486,112 @@ $function$;
 REVOKE ALL ON FUNCTION public.settle_due_wallet_inspections(integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.settle_due_wallet_inspections(integer) TO service_role;
 
+CREATE OR REPLACE FUNCTION public.settle_due_paystack_inspections(p_limit integer DEFAULT 100)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_candidate record;
+  v_tx public.transactions%ROWTYPE;
+  v_processed integer := 0;
+  v_skipped integer := 0;
+  v_error text;
+  v_limit integer := LEAST(GREATEST(COALESCE(p_limit, 100), 1), 500);
+BEGIN
+  IF current_user <> 'postgres'
+     AND COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
+    RAISE EXCEPTION 'Service role required';
+  END IF;
+
+  FOR v_candidate IN
+    SELECT t.id
+      FROM public.transactions t
+     WHERE t.status = 'release_requested'
+       AND t.handshake_receipt_buffer IS NOT NULL
+       AND t.auto_release_at IS NOT NULL
+       AND t.auto_release_at <= now()
+       AND COALESCE(t.payment_method, 'paystack') <> 'campus_wallet'
+     ORDER BY t.auto_release_at, t.id
+     FOR UPDATE OF t SKIP LOCKED
+     LIMIT v_limit
+  LOOP
+    BEGIN
+      SELECT * INTO v_tx
+        FROM public.transactions
+       WHERE id = v_candidate.id
+       FOR UPDATE;
+
+      IF NOT FOUND
+         OR v_tx.status <> 'release_requested'
+         OR v_tx.handshake_receipt_buffer IS NULL
+         OR v_tx.auto_release_at IS NULL
+         OR v_tx.auto_release_at > now()
+         OR COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet'
+         OR v_tx.amount IS NULL
+         OR v_tx.amount <= 0
+         OR v_tx.buyer_id IS NULL
+         OR v_tx.seller_id IS NULL THEN
+        v_skipped := v_skipped + 1;
+        CONTINUE;
+      END IF;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM public.listings
+         WHERE id = v_tx.listing_id AND status = 'reserved'
+      ) THEN
+        RAISE EXCEPTION 'Reserved listing could not be verified';
+      END IF;
+
+      PERFORM 1 FROM public.profiles
+       WHERE id = v_tx.seller_id
+       FOR UPDATE;
+
+      PERFORM set_config('app.escrow_transition', 'true', true);
+      INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
+      VALUES (v_tx.seller_id, v_tx.amount, 'Escrow auto-release', v_tx.id)
+      ON CONFLICT DO NOTHING;
+
+      UPDATE public.transactions
+         SET status = 'released',
+             released_at = now(),
+             completed_at = now()
+       WHERE id = v_tx.id
+         AND status = 'release_requested'
+         AND handshake_receipt_buffer IS NOT NULL;
+
+      IF NOT FOUND THEN RAISE EXCEPTION 'Transaction state changed during settlement'; END IF;
+
+      INSERT INTO public.audit_logs(user_id, entity_type, entity_id, action, metadata)
+      VALUES (
+        v_tx.seller_id,
+        'transaction',
+        v_tx.id,
+        'escrow_auto_release_after_inspection',
+        jsonb_build_object(
+          'inspection_started_at', v_tx.handshake_receipt_buffer,
+          'inspection_expires_at', v_tx.auto_release_at,
+          'payment_method', COALESCE(v_tx.payment_method, 'paystack')
+        )
+      );
+
+      v_processed := v_processed + 1;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;
+      RAISE WARNING 'Paystack inspection settlement skipped for transaction %: %',
+        v_candidate.id, v_error;
+      v_skipped := v_skipped + 1;
+    END;
+  END LOOP;
+
+  RETURN jsonb_build_object('success', true, 'processed', v_processed, 'skipped', v_skipped);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.settle_due_paystack_inspections(integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.settle_due_paystack_inspections(integer) TO service_role;
+
 DO $schedule$
 DECLARE
   v_job_id bigint;
@@ -501,6 +607,18 @@ BEGIN
     'campus-wallet-inspection-settlement',
     '* * * * *',
     'SELECT public.settle_due_wallet_inspections(100);'
+  );
+  SELECT jobid INTO v_job_id
+    FROM cron.job
+   WHERE jobname = 'campus-paystack-inspection-settlement'
+   LIMIT 1;
+  IF v_job_id IS NOT NULL THEN
+    PERFORM cron.unschedule(v_job_id);
+  END IF;
+  PERFORM cron.schedule(
+    'campus-paystack-inspection-settlement',
+    '* * * * *',
+    'SELECT public.settle_due_paystack_inspections(100);'
   );
 END;
 $schedule$;

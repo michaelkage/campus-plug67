@@ -411,7 +411,9 @@ BEGIN
      OR v_tx.amount <> v_voucher.amount_kobo
      OR COALESCE(v_tx.payment_method, 'paystack') <> v_voucher.payment_method
      OR v_tx.buyer_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id
-     OR v_tx.seller_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id THEN
+     OR v_tx.seller_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id
+     OR v_tx.buyer_arrived IS DISTINCT FROM true
+     OR v_tx.seller_arrived IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'Transaction changed after the offline voucher was issued';
   END IF;
 

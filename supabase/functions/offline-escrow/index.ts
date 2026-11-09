@@ -381,7 +381,12 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
   }
 
   const signingKey = await getSigningKey(admin);
-  const claims = await verifyVoucherToken(voucherToken, signingKey);
+  let claims: VoucherClaims;
+  try {
+    claims = await verifyVoucherToken(voucherToken, signingKey);
+  } catch {
+    return jsonResponse({ error: "Invalid offline voucher signature or format" }, 400, {}, req);
+  }
   if (userId !== claims.buyer_id && userId !== claims.seller_id) {
     return jsonResponse({ error: "Only a transaction participant can sync this receipt" }, 403, {}, req);
   }
@@ -392,7 +397,11 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
   }
 
   const voucherHash = await sha256Hex(voucherToken);
-  validateReceiptCore(receipt.core, claims, voucherHash);
+  try {
+    validateReceiptCore(receipt.core, claims, voucherHash);
+  } catch {
+    return jsonResponse({ error: "Offline receipt does not match the signed voucher" }, 400, {}, req);
+  }
   const receiptHash = await sha256Hex(canonicalJson(receipt));
   const credentialId = receipt.assertion.id;
   if (typeof credentialId !== "string"
@@ -437,7 +446,7 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
   if (!credential) return jsonResponse({ error: "Seller passkey is no longer registered" }, 403, {}, req);
 
   const challenge = encodeBase64Url(await sha256(new TextEncoder().encode(canonicalJson(receipt.core))));
-  let verification;
+  let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>;
   try {
     verification = await verifyAuthenticationResponse({
       response: receipt.assertion,

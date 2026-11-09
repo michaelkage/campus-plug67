@@ -21,6 +21,11 @@ const releaseStart = migration.indexOf("ELSIF p_action = 'release' THEN")
 const refundStart = migration.indexOf("ELSIF p_action = 'refund' THEN", releaseStart)
 if (releaseStart < 0 || refundStart < 0) fail('Wallet release and refund branches must exist')
 const releaseBranch = migration.slice(releaseStart, refundStart)
+const walletResolverStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.resolve_wallet_micro_escrow')
+const walletResolverEnd = migration.indexOf('CREATE OR REPLACE FUNCTION public.sync_escrow_inspection_schedule', walletResolverStart)
+if (walletResolverStart < 0 || walletResolverEnd < 0) fail('Wallet resolver must be defined before the inspection schedule trigger')
+const walletResolver = migration.slice(walletResolverStart, walletResolverEnd)
+includes(walletResolver, "v_tx.status = 'release_requested' AND v_tx.handshake_receipt_buffer IS NOT NULL", 'Wallet QR retries must only be idempotent for an actual QR handoff, never a seller-requested release')
 
 for (const value of [
   "v_tx.status <> 'meetup_initiated'",
@@ -164,6 +169,11 @@ includes(escrowState, "label: 'Handoff / inspection'", 'Escrow progress must sho
 includes(listingDetail, 'tx.handshake_receipt_buffer', 'Transaction details must distinguish QR handoff inspection from seller-requested release')
 includes(listingDetail, 'process-dispute', 'Campus Wallet dispute action must create a jury case during inspection')
 includes(listingDetail, 'Continue to Safe Swap handoff', 'Every buyer must use server-verified Safe Swap arrival before QR handoff')
+if (/QR release action unlocks 24 hours|QR release unlocks 24 hours|24-hour gate has opened|after the 24-hour gate/i.test(listingDetail)) {
+  fail('Listing detail must not show the obsolete 24-hour delay for buyer QR handoff')
+}
+includes(listingDetail, 'two hours after QR handoff', 'Buyer-facing purchase guide must state the two-hour QR inspection dispute window')
+includes(listingDetail, 'seller-requested release', 'Buyer-facing purchase guide must distinguish the seller-requested release window')
 
 if (!packageJson.scripts['test:platform-integrity'].includes('wallet-inspection-buffer-regression.mjs')) {
   fail('Wallet inspection regression must run in the platform-integrity suite')

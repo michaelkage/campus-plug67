@@ -29,7 +29,7 @@ const disputeRpcStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.ope
 const disputeRpcEnd = migration.indexOf('REVOKE ALL ON FUNCTION public.open_escrow_dispute_case', disputeRpcStart)
 if (disputeRpcStart < 0 || disputeRpcEnd < 0) fail('Atomic dispute RPC must be defined')
 const disputeRpc = migration.slice(disputeRpcStart, disputeRpcEnd)
-if (/FROM public\\.jury_cases\\s+WHERE transaction_id = p_transaction_id\\s+FOR UPDATE/i.test(disputeRpc)) {
+if (/FROM public\.jury_cases\s+WHERE transaction_id = p_transaction_id\s+FOR UPDATE/i.test(disputeRpc)) {
   fail('Dispute creation must not lock jury_cases before transactions; that reverses the verdict settlement lock order')
 }
 includes(disputeRpc, 'FROM public.transactions', 'Dispute creation must lock the transaction row to serialize concurrent case creation')

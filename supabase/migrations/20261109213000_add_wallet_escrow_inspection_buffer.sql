@@ -455,17 +455,7 @@ BEGIN
        WHERE id = tx.id;
 
     WHEN 'dispute' THEN
-      IF privileged OR actor <> tx.buyer_id THEN RAISE EXCEPTION 'Only the buyer can dispute'; END IF;
-      IF tx.status <> 'release_requested' THEN RAISE EXCEPTION 'Transaction is not in the dispute window'; END IF;
-      IF tx.auto_release_at IS NOT NULL AND tx.auto_release_at <= now() THEN
-        RAISE EXCEPTION 'Dispute window has expired';
-      END IF;
-      IF p_reason IS NULL OR length(trim(p_reason)) < 20 THEN
-        RAISE EXCEPTION 'Dispute reason must be at least 20 characters';
-      END IF;
-      UPDATE public.transactions
-         SET status = 'disputed', disputed_at = now(), dispute_reason = trim(p_reason)
-       WHERE id = tx.id;
+      RAISE EXCEPTION 'Use process-dispute to open a jury case and freeze escrow atomically';
 
     WHEN 'refund' THEN
       IF NOT privileged THEN RAISE EXCEPTION 'Refund is an administrative action'; END IF;

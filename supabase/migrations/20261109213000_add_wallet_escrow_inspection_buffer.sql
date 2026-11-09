@@ -150,7 +150,8 @@ GRANT EXECUTE ON FUNCTION public.open_escrow_dispute_case(uuid, uuid, text, text
 CREATE INDEX IF NOT EXISTS transactions_wallet_inspection_due_idx
   ON public.transactions (auto_release_at, id)
   WHERE status = 'release_requested'
-    AND payment_method = 'campus_wallet';
+    AND payment_method = 'campus_wallet'
+    AND handshake_receipt_buffer IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS transactions_qr_inspection_due_idx
   ON public.transactions (auto_release_at, id)
@@ -552,6 +553,7 @@ BEGIN
      WHERE h.status = 'held'
        AND t.payment_method = 'campus_wallet'
        AND t.status = 'release_requested'
+       AND t.handshake_receipt_buffer IS NOT NULL
        AND t.auto_release_at IS NOT NULL
        AND t.auto_release_at <= now()
      ORDER BY t.auto_release_at, t.id
@@ -571,6 +573,7 @@ BEGIN
       IF NOT FOUND
          OR v_hold.status <> 'held'
          OR v_tx.status <> 'release_requested'
+         OR v_tx.handshake_receipt_buffer IS NULL
          OR v_tx.payment_method <> 'campus_wallet'
          OR v_tx.auto_release_at IS NULL
          OR v_tx.auto_release_at > now()

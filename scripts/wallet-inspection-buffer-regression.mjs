@@ -112,6 +112,7 @@ for (const value of [
   "public.listings",
   "status = 'reserved'",
   "'Campus Wallet micro-escrow release'",
+  "'wallet_escrow_auto_release_after_inspection'",
   "SET status = 'released'",
   "payout_status = 'paid'",
   "REVOKE ALL ON FUNCTION public.settle_due_wallet_inspections(integer) FROM PUBLIC, anon, authenticated",

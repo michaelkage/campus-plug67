@@ -241,7 +241,28 @@ async function verifyVoucherToken(
   if (!valid) throw new Error("Offline voucher signature is invalid");
 
   const claims = JSON.parse(new TextDecoder().decode(payloadBytes)) as VoucherClaims;
-  if (claims.v !== 1 || claims.kid !== signingKey.keyId || !claims.jti || !claims.nonce) {
+  const issuedAt = parseIso(claims.issued_at);
+  const expiresAt = parseIso(claims.expires_at);
+  const syncGraceUntil = parseIso(claims.sync_grace_until);
+  if (claims.v !== 1
+    || claims.kid !== signingKey.keyId
+    || claims.rp_id !== RP_ID
+    || !isUuid(claims.jti)
+    || !isUuid(claims.transaction_id)
+    || !isUuid(claims.buyer_id)
+    || !isUuid(claims.seller_id)
+    || !isUuid(claims.safe_zone_id)
+    || !["campus_wallet", "paystack"].includes(claims.payment_method)
+    || !Array.isArray(claims.seller_credentials)
+    || claims.seller_credentials.length === 0
+    || !claims.nonce
+    || issuedAt === null
+    || expiresAt === null
+    || syncGraceUntil === null
+    || expiresAt <= issuedAt
+    || expiresAt > issuedAt + VOUCHER_TTL_MS
+    || syncGraceUntil < expiresAt
+    || syncGraceUntil > expiresAt + SYNC_GRACE_MS) {
     throw new Error("Unsupported offline voucher claims");
   }
   return claims;

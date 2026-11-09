@@ -508,11 +508,11 @@ BEGIN
       'already_reconciled', true,
       'status', v_current_status,
       'inspection_state', CASE
-        WHEN v_existing.sync_status = 'seller_synced' THEN 'awaiting_buyer_sync'
         WHEN v_current_status = 'release_requested' THEN 'inspection_pending'
+        WHEN v_existing.sync_status = 'seller_synced' THEN 'awaiting_buyer_sync'
         ELSE v_current_status
       END,
-      'awaiting_buyer_sync', v_existing.sync_status = 'seller_synced',
+      'awaiting_buyer_sync', v_existing.sync_status = 'seller_synced' AND v_current_status = 'meetup_initiated',
       'transaction_id', v_tx.id,
       'inspection_expires_at', v_inspection_expires_at,
       'funds_released', v_current_status = 'released'

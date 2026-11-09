@@ -448,6 +448,7 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
       success: true,
       already_reconciled: true,
       status: transaction?.status ?? "reconciled",
+      inspection_state: transaction?.status === "release_requested" ? "inspection_pending" : transaction?.status ?? "reconciled",
       transaction_id: claims.transaction_id,
       inspection_expires_at: transaction?.auto_release_at ?? null,
       funds_released: transaction?.status === "released",
@@ -543,7 +544,8 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
 
   return jsonResponse(result ?? {
     success: true,
-    status: "inspection_pending",
+    status: "release_requested",
+    inspection_state: "inspection_pending",
     transaction_id: claims.transaction_id,
     funds_released: false,
   }, 200, {}, req);

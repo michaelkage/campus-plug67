@@ -1,8 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
-import {
-  verifyAuthenticationResponse,
-  type AuthenticationResponseJSON,
-} from "https://esm.sh/@simplewebauthn/server@10.0.0";
+import { verifyAuthenticationResponse } from "https://esm.sh/@simplewebauthn/server@10.0.0";
 import { decodeBase64Url, encodeBase64Url } from "https://deno.land/std@0.168.0/encoding/base64url.ts";
 import {
   getAuthenticatedUser,
@@ -19,6 +16,8 @@ const RP_ID = Deno.env.get("RP_ID") ?? "campusplug.ng";
 const APP_ORIGIN = Deno.env.get("APP_ORIGIN") ?? "https://campusplug.ng";
 const VOUCHER_TTL_MS = 30 * 60 * 1000;
 const SYNC_GRACE_MS = 6 * 60 * 60 * 1000;
+
+type AuthenticationResponseJSON = Parameters<typeof verifyAuthenticationResponse>[0]["response"];
 
 type SellerCredential = {
   id: string;

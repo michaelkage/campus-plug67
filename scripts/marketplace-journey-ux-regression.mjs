@@ -21,8 +21,10 @@ assertIncludes(listing, 'PlugPay holds the money',
   'Marketplace guidance must explain that payment is held before pickup');
 assertIncludes(listing, 'Inspect the item first.',
   'Buyer guidance must require item inspection before QR confirmation');
-assertIncludes(listing, '24-hour gate',
-  'Marketplace guidance must disclose the server-enforced 24-hour Safe Swap gate');
+assertIncludes(listing, 'The separate seller-requested release option unlocks after 24 hours.',
+  'Marketplace guidance must retain the 24-hour eligibility gate for seller-requested release');
+assertIncludes(listing, 'No 24-hour wait is required for buyer QR confirmation.',
+  'Buyer QR handoff must not inherit the seller-requested release eligibility gate');
 assertIncludes(listing, '48 hours to dispute',
   'Marketplace guidance must disclose the dispute window');
 

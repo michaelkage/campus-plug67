@@ -15,6 +15,8 @@ function mustContain(source, value, message) {
 const migration = read('supabase/migrations/20261109230000_add_offline_escrow_vouchers.sql')
 const edge = read('supabase/functions/offline-escrow/index.ts')
 const config = read('supabase/config.toml')
+const deployWorkflow = read('.github/workflows/deploy-supabase.yml')
+const pagesWorkflow = read('.github/workflows/github-pages.yml')
 
 mustContain(migration, 'vault.create_secret', 'Offline signing private keys must be stored in Supabase Vault')
 mustContain(migration, 'vault.decrypted_secrets', 'Only the service-role key loader may retrieve the Vault secret')
@@ -39,6 +41,8 @@ mustContain(edge, 'seller_credentials', 'Voucher claims must bind the receipt to
 
 mustContain(config, '[functions.offline-escrow]', 'Offline escrow Edge Function must be configured')
 mustContain(config, 'verify_jwt = false', 'Offline escrow must use explicit manual JWT validation for public ping/key routes')
+mustContain(deployWorkflow, 'offline-escrow', 'Production deployment must health-check the offline escrow Edge Function')
+mustContain(pagesWorkflow, 'offline-escrow-v1', 'Frontend publication must wait for the matching offline escrow backend version')
 
 if (process.exitCode) process.exit(process.exitCode)
 console.log('Offline escrow voucher regression checks passed')

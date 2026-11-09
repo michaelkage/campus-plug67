@@ -267,7 +267,11 @@ BEGIN
        OR v_hold.amount_kobo <> p_amount_kobo THEN
       RAISE EXCEPTION 'Campus Wallet escrow hold could not be verified';
     END IF;
-  ELSIF v_payment_method <> 'paystack' THEN
+  ELSIF v_payment_method = 'paystack' THEN
+    IF v_tx.payment_verified IS DISTINCT FROM true THEN
+      RAISE EXCEPTION 'Paystack payment has not been verified';
+    END IF;
+  ELSE
     RAISE EXCEPTION 'Unsupported escrow payment method';
   END IF;
 
@@ -344,11 +348,18 @@ BEGIN
     RAISE EXCEPTION 'Invalid offline receipt';
   END IF;
 
+  -- Keep the global lock order consistent with voucher issuance and the
+  -- transaction state-change trigger: transaction first, then voucher.
+  SELECT * INTO v_tx
+    FROM public.transactions
+   WHERE id = p_transaction_id
+   FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Transaction not found'; END IF;
+
   SELECT * INTO v_voucher
     FROM public.escrow_offline_vouchers
    WHERE id = p_voucher_id
    FOR UPDATE;
-
   IF NOT FOUND THEN RAISE EXCEPTION 'Offline voucher not found'; END IF;
 
   IF v_voucher.transaction_id <> p_transaction_id
@@ -401,12 +412,8 @@ BEGIN
     RAISE EXCEPTION 'Seller passkey credential is no longer registered';
   END IF;
 
-  SELECT * INTO v_tx
-    FROM public.transactions
-   WHERE id = v_voucher.transaction_id
-   FOR UPDATE;
-
   IF NOT FOUND
+     OR v_tx.id <> v_voucher.transaction_id
      OR v_tx.status <> 'meetup_initiated'
      OR v_tx.handshake_receipt_buffer IS NOT NULL
      OR v_tx.buyer_id <> v_voucher.buyer_id
@@ -439,6 +446,9 @@ BEGIN
        OR v_hold.amount_kobo <> v_tx.amount THEN
       RAISE EXCEPTION 'Campus Wallet escrow hold could not be verified';
     END IF;
+  ELSIF v_voucher.payment_method = 'paystack'
+        AND v_tx.payment_verified IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Paystack payment is no longer verified';
   END IF;
 
   INSERT INTO public.escrow_offline_receipts(

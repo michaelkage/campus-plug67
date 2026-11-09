@@ -448,6 +448,7 @@ BEGIN
                buyer_confirmed_at = now()
          WHERE id = v_existing.id;
         IF NOT FOUND THEN RAISE EXCEPTION 'Offline receipt confirmation failed'; END IF;
+        v_existing.sync_status := 'buyer_confirmed';
 
         v_inspection_expires_at := now() + interval '2 hours';
         PERFORM set_config('app.escrow_transition', 'true', true);
@@ -493,6 +494,7 @@ BEGIN
                buyer_confirmed_at = now()
          WHERE id = v_existing.id;
         IF NOT FOUND THEN RAISE EXCEPTION 'Offline receipt confirmation failed'; END IF;
+        v_existing.sync_status := 'buyer_confirmed';
       END IF;
     END IF;
 

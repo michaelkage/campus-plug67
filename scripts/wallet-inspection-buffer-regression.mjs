@@ -12,6 +12,7 @@ const migration = read('supabase/migrations/20261109213000_add_wallet_escrow_ins
 const hook = read('src/hooks/useEscrow.js')
 const meetup = read('src/components/meetup/MobileMeetupMode.tsx')
 const safeSwap = read('src/pages/SafeSwapZone.tsx')
+const listingDetail = read('src/pages/ListingDetail.jsx')
 const escrowState = read('src/lib/escrowState.js')
 const packageJson = JSON.parse(read('package.json'))
 
@@ -38,6 +39,25 @@ if (releaseBranch.includes("SET status = 'released'")) {
   fail('Buyer QR confirmation must never finalize the transaction')
 }
 
+const genericStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.process_escrow_action')
+const genericReleaseStart = migration.indexOf("WHEN 'release' THEN", genericStart)
+const genericDisputeStart = migration.indexOf("WHEN 'dispute' THEN", genericReleaseStart)
+if (genericStart < 0 || genericReleaseStart < 0 || genericDisputeStart < 0) {
+  fail('Generic escrow release must enter the inspection state')
+}
+const genericRelease = migration.slice(genericReleaseStart, genericDisputeStart)
+for (const value of [
+  "tx.status = 'release_requested' AND tx.handshake_receipt_buffer IS NOT NULL",
+  "SET status = 'release_requested'",
+  "auto_release_at = now() + interval '2 hours'",
+  'handshake_receipt_buffer = now()',
+  "'inspection_pending'",
+]) includes(genericRelease, value, \`Paystack QR handoff must enter inspection: \${value}\`)
+if (genericRelease.includes('INSERT INTO public.plug_credit_ledger')) {
+  fail('Paystack QR confirmation must not credit the seller before inspection ends')
+}
+includes(migration, 'NEW.handshake_receipt_buffer IS NOT NULL', 'Inspection notifications and scheduled jobs must apply to QR handoffs for every payment method')
+
 for (const value of [
   'CREATE OR REPLACE FUNCTION public.settle_due_wallet_inspections',
   "t.status = 'release_requested'",
@@ -63,6 +83,7 @@ for (const value of [
   "transaction_id: transactionId",
   "tx?.payment_method === 'campus_wallet'",
   'funds remain held while the case is reviewed',
+  'updated.handshake_receipt_buffer',
   "tx?.payment_method !== 'campus_wallet'",
 ]) includes(hook, value, `Wallet inspection UI missing invariant: ${value}`)
 
@@ -70,9 +91,12 @@ includes(hook, "status === 'meetup_initiated'", 'Buyer QR release must only be a
 includes(hook, "status === 'release_requested'", 'Buyer dispute must remain available during the inspection state')
 includes(meetup, 'Funds remain protected for a 2-hour inspection window', 'QR UI must explain that handoff does not immediately pay the seller')
 includes(safeSwap, 'Funds remain locked for a two-hour inspection window', 'Safe Swap must explain the provisional handoff')
+includes(safeSwap, 'qrInspection', 'Safe Swap must distinguish QR inspection from seller-requested release')
 includes(safeSwap, 'auto_release_at', 'Safe Swap must display the authoritative inspection expiry')
 includes(safeSwap, 'Campus Wallet automatically releases the seller payout', 'Safe Swap must explain automatic settlement')
 includes(escrowState, "label: 'Handoff / inspection'", 'Escrow progress must show the inspection stage')
+includes(listingDetail, 'tx.handshake_receipt_buffer', 'Transaction details must distinguish QR handoff inspection from seller-requested release')
+includes(listingDetail, 'process-dispute', 'Campus Wallet dispute action must create a jury case during inspection')
 
 if (!packageJson.scripts['test:platform-integrity'].includes('wallet-inspection-buffer-regression.mjs')) {
   fail('Wallet inspection regression must run in the platform-integrity suite')

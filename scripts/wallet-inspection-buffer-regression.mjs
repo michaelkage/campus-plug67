@@ -5,7 +5,7 @@ const root = process.cwd()
 const read = file => fs.readFileSync(path.join(root, file), 'utf8')
 const fail = message => { throw new Error(message) }
 const includes = (source, value, message) => {
-  if (!source.includes(value)) fail(message || \`Missing invariant: \${value}\`)
+  if (!source.includes(value)) fail(message || `Missing invariant: ${value}`)
 }
 
 const migration = read('supabase/migrations/20261109213000_add_wallet_escrow_inspection_buffer.sql')
@@ -29,7 +29,7 @@ for (const value of [
   "interval '2 hours'",
   "handshake_receipt_buffer = now()",
   "'funds_released', false",
-]) includes(releaseBranch, value, \`QR handoff must enter a two-hour provisional inspection state: \${value}\`)
+]) includes(releaseBranch, value, `QR handoff must enter a two-hour provisional inspection state: ${value}`)
 
 if (releaseBranch.includes('INSERT INTO public.plug_credit_ledger')) {
   fail('Buyer QR confirmation must not credit the seller before the inspection window ends')
@@ -56,7 +56,7 @@ for (const value of [
   "cron.schedule(",
   "'campus-wallet-inspection-settlement'",
   "'* * * * *'",
-]) includes(migration, value, \`Server settlement missing invariant: \${value}\`)
+]) includes(migration, value, `Server settlement missing invariant: ${value}`)
 
 for (const value of [
   "action: 'open_case'",
@@ -64,7 +64,7 @@ for (const value of [
   "tx?.payment_method === 'campus_wallet'",
   'Funds remain held while the case is reviewed',
   "tx?.payment_method !== 'campus_wallet'",
-]) includes(hook, value, \`Wallet inspection UI missing invariant: \${value}\`)
+]) includes(hook, value, `Wallet inspection UI missing invariant: ${value}`)
 
 includes(hook, "status === 'meetup_initiated'", 'Buyer QR release must only be available before handoff confirmation')
 includes(hook, "status === 'release_requested'", 'Buyer dispute must remain available during the inspection state')

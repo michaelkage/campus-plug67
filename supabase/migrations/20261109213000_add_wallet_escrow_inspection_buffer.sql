@@ -201,6 +201,8 @@ AFTER UPDATE OF status ON public.transactions
 FOR EACH ROW
 EXECUTE FUNCTION public.sync_wallet_inspection_schedule();
 
+REVOKE ALL ON FUNCTION public.sync_wallet_inspection_schedule() FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public.settle_due_wallet_inspections(p_limit integer DEFAULT 100)
 RETURNS jsonb
 LANGUAGE plpgsql

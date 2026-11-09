@@ -17,6 +17,8 @@ const disputeFunction = read('supabase/functions/process-dispute/index.ts')
 const escrowState = read('src/lib/escrowState.js')
 const packageJson = JSON.parse(read('package.json'))
 const deploymentWorkflow = read('.github/workflows/deploy-supabase.yml')
+const pagesWorkflow = read('.github/workflows/github-pages.yml')
+const disputeFunction = read('supabase/functions/process-dispute/index.ts')
 
 const releaseStart = migration.indexOf("ELSIF p_action = 'release' THEN")
 const refundStart = migration.indexOf("ELSIF p_action = 'refund' THEN", releaseStart)
@@ -39,6 +41,12 @@ const deployFunctionsAt = deploymentWorkflow.indexOf('name: Deploy Edge Function
 if (applyMigrationsAt < 0 || deployFunctionsAt < 0 || applyMigrationsAt > deployFunctionsAt) {
   fail('Production deployment must apply database migrations before deploying Edge Functions that call new RPCs')
 }
+const pagesGateAt = pagesWorkflow.indexOf('name: Wait for matching Supabase deployment')
+const pagesUploadAt = pagesWorkflow.indexOf('name: Upload Pages artifact')
+if (pagesGateAt < 0 || pagesUploadAt < 0 || pagesGateAt > pagesUploadAt || !pagesWorkflow.includes('process-dispute-v6.8')) {
+  fail('Frontend deployment must wait for the matching backend deployment when Supabase sources change')
+}
+includes(disputeFunction, 'process-dispute-v6.8', 'Process-dispute health check must expose the deployment marker used by the Pages gate')
 includes(walletResolver, "v_tx.status = 'release_requested'\n       AND v_tx.handshake_receipt_buffer IS NOT NULL", 'Wallet QR retries must only be idempotent for an actual QR handoff, never a seller-requested release')
 
 for (const value of [

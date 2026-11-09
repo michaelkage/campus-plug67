@@ -18,20 +18,32 @@ export default defineConfig(({ mode }) => ({
       skipWaiting: true,
       clientsClaim: true,
       runtimeCaching: [
-        // Never cache/replay payment or database mutations. This rule must
-        // precede the broad API rule so POST requests cannot be captured by
-        // NetworkFirst (which can cache opaque status-0 responses).
+        // Supabase responses can contain private profiles, wallets, chats,
+        // transactions, and signed storage URLs. Cache keys do not vary by
+        // Authorization header, so caching these responses can expose one
+        // account's data to another account on a shared device.
+        // Keep every Supabase API and Storage request network-only. Offline
+        // escrow vouchers and receipts belong in the dedicated IndexedDB
+        // outbox, never in the HTTP cache.
         {
-          urlPattern: ({ url, request }) => (url.hostname.includes('supabase.co') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/rest/v1/')) && ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].includes(request.method),
+          urlPattern: ({ url }) =>
+            url.hostname.endsWith('.supabase.co') ||
+            url.pathname.startsWith('/functions/v1/') ||
+            url.pathname.startsWith('/rest/v1/') ||
+            url.pathname.startsWith('/auth/v1/') ||
+            url.pathname.startsWith('/storage/v1/'),
+          handler: 'NetworkOnly',
+        },
+        // Never cache/replay mutations to any other origin either.
+        {
+          urlPattern: ({ request }) => !['GET', 'HEAD'].includes(request.method),
           handler: 'NetworkOnly',
         },
         {
-          urlPattern: ({ url }) => url.hostname.includes('supabase.co') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/rest/v1/') || url.pathname.startsWith('/auth/v1/'),
-          handler: 'NetworkFirst',
-          options: { cacheName: 'api-network-first-v2', networkTimeoutSeconds: 5, expiration: { maxEntries: 64, maxAgeSeconds: 300 }, cacheableResponse: { statuses: [200] } },
-        },
-        {
-          urlPattern: ({ request }) => request.destination === 'image',
+          // Only cache images from non-Supabase origins. Supabase Storage
+          // objects may be private or signed and must never enter Cache Storage.
+          urlPattern: ({ request, url }) =>
+            request.destination === 'image' && !url.hostname.endsWith('.supabase.co') && !url.pathname.startsWith('/storage/v1/'),
           handler: 'StaleWhileRevalidate',
           options: { cacheName: 'image-swr', expiration: { maxEntries: 120, maxAgeSeconds: 604800 }, cacheableResponse: { statuses: [0, 200] } },
         },

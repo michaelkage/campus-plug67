@@ -67,7 +67,7 @@ includes(migration, 'NEW.handshake_receipt_buffer IS NOT NULL', 'Inspection noti
 for (const value of [
   'ALTER TABLE public.jury_cases',
   'ADD COLUMN IF NOT EXISTS dispute_campus text',
-  "'escalated'::text",
+  "'escalated'",
   'CREATE OR REPLACE FUNCTION public.open_escrow_dispute_case',
   'FROM public.transactions',
   'FOR UPDATE',

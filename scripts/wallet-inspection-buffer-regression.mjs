@@ -25,6 +25,14 @@ const walletResolverStart = migration.indexOf('CREATE OR REPLACE FUNCTION public
 const walletResolverEnd = migration.indexOf('CREATE OR REPLACE FUNCTION public.sync_escrow_inspection_schedule', walletResolverStart)
 if (walletResolverStart < 0 || walletResolverEnd < 0) fail('Wallet resolver must be defined before the inspection schedule trigger')
 const walletResolver = migration.slice(walletResolverStart, walletResolverEnd)
+const disputeRpcStart = migration.indexOf('CREATE OR REPLACE FUNCTION public.open_escrow_dispute_case')
+const disputeRpcEnd = migration.indexOf('REVOKE ALL ON FUNCTION public.open_escrow_dispute_case', disputeRpcStart)
+if (disputeRpcStart < 0 || disputeRpcEnd < 0) fail('Atomic dispute RPC must be defined')
+const disputeRpc = migration.slice(disputeRpcStart, disputeRpcEnd)
+if (/FROM public\\.jury_cases\\s+WHERE transaction_id = p_transaction_id\\s+FOR UPDATE/i.test(disputeRpc)) {
+  fail('Dispute creation must not lock jury_cases before transactions; that reverses the verdict settlement lock order')
+}
+includes(disputeRpc, 'FROM public.transactions', 'Dispute creation must lock the transaction row to serialize concurrent case creation')
 includes(walletResolver, "v_tx.status = 'release_requested'\n       AND v_tx.handshake_receipt_buffer IS NOT NULL", 'Wallet QR retries must only be idempotent for an actual QR handoff, never a seller-requested release')
 
 for (const value of [

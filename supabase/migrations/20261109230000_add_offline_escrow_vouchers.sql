@@ -268,10 +268,20 @@ BEGIN
   END IF;
 
   UPDATE public.escrow_offline_vouchers
-     SET status = CASE WHEN expires_at <= now() THEN 'expired' ELSE 'revoked' END,
-         revoked_at = CASE WHEN expires_at <= now() THEN revoked_at ELSE now() END
+     SET status = 'expired'
    WHERE transaction_id = p_transaction_id
-     AND status = 'issued';
+     AND status = 'issued'
+     AND sync_grace_until <= now();
+
+  IF EXISTS (
+    SELECT 1
+      FROM public.escrow_offline_vouchers
+     WHERE transaction_id = p_transaction_id
+       AND status IN ('issued', 'redeemed')
+       AND sync_grace_until > now()
+  ) THEN
+    RAISE EXCEPTION 'An offline voucher is still active or awaiting receipt sync';
+  END IF;
 
   INSERT INTO public.escrow_offline_vouchers(
     id, transaction_id, buyer_id, seller_id, payment_method, amount_kobo,

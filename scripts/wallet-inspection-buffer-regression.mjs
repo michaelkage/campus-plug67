@@ -75,7 +75,7 @@ for (const value of [
   "SET status = 'disputed'",
   "REVOKE ALL ON FUNCTION public.open_escrow_dispute_case",
   "GRANT EXECUTE ON FUNCTION public.open_escrow_dispute_case",
-]) includes(migration, value, \`Atomic dispute workflow missing invariant: \${value}\`)
+]) includes(migration, value, `Atomic dispute workflow missing invariant: ${value}`)
 
 const openCaseStart = disputeFunction.indexOf('if (action === "open_case")')
 const openReviewStart = disputeFunction.indexOf('if (action === "open_for_review")', openCaseStart)

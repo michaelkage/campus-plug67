@@ -218,14 +218,15 @@ BEGIN
 
   ELSIF p_action = 'release' THEN
     IF v_user <> v_hold.buyer_id THEN RAISE EXCEPTION 'Only the buyer can confirm the Campus Wallet handoff'; END IF;
+    IF v_tx.status = 'release_requested'
+       AND v_tx.handshake_receipt_buffer IS NOT NULL THEN
+      RETURN jsonb_build_object(
+        'success', true, 'status', 'inspection_pending',
+        'transaction_id', v_tx.id, 'inspection_expires_at', v_tx.auto_release_at,
+        'already_confirmed', true
+      );
+    END IF;
     IF v_tx.status <> 'meetup_initiated' THEN
-      IF v_tx.status = 'release_requested' THEN
-        RETURN jsonb_build_object(
-          'success', true, 'status', 'inspection_pending',
-          'transaction_id', v_tx.id, 'inspection_expires_at', v_tx.auto_release_at,
-          'already_confirmed', true
-        );
-      END IF;
       RAISE EXCEPTION 'Wallet escrow is not ready for buyer confirmation';
     END IF;
     IF v_tx.buyer_arrived IS DISTINCT FROM true

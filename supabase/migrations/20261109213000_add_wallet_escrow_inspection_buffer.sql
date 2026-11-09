@@ -52,6 +52,19 @@ BEGIN
    FOR UPDATE;
   IF FOUND THEN
     IF v_case.status IN ('open', 'deliberating', 'appealed', 'escalated') THEN
+      IF v_tx.status <> 'disputed' THEN
+        IF v_tx.status NOT IN ('release_requested', 'meetup_initiated', 'locked') THEN
+          RAISE EXCEPTION 'The transaction was settled before the existing dispute could be restored';
+        END IF;
+        PERFORM set_config('app.escrow_transition', 'true', true);
+        UPDATE public.transactions
+           SET status = 'disputed',
+               disputed_at = COALESCE(disputed_at, now()),
+               dispute_reason = COALESCE(dispute_reason, v_case.dispute_reason)
+         WHERE id = v_tx.id
+           AND status = v_tx.status;
+        IF NOT FOUND THEN RAISE EXCEPTION 'Transaction state changed while restoring the dispute'; END IF;
+      END IF;
       RETURN jsonb_build_object(
         'success', true,
         'case_id', v_case.id,

@@ -77,6 +77,8 @@ const genericDispute = migration.slice(genericDisputeStart, genericRefundStart)
 includes(genericDispute, 'Use process-dispute to open a jury case and freeze escrow atomically', 'Legacy dispute action must not bypass atomic jury-case creation')
 if (genericDispute.includes('UPDATE public.transactions')) fail('Legacy dispute action must not freeze escrow without creating a jury case')
 includes(migration, 'NEW.handshake_receipt_buffer IS NOT NULL', 'Inspection notifications and scheduled jobs must apply to QR handoffs for every payment method')
+includes(migration, 'EXECUTE FUNCTION public.sync_escrow_inspection_schedule()', 'Inspection trigger must invoke the function created by this migration')
+if (migration.includes('EXECUTE FUNCTION public.sync_wallet_inspection_schedule()')) fail('Inspection trigger must not reference a nonexistent function')
 
 for (const value of [
   'ALTER TABLE public.jury_cases',

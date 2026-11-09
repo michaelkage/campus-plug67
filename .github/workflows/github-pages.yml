@@ -45,7 +45,8 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
-            echo "needs_backend=false" >> "$GITHUB_OUTPUT"
+            # Manual dispatches cannot diff a push; require the backend marker instead of bypassing the gate.
+            echo "needs_backend=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           changed="$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA")"

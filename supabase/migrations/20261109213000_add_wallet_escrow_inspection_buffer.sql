@@ -625,6 +625,20 @@ BEGIN
 
       IF NOT FOUND THEN RAISE EXCEPTION 'Transaction state changed during settlement'; END IF;
 
+      INSERT INTO public.audit_logs(user_id, entity_type, entity_id, action, metadata)
+      VALUES (
+        v_tx.buyer_id,
+        'transaction',
+        v_tx.id,
+        'wallet_escrow_auto_release_after_inspection',
+        jsonb_build_object(
+          'inspection_started_at', v_tx.handshake_receipt_buffer,
+          'inspection_expires_at', v_tx.auto_release_at,
+          'seller_id', v_tx.seller_id,
+          'amount_kobo', v_hold.amount_kobo
+        )
+      );
+
       v_processed := v_processed + 1;
     EXCEPTION WHEN OTHERS THEN
       GET STACKED DIAGNOSTICS v_error = MESSAGE_TEXT;

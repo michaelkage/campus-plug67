@@ -18,7 +18,7 @@ const escrowState = read('src/lib/escrowState.js')
 const packageJson = JSON.parse(read('package.json'))
 const deploymentWorkflow = read('.github/workflows/deploy-supabase.yml')
 const pagesWorkflow = read('.github/workflows/github-pages.yml')
-const disputeFunction = read('supabase/functions/process-dispute/index.ts')
+
 
 const releaseStart = migration.indexOf("ELSIF p_action = 'release' THEN")
 const refundStart = migration.indexOf("ELSIF p_action = 'refund' THEN", releaseStart)

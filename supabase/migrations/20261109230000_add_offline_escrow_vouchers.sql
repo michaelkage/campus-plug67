@@ -373,6 +373,7 @@ BEGIN
         'success', true,
         'already_reconciled', true,
         'status', v_current_status,
+        'inspection_state', CASE WHEN v_current_status = 'release_requested' THEN 'inspection_pending' ELSE v_current_status END,
         'transaction_id', p_transaction_id,
         'inspection_expires_at', v_inspection_expires_at
       );
@@ -485,7 +486,8 @@ BEGIN
   RETURN jsonb_build_object(
     'success', true,
     'already_reconciled', false,
-    'status', 'inspection_pending',
+    'status', 'release_requested',
+    'inspection_state', 'inspection_pending',
     'transaction_id', v_tx.id,
     'inspection_started_at', now(),
     'inspection_expires_at', v_inspection_expires_at,

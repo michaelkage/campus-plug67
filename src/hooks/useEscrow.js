@@ -31,7 +31,7 @@ export { TX_STATUS, TX_STATUS_META, TX_STEPS }
 const TRANSITION_TOASTS = {
   locked:            { msg: '🔐 Payment confirmed! Funds locked in escrow.',    type: 'success' },
   meetup_initiated:  { msg: '📍 Meetup initiated. QR code is now active.',      type: 'success' },
-  release_requested: { msg: '⏰ Release requested. Buyer has 48h to respond.',  type: 'blank'   },
+
   released:          { msg: '🎉 Exchange complete! Funds have been released.',   type: 'success' },
   disputed:          { msg: '🚨 Dispute filed. Under review within 24 hours.',  type: 'blank'   },
   cancelled:         { msg: '❌ Transaction cancelled.',                         type: 'error'   },
@@ -90,10 +90,15 @@ export function useEscrow({
 
     // Toast on status change
     if (prev !== updated.status && TRANSITION_TOASTS[updated.status]) {
-      const { msg, type } = TRANSITION_TOASTS[updated.status]
-      if (type === 'success') toast.success(msg)
-      else if (type === 'error') toast.error(msg)
-      else toast(msg)
+      const transition = updated.status === 'release_requested'
+        ? { msg: updated.payment_method === 'campus_wallet' ? 'Handoff confirmed. Funds stay protected for a 2-hour inspection window.' : 'Release requested. Buyer has 48 hours to dispute.', type: 'blank' }
+        : TRANSITION_TOASTS[updated.status]
+      if (transition) {
+        const { msg, type } = transition
+        if (type === 'success') toast.success(msg)
+        else if (type === 'error') toast.error(msg)
+        else toast(msg)
+      }
     }
 
     onStatusChange?.(updated, prev)
@@ -161,7 +166,7 @@ export function useEscrow({
 
   /**
    * BUYER: Release funds by providing the seller's QR secret.
-   * Triggers: meetup_initiated/release_requested → released
+   * Triggers: meetup_initiated → release_requested (inspection buffer starts; no payout yet)
    */
   const release = useCallback((qrSecret) => {
     if (!qrSecret?.trim()) {
@@ -185,7 +190,7 @@ export function useEscrow({
   /**
    * SELLER: Request fund release after 24h timeout.
    * Triggers: meetup_initiated → release_requested
-   * Starts the 48-hour auto-release countdown.
+   * For Campus Wallet QR confirmation, starts a two-hour inspection countdown. External payment release requests retain their existing 48-hour window.
    * Edge Function enforces the time gate — cannot be called too early.
    */
   const requestRelease = useCallback(() => {
@@ -222,8 +227,8 @@ export function useEscrow({
 
   // Which actions are available for the current user + status
   const canInitiateMeetup  = isSeller  && status === 'locked'
-  const canShowQR          = isSeller  && ['meetup_initiated', 'release_requested'].includes(status)
-  const canRelease         = !isSeller && ['meetup_initiated', 'release_requested'].includes(status)
+  const canShowQR          = isSeller  && status === 'meetup_initiated'
+  const canRelease         = !isSeller && status === 'meetup_initiated'
   const canRequestRelease  = isSeller  && status === 'meetup_initiated'
   const canDispute         = !isSeller && status === 'release_requested'
   const isTerminal         = status === 'released' || status === 'cancelled'

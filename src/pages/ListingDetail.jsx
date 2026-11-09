@@ -138,7 +138,7 @@ function PurchaseJourneyGuide() {
     ['2. Funds are protected', 'After payment is verified, PlugPay holds the money. The seller has not been paid yet.'],
     ['3. Arrange pickup', 'Use in-app chat to agree on a public campus meetup point and time. The seller starts the pickup flow.'],
     ['4. Inspect and confirm', 'Check the item before entering the seller’s QR code. QR release unlocks 24 hours after meetup starts.'],
-    ['5. Funds are released', 'A QR-confirmed handoff starts a two-hour inspection window. A seller-requested release retains the 48-hour dispute window. Without a dispute, funds auto-release.'],
+    ['5. Funds are released', 'A QR-confirmed handoff starts a two-hour inspection window. A seller-requested release gives the buyer 48 hours to dispute. Without a dispute, funds auto-release.'],
   ]
 
   return (

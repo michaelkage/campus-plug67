@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isReleaseGateOpen } from '@/lib/escrowTiming'
 import { useTransactionStatus } from '@/hooks/useRealtime'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Shield, MapPin, Trash2, QrCode, Clock, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Shield, MapPin, Trash2, Clock, AlertTriangle } from 'lucide-react'
 
 function initPaystack({ email, amount, ref, metadata, publicKey }) {
   return new Promise((resolve, reject) => {
@@ -41,7 +41,6 @@ const COLOR_CLASS = {
 function EscrowPanel({ tx, isSeller, onRefresh, otherUserId }) {
   const [showDispute, setShowDispute] = useState(false)
   const [disputeText, setDisputeText] = useState('')
-  const [qrInput, setQrInput] = useState('')
   const [loading, setLoading] = useState(null)
   const { session } = useAuth()
 

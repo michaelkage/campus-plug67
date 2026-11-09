@@ -38,6 +38,7 @@ mustContain(edge, 'expectedChallenge: challenge', 'Seller passkey assertions mus
 mustContain(edge, 'reconcile_offline_escrow_receipt', 'Verified receipts must reconcile through the atomic database RPC')
 mustContain(edge, 'funds_released: false', 'Offline QR handoff must remain provisional and never settle funds locally')
 mustContain(edge, 'seller_credentials', 'Voucher claims must bind the receipt to a registered seller passkey')
+mustContain(edge, 'rp_id: RP_ID', 'Voucher claims must bind offline passkey ceremonies to the configured RP ID')
 
 mustContain(config, '[functions.offline-escrow]', 'Offline escrow Edge Function must be configured')
 mustContain(config, 'verify_jwt = false', 'Offline escrow must use explicit manual JWT validation for public ping/key routes')

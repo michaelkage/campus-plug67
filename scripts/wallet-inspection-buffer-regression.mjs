@@ -72,7 +72,7 @@ includes(meetup, 'Funds remain protected for a 2-hour inspection window', 'QR UI
 includes(safeSwap, 'Funds remain locked for a two-hour inspection window', 'Safe Swap must explain the provisional handoff')
 includes(safeSwap, 'auto_release_at', 'Safe Swap must display the authoritative inspection expiry')
 includes(safeSwap, 'Campus Wallet automatically releases the seller payout', 'Safe Swap must explain automatic settlement')
-includes(escrowState, "label: 'Inspection'", 'Escrow progress must show the inspection stage')
+includes(escrowState, "label: 'Handoff / inspection'", 'Escrow progress must show the inspection stage')
 
 if (!packageJson.scripts['test:platform-integrity'].includes('wallet-inspection-buffer-regression.mjs')) {
   fail('Wallet inspection regression must run in the platform-integrity suite')

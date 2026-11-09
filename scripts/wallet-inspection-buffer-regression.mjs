@@ -52,7 +52,7 @@ for (const value of [
   "auto_release_at = now() + interval '2 hours'",
   'handshake_receipt_buffer = now()',
   "'inspection_pending'",
-]) includes(genericRelease, value, \`Paystack QR handoff must enter inspection: \${value}\`)
+]) includes(genericRelease, value, `Paystack QR handoff must enter inspection: ${value}`)
 if (genericRelease.includes('INSERT INTO public.plug_credit_ledger')) {
   fail('Paystack QR confirmation must not credit the seller before inspection ends')
 }

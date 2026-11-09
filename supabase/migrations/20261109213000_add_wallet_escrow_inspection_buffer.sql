@@ -321,6 +321,39 @@ SECURITY DEFINER
 SET search_path = ''
 AS $function$
 BEGIN
+  IF NEW.status = 'meetup_initiated'
+     AND OLD.status IS DISTINCT FROM NEW.status THEN
+    UPDATE public.notifications
+       SET title = CASE
+             WHEN user_id = NEW.buyer_id THEN 'Meetup ready · verify your arrival'
+             ELSE 'Meetup ready · prepare your handoff QR'
+           END,
+           body = CASE
+             WHEN user_id = NEW.buyer_id THEN
+               'You do not need to wait 24 hours. Once both participants have fresh check-ins in the same approved Safe Swap Zone, scan the seller QR to confirm receipt.'
+             ELSE
+               'Complete your Safe Swap check-in. Once both participants have fresh check-ins in the same approved Safe Swap Zone, show your handoff QR. Buyer confirmation is available immediately.'
+           END,
+           data = COALESCE(data, '{}'::jsonb) || jsonb_build_object(
+             'qr_handoff_ready_after_checkins', true,
+             'qr_handoff_delay_hours', 0
+           )
+     WHERE type = 'meetup_initiated'
+       AND data ->> 'transaction_id' = NEW.id::text
+       AND user_id IN (NEW.buyer_id, NEW.seller_id);
+  END IF;
+
+  IF NEW.status = 'release_requested'
+     AND OLD.status IS DISTINCT FROM NEW.status THEN
+    -- The 24-hour meetup QR-timeout job is obsolete once the transaction has
+    -- moved into either the QR inspection or seller-requested release window.
+    UPDATE public.scheduled_jobs
+       SET executed = true, executed_at = COALESCE(executed_at, now())
+     WHERE entity_id = NEW.id
+       AND type = 'check_qr_timeout'
+       AND NOT executed;
+  END IF;
+
   IF NEW.handshake_receipt_buffer IS NOT NULL
      AND NEW.status = 'release_requested'
      AND OLD.handshake_receipt_buffer IS DISTINCT FROM NEW.handshake_receipt_buffer THEN
@@ -334,6 +367,7 @@ BEGIN
        SET title = 'Handoff confirmed · inspection window',
            body = 'Handoff confirmed. Funds remain protected for a two-hour inspection window. File a dispute before it ends if you find a problem.',
            data = COALESCE(data, '{}'::jsonb) || jsonb_build_object(
+             'auto_release_at', NEW.auto_release_at,
              'inspection_expires_at', NEW.auto_release_at,
              'inspection_hours', 2,
              'funds_released', false

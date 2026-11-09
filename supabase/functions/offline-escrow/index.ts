@@ -177,6 +177,23 @@ async function getSigningKey(admin: ReturnType<typeof getAdminClient>) {
     ["sign"],
   );
 
+  const publicKey = await crypto.subtle.importKey(
+    "raw",
+    decodeBase64Url(row.public_key),
+    { name: "Ed25519" },
+    false,
+    ["verify"],
+  );
+  const probe = crypto.getRandomValues(new Uint8Array(16));
+  const probeSignature = await crypto.subtle.sign({ name: "Ed25519" }, privateKey, probe);
+  const keyPairMatches = await crypto.subtle.verify(
+    { name: "Ed25519" },
+    publicKey,
+    probeSignature,
+    probe,
+  );
+  if (!keyPairMatches) throw new Error("Offline escrow signing keypair failed self-check");
+
   cachedSigningKey = {
     keyId: row.key_id,
     publicKey: row.public_key,
@@ -389,16 +406,24 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
     .eq("voucher_id", claims.jti)
     .maybeSingle();
   if (existingError) throw existingError;
+  const alreadyReconciled = async () => {
+    const { data: transaction } = await admin
+      .from("transactions")
+      .select("status,auto_release_at")
+      .eq("id", claims.transaction_id)
+      .maybeSingle();
+    return jsonResponse({
+      success: true,
+      already_reconciled: true,
+      status: transaction?.status ?? "reconciled",
+      transaction_id: claims.transaction_id,
+      inspection_expires_at: transaction?.auto_release_at ?? null,
+      funds_released: transaction?.status === "released",
+    }, 200, {}, req);
+  };
+
   if (existing) {
-    if (existing.receipt_hash === receiptHash) {
-      return jsonResponse({
-        success: true,
-        already_reconciled: true,
-        status: "inspection_pending",
-        transaction_id: claims.transaction_id,
-        funds_released: false,
-      }, 200, {}, req);
-    }
+    if (existing.receipt_hash === receiptHash) return await alreadyReconciled();
     return jsonResponse({ error: "A different receipt has already been accepted" }, 409, {}, req);
   }
 
@@ -412,19 +437,30 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
   if (!credential) return jsonResponse({ error: "Seller passkey is no longer registered" }, 403, {}, req);
 
   const challenge = encodeBase64Url(await sha256(new TextEncoder().encode(canonicalJson(receipt.core))));
-  const verification = await verifyAuthenticationResponse({
-    response: receipt.assertion,
-    expectedChallenge: challenge,
-    expectedOrigin: APP_ORIGIN,
-    expectedRPID: RP_ID,
-    authenticator: {
-      credentialID: credential.credential_id,
-      credentialPublicKey: decodeBase64Url(credential.public_key),
-      counter: Number(credential.sign_count ?? 0),
-      transports: Array.isArray(credential.transports) ? credential.transports : undefined,
-    },
-    requireUserVerification: true,
-  });
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response: receipt.assertion,
+      expectedChallenge: challenge,
+      expectedOrigin: APP_ORIGIN,
+      expectedRPID: RP_ID,
+      authenticator: {
+        credentialID: credential.credential_id,
+        credentialPublicKey: decodeBase64Url(credential.public_key),
+        counter: Number(credential.sign_count ?? 0),
+        transports: Array.isArray(credential.transports) ? credential.transports : undefined,
+      },
+      requireUserVerification: true,
+    });
+  } catch {
+    const { data: racedReceipt } = await admin
+      .from("escrow_offline_receipts")
+      .select("receipt_hash")
+      .eq("voucher_id", claims.jti)
+      .maybeSingle();
+    if (racedReceipt?.receipt_hash === receiptHash) return await alreadyReconciled();
+    return jsonResponse({ error: "Seller passkey receipt verification failed" }, 403, {}, req);
+  }
 
   if (!verification.verified) {
     const { data: racedReceipt } = await admin
@@ -432,15 +468,7 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
       .select("receipt_hash")
       .eq("voucher_id", claims.jti)
       .maybeSingle();
-    if (racedReceipt?.receipt_hash === receiptHash) {
-      return jsonResponse({
-        success: true,
-        already_reconciled: true,
-        status: "inspection_pending",
-        transaction_id: claims.transaction_id,
-        funds_released: false,
-      }, 200, {}, req);
-    }
+    if (racedReceipt?.receipt_hash === receiptHash) return await alreadyReconciled();
     return jsonResponse({ error: "Seller passkey receipt verification failed" }, 403, {}, req);
   }
 
@@ -464,15 +492,7 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
       .select("receipt_hash")
       .eq("voucher_id", claims.jti)
       .maybeSingle();
-    if (racedReceipt?.receipt_hash === receiptHash) {
-      return jsonResponse({
-        success: true,
-        already_reconciled: true,
-        status: "inspection_pending",
-        transaction_id: claims.transaction_id,
-        funds_released: false,
-      }, 200, {}, req);
-    }
+    if (racedReceipt?.receipt_hash === receiptHash) return await alreadyReconciled();
     console.error("offline receipt reconciliation failed", reconcileError.message);
     return jsonResponse({ error: "Receipt reconciliation failed" }, 409, {}, req);
   }

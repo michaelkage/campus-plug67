@@ -244,6 +244,13 @@ BEGIN
     RAISE EXCEPTION 'Seller must register a passkey before offline handoff';
   END IF;
 
+  IF EXISTS (
+    SELECT 1 FROM public.escrow_offline_receipts
+     WHERE transaction_id = p_transaction_id
+  ) THEN
+    RAISE EXCEPTION 'An offline handoff receipt has already been reconciled for this transaction';
+  END IF;
+
   IF v_payment_method = 'campus_wallet' THEN
     SELECT * INTO v_hold
       FROM public.wallet_escrow_holds

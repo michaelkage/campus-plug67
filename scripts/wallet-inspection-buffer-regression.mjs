@@ -83,6 +83,9 @@ includes(genericDispute, 'Use process-dispute to open a jury case and freeze esc
 if (genericDispute.includes('UPDATE public.transactions')) fail('Legacy dispute action must not freeze escrow without creating a jury case')
 includes(migration, 'NEW.handshake_receipt_buffer IS NOT NULL', 'Inspection notifications and scheduled jobs must apply to QR handoffs for every payment method')
 includes(migration, 'EXECUTE FUNCTION public.sync_escrow_inspection_schedule()', 'Inspection trigger must invoke the function created by this migration')
+includes(migration, "NEW.status = 'meetup_initiated'", 'Meetup notifications must explain that QR handoff is available after both check-ins, without a 24-hour wait')
+includes(migration, "type = 'check_qr_timeout'", 'The obsolete meetup QR-timeout job must be retired when the transaction leaves meetup_initiated')
+includes(migration, "'qr_handoff_delay_hours', 0", 'Meetup notification metadata must explicitly record that QR handoff has no 24-hour delay')
 if (migration.includes('sync_wallet_inspection_schedule')) fail('Inspection migration must not reference a nonexistent schedule function')
 
 for (const value of [

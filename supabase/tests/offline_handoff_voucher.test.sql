@@ -2,6 +2,9 @@ BEGIN;
 
 SELECT plan(7);
 
+-- Exercise the escrow RPC/trigger path as trusted database code, not as a browser row update.
+SELECT set_config('app.escrow_transition', 'true', true);
+
 -- Isolated database-level trigger tests. These fixtures are rolled back at the end.
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,

@@ -92,7 +92,7 @@ export function useEscrow({
     // Toast on status change
     if (prev !== updated.status && (TRANSITION_TOASTS[updated.status] || updated.status === 'release_requested')) {
       const transition = updated.status === 'release_requested'
-        ? { msg: updated.handshake_receipt_buffer ? 'Handoff confirmed. Funds stay protected for a 2-hour inspection window.' : 'Release requested. Buyer has 48 hours to dispute.', type: 'blank' }
+        ? { msg: updated.handshake_receipt_buffer ? 'Handoff confirmed. Funds stay protected for a 2-hour inspection window.' : 'Release requested. Either participant has 48 hours to dispute.', type: 'blank' }
         : TRANSITION_TOASTS[updated.status]
       if (transition) {
         const { msg, type } = transition
@@ -203,7 +203,7 @@ export function useEscrow({
   }, [edgeCall, isSeller])
 
   /**
-   * BUYER: File a formal dispute during the applicable inspection/release window.
+   * Either transaction participant: File a formal dispute during the applicable inspection/release window.
    * Triggers: release_requested → disputed
    * Cancels the pending auto-release job.
    * Requires a reason string of at least 20 characters.

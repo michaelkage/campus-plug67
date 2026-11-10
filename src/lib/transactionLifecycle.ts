@@ -102,7 +102,7 @@ export function deriveTransactionLifecycle(
           title: expired ? 'Inspection window ended · settlement pending' : 'Handoff confirmed · inspection in progress',
           description: expired
             ? 'The inspection deadline has passed. The server settlement process must still confirm the payout.'
-            : 'The QR handoff is recorded. Funds remain locked during the two-hour inspection window; QR confirmation is not a payout.',
+            : 'The QR handoff is recorded. Funds remain locked during the two-hour inspection window; either participant can open a dispute before it expires. QR confirmation is not a payout.',
           tone: expired ? 'warning' : 'info',
         }
       }

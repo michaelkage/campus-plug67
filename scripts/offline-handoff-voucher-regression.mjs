@@ -20,7 +20,6 @@ const requiredMigrationInvariants = [
   "now() + interval '2 hours'",
   "extensions.digest(convert_to(p_token, 'UTF8'), 'sha256')",
   "v_actor <> v_tx.seller_id",
-  "v_actor <> v_actor",
   "v_actor <> v_voucher.buyer_id",
   "v_tx.status <> 'meetup_initiated'",
   "handshake_receipt_buffer = now()",

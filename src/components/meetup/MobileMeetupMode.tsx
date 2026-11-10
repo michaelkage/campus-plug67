@@ -22,12 +22,13 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
       p_transaction_id:transactionId,p_voucher_id:receipt.voucherId,p_token:receipt.token,
     });
     if(error){
-      if(!navigator.onLine||!error.status||error.status===0)return false;
+      const httpStatus=(error as {status?:number}).status;
+      if(!navigator.onLine||!httpStatus||httpStatus===0)return false;
       await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});
       toast.error(error.message||'The offline handoff could not be synchronized');
       return false;
     }
-    if(!data?.success)return false;
+    if(!(data as {success?:boolean}|null)?.success)return false;
     await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});
     toast.success('Offline handoff synchronized. Funds remain protected for the two-hour inspection window.');
     onReleased?.();
@@ -60,14 +61,16 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
       p_transaction_id:transactionId,p_voucher_id:ticket.voucher_id,p_token:ticket.token,
     });
     if(error){
-      if(!navigator.onLine||!error.status||error.status===0){
+      const httpStatus=(error as {status?:number}).status;
+      if(!navigator.onLine||!httpStatus||httpStatus===0){
         toast.success('QR verified offline. Your handoff proof is saved and will sync when connection returns. Funds have not been released.');
         return;
       }
       await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});
       throw error;
     }
-    if(!data?.success)throw new Error(data?.error||'Handoff confirmation failed');
+    const confirmation=data as {success?:boolean;error?:string}|null;
+    if(!confirmation?.success)throw new Error(confirmation?.error||'Handoff confirmation failed');
     await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});
     toast.success('Handoff confirmed. Funds remain protected for a 2-hour inspection window.');
     onReleased?.();

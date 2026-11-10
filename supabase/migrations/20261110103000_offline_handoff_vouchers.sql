@@ -38,7 +38,7 @@ DECLARE
   v_voucher public.offline_handoff_vouchers%ROWTYPE;
 BEGIN
   IF v_actor IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
-  IF p_transaction_id IS NULL OR p_token_hash IS NULL OR p_token_hash !~ '^[0-9a-f]{64}
+  IF p_transaction_id IS NULL OR p_token_hash IS NULL OR length(p_token_hash) <> 64 OR p_token_hash ~ '[^0-9a-f]' THEN
     RAISE EXCEPTION 'Invalid offline handoff request';
   END IF;
 

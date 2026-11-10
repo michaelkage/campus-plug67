@@ -14,6 +14,8 @@ function mustContain(source, value, message) {
 
 const migration = read('supabase/migrations/20261109230000_add_offline_escrow_vouchers.sql')
 const edge = read('supabase/functions/offline-escrow/index.ts')
+const client = read('src/lib/offlineEscrow.ts')
+const handoffUi = read('src/components/meetup/OfflineEscrowHandoff.tsx')
 const config = read('supabase/config.toml')
 const deployWorkflow = read('.github/workflows/deploy-supabase.yml')
 const pagesWorkflow = read('.github/workflows/github-pages.yml')
@@ -42,6 +44,13 @@ mustContain(edge, 'reconcile_offline_escrow_receipt', 'Verified receipts must re
 mustContain(edge, 'funds_released: false', 'Offline QR handoff must remain provisional and never settle funds locally')
 mustContain(edge, 'seller_credentials', 'Voucher claims must bind the receipt to a registered seller passkey')
 mustContain(edge, 'rp_id: RP_ID', 'Voucher claims must bind offline passkey ceremonies to the configured RP ID')
+
+mustContain(client, 'makeOfflineReceiptQr', 'Seller must be able to transfer the passkey-signed receipt to the buyer')
+mustContain(client, 'parseOfflineReceiptQr', 'Buyer must validate the signed receipt before confirming handoff')
+mustContain(client, 'if (!data?.awaiting_buyer_sync)', 'Seller receipt must remain available until buyer confirmation')
+mustContain(handoffUi, 'Show this receipt QR to the buyer', 'Seller UI must display the signed receipt QR')
+mustContain(handoffUi, 'Scan seller receipt QR', 'Buyer UI must scan the seller receipt to confirm the handoff')
+mustContain(handoffUi, 'result?.awaiting_buyer_sync', 'UI must not start the inspection timer on seller-only sync')
 
 mustContain(config, '[functions.offline-escrow]', 'Offline escrow Edge Function must be configured')
 mustContain(config, 'verify_jwt = false', 'Offline escrow must use explicit manual JWT validation for public ping/key routes')

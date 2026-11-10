@@ -299,7 +299,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
     transactionId: initialTx.id,
     session,
     isSeller,
-    onRelease:     () => { onInvalidate(); toast.success('🎉 Funds released! Check your wallet.') },
+    onRelease:     () => { onInvalidate(); toast('Transaction resolved. Seller payout status is being confirmed.') },
     onDispute:     () => { onInvalidate() },
     onStatusChange: () => onInvalidate(),
   })

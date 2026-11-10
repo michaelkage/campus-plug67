@@ -65,12 +65,17 @@ jobs:
           set -euo pipefail
           [[ -n "$SUPABASE_URL" && -n "$SUPABASE_ANON_KEY" ]] || { echo "Supabase deployment gate credentials are missing."; exit 1; }
           for attempt in $(seq 1 120); do
-            response="$(curl --fail --silent --show-error --max-time 10 \
+            dispute_response="$(curl --fail --silent --show-error --max-time 10 \
               -H "apikey: $SUPABASE_ANON_KEY" \
               -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
               "$SUPABASE_URL/functions/v1/process-dispute/ping" 2>/dev/null || true)"
-            if grep -q '"fn":"process-dispute-v6.8"' <<<"$response"; then
-              echo "The matching Supabase migration and Edge Function deployment is live."
+            offline_response="$(curl --fail --silent --show-error --max-time 10 \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/functions/v1/offline-escrow/ping" 2>/dev/null || true)"
+            if grep -q '"fn":"process-dispute-v6.8"' <<<"$dispute_response" \
+              && grep -q '"fn":"offline-escrow-v1"' <<<"$offline_response"; then
+              echo "The matching Supabase migration and required Edge Function deployments are live."
               exit 0
             fi
             echo "Waiting for Supabase deployment (attempt $attempt/120)..."

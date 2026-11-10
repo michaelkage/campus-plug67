@@ -37,3 +37,6 @@ verify_jwt = false
 
 [functions.maintenance-cleanup]
 verify_jwt = false
+
+[functions.offline-escrow]
+verify_jwt = false

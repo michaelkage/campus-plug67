@@ -56,7 +56,7 @@ export default function SafeSwapZone(){
             const key=`offline-handoff-context:${transactionId}`;
             const payload={tx:txData,safeZone};
             const previous=await getLocalTransaction(key).catch(()=>undefined);
-            if(!previous||JSON.stringify(previous.payload)!==JSON.stringify(payload)){
+            if(!previous||previous.ownerId!==user.id||previous.kind!=='offline-handoff-context'||JSON.stringify(previous.payload)!==JSON.stringify(payload)){
               await saveLocalTransaction({id:key,ownerId:user.id,kind:'offline-handoff-context',payload,status:'synced',updatedAt:Date.now()}).catch(()=>{});
             }
           }

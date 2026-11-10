@@ -53,4 +53,21 @@ for (const invariant of ['prepare_offline_handoff', 'get_offline_handoff_commitm
 for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released', 'sync it before the 24-hour server expiry', 'safeZone.radius_m', 'position.coords.accuracy>50']) {
   if (!meetup.includes(invariant)) throw new Error(`Mobile offline handoff wiring is missing: ${invariant}`)
 }
+
+const guardMigration = read('supabase/migrations/20261110164000_require_offline_voucher_for_handoff.sql')
+for (const invariant of [
+  'CREATE OR REPLACE FUNCTION public.require_offline_voucher_for_handoff()',
+  "OLD.status = 'meetup_initiated'",
+  "NEW.status = 'release_requested'",
+  'voucher.consumed_at = NEW.handshake_receipt_buffer',
+  'voucher.expires_at > voucher.consumed_at',
+  'voucher.buyer_id = NEW.buyer_id',
+  'voucher.seller_id = NEW.seller_id',
+  'voucher.amount = NEW.amount',
+  'voucher.safe_zone_id = NEW.buyer_safe_zone_id',
+  'CREATE TRIGGER transactions_require_offline_voucher',
+]) {
+  if (!guardMigration.includes(invariant)) throw new Error(`Missing legacy QR bypass guard: ${invariant}`)
+}
+
 console.log('Offline handoff voucher security regression checks passed.')

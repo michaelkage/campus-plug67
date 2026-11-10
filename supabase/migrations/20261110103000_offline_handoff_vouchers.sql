@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS public.offline_handoff_vouchers (
   transaction_id uuid NOT NULL UNIQUE REFERENCES public.transactions(id) ON DELETE CASCADE,
   buyer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   seller_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  amount bigint NOT NULL CHECK (amount > 0),
+  safe_zone_id uuid NOT NULL REFERENCES public.safe_zones(id),
   token_hash text NOT NULL CHECK (token_hash ~ '^[0-9a-f]{64}$'),
   expires_at timestamptz NOT NULL,
   consumed_at timestamptz,
@@ -78,14 +80,16 @@ BEGIN
     RAISE EXCEPTION 'An offline handoff voucher has already been consumed';
   END IF;
   INSERT INTO public.offline_handoff_vouchers (
-    transaction_id, buyer_id, seller_id, token_hash, expires_at, consumed_at
+    transaction_id, buyer_id, seller_id, amount, safe_zone_id, token_hash, expires_at, consumed_at
   )
   VALUES (
-    v_tx.id, v_tx.buyer_id, v_tx.seller_id, p_token_hash, now() + interval '10 minutes', NULL
+    v_tx.id, v_tx.buyer_id, v_tx.seller_id, v_tx.amount, v_tx.buyer_safe_zone_id, p_token_hash, now() + interval '10 minutes', NULL
   )
   ON CONFLICT (transaction_id) DO UPDATE
     SET buyer_id = EXCLUDED.buyer_id,
         seller_id = EXCLUDED.seller_id,
+        amount = EXCLUDED.amount,
+        safe_zone_id = EXCLUDED.safe_zone_id,
         token_hash = EXCLUDED.token_hash,
         expires_at = EXCLUDED.expires_at,
         consumed_at = NULL,
@@ -103,8 +107,8 @@ BEGIN
     'expires_at', v_voucher.expires_at,
     'buyer_id', v_tx.buyer_id,
     'seller_id', v_tx.seller_id,
-    'amount', v_tx.amount,
-    'safe_zone_id', v_tx.buyer_safe_zone_id
+    'amount', v_voucher.amount,
+    'safe_zone_id', v_voucher.safe_zone_id
   );
 END;
 $function$;
@@ -207,7 +211,10 @@ BEGIN
   IF v_voucher.expires_at <= now() THEN RAISE EXCEPTION 'Offline handoff QR has expired'; END IF;
   IF v_tx.status <> 'meetup_initiated'
      OR v_tx.buyer_id <> v_voucher.buyer_id
-     OR v_tx.seller_id <> v_voucher.seller_id THEN
+     OR v_tx.seller_id <> v_voucher.seller_id
+     OR v_tx.amount <> v_voucher.amount
+     OR v_tx.buyer_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id
+     OR v_tx.seller_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id THEN
     RAISE EXCEPTION 'Transaction participants or state changed';
   END IF;
   IF NOT EXISTS (

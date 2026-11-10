@@ -19,8 +19,19 @@ function CarryMeAlong({tx,now}:{tx:Tx|null;now:number}){if(!tx)return null;const
 export default function SafeSwapZone(){
   const {user,profile}=useAuth();const [params]=useSearchParams();const transactionId=params.get('tx');const [now,setNow]=useState(Date.now());const [zones,setZones]=useState<SafeZone[]>([]);const [tx,setTx]=useState<Tx|null>(null);const [position,setPosition]=useState<GeolocationCoordinates|null>(null);const [error,setError]=useState<string|null>(null);const [checking,setChecking]=useState(false);const [localDraft,setLocalDraft]=useState(false);const [offlineTicket,setOfflineTicket]=useState<string|null>(null);const [offlineCommitment,setOfflineCommitment]=useState<OfflineHandoffCommitment|null>(null);const [voucherLoading,setVoucherLoading]=useState(false);const device=getDeviceType();
     useEffect(() => {
+    const restoreOfflineContext=async()=>{
+      if(!transactionId||!user?.id)return false;
+      const cached=await getLocalTransaction(`offline-handoff-context:${transactionId}`).catch(()=>undefined);
+      if(cached?.ownerId!==user.id||cached.kind!=='offline-handoff-context'||!cached.payload||typeof cached.payload!=='object')return false;
+      const context=cached.payload as {tx?:Tx;safeZone?:SafeZone};
+      if(!context.tx||context.tx.id!==transactionId)return false;
+      setTx(context.tx);
+      if(context.safeZone)setZones([context.safeZone]);
+      return true;
+    };
     const load = async () => {
-      if (!profile?.university) return;
+      if(!navigator.onLine){await restoreOfflineContext();return}
+      if (!profile?.university) {await restoreOfflineContext();return}
       const { data: zoneData } = await supabase
         .from('safe_zones')
         .select('id,name,description,lat,lng,radius_m,zone_type')
@@ -36,6 +47,20 @@ export default function SafeSwapZone(){
           .eq('id', transactionId)
           .single();
         setTx(data as Tx | null);
+        if(data&&user?.id&&(data.buyer_id===user.id||data.seller_id===user.id)){
+          const txData=data as Tx;
+          const zoneId=txData.buyer_safe_zone_id||txData.seller_safe_zone_id;
+          const safeZone=(zoneData||[]).find(zone=>zone.id===zoneId) as SafeZone|undefined;
+          if(safeZone)await saveLocalTransaction({
+            id:`offline-handoff-context:${transactionId}`,
+            ownerId:user.id,
+            kind:'offline-handoff-context',
+            payload:{tx:txData,safeZone},
+            status:'synced',
+            updatedAt:Date.now(),
+          }).catch(()=>{});
+        }
+        if(!data)await restoreOfflineContext();
         const draft = await getLocalTransaction(`safe-arrival:${transactionId}`).catch(() => undefined);
         setLocalDraft(Boolean(draft));
       }
@@ -45,7 +70,7 @@ export default function SafeSwapZone(){
     const channel = supabase.channel(`safe-swap-${transactionId}`).on('postgres_changes',{event:'UPDATE',schema:'public',table:'transactions',filter:`id=eq.${transactionId}`},payload=>setTx(payload.new as Tx)).subscribe();
     const poll=window.setInterval(()=>void load(),10000);
     return ()=>{window.clearInterval(poll);void supabase.removeChannel(channel)};
-  }, [profile?.university, transactionId]);
+  }, [profile?.university, transactionId, user?.id]);
 
   useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer)},[]);
   const buyerCheckinFresh=Boolean(tx?.buyer_arrived&&tx?.buyer_safe_zone_id&&tx?.mobile_release_ready_at&&now-new Date(tx.mobile_release_ready_at).getTime()<=10*60_000);
@@ -54,13 +79,14 @@ export default function SafeSwapZone(){
   const releaseUnlocked=tx?.status==='meetup_initiated'&&bothCheckinsFresh;
 
   useEffect(()=>{
-    if(!transactionId||!user?.id||!tx||tx.seller_id!==user.id||!releaseUnlocked){setOfflineTicket(null);return}
+    if(!transactionId||!user?.id||!tx||tx.seller_id!==user.id||tx.status!=='meetup_initiated'){setOfflineTicket(null);return}
     let cancelled=false;
     const prepare=async()=>{
       setVoucherLoading(true);
       try{
         const local=await getLocalTransaction(`offline-handoff-seller:${transactionId}`).catch(()=>undefined);
         const cached=local?.payload as {v?:number;token?:string;expires_at?:string}|undefined;
+        if(!releaseUnlocked){if(cached?.v===1&&typeof cached.token==='string'&&!cancelled)setOfflineTicket(JSON.stringify(cached));return}
         const cachedToken=cached?.v===1&&typeof cached.token==='string'?cached.token:null;
         // A cached QR remains available during a dead-zone. Its expiry is
         // enforced by PostgreSQL, never by the seller device clock.
@@ -90,7 +116,7 @@ export default function SafeSwapZone(){
   },[transactionId,user?.id,tx?.seller_id,releaseUnlocked]);
 
   useEffect(()=>{
-    if(!transactionId||!user?.id||!tx||tx.buyer_id!==user.id||!releaseUnlocked)return;
+    if(!transactionId||!user?.id||!tx||tx.buyer_id!==user.id||tx.status!=='meetup_initiated')return;
     let cancelled=false; let attempts=0;
     const loadCommitment=async()=>{
       attempts+=1;
@@ -111,7 +137,7 @@ export default function SafeSwapZone(){
     void loadCommitment();
     const timer=window.setInterval(()=>{if(attempts<8&&!offlineCommitment)void loadCommitment()},2500);
     return()=>{cancelled=true;window.clearInterval(timer)};
-  },[transactionId,user?.id,tx?.buyer_id,releaseUnlocked]);
+  },[transactionId,user?.id,tx?.buyer_id,tx?.status]);
   // Recover queued proofs independently of the conditional mobile scanner.
   // This runs after a reload even when transaction data was unavailable offline.
   useEffect(()=>{
@@ -160,13 +186,13 @@ export default function SafeSwapZone(){
   const confirmArrival=async()=>{if(device!=='mobile'){toast.error('Meetup verification is phone-only.');return}if(!user||!transactionId||!position)return;setChecking(true);await saveLocalTransaction({id:`safe-arrival:${transactionId}`,ownerId:user.id,kind:'safe-arrival',payload:{transactionId,role:tx?.buyer_id===user.id?'buyer':tx?.seller_id===user.id?'seller':null,lat:position.latitude,lng:position.longitude},status:'syncing',updatedAt:Date.now()}).catch(()=>{});try{const role=tx?.buyer_id===user.id?'buyer':tx?.seller_id===user.id?'seller':null;if(!role)throw new Error('You are not a participant in this transaction.');const {data,error:rpcError}=await supabase.functions.invoke('safe-arrival',{body:{transaction_id:transactionId,role,lat:position.latitude,lng:position.longitude}});if(rpcError)throw rpcError;if(!data?.success)throw new Error(data?.message||'You are outside the approved Safe Swap Zone.');await removeLocalTransaction(`safe-arrival:${transactionId}`).catch(()=>{});setLocalDraft(false);toast.success(`${data.zone_name} verified — mobile QR release zone confirmed.`);setTx(prev=>prev?({...prev,...(role==='buyer'?{buyer_safe_zone_id:data.zone_id}:{seller_safe_zone_id:data.zone_id})}):prev)}catch(err){await saveLocalTransaction({id:`safe-arrival:${transactionId}`,ownerId:user.id,kind:'safe-arrival',payload:{transactionId},status:'failed',updatedAt:Date.now(),error:err instanceof Error?err.message:'Verification failed'}).catch(()=>{});setLocalDraft(true);toast.error(err instanceof Error?err.message:'Safe-zone verification failed')}finally{setChecking(false)}}
   return <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
     {transactionId&&device==='mobile'&&tx?.buyer_id===user?.id&&tx?.status==='meetup_initiated'&&!sellerCheckinFresh&&<div className="rounded-md border border-outline-variant bg-surface-container p-4 text-sm">Waiting for the seller to verify arrival in this Safe Swap Zone. Their check-in remains valid for 30 minutes.</div>}
-    {transactionId&&device==='mobile'&&tx?.buyer_id===user?.id&&tx?.status==='meetup_initiated'&&sellerCheckinFresh&&<MobileMeetupMode transactionId={transactionId} releaseUnlocked={releaseUnlocked} offlineCommitment={offlineCommitment} safeZone={zones.find(zone=>zone.id===tx?.buyer_safe_zone_id)||null} onReleased={()=>window.location.reload()}/>} 
+    {transactionId&&device==='mobile'&&tx?.buyer_id===user?.id&&tx?.status==='meetup_initiated'&&(sellerCheckinFresh||Boolean(offlineCommitment))&&<MobileMeetupMode transactionId={transactionId} releaseUnlocked={releaseUnlocked||Boolean(offlineCommitment)} offlineCommitment={offlineCommitment} safeZone={zones.find(zone=>zone.id===tx?.buyer_safe_zone_id)||null} onReleased={()=>window.location.reload()}/>} 
     <div className="card-tactical" style={{ padding: 24 }}><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="flex items-center gap-2 text-[var(--md-secondary)] text-xs font-black uppercase tracking-widest"><ShieldCheck size={15}/>Safe Swap Zone</div><h1 className="text-2xl font-black mt-2">Meet where the QR release is protected.</h1><p className="text-sm text-on-surface/70 mt-2 max-w-2xl">The buyer scans the seller's QR at an approved campus meetup point to confirm handoff. Escrow funds remain locked for a two-hour inspection window before automatic settlement. Safe-zone checks remain server-validated.</p></div><div className="rounded-md border border-[var(--md-primary)]/30 bg-[var(--md-primary)]/6 px-4 py-3 text-right"><div className="text-[10px] uppercase tracking-widest text-on-surface/60">Release radius</div><div className="text-2xl font-black text-[var(--md-primary)] font-mono">50m</div></div></div></div>
     {device==='desktop'&&transactionId&&<div className="rounded-md border-2 border-primary/30 bg-primary/5 p-5 flex items-start gap-3"><Smartphone className="text-primary mt-0.5"/><div><div className="font-black">Meetup verification moved to your phone</div><p className="text-xs text-on-surface/60 mt-1">Laptop mode remains available for listings and transaction management, but physical GPS and QR release are intentionally gated to mobile.</p></div></div>}
     {localDraft&&<div className="rounded-md border border-tertiary/30 bg-tertiary/5 p-3 text-xs text-tertiary">A previous safe-arrival sync was interrupted. Refresh your phone GPS and verify again; the local state has been retained instead of silently disappearing.</div>}
     {transactionId&&<CarryMeAlong tx={tx} now={now}/>} {tx?.meetup_initiated_at&&tx.status!=='released'&&<div className={`rounded-md border p-5 ${releaseUnlocked?'border-primary/40 bg-primary-container/20':'border-outline-variant bg-surface-container'}`}><div className="flex items-center gap-2"><Clock3 size={17} className={releaseUnlocked?'text-primary':'text-secondary'}/><div><div className="text-xs uppercase tracking-widest text-on-surface-variant font-black">Meetup verification</div><div className="font-bold mt-1">{releaseUnlocked?'Both parties verified. Handoff confirmation is available.':'Handoff unlocks when both parties have fresh check-ins in the same Safe Swap Zone.'}</div></div></div>{releaseUnlocked&&<p className="text-xs text-on-surface-variant mt-3">The server verifies both arrival records, zone identity and freshness before accepting the buyer QR confirmation. Seller funds remain protected for two hours after confirmation.</p>}</div>}<div className="grid lg:grid-cols-[1.6fr_1fr] gap-5"><div className="bg-surface-container-high border border-outline-variant rounded-md overflow-hidden"><div className="h-[430px] bg-surface-container-highest"><iframe title="Campus Safe Swap Zone map" src="https://www.openstreetmap.org/export/embed.html?bbox=3.390,6.495,3.415,6.520&layer=mapnik" className="w-full h-full border-0" loading="lazy"/></div><div className="p-4 border-t border-outline-variant"><div className="flex items-center gap-2 text-xs font-bold text-on-surface/70"><LockKeyhole size={13} className="text-primary"/>Server-authoritative release gate</div><p className="text-xs text-on-surface/50 mt-1">The map is for orientation. The final 50m check is performed server-side against the recorded phone GPS fix.</p></div></div>
       <div className="space-y-4"><div className="bg-surface-container-high border border-outline-variant rounded-md p-5"><div className="flex items-center justify-between mb-4"><h2 className="font-bold text-sm">Your location</h2>{position&&<span className={`text-[10px] font-bold ${isInside?'text-primary':'text-error'}`}>{isInside?'IN SAFE ZONE':'OUTSIDE'}</span>}</div>{position?<div className="grid grid-cols-2 gap-3 text-xs font-mono"><div><span className="text-on-surface/30 block">LAT</span>{position.latitude.toFixed(6)}</div><div><span className="text-on-surface/30 block">LNG</span>{position.longitude.toFixed(6)}</div><div className="col-span-2"><span className="text-on-surface/30 block">GPS ACCURACY</span>±{Math.round(position.accuracy)}m</div></div>:<p className="text-xs text-on-surface/50">Use your phone to get a fresh GPS fix before confirming arrival.</p>}{nearest&&<div className={`mt-4 rounded-md p-3 border ${isInside?'border-primary/30 bg-primary/5':'border-error/30 bg-error/5'}`}><div className="flex items-center gap-2"><MapPin size={13}/><span className="font-bold text-xs">{nearest.zone.name}</span></div><div className="text-[10px] text-on-surface/40 mt-1">{nearest.distance}m from center · 50m release radius</div></div>}<button onClick={startGps} disabled={device!=='mobile'} className="w-full mt-4 py-3 rounded-md bg-primary text-on-primary font-black text-sm flex items-center justify-center gap-2 disabled:opacity-40"><Navigation size={15}/>{device==='mobile'?'Refresh phone GPS':'Phone required'}</button>{error&&<p className="text-xs text-error mt-2 flex gap-2"><AlertTriangle size={13}/>{error}</p>}</div>
-        {tx&&tx.seller_id===user?.id&&tx.status==='meetup_initiated'&&sellerCheckinFresh&&releaseUnlocked&&<div className="bg-surface-container-high border border-primary/30 rounded-md p-5 space-y-3"><div><h2 className="font-bold text-sm">One-time offline handoff QR</h2><p className="text-xs text-on-surface-variant mt-1">The buyer can verify this QR locally if campus internet drops. It expires after 10 minutes, can only be consumed once, and never releases funds offline. The buyer must have loaded the matching commitment before going offline.</p></div>{offlineTicket?<div className="flex justify-center rounded-md bg-white p-4"><QRCodeSVG value={offlineTicket} size={220} level="M" includeMargin/></div>:<p className="text-xs text-on-surface-variant">{voucherLoading?'Preparing a one-time handoff voucher…':'Connect to the internet to prepare the offline QR.'}</p>}<p className="text-[10px] text-center text-on-surface-variant">Keep this QR private and show it only to the buyer in person.</p></div>}
+        {tx&&tx.seller_id===user?.id&&tx.status==='meetup_initiated'&&offlineTicket&&<div className="bg-surface-container-high border border-primary/30 rounded-md p-5 space-y-3"><div><h2 className="font-bold text-sm">One-time offline handoff QR</h2><p className="text-xs text-on-surface-variant mt-1">The buyer can verify this QR locally if campus internet drops. It expires after 10 minutes, can only be consumed once, and never releases funds offline. The buyer must have loaded the matching commitment before going offline.</p></div>{offlineTicket?<div className="flex justify-center rounded-md bg-white p-4"><QRCodeSVG value={offlineTicket} size={220} level="M" includeMargin/></div>:<p className="text-xs text-on-surface-variant">{voucherLoading?'Preparing a one-time handoff voucher…':'Connect to the internet to prepare the offline QR.'}</p>}<p className="text-[10px] text-center text-on-surface-variant">Keep this QR private and show it only to the buyer in person.</p></div>}
         {transactionId&&<div className="bg-surface-container-high border border-outline-variant rounded-md p-5"><h2 className="font-bold text-sm mb-2">Transaction handshake</h2><p className="text-xs text-on-surface/40 mb-4">TX {transactionId.slice(0,8).toUpperCase()}</p><button onClick={confirmArrival} disabled={!position||!isInside||checking||device!=='mobile'} className="w-full py-3 rounded-md bg-primary text-on-primary font-black text-sm disabled:opacity-30 flex items-center justify-center gap-2"><CheckCircle2 size={15}/>{checking?'VERIFYING…':device==='mobile'?'VERIFY SAFE SWAP LOCATION':'SCAN DESKTOP QR TO CONTINUE'}</button><p className="text-[10px] text-on-surface/30 mt-3">Desktop clients cannot authorize physical arrival. This prevents inaccurate laptop network location data from blocking or corrupting the release ceremony.</p></div>}
         <div className="bg-surface-container-high border border-outline-variant rounded-md p-5"><h2 className="font-bold text-sm mb-3">Approved campus points</h2><div className="space-y-2">{zones.map(zone=><div key={zone.id} className="flex items-start gap-3 rounded-md border border-outline-variant bg-surface-container-highest/30 p-3"><div className="w-7 h-7 rounded-sm bg-primary/10 flex items-center justify-center text-primary flex-shrink-0"><MapPin size={13}/></div><div className="min-w-0"><div className="text-xs font-bold truncate">{zone.name}</div><div className="text-[10px] text-on-surface/50 mt-0.5">50m strict release radius</div></div></div>)}{zones.length===0&&<p className="text-xs text-on-surface/30">No active safe zones configured for this campus yet.</p>}</div></div></div></div>
   </div>

@@ -305,6 +305,18 @@ export async function saveOfflineEscrowReceipt(ownerId: string, stored: StoredRe
   })
 }
 
+export async function loadPendingOfflineEscrowReceipt(
+  transactionId: string,
+  ownerId: string,
+): Promise<StoredReceipt | null> {
+  const pending = await listActiveLocalTransactions(ownerId)
+  const match = pending.find(item =>
+    item.kind === 'offline-escrow-receipt'
+    && (item.payload as StoredReceipt)?.receipt?.core?.transaction_id === transactionId,
+  )
+  return match ? match.payload as StoredReceipt : null
+}
+
 export async function syncOfflineEscrowReceipt(stored: StoredReceipt) {
   const { data, error } = await supabase.functions.invoke('offline-escrow', {
     body: {
@@ -326,11 +338,11 @@ export async function syncOfflineEscrowReceipt(stored: StoredReceipt) {
 export async function syncPendingOfflineEscrowReceipts(ownerId: string) {
   const pending = await listActiveLocalTransactions(ownerId)
   const receipts = pending.filter(item => item.kind === 'offline-escrow-receipt')
-  const results: Array<{ id: string; success: boolean; error?: string }> = []
+  const results: Array<{ id: string; success: boolean; awaitingBuyerSync?: boolean; error?: string }> = []
   for (const item of receipts) {
     try {
-      await syncOfflineEscrowReceipt(item.payload as StoredReceipt)
-      results.push({ id: item.id, success: true })
+      const result = await syncOfflineEscrowReceipt(item.payload as StoredReceipt)
+      results.push({ id: item.id, success: true, awaitingBuyerSync: Boolean(result?.awaiting_buyer_sync) })
     } catch (error) {
       results.push({ id: item.id, success: false, error: error instanceof Error ? error.message : 'Sync failed' })
     }

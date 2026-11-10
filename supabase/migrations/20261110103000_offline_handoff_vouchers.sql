@@ -171,18 +171,20 @@ BEGIN
     RAISE EXCEPTION 'Invalid offline handoff proof';
   END IF;
 
+  -- Keep the global escrow lock order: transaction first, voucher second.
+  SELECT * INTO v_tx
+    FROM public.transactions
+   WHERE id = p_transaction_id
+   FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Transaction not found'; END IF;
+  IF v_actor <> v_tx.buyer_id THEN RAISE EXCEPTION 'Only the buyer can confirm handoff'; END IF;
+
   SELECT * INTO v_voucher
     FROM public.offline_handoff_vouchers
    WHERE id = p_voucher_id AND transaction_id = p_transaction_id
    FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Offline handoff voucher not found'; END IF;
   IF v_actor <> v_voucher.buyer_id THEN RAISE EXCEPTION 'Only the buyer can confirm handoff'; END IF;
-
-  SELECT * INTO v_tx
-    FROM public.transactions
-   WHERE id = p_transaction_id
-   FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Transaction not found'; END IF;
 
   IF v_voucher.consumed_at IS NOT NULL THEN
     IF v_tx.status = 'release_requested' AND v_tx.handshake_receipt_buffer IS NOT NULL THEN
@@ -396,12 +398,6 @@ BEGIN
    FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Offline handoff voucher not found'; END IF;
   IF v_actor <> v_voucher.buyer_id THEN RAISE EXCEPTION 'Only the buyer can confirm handoff'; END IF;
-
-  SELECT * INTO v_tx
-    FROM public.transactions
-   WHERE id = p_transaction_id
-   FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Transaction not found'; END IF;
 
   IF v_voucher.consumed_at IS NOT NULL THEN
     IF v_tx.status = 'release_requested' AND v_tx.handshake_receipt_buffer IS NOT NULL THEN

@@ -91,6 +91,7 @@ BEGIN
         consumed_at = NULL,
         created_at = now()
     WHERE public.offline_handoff_vouchers.consumed_at IS NULL
+      AND public.offline_handoff_vouchers.expires_at <= now()
   RETURNING * INTO v_voucher;
 
   IF NOT FOUND THEN RAISE EXCEPTION 'Unable to rotate offline handoff voucher'; END IF;

@@ -24,6 +24,10 @@ export type OfflineHandoffTicket = {
 
 const encoder = new TextEncoder()
 
+// Keep long-lived verification material separate from the one-time proof outbox.
+export const offlineHandoffCommitmentKey = (transactionId: string) => `offline-handoff-commitment:${transactionId}`
+export const offlineHandoffReceiptKey = (transactionId: string) => `offline-handoff-receipt:${transactionId}`
+
 export function createOfflineHandoffToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   let binary = ''
@@ -49,7 +53,6 @@ export function createOfflineHandoffTicket(
 export async function verifyOfflineHandoffTicket(
   raw: string,
   commitment: OfflineHandoffCommitment,
-  now = Date.now(),
 ): Promise<OfflineHandoffTicket> {
   let ticket: unknown
   try {
@@ -68,13 +71,15 @@ export async function verifyOfflineHandoffTicket(
     || value.safe_zone_id !== commitment.safe_zone_id
     || value.amount !== commitment.amount
     || typeof value.token !== 'string'
-    || value.expires_at !== commitment.expires_at) {
+    || typeof value.expires_at !== 'string') {
     throw new Error('This QR does not match the prepared transaction handoff')
   }
 
-  const expiresAt = Date.parse(commitment.expires_at)
-  if (!Number.isFinite(expiresAt) || expiresAt <= now) {
-    throw new Error('Offline handoff QR has expired')
+  // Device clocks are user-controlled and may be badly skewed. This check is
+  // intentionally cryptographic only; the server enforces voucher expiry when
+  // the queued proof is synchronized. Never authorize settlement from this result.
+  if (!Number.isFinite(Date.parse(value.expires_at)) || !Number.isFinite(Date.parse(commitment.expires_at))) {
+    throw new Error('Offline handoff QR has an invalid expiry timestamp')
   }
 
   const actualHash = await hashOfflineHandoffToken(value.token)

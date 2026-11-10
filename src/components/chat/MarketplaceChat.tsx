@@ -154,10 +154,9 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
     setupRealtimeSubscription()
     void (async () => {
       await fetchOtherUser()
-      // Persist read receipts before loading the conversation so a stale
-      // initial fetch cannot repaint already-read messages as unread.
-      await markMessagesAsRead()
       await fetchMessages()
+      // The realtime subscription also marks pending receipts when it becomes
+      // active or reconnects, closing the gap between initial load and subscribe.
     })()
     return () => { if (subscriptionRef.current) void supabase.removeChannel(subscriptionRef.current) }
   }, [currentUserId, otherUserId, transactionId])
@@ -203,7 +202,12 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
             })
         }
       } else if (payload.eventType === 'UPDATE') setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...newMsg, isOptimistic: false, scanStatus: 'safe' } : m))
-    }).subscribe()
+    }).subscribe(status => {
+      // Reconcile unread rows only after Postgres Changes is actually active.
+      // Calling this before SUBSCRIBED leaves a race where a message arrives
+      // after the UPDATE but before the listener is ready.
+      if (status === 'SUBSCRIBED') void markMessagesAsRead()
+    })
     subscriptionRef.current = subscription
   }
   const markMessagesAsRead = async () => {

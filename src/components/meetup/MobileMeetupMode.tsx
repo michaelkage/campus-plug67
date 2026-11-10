@@ -15,7 +15,7 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
   const syncStoredReceipt=useCallback(async()=>{
     if(!navigator.onLine)return false;
     const local=await getLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>undefined);
-    if(!local||local.ownerId!==offlineCommitment?.buyer_id||!local.payload||typeof local.payload!=='object')return false;
+    if(!local||!local.payload||typeof local.payload!=='object')return false;
     const receipt=local.payload as {transactionId?:string;voucherId?:string;token?:string};
     if(receipt.transactionId!==transactionId||!receipt.voucherId||!receipt.token)return false;
     const {data,error}=await supabase.rpc('confirm_offline_handoff',{

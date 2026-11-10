@@ -22,7 +22,7 @@ import { supabase, callEdgeFunction, formatNaira } from '@/lib/supabase'
 import { useTransactionStatus } from './useRealtime'
 
 // ── Status metadata ────────────────────────────────────────────────────────────
-import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'
+import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'\nimport { deriveTransactionLifecycle } from '@/lib/transactionLifecycle'
 
 export { TX_STATUS, TX_STATUS_META, TX_STEPS }
 
@@ -245,12 +245,12 @@ export function useEscrow({
       toast.error(message)
       return { success: false, error: message }
     })
-  }, [isSeller, transactionId])
+  }, [transactionId])
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
   const status    = tx?.status ?? 'pending'
-  const meta      = TX_STATUS_META[status] ?? TX_STATUS_META.pending
+  const lifecycle = deriveTransactionLifecycle(tx)\n  const meta      = { label: lifecycle.title, icon: lifecycle.phase === 'dispute' ? '🚨' : lifecycle.handoffConfirmed ? '🛡️' : (TX_STATUS_META[status] ?? TX_STATUS_META.pending).icon, color: lifecycle.tone === 'danger' ? 'red' : lifecycle.tone === 'success' ? 'green' : lifecycle.tone === 'warning' ? 'amber' : 'cyan', step: (TX_STATUS_META[status] ?? TX_STATUS_META.pending).step }
   const stepIndex = TX_STEPS.findIndex(s => s.key === status)
 
   // Which actions are available for the current user + status
@@ -258,7 +258,7 @@ export function useEscrow({
   const canShowQR          = isSeller  && status === 'meetup_initiated'
   const canRelease         = !isSeller && status === 'meetup_initiated'
   const canRequestRelease  = isSeller  && status === 'meetup_initiated' && tx?.payment_method !== 'campus_wallet'
-  const canDispute         = !isSeller && status === 'release_requested'
+  const canDispute         = lifecycle.canDispute
   const isTerminal         = status === 'released' || status === 'cancelled'
   const isDisputed         = status === 'disputed'
 

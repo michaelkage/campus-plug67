@@ -6,12 +6,16 @@ import {
   createOfflineReceipt,
   issueOfflineVoucher,
   loadOfflineVoucher,
+  loadPendingOfflineEscrowReceipt,
+  makeOfflineReceiptQr,
   makeRotatingOfflineQr,
+  parseOfflineReceiptQr,
   refreshOfflineEscrowPublicKey,
   saveOfflineEscrowReceipt,
   syncPendingOfflineEscrowReceipts,
   syncOfflineEscrowReceipt,
   type IssuedOfflineVoucher,
+  type StoredReceipt,
 } from '@/lib/offlineEscrow'
 
 type BarcodeDetectorLike = {
@@ -44,6 +48,8 @@ export default function OfflineEscrowHandoff({
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [voucher, setVoucher] = useState<IssuedOfflineVoucher | null>(null)
+  const [receiptForBuyer, setReceiptForBuyer] = useState<StoredReceipt | null>(null)
+  const [receiptQr, setReceiptQr] = useState('')
   const [qrValue, setQrValue] = useState('')
   const [now, setNow] = useState(Date.now())
   const [busy, setBusy] = useState(false)
@@ -92,16 +98,32 @@ export default function OfflineEscrowHandoff({
   }, [role, transactionId, userId])
 
   useEffect(() => {
+    if (role !== 'seller') return
+    let cancelled = false
+    void loadPendingOfflineEscrowReceipt(transactionId, userId).then(value => {
+      if (!cancelled && value) {
+        setReceiptForBuyer(value)
+        setReceiptPending(true)
+      }
+    })
+    return () => { cancelled = true }
+  }, [role, transactionId, userId])
+
+  useEffect(() => {
     if (!online) return
     let cancelled = false
     void refreshOfflineEscrowPublicKey().catch(() => undefined)
     void syncPendingOfflineEscrowReceipts(userId).then(results => {
       if (cancelled) return
-      const completed = results.filter(result => result.success).length
-      if (completed) {
+      const inspectionStarted = results.some(result => result.success && !result.awaitingBuyerSync)
+      const awaitingBuyer = results.some(result => result.success && result.awaitingBuyerSync)
+      if (inspectionStarted) {
         setReceiptPending(false)
-        setLastMessage('Offline receipt synchronized. The two-hour inspection window has started.')
+        setLastMessage('Buyer confirmation synchronized. The two-hour inspection window has started.')
         onReconciledRef.current?.()
+      } else if (awaitingBuyer) {
+        setReceiptPending(true)
+        setLastMessage('Seller receipt synchronized. The buyer must scan the receipt QR to start the inspection window.')
       }
     })
     return () => { cancelled = true }
@@ -120,6 +142,20 @@ export default function OfflineEscrowHandoff({
     })
     return () => { cancelled = true }
   }, [voucher, now])
+
+  useEffect(() => {
+    if (!receiptForBuyer) {
+      setReceiptQr('')
+      return
+    }
+    let cancelled = false
+    void makeOfflineReceiptQr(receiptForBuyer).then(value => {
+      if (!cancelled) setReceiptQr(value)
+    }).catch(error => {
+      if (!cancelled) toast.error(error instanceof Error ? error.message : 'Unable to prepare buyer confirmation QR')
+    })
+    return () => { cancelled = true }
+  }, [receiptForBuyer])
 
   const prepareVoucher = async () => {
     if (!releaseUnlocked) {
@@ -191,28 +227,59 @@ export default function OfflineEscrowHandoff({
     if (!pendingQr.trim()) return
     setBusy(true)
     try {
-      // This click is intentional: WebAuthn requires a fresh user gesture.
-      const stored = await createOfflineReceipt(pendingQr.trim(), userId)
-      await saveOfflineEscrowReceipt(userId, stored)
-      setReceiptPending(true)
-      setPendingQr('')
-      setManualQr('')
-      setLastMessage('Passkey-signed receipt saved on this phone. Funds are still locked until a server sync succeeds.')
-      if (navigator.onLine) {
-        try {
-          const result = await syncOfflineEscrowReceipt(stored)
-          setReceiptPending(false)
-          setLastMessage(result?.message || 'Receipt synchronized. The two-hour inspection window has started.')
-          onReconciledRef.current?.()
-          toast.success('Handoff verified. Funds remain protected for two hours.')
-        } catch {
-          toast.success('Receipt saved securely. It will sync when the connection returns.')
+      if (role === 'seller') {
+        // WebAuthn is deliberately invoked from this click gesture.
+        const stored = await createOfflineReceipt(pendingQr.trim(), userId)
+        await saveOfflineEscrowReceipt(userId, stored)
+        setReceiptForBuyer(stored)
+        setReceiptPending(true)
+        setLastMessage('Receipt signed. Show the receipt QR to the buyer; their confirmation starts the inspection window.')
+        setPendingQr('')
+        setManualQr('')
+        if (navigator.onLine) {
+          try {
+            const result = await syncOfflineEscrowReceipt(stored)
+            if (result?.awaiting_buyer_sync) {
+              setLastMessage('Seller receipt synchronized. Waiting for the buyer to scan the receipt QR.')
+              toast.success('Handoff receipt recorded. Funds remain locked until buyer confirmation.')
+            } else {
+              setReceiptPending(false)
+              setLastMessage('Buyer confirmation is already recorded. The two-hour inspection window is active.')
+              onReconciledRef.current?.()
+            }
+          } catch {
+            toast.success('Signed receipt saved. It will sync when the connection returns.')
+          }
+        } else {
+          toast.success('Signed receipt saved offline. Show its QR to the buyer.')
         }
       } else {
-        toast.success('Offline receipt saved. No payout has been made.')
+        const stored = await parseOfflineReceiptQr(pendingQr.trim(), userId, transactionId)
+        await saveOfflineEscrowReceipt(userId, stored)
+        setReceiptPending(true)
+        setPendingQr('')
+        setManualQr('')
+        setLastMessage('Seller receipt verified locally. Waiting for server confirmation; funds remain locked.')
+        if (navigator.onLine) {
+          try {
+            const result = await syncOfflineEscrowReceipt(stored)
+            setReceiptPending(false)
+            setLastMessage(result?.awaiting_buyer_sync
+              ? 'Receipt is recorded. The buyer confirmation is still required.'
+              : 'Buyer confirmation synchronized. The two-hour inspection window has started.')
+            if (!result?.awaiting_buyer_sync) onReconciledRef.current?.()
+            toast.success(result?.awaiting_buyer_sync
+              ? 'Receipt recorded; waiting for buyer confirmation.'
+              : 'Handoff confirmed. Funds remain protected for two hours.')
+          } catch {
+            toast.success('Receipt saved securely. It will sync when the connection returns.')
+          }
+        } else {
+          toast.success('Receipt saved offline. No payout has been made.')
+        }
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Passkey receipt verification failed')
+      toast.error(error instanceof Error ? error.message : 'Offline receipt verification failed')
     } finally {
       setBusy(false)
     }
@@ -264,8 +331,29 @@ export default function OfflineEscrowHandoff({
             {busy ? 'Preparing…' : 'Prepare a new voucher'}
           </button>
         )}
+        <div className="rounded-md border border-outline-variant p-4 space-y-3">
+          <div className="text-xs font-black">Confirm the seller's signed receipt</div>
+          <p className="text-xs text-on-surface-variant">After the seller scans your voucher, scan the receipt QR shown on their phone. This second confirmation starts your two-hour inspection period.</p>
+          {scanning ? (
+            <div className="rounded-md overflow-hidden border border-outline-variant bg-black">
+              <video ref={videoRef} playsInline muted className="w-full aspect-square object-cover"/>
+              <button onClick={stopScan} className="w-full py-3 border-t border-white/20 text-white text-sm font-bold flex items-center justify-center gap-2"><X size={16}/>Stop scanner</button>
+            </div>
+          ) : (
+            <button onClick={() => void startScan()} disabled={busy} className="w-full rounded-md border border-outline-variant py-3 text-xs font-black disabled:opacity-40"><span className="inline-flex items-center gap-2"><Camera size={15}/>Scan seller receipt QR</span></button>
+          )}
+          <label htmlFor="offline-receipt-qr" className="text-[11px] font-bold">Or paste the receipt QR text</label>
+          <textarea id="offline-receipt-qr" rows={3} value={manualQr} onChange={event => setManualQr(event.target.value)} disabled={busy} placeholder="CPR1.…" className="input w-full font-mono text-[10px]"/>
+          <button onClick={() => setPendingQr(manualQr.trim())} disabled={busy || !manualQr.trim()} className="w-full rounded-md border border-outline-variant py-2 text-xs font-bold disabled:opacity-40">Check seller receipt</button>
+          {pendingQr && (
+            <div className="rounded-md bg-primary-container/20 border border-primary/30 p-3 space-y-2">
+              <div className="text-xs font-bold">Receipt ready for confirmation</div>
+              <button onClick={() => void confirmScannedVoucher()} disabled={busy} className="w-full rounded-md bg-primary py-3 text-xs font-black text-on-primary disabled:opacity-40">{busy ? 'Verifying receipt…' : 'Verify and confirm handoff'}</button>
+            </div>
+          )}
+        </div>
         <div className="rounded-md bg-surface-container-high p-3 text-[11px] text-on-surface-variant">
-          Funds remain in escrow. The two-hour inspection period starts only after the seller's passkey-signed receipt reaches the server.
+          Funds remain in escrow. The two-hour inspection period starts only after your confirmation reaches the server.
         </div>
         {lastMessage && <p className="text-xs text-primary">{lastMessage}</p>}
       </section>
@@ -306,11 +394,29 @@ export default function OfflineEscrowHandoff({
           </button>
         </div>
       )}
+      {receiptForBuyer && receiptQr && (
+        <div className="rounded-md border border-primary/30 bg-white p-4 space-y-3">
+          <div className="text-center text-xs font-black text-slate-900">Show this receipt QR to the buyer</div>
+          <div className="flex justify-center"><QRCodeSVG value={receiptQr} size={260} level="M" includeMargin/></div>
+          <p className="text-center text-[11px] text-slate-600">The buyer scans this after your passkey signature. Only then does the two-hour inspection timer start.</p>
+        </div>
+      )}
       {receiptPending && (
         <div className="rounded-md border border-tertiary/30 bg-tertiary/10 p-3 text-xs">
           <div className="flex items-center gap-2 font-bold"><CloudOff size={15}/>Receipt saved on this phone</div>
           <p className="mt-1 text-on-surface-variant">No money has been paid out. The receipt will synchronize when this device is online.</p>
-          {online && <button onClick={() => void syncPendingOfflineEscrowReceipts(userId).then(results => { if (results.some(result => result.success)) { setReceiptPending(false); setLastMessage('Receipt synchronized. Inspection window started.'); onReconciledRef.current?.() } })} className="mt-2 inline-flex items-center gap-2 text-primary font-bold"><RefreshCw size={13}/>Retry sync</button>}
+          {online && <button onClick={() => void syncPendingOfflineEscrowReceipts(userId).then(results => {
+            const started = results.some(result => result.success && !result.awaitingBuyerSync)
+            const waiting = results.some(result => result.success && result.awaitingBuyerSync)
+            if (started) {
+              setReceiptPending(false)
+              setLastMessage('Buyer confirmation synchronized. Inspection window started.')
+              onReconciledRef.current?.()
+            } else if (waiting) {
+              setReceiptPending(true)
+              setLastMessage('Seller receipt synchronized. Waiting for buyer confirmation.')
+            }
+          })} className="mt-2 inline-flex items-center gap-2 text-primary font-bold"><RefreshCw size={13}/>Retry sync</button>}
         </div>
       )}
       {lastMessage && <p className="text-xs text-primary">{lastMessage}</p>}

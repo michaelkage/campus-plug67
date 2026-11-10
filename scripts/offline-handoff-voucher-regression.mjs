@@ -38,6 +38,7 @@ for (const invariant of requiredMigrationInvariants) {
   if (!migration.includes(invariant)) throw new Error(`Missing offline voucher SQL invariant: ${invariant}`)
 }
 if (migration.includes('token text NOT NULL')) throw new Error('The database must never store the plaintext handoff token')
+if (!migration.trimEnd().endsWith('GRANT EXECUTE ON FUNCTION public.confirm_offline_handoff(uuid, uuid, text) TO authenticated;')) throw new Error('Unexpected SQL was appended after the offline handoff grants')
 if (!helper.includes("crypto.subtle.digest('SHA-256'")) throw new Error('Client must verify voucher commitments with SHA-256')
 if (!helper.includes('crypto.getRandomValues')) throw new Error('Offline voucher tokens must use cryptographically secure randomness')
 for (const invariant of ['mismatched transactions', 'expired vouchers', 'cryptographic check']) {

@@ -261,7 +261,11 @@ async function assertDisputeOutcome({ buyer, seller, paymentMethod, claimantRole
   const repeat = await rpc("resolve_dispute_verdict", args);
   failIfError(repeat.error, "idempotent dispute resolution retry");
   assert.equal(repeat.data.already_resolved, true);
-  if (winnerRole === "seller") assert.equal(await ledgerCount(transaction.id, "Dispute settlement: released to seller"), 1);
+  if (winnerRole === "seller" && paymentMethod === "campus_wallet") {
+    assert.equal(await ledgerCount(transaction.id, "Dispute settlement: released to seller"), 1);
+  } else if (winnerRole === "seller") {
+    assert.equal(await ledgerCount(transaction.id, "Dispute settlement: released to seller"), 0);
+  }
   if (winnerRole === "buyer" && paymentMethod === "campus_wallet") {
     assert.equal(await ledgerCount(transaction.id, "Dispute refund: settled in favour of buyer"), 1);
   }

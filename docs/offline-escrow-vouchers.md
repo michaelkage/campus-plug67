@@ -44,5 +44,6 @@ The receipt object is `{ core, assertion }`. Both the client and server must use
 - The voucher proves that the server observed eligible escrow state when it issued the voucher. An offline device cannot know whether a later dispute, cancellation or revocation occurred until it reconnects.
 - The receipt is provisional until server verification. A seller-first sync does not start auto-release; buyer sync is required for the inspection buffer.
 - Device wall clocks can be wrong or manipulated. The server checks a bounded scan-time tolerance and sync grace, but a browser cannot provide a hardware-attested timestamp.
+- The 30-second QR counter is a freshness indicator, not a secret TOTP or proof against screenshots. A copied QR may be replayed during its short acceptance window. The one-time voucher/receipt binding and atomic server redemption prevent duplicate settlement, but do not prove physical proximity.
 - Browser GPS is not hardware-attested. WebAuthn proves use of a registered authenticator for the challenge; it does not prove camera sensor provenance, physical location or that an image came from a live camera.
 - Sellers should not rely on an offline voucher as a guarantee of current transaction status or immediate payout, especially for high-value handoffs. If the buyer never reconnects to confirm, funds remain held for manual support resolution.

@@ -50,7 +50,7 @@ export type IssuedOfflineVoucher = {
   server_status: 'funds_locked_provisional'
 }
 type CachedPublicKey = { key_id: string; public_key: string; algorithm: 'Ed25519' }
-type StoredReceipt = { voucher_token: string; receipt: OfflineReceipt }
+export type StoredReceipt = { voucher_token: string; receipt: OfflineReceipt }
 const PUBLIC_KEY_CACHE = 'campus-plug:offline-escrow-public-key:v1'
 const RECEIPT_PREFIX = 'offline-escrow-receipt:'
 const VOUCHER_PREFIX = 'offline-escrow-voucher:'
@@ -203,6 +203,65 @@ export async function verifyOfflineQr(rawValue: string, sellerId: string) {
   return { voucherToken, claims, counter, code }
 }
 
+export async function makeOfflineReceiptQr(stored: StoredReceipt): Promise<string> {
+  const serialized = JSON.stringify(stored)
+  if (serialized.length > 9000) throw new Error('Signed receipt is too large to transfer by QR')
+  return `CPR1.${encodeBase64Url(encoder.encode(serialized))}`
+}
+
+export async function parseOfflineReceiptQr(
+  rawValue: string,
+  buyerId: string,
+  transactionId: string,
+): Promise<StoredReceipt> {
+  const [prefix, encoded, extra] = rawValue.trim().split('.')
+  if (prefix !== 'CPR1' || !encoded || extra !== undefined || encoded.length > 12000) {
+    throw new Error('This is not a Campus Plug signed receipt QR')
+  }
+
+  let stored: StoredReceipt
+  try {
+    stored = JSON.parse(new TextDecoder().decode(decodeBase64Url(encoded))) as StoredReceipt
+  } catch {
+    throw new Error('The seller receipt QR is damaged or incomplete')
+  }
+  if (!stored?.voucher_token || !stored.receipt?.core || !stored.receipt?.assertion) {
+    throw new Error('The seller receipt is incomplete')
+  }
+
+  const parts = stored.voucher_token.split('.')
+  if (parts.length !== 3 || parts[0] !== 'CPV1') throw new Error('The linked voucher is malformed')
+  const payloadBytes = decodeBase64Url(parts[1])
+  const signature = decodeBase64Url(parts[2])
+  const claims = JSON.parse(new TextDecoder().decode(payloadBytes)) as OfflineVoucherClaims
+  const key = await getOfflineEscrowPublicKey()
+  if (claims.kid !== key.key_id || claims.buyer_id !== buyerId
+    || claims.transaction_id !== transactionId || claims.v !== 1) {
+    throw new Error('This receipt does not belong to this buyer and transaction')
+  }
+
+  const publicKey = await crypto.subtle.importKey(
+    'raw',
+    decodeBase64Url(key.public_key),
+    { name: 'Ed25519' },
+    false,
+    ['verify'],
+  )
+  const valid = await crypto.subtle.verify({ name: 'Ed25519' }, publicKey, signature, payloadBytes)
+  if (!valid) throw new Error('The linked voucher signature is invalid')
+
+  const core = stored.receipt.core
+  const voucherHash = await sha256Hex(stored.voucher_token)
+  if (core.v !== 1 || core.voucher_id !== claims.jti
+    || core.transaction_id !== claims.transaction_id
+    || core.buyer_id !== claims.buyer_id || core.seller_id !== claims.seller_id
+    || core.nonce !== claims.nonce || core.voucher_hash !== voucherHash
+    || !claims.seller_credentials.some(credential => credential.id === stored.receipt.assertion.id)) {
+    throw new Error('The signed seller receipt does not match the voucher')
+  }
+  return stored
+}
+
 export async function createOfflineReceipt(rawValue: string, sellerId: string): Promise<StoredReceipt> {
   const verified = await verifyOfflineQr(rawValue, sellerId)
   const voucherHash = await sha256Hex(verified.voucherToken)
@@ -256,7 +315,11 @@ export async function syncOfflineEscrowReceipt(stored: StoredReceipt) {
   })
   if (error) throw error
   if (!data?.success) throw new Error(data?.error || 'Offline receipt synchronization failed')
-  await removeLocalTransaction(RECEIPT_PREFIX + stored.receipt.core.voucher_id)
+  // Keep the seller's signed receipt locally until the buyer has synchronized
+  // it too. The buyer confirmation, not the seller scan, starts inspection.
+  if (!data?.awaiting_buyer_sync) {
+    await removeLocalTransaction(RECEIPT_PREFIX + stored.receipt.core.voucher_id)
+  }
   return data
 }
 

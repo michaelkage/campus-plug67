@@ -44,10 +44,10 @@ for (const invariant of ['mismatched transactions', 'expired vouchers', 'cryptog
   if (!test.includes(invariant)) throw new Error(`Missing offline handoff test case: ${invariant}`)
 }
 if (safeSwap.includes('qr_secret') || safeSwap.includes('release_code')) throw new Error('Safe Swap must not expose the legacy static QR secret')
-for (const invariant of ['prepare_offline_handoff', 'get_offline_handoff_commitment', 'offline-handoff-seller:', 'offline-handoff-buyer:']) {
+for (const invariant of ['prepare_offline_handoff', 'get_offline_handoff_commitment', 'offline-handoff-seller:', 'offline-handoff-buyer:', 'safeZone={zones.find(zone=>zone.id===tx?.buyer_safe_zone_id)||null}']) {
   if (!safeSwap.includes(invariant)) throw new Error(`Safe Swap offline voucher wiring is missing: ${invariant}`)
 }
-for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released', 'sync it before the 10-minute QR expiry']) {
+for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released', 'sync it before the 10-minute QR expiry', 'safeZone.radius_m', 'position.coords.accuracy>50']) {
   if (!meetup.includes(invariant)) throw new Error(`Mobile offline handoff wiring is missing: ${invariant}`)
 }
 console.log('Offline handoff voucher security regression checks passed.')

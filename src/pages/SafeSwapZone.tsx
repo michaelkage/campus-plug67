@@ -81,8 +81,10 @@ export default function SafeSwapZone(){
 
   useEffect(()=>{
     if(!transactionId||!user?.id||!tx||tx.seller_id!==user.id||tx.status!=='meetup_initiated'){setOfflineTicket(null);return}
-    let cancelled=false;
+    let cancelled=false;let preparing=false;
     const prepare=async()=>{
+      if(preparing)return;
+      preparing=true;
       setVoucherLoading(true);
       try{
         const local=await getLocalTransaction(`offline-handoff-seller:${transactionId}`).catch(()=>undefined);
@@ -110,10 +112,12 @@ export default function SafeSwapZone(){
         await saveLocalTransaction({id:`offline-handoff-seller:${transactionId}`,ownerId:user.id,kind:'offline-handoff-seller',payload:ticket,status:'synced',updatedAt:Date.now()});
         if(!cancelled)setOfflineTicket(JSON.stringify(ticket));
       }catch(error){if(!cancelled)toast.error(error instanceof Error?error.message:'Could not prepare the one-time offline handoff QR')}
-      finally{if(!cancelled)setVoucherLoading(false)}
+      finally{preparing=false;if(!cancelled)setVoucherLoading(false)}
     };
+    const onOnline=()=>void prepare();
+    window.addEventListener('online',onOnline);
     void prepare();
-    return()=>{cancelled=true};
+    return()=>{cancelled=true;window.removeEventListener('online',onOnline)};
   },[transactionId,user?.id,tx?.seller_id,releaseUnlocked]);
 
   useEffect(()=>{
@@ -135,9 +139,11 @@ export default function SafeSwapZone(){
         if(!cancelled)setOfflineCommitment(commitment);
       }
     };
+    const onOnline=()=>void loadCommitment();
+    window.addEventListener('online',onOnline);
     void loadCommitment();
     const timer=window.setInterval(()=>{if(attempts<8&&!offlineCommitment)void loadCommitment()},2500);
-    return()=>{cancelled=true;window.clearInterval(timer)};
+    return()=>{cancelled=true;window.clearInterval(timer);window.removeEventListener('online',onOnline)};
   },[transactionId,user?.id,tx?.buyer_id,tx?.status]);
   // Recover queued proofs independently of the conditional mobile scanner.
   // This runs after a reload even when transaction data was unavailable offline.

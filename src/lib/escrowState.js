@@ -20,8 +20,8 @@ export const TX_STATUS_META = Object.freeze({
   pending: { label: 'Payment being verified', icon: '⏳', color: 'amber', step: 0 },
   locked: { label: 'Funds protected in escrow', icon: '🔐', color: 'cyan', step: 1 },
   meetup_initiated: { label: 'Pickup arranged', icon: '📍', color: 'cyan', step: 2 },
-  release_requested: { label: 'Funds protected · release pending', icon: '🛡️', color: 'amber', step: 3 },
-  released: { label: 'Funds released · exchange complete', icon: '✅', color: 'green', step: 4 },
+  release_requested: { label: 'Protected decision window · inspect lifecycle details', icon: '🛡️', color: 'amber', step: 3 },
+  released: { label: 'Transaction resolved · verify payout status', icon: '✅', color: 'green', step: 4 },
   disputed: { label: 'Under Dispute Review', icon: '🚨', color: 'red', step: -1 },
   cancelled: { label: 'Transaction Cancelled', icon: '❌', color: 'red', step: -1 },
 })

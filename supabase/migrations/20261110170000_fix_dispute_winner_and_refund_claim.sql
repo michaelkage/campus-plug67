@@ -77,7 +77,7 @@ BEGIN
     RAISE EXCEPTION 'Only service_role can execute resolve_dispute_verdict';
   END IF;
 
-  IF p_verdict NOT IN ('claimant', 'respondent') THEN
+  IF p_verdict IS NULL OR p_verdict NOT IN ('claimant', 'respondent') THEN
     RAISE EXCEPTION 'Invalid verdict %. Must be claimant or respondent', p_verdict;
   END IF;
 

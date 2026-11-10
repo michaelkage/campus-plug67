@@ -50,7 +50,7 @@ if (safeSwap.includes('qr_secret') || safeSwap.includes('release_code')) throw n
 for (const invariant of ['prepare_offline_handoff', 'get_offline_handoff_commitment', 'offline-handoff-seller:', 'offlineHandoffCommitmentKey(', 'offlineHandoffReceiptKey(', 'safeZone={zones.find(zone=>zone.id===tx?.buyer_safe_zone_id)||null}']) {
   if (!safeSwap.includes(invariant)) throw new Error(`Safe Swap offline voucher wiring is missing: ${invariant}`)
 }
-for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released', 'sync it before the 24-hour server expiry', 'safeZone.radius_m', 'position.coords.accuracy>50']) {
+for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released', 'sync it before the QR\'s 10-minute server expiry', 'safeZone.radius_m', 'position.coords.accuracy>50']) {
   if (!meetup.includes(invariant)) throw new Error(`Mobile offline handoff wiring is missing: ${invariant}`)
 }
 

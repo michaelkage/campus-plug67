@@ -27,9 +27,10 @@ const openCase = migration.slice(
   migration.indexOf("CREATE OR REPLACE FUNCTION public.claim_paystack_refund"),
 );
 assert.ok(openCase.length > 0);
-assert.ok(!/INSERT INTO public\\.jury_cases\\s*\\([\\s\\S]*?\\bhigh_value\\b/i.test(openCase),
+const insertColumns = openCase.match(/INSERT INTO public\\.jury_cases\\s*\\(([^)]*)\\)/i)?.[1] ?? "";
+assert.ok(!/\\bhigh_value\\b/i.test(insertColumns),
   "Generated jury_cases.high_value must not be inserted explicitly");
-assert.ok(!/INSERT INTO public\\.jury_cases\\s*\\([\\s\\S]*?\\brequired_votes\\b/i.test(openCase),
+assert.ok(!/\\brequired_votes\\b/i.test(insertColumns),
   "Generated jury_cases.required_votes must not be inserted explicitly");
 
 

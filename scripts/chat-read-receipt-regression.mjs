@@ -11,6 +11,8 @@ assert.ok(chat.includes("verifyQuery.eq('transaction_id', transactionId) : verif
 assert.ok(chat.includes('(newMsg.transaction_id ?? null) === (transactionId ?? null)'))
 assert.ok(chat.includes("transactionId ?? 'general'"))
 assert.ok(chat.includes('remainingUnread?.length'))
+assert.ok(chat.includes(".subscribe(status =>"))
+assert.ok(chat.includes("if (status === 'SUBSCRIBED') void markMessagesAsRead()"))
 
 assert.ok(inbox.includes('const conversationKey ='))
 assert.ok(inbox.includes("message.transaction_id ?? 'general'"))

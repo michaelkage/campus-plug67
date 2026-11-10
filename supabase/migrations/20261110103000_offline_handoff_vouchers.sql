@@ -186,20 +186,25 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'Offline handoff voucher not found'; END IF;
   IF v_actor <> v_voucher.buyer_id THEN RAISE EXCEPTION 'Only the buyer can confirm handoff'; END IF;
 
+  v_hash := encode(extensions.digest(convert_to(p_token, 'UTF8'), 'sha256'), 'hex');
+  IF v_hash <> v_voucher.token_hash THEN RAISE EXCEPTION 'Invalid offline handoff proof'; END IF;
+
   IF v_voucher.consumed_at IS NOT NULL THEN
-    IF v_tx.status = 'release_requested' AND v_tx.handshake_receipt_buffer IS NOT NULL THEN
+    IF v_tx.status IN ('release_requested', 'released')
+       AND v_tx.handshake_receipt_buffer IS NOT NULL THEN
       RETURN jsonb_build_object(
-        'success', true, 'status', 'inspection_pending',
-        'transaction_id', v_tx.id, 'inspection_expires_at', v_tx.auto_release_at,
-        'already_confirmed', true, 'funds_released', false
+        'success', true,
+        'status', CASE WHEN v_tx.status = 'released' THEN 'released' ELSE 'inspection_pending' END,
+        'transaction_id', v_tx.id,
+        'inspection_expires_at', v_tx.auto_release_at,
+        'already_confirmed', true,
+        'funds_released', v_tx.status = 'released'
       );
     END IF;
     RAISE EXCEPTION 'Offline handoff voucher has already been consumed';
   END IF;
 
   IF v_voucher.expires_at <= now() THEN RAISE EXCEPTION 'Offline handoff QR has expired'; END IF;
-  v_hash := encode(extensions.digest(convert_to(p_token, 'UTF8'), 'sha256'), 'hex');
-  IF v_hash <> v_voucher.token_hash THEN RAISE EXCEPTION 'Invalid offline handoff proof'; END IF;
   IF v_tx.status <> 'meetup_initiated'
      OR v_tx.buyer_id <> v_voucher.buyer_id
      OR v_tx.seller_id <> v_voucher.seller_id THEN

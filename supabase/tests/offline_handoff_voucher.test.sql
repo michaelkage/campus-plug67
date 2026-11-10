@@ -112,14 +112,14 @@ SELECT is(
   'A repeated sync returns the existing inspection result idempotently'
 );
 
--- 4. A voucher whose expiry is not later than its consumption cannot authorize inspection.
+-- 4. A voucher that expired before consumption cannot authorize inspection.
 INSERT INTO public.offline_handoff_vouchers (
   transaction_id, buyer_id, seller_id, amount, safe_zone_id,
   token_hash, expires_at, consumed_at
 )
 SELECT
   tx.id, tx.buyer_id, tx.seller_id, tx.amount, tx.buyer_safe_zone_id,
-  repeat('b', 64), now() - interval '10 minutes', now() - interval '20 minutes'
+  repeat('b', 64), now() - interval '20 minutes', now() - interval '10 minutes'
 FROM public.transactions AS tx
 WHERE tx.id = 'f3000000-0000-4000-8000-000000000003';
 
@@ -138,7 +138,7 @@ SELECT throws_ok(
   $$,
   'P0001',
   'A valid one-time offline handoff voucher is required to confirm receipt',
-  'Expired voucher cannot authorize buyer-confirmed inspection'
+  'Voucher that expired before consumption cannot authorize buyer-confirmed inspection'
 );
 
 -- 5. The RPC itself rejects an unconsumed voucher after its server expiry.

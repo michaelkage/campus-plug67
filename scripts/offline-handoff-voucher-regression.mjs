@@ -43,7 +43,7 @@ for (const invariant of ["now() + interval '24 hours'", "public.offline_handoff_
 if (!migration.trimEnd().endsWith('GRANT EXECUTE ON FUNCTION public.confirm_offline_handoff(uuid, uuid, text) TO authenticated;')) throw new Error('Unexpected SQL was appended after the offline handoff grants')
 if (!helper.includes("crypto.subtle.digest('SHA-256'")) throw new Error('Client must verify voucher commitments with SHA-256')
 if (!helper.includes('crypto.getRandomValues')) throw new Error('Offline voucher tokens must use cryptographically secure randomness')
-for (const invariant of ['mismatched transactions', 'expired vouchers', 'cryptographic check']) {
+for (const invariant of ['mismatched transactions', 'device clock', 'cryptographic check']) {
   if (!test.includes(invariant)) throw new Error(`Missing offline handoff test case: ${invariant}`)
 }
 if (safeSwap.includes('qr_secret') || safeSwap.includes('release_code')) throw new Error('Safe Swap must not expose the legacy static QR secret')

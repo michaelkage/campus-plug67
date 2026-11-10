@@ -21,6 +21,7 @@ assert.ok(!claim.includes("NOT v_tx.paystack_ref"),
   "Text references must never be used as booleans");
 assert.ok(migration.includes("GRANT EXECUTE ON FUNCTION public.claim_paystack_refund(uuid) TO service_role"));
 
+assert.ok(resolver.includes("p_verdict IS NULL OR p_verdict NOT IN ('claimant', 'respondent')"));
 assert.ok(resolver.includes("v_winner_id := CASE"));
 assert.ok(resolver.includes("WHEN p_verdict = 'claimant' THEN v_case.claimant_id"));
 assert.ok(resolver.includes("ELSE v_case.respondent_id"));

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = file => fs.readFileSync(path.join(root, file), 'utf8')
 const migration = read('supabase/migrations/20261110103000_offline_handoff_vouchers.sql')
-const durableMigration = read('supabase/migrations/20261110143000_offline_handoff_durable_recovery.sql')
+const durableMigration = read('supabase/migrations/20261110134305_offline_handoff_durable_recovery.sql')
 const helper = read('src/lib/offlineHandoff.ts')
 const test = read('src/lib/offlineHandoff.test.ts')
 const safeSwap = read('src/pages/SafeSwapZone.tsx')

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { getDeviceType } from '@/lib/device'
 import { formatCountdown } from '@/lib/escrowTiming'
 import { saveLocalTransaction, removeLocalTransaction, getLocalTransaction } from '@/lib/transactionState'
-import { createOfflineHandoffTicket, createOfflineHandoffToken, hashOfflineHandoffToken, type OfflineHandoffCommitment } from '@/lib/offlineHandoff'
+import { createOfflineHandoffTicket, createOfflineHandoffToken, hashOfflineHandoffToken, offlineHandoffCommitmentKey, offlineHandoffReceiptKey, type OfflineHandoffCommitment } from '@/lib/offlineHandoff'
 import MobileMeetupMode from '@/components/meetup/MobileMeetupMode'
 import { QRCodeSVG } from 'qrcode.react'
 import { ShieldCheck, MapPin, Navigation, LockKeyhole, CheckCircle2, AlertTriangle, WalletCards, Smartphone, Clock3 } from 'lucide-react'
@@ -60,13 +60,17 @@ export default function SafeSwapZone(){
       setVoucherLoading(true);
       try{
         const local=await getLocalTransaction(`offline-handoff-seller:${transactionId}`).catch(()=>undefined);
-        const cached=local?.payload as {v?:number;expires_at?:string}|undefined;
-        if(cached?.v===1&&cached.expires_at&&Date.parse(cached.expires_at)>Date.now()){
+        const cached=local?.payload as {v?:number;token?:string;expires_at?:string}|undefined;
+        const cachedToken=cached?.v===1&&typeof cached.token==='string'?cached.token:null;
+        // A cached QR remains available during a dead-zone. Its expiry is
+        // enforced by PostgreSQL, never by the seller device clock.
+        if(cachedToken&&!navigator.onLine){
           if(!cancelled)setOfflineTicket(JSON.stringify(cached));
           return;
         }
-        if(local)await removeLocalTransaction(`offline-handoff-seller:${transactionId}`).catch(()=>{});
-        const token=createOfflineHandoffToken();
+        if(!navigator.onLine)throw new Error('Connect once to prepare the offline handoff QR.');
+        if(!cancelled)setOfflineTicket(null);
+        const token=cachedToken||createOfflineHandoffToken();
         const tokenHash=await hashOfflineHandoffToken(token);
         const {data,error:prepareError}=await supabase.rpc('prepare_offline_handoff',{p_transaction_id:transactionId,p_token_hash:tokenHash});
         if(prepareError)throw prepareError;
@@ -90,17 +94,17 @@ export default function SafeSwapZone(){
     let cancelled=false; let attempts=0;
     const loadCommitment=async()=>{
       attempts+=1;
-      const local=await getLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>undefined);
+      const local=await getLocalTransaction(offlineHandoffCommitmentKey(transactionId)).catch(()=>undefined);
       if(local?.ownerId===user.id&&local.payload&&typeof local.payload==='object'){
         const cached=local.payload as OfflineHandoffCommitment;
-        if(cached.success&&Date.parse(cached.expires_at)>Date.now()&&!cancelled)setOfflineCommitment(cached);
+        if(cached.success&&!cancelled)setOfflineCommitment(cached);
       }
       if(!navigator.onLine||cancelled)return;
       const {data,error:commitmentError}=await supabase.rpc('get_offline_handoff_commitment',{p_transaction_id:transactionId});
       const received=data as OfflineHandoffCommitment|null;
       if(!commitmentError&&received?.success){
         const commitment=received;
-        await saveLocalTransaction({id:`offline-handoff-buyer:${transactionId}`,ownerId:user.id,kind:'offline-handoff-buyer',payload:commitment,status:'synced',updatedAt:Date.now()}).catch(()=>{});
+        await saveLocalTransaction({id:offlineHandoffCommitmentKey(transactionId),ownerId:user.id,kind:'offline-handoff-commitment',payload:commitment,status:'synced',updatedAt:Date.now()}).catch(()=>{});
         if(!cancelled)setOfflineCommitment(commitment);
       }
     };
@@ -108,6 +112,49 @@ export default function SafeSwapZone(){
     const timer=window.setInterval(()=>{if(attempts<8&&!offlineCommitment)void loadCommitment()},2500);
     return()=>{cancelled=true;window.clearInterval(timer)};
   },[transactionId,user?.id,tx?.buyer_id,releaseUnlocked]);
+  // Recover queued proofs independently of the conditional mobile scanner.
+  // This runs after a reload even when transaction data was unavailable offline.
+  useEffect(()=>{
+    if(!transactionId||!user?.id)return;
+    let syncing=false;
+    const syncReceipt=async()=>{
+      if(!navigator.onLine||syncing)return;
+      syncing=true;
+      const key=offlineHandoffReceiptKey(transactionId);
+      try{
+        const local=await getLocalTransaction(key).catch(()=>undefined);
+        if(!local||local.ownerId!==user.id||local.kind!=='offline-handoff-receipt'||!local.payload||typeof local.payload!=='object')return;
+        const receipt=local.payload as {transactionId?:string;voucherId?:string;token?:string};
+        if(receipt.transactionId!==transactionId||!receipt.voucherId||!receipt.token)return;
+        await saveLocalTransaction({...local,status:'syncing',updatedAt:Date.now(),error:undefined});
+        const {data,error}=await supabase.rpc('confirm_offline_handoff',{
+          p_transaction_id:transactionId,p_voucher_id:receipt.voucherId,p_token:receipt.token,
+        });
+        if(error){
+          const status=(error as {status?:number}).status;
+          const transient=!navigator.onLine||!status||status===0||status>=500;
+          await saveLocalTransaction({...local,status:transient?'queued':'failed',updatedAt:Date.now(),error:error.message}).catch(()=>{});
+          if(!transient)toast.error(error.message||'The saved handoff proof needs attention');
+          return;
+        }
+        if((data as {success?:boolean}|null)?.success){
+          await removeLocalTransaction(key).catch(()=>{});
+          toast.success('Saved offline handoff synchronized. Funds remain protected for the two-hour inspection window.');
+          setTx(current=>current?({...current,status:'release_requested'}):current);
+        }else{
+          await saveLocalTransaction({...local,status:'failed',updatedAt:Date.now(),error:'Server did not confirm the saved handoff'}).catch(()=>{});
+        }
+      }finally{syncing=false}
+    };
+    const onOnline=()=>{void syncReceipt()};
+    const onVisible=()=>{if(document.visibilityState==='visible')void syncReceipt()};
+    const interval=window.setInterval(()=>void syncReceipt(),30000);
+    window.addEventListener('online',onOnline);
+    document.addEventListener('visibilitychange',onVisible);
+    void syncReceipt();
+    return()=>{window.clearInterval(interval);window.removeEventListener('online',onOnline);document.removeEventListener('visibilitychange',onVisible)};
+  },[transactionId,user?.id]);
+
   const nearest=useMemo(()=>{if(!position||!zones.length)return null;return zones.map(zone=>({zone,distance:Math.round(distanceM(position,zone))})).sort((a,b)=>a.distance-b.distance)[0]},[position,zones]);const isInside=nearest?nearest.distance<=50:false;
   const startGps=()=>{if(device!=='mobile'){setError('This device cannot provide a trustworthy meetup GPS fix. Scan the desktop Transfer-to-Mobile QR and continue on your phone.');return}if(!navigator.geolocation){setError('This browser does not provide GPS.');return}setError(null);navigator.geolocation.getCurrentPosition(pos=>setPosition(pos.coords),err=>setError(err.message||'Unable to read your location.'),{enableHighAccuracy:true,timeout:12000,maximumAge:3000})}
   const confirmArrival=async()=>{if(device!=='mobile'){toast.error('Meetup verification is phone-only.');return}if(!user||!transactionId||!position)return;setChecking(true);await saveLocalTransaction({id:`safe-arrival:${transactionId}`,ownerId:user.id,kind:'safe-arrival',payload:{transactionId,role:tx?.buyer_id===user.id?'buyer':tx?.seller_id===user.id?'seller':null,lat:position.latitude,lng:position.longitude},status:'syncing',updatedAt:Date.now()}).catch(()=>{});try{const role=tx?.buyer_id===user.id?'buyer':tx?.seller_id===user.id?'seller':null;if(!role)throw new Error('You are not a participant in this transaction.');const {data,error:rpcError}=await supabase.functions.invoke('safe-arrival',{body:{transaction_id:transactionId,role,lat:position.latitude,lng:position.longitude}});if(rpcError)throw rpcError;if(!data?.success)throw new Error(data?.message||'You are outside the approved Safe Swap Zone.');await removeLocalTransaction(`safe-arrival:${transactionId}`).catch(()=>{});setLocalDraft(false);toast.success(`${data.zone_name} verified — mobile QR release zone confirmed.`);setTx(prev=>prev?({...prev,...(role==='buyer'?{buyer_safe_zone_id:data.zone_id}:{seller_safe_zone_id:data.zone_id})}):prev)}catch(err){await saveLocalTransaction({id:`safe-arrival:${transactionId}`,ownerId:user.id,kind:'safe-arrival',payload:{transactionId},status:'failed',updatedAt:Date.now(),error:err instanceof Error?err.message:'Verification failed'}).catch(()=>{});setLocalDraft(true);toast.error(err instanceof Error?err.message:'Safe-zone verification failed')}finally{setChecking(false)}}

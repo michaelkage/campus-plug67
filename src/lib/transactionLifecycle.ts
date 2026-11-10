@@ -106,13 +106,13 @@ export function deriveTransactionLifecycle(
           tone: expired ? 'warning' : 'info',
         }
       }
-      return { ...base, phase: 'seller_release_window', title: 'Seller requested release', description: 'The seller requested release. The buyer has the configured dispute window before automatic settlement.', tone: 'warning' }
+      return { ...base, phase: 'seller_release_window', title: 'Seller requested release', description: 'The seller requested release. Either participant may dispute during the configured window before automatic settlement.', tone: 'warning' }
     case 'disputed':
       return { ...base, phase: 'dispute', title: 'Dispute under review', description: 'Automatic settlement is paused while the dispute is resolved. Funds remain protected pending the authoritative verdict.', tone: 'danger', canDispute: false }
     case 'released':
       return { ...base, phase: 'resolution', title: payout.settled ? 'Transaction settled' : 'Transaction resolved · payout pending', description: payout.settled ? 'The transaction has been resolved and seller settlement is recorded.' : 'The transaction resolution is recorded, but seller payout is not yet confirmed. Do not treat this as paid.', tone: payout.status === 'failed' ? 'warning' : payout.settled ? 'success' : 'warning' }
     case 'cancelled':
-      return { ...base, phase: 'cancelled', title: 'Transaction cancelled', description: tx?.refund_status === 'succeeded' ? 'The buyer refund has been processed.' : 'The transaction is cancelled. Check the refund record for confirmation that money has returned to the buyer.', tone: 'neutral' }
+      return { ...base, phase: 'cancelled', title: 'Transaction cancelled', description: tx?.refund_status === 'processed' ? 'The buyer refund has been processed.' : 'The transaction is cancelled. Check the refund record for confirmation that money has returned to the buyer.', tone: 'neutral' }
     default:
       return { ...base, phase: 'unknown', title: 'Transaction status unavailable', description: 'The server status could not be mapped to a known transaction stage. No financial action should be inferred.', tone: 'neutral', canDispute: false, terminal: false }
   }

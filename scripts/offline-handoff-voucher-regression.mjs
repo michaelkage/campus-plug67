@@ -70,4 +70,34 @@ for (const invariant of [
   if (!guardMigration.includes(invariant)) throw new Error(`Missing legacy QR bypass guard: ${invariant}`)
 }
 
+
+const walletMigration = read('supabase/migrations/20261109213000_add_wallet_escrow_inspection_buffer.sql')
+const walletReleaseStart = walletMigration.indexOf("ELSIF p_action = 'release' THEN")
+const walletRefundStart = walletMigration.indexOf("ELSIF p_action = 'refund' THEN", walletReleaseStart)
+if (walletReleaseStart < 0 || walletRefundStart < 0) throw new Error('Campus Wallet handoff RPC must retain a dedicated buyer release branch')
+const walletRelease = walletMigration.slice(walletReleaseStart, walletRefundStart)
+for (const invariant of [
+  "SET status = 'release_requested'",
+  'handshake_receipt_buffer = now()',
+  "interval '2 hours'",
+]) {
+  if (!walletRelease.includes(invariant)) throw new Error(`Campus Wallet handoff must enter voucher-guarded inspection: ${invariant}`)
+}
+if (walletRelease.includes("SET status = 'released'")) throw new Error('Campus Wallet buyer QR confirmation must not release funds directly')
+
+const paystackMigration = read('supabase/migrations/20261110161000_restore_paystack_external_payout.sql')
+const paystackReleaseStart = paystackMigration.indexOf("WHEN 'release' THEN")
+const paystackDisputeStart = paystackMigration.indexOf("WHEN 'dispute' THEN", paystackReleaseStart)
+const paystackRequestStart = paystackMigration.indexOf("WHEN 'request_release' THEN")
+if (paystackReleaseStart < 0 || paystackDisputeStart < 0 || paystackRequestStart < 0) throw new Error('Paystack escrow release branches must exist')
+const paystackRelease = paystackMigration.slice(paystackReleaseStart, paystackDisputeStart)
+const sellerRequest = paystackMigration.slice(paystackRequestStart, paystackReleaseStart)
+for (const invariant of ["SET status = 'release_requested'", 'handshake_receipt_buffer = now()', "interval '2 hours'"]) {
+  if (!paystackRelease.includes(invariant)) throw new Error(`Paystack handoff must enter voucher-guarded inspection: ${invariant}`)
+}
+if (paystackRelease.includes("SET status = 'released'")) throw new Error('Paystack buyer QR confirmation must not release funds directly')
+for (const invariant of ["now() + interval '48 hours'", 'handshake_receipt_buffer = NULL']) {
+  if (!sellerRequest.includes(invariant)) throw new Error(`Seller-requested release must retain its separate dispute window: ${invariant}`)
+}
+
 console.log('Offline handoff voucher security regression checks passed.')

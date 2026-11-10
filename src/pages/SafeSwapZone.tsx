@@ -70,10 +70,11 @@ export default function SafeSwapZone(){
         const tokenHash=await hashOfflineHandoffToken(token);
         const {data,error:prepareError}=await supabase.rpc('prepare_offline_handoff',{p_transaction_id:transactionId,p_token_hash:tokenHash});
         if(prepareError)throw prepareError;
-        if(!data?.success)throw new Error(data?.message||'Unable to prepare offline QR');
+        const prepared=data as {success?:boolean;message?:string;voucher_id:string;transaction_id:string;expires_at:string;buyer_id:string;seller_id:string;amount:number|string;safe_zone_id:string}|null;
+        if(!prepared?.success)throw new Error(prepared?.message||'Unable to prepare offline QR');
         const ticket=createOfflineHandoffTicket({
-          voucher_id:data.voucher_id, transaction_id:data.transaction_id, expires_at:data.expires_at,
-          buyer_id:data.buyer_id, seller_id:data.seller_id, amount:Number(data.amount), safe_zone_id:data.safe_zone_id,
+          voucher_id:prepared.voucher_id, transaction_id:prepared.transaction_id, expires_at:prepared.expires_at,
+          buyer_id:prepared.buyer_id, seller_id:prepared.seller_id, amount:Number(prepared.amount), safe_zone_id:prepared.safe_zone_id,
         },token);
         await saveLocalTransaction({id:`offline-handoff-seller:${transactionId}`,ownerId:user.id,kind:'offline-handoff-seller',payload:ticket,status:'synced',updatedAt:Date.now()});
         if(!cancelled)setOfflineTicket(JSON.stringify(ticket));
@@ -96,8 +97,9 @@ export default function SafeSwapZone(){
       }
       if(!navigator.onLine||cancelled)return;
       const {data,error:commitmentError}=await supabase.rpc('get_offline_handoff_commitment',{p_transaction_id:transactionId});
-      if(!commitmentError&&data?.success){
-        const commitment=data as OfflineHandoffCommitment;
+      const received=data as OfflineHandoffCommitment|null;
+      if(!commitmentError&&received?.success){
+        const commitment=received;
         await saveLocalTransaction({id:`offline-handoff-buyer:${transactionId}`,ownerId:user.id,kind:'offline-handoff-buyer',payload:commitment,status:'synced',updatedAt:Date.now()}).catch(()=>{});
         if(!cancelled)setOfflineCommitment(commitment);
       }

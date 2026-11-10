@@ -154,13 +154,13 @@ FROM public.transactions AS tx
 WHERE tx.id = 'f3000000-0000-4000-8000-000000000005';
 
 SELECT throws_ok(
-  $
+  $test$
     SELECT public.confirm_offline_handoff(
       'f3000000-0000-4000-8000-000000000005',
       (SELECT id FROM public.offline_handoff_vouchers WHERE transaction_id = 'f3000000-0000-4000-8000-000000000005'),
       'offline-expired-token-0000000000000000'
     )
-  $,
+  $test$,
   'P0001',
   'Offline handoff QR has expired',
   'Server-side confirmation rejects an unconsumed voucher after expiry'

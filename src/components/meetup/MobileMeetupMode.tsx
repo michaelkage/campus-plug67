@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Camera, CheckCircle2, MapPinned, ShieldAlert, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { verifyOfflineHandoffTicket, type OfflineHandoffCommitment } from '@/lib/offlineHandoff'
+import { offlineHandoffReceiptKey, verifyOfflineHandoffTicket, type OfflineHandoffCommitment } from '@/lib/offlineHandoff'
 import { getLocalTransaction, removeLocalTransaction, saveLocalTransaction } from '@/lib/transactionState'
 import toast from 'react-hot-toast'
 
@@ -12,35 +12,6 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
   const videoRef=useRef<HTMLVideoElement>(null);const streamRef=useRef<MediaStream|null>(null);const [scanning,setScanning]=useState(false);const [duressOpen,setDuressOpen]=useState(false);const [code,setCode]=useState('');const [manualQr,setManualQr]=useState('');const [busy,setBusy]=useState(false)
   useEffect(()=>()=>{streamRef.current?.getTracks().forEach(track=>track.stop())},[])
   const stopScan=()=>{streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;setScanning(false)}
-  const syncStoredReceipt=useCallback(async()=>{
-    if(!navigator.onLine)return false;
-    const local=await getLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>undefined);
-    if(!local||!local.payload||typeof local.payload!=='object')return false;
-    const receipt=local.payload as {transactionId?:string;voucherId?:string;token?:string};
-    if(receipt.transactionId!==transactionId||!receipt.voucherId||!receipt.token)return false;
-    const {data,error}=await supabase.rpc('confirm_offline_handoff',{
-      p_transaction_id:transactionId,p_voucher_id:receipt.voucherId,p_token:receipt.token,
-    });
-    if(error){
-      const httpStatus=(error as {status?:number}).status;
-      if(!navigator.onLine||!httpStatus||httpStatus===0)return false;
-      await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});
-      toast.error(error.message||'The offline handoff could not be synchronized');
-      return false;
-    }
-    if(!(data as {success?:boolean}|null)?.success)return false;
-    await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});
-    toast.success('Offline handoff synchronized. Funds remain protected for the two-hour inspection window.');
-    onReleased?.();
-    return true;
-  },[transactionId,offlineCommitment?.buyer_id,onReleased]);
-
-  useEffect(()=>{
-    const sync=()=>{void syncStoredReceipt()};
-    window.addEventListener('online',sync);
-    if(navigator.onLine)void syncStoredReceipt();
-    return()=>window.removeEventListener('online',sync);
-  },[syncStoredReceipt]);
 
   const release=async(raw:string)=>{setBusy(true);try{
     if(!offlineCommitment)throw new Error('Offline verification is not prepared. Open Safe Swap while connected before scanning.');
@@ -56,7 +27,7 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
     if(distance>safeZone.radius_m)throw new Error('You must be inside the same approved Safe Swap Zone to confirm this handoff.');
     const ticket=await verifyOfflineHandoffTicket(raw,offlineCommitment);
     await saveLocalTransaction({
-      id:`offline-handoff-buyer:${transactionId}`,
+      id:offlineHandoffReceiptKey(transactionId),
       ownerId:offlineCommitment.buyer_id,
       kind:'offline-handoff-receipt',
       payload:{transactionId,voucherId:ticket.voucher_id,token:ticket.token},
@@ -64,7 +35,7 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
       updatedAt:Date.now(),
     });
     if(!navigator.onLine){
-      toast.success('QR verified offline. Your handoff proof is saved. Reconnect and sync it before the 10-minute QR expiry. Funds have not been released.');
+      toast.success('QR verified offline. Your handoff proof is saved. Reconnect and sync it before the 24-hour server expiry. Funds have not been released.');
       return;
     }
     const {data,error}=await supabase.rpc('confirm_offline_handoff',{
@@ -72,11 +43,19 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
     });
     if(error){
       const httpStatus=(error as {status?:number}).status;
-      if(!navigator.onLine||!httpStatus||httpStatus===0){
-        toast.success('QR verified offline. Your handoff proof is saved. Reconnect and sync it before the 10-minute QR expiry. Funds have not been released.');
+      if(!navigator.onLine||!httpStatus||httpStatus===0||httpStatus>=500){
+        toast.success('QR verified offline. Your handoff proof is saved. Reconnect to synchronize it. Funds have not been released.');
         return;
       }
-      await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});
+      await saveLocalTransaction({
+        id:offlineHandoffReceiptKey(transactionId),
+        ownerId:offlineCommitment.buyer_id,
+        kind:'offline-handoff-receipt',
+        payload:{transactionId,voucherId:ticket.voucher_id,token:ticket.token},
+        status:'failed',
+        updatedAt:Date.now(),
+        error:error.message||'Server rejected the offline handoff proof',
+      }).catch(()=>{});
       throw error;
     }
     const confirmation=data as {success?:boolean;error?:string}|null;

@@ -212,7 +212,7 @@ export async function verifyOfflineQr(rawValue: string, sellerId: string) {
 
 export async function makeOfflineReceiptQr(stored: StoredReceipt): Promise<string> {
   const serialized = JSON.stringify(stored)
-  if (serialized.length > 9000) throw new Error('Signed receipt is too large to transfer by QR')
+  if (encoder.encode(serialized).byteLength > 2100) throw new Error('Signed receipt is too large for a reliable phone-to-phone QR. Remove unused passkeys and try again.')
   return `CPR1.${encodeBase64Url(encoder.encode(serialized))}`
 }
 
@@ -222,7 +222,7 @@ export async function parseOfflineReceiptQr(
   transactionId: string,
 ): Promise<StoredReceipt> {
   const [prefix, encoded, extra] = rawValue.trim().split('.')
-  if (prefix !== 'CPR1' || !encoded || extra !== undefined || encoded.length > 12000) {
+  if (prefix !== 'CPR1' || !encoded || extra !== undefined || encoded.length > 2800) {
     throw new Error('This is not a Campus Plug signed receipt QR')
   }
 

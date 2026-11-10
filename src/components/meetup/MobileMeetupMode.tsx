@@ -37,7 +37,7 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
       updatedAt:Date.now(),
     });
     if(!navigator.onLine){
-      toast.success('QR verified offline. Your handoff proof is saved. Reconnect and sync it before the 24-hour server expiry. Funds have not been released.');
+      toast.success('QR verified offline. Your handoff proof is saved. Reconnect and sync it before the QR's 10-minute server expiry. Funds have not been released.');
       return;
     }
     const {data,error}=await supabase.rpc('confirm_offline_handoff',{

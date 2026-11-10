@@ -61,6 +61,8 @@ jobs:
         run: supabase start --exclude studio
       - name: Apply migrations from a clean database
         run: supabase db reset --local
+      - name: Run database behavior tests
+        run: supabase test db --local
       - name: Validate Edge Functions compile
         shell: bash
         run: |

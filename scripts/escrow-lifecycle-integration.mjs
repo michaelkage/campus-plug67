@@ -213,9 +213,9 @@ async function assertDisputeOutcome({ buyer, seller, paymentMethod, claimantRole
   if (concurrent) {
     const results = await Promise.all([rpc("resolve_dispute_verdict", args), rpc("resolve_dispute_verdict", args)]);
     for (const result of results) failIfError(result.error, "concurrent dispute resolution");
-    assert.equal(results.filter(result => result.data?.success).length, 1);
+    assert.equal(results.filter(result => result.data?.success && !result.data?.already_resolved).length, 1);
     assert.equal(results.filter(result => result.data?.already_resolved).length, 1);
-    resolution = results.find(result => result.data?.success).data;
+    resolution = results.find(result => result.data?.success && !result.data?.already_resolved).data;
   } else {
     const result = await rpc("resolve_dispute_verdict", args);
     failIfError(result.error, "resolve dispute");

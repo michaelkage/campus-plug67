@@ -32,9 +32,20 @@ if (adminConsole.includes("profile?.badges?.includes('Community Hero')") || admi
 }
 
 const machine = read('src/lib/transactionStateMachine.ts');
-for (const state of ['PENDING','LOCKED','MEETUP_INITIATED','RELEASE_REQUESTED','RELEASED','CANCELLED','DISPUTED','REFUNDED']) {
-  if (!machine.includes(`'${state}'`)) fail(`Transaction state missing: ${state}`);
+const lifecycle = read('src/lib/transactionLifecycle.ts');
+for (const state of ['pending','locked','meetup_initiated','release_requested','released','cancelled','disputed']) {
+  if (!machine.includes(`'${state}'`) && !lifecycle.includes(`'${state}'`)) fail(`Persisted transaction state missing: ${state}`);
 }
+if (machine.includes("'REFUNDED'") || lifecycle.includes("'refunded'")) {
+  fail('Refund is a financial outcome, not a persisted transaction status');
+}
+for (const invariant of [
+  'handshake_receipt_buffer',
+  'auto_release_at',
+  'payout_status',
+  'canOpenTransactionDispute',
+  'QR confirmation is not a payout',
+]) if (!lifecycle.includes(invariant)) fail(`Canonical transaction lifecycle invariant missing: ${invariant}`);
 
 const config = read('supabase/config.toml');
 if (!config.includes('project_id = "etwsfdovcgofhqseejjo"')) fail('Supabase project ref mismatch');

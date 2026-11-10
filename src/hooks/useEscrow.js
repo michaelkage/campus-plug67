@@ -23,6 +23,7 @@ import { useTransactionStatus } from './useRealtime'
 
 // ── Status metadata ────────────────────────────────────────────────────────────
 import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'
+import { deriveTransactionLifecycle } from '@/lib/transactionLifecycle'
 
 export { TX_STATUS, TX_STATUS_META, TX_STEPS }
 
@@ -32,7 +33,7 @@ const TRANSITION_TOASTS = {
   locked:            { msg: '🔐 Payment confirmed! Funds locked in escrow.',    type: 'success' },
   meetup_initiated:  { msg: '📍 Meetup initiated. QR code is now active.',      type: 'success' },
 
-  released:          { msg: '🎉 Exchange complete! Funds have been released.',   type: 'success' },
+  released:          { msg: 'Transaction resolved. Checking seller payout status.', type: 'blank' },
   disputed:          { msg: '🚨 Dispute filed. Under review within 24 hours.',  type: 'blank'   },
   cancelled:         { msg: '❌ Transaction cancelled.',                         type: 'error'   },
 }
@@ -91,7 +92,7 @@ export function useEscrow({
     // Toast on status change
     if (prev !== updated.status && (TRANSITION_TOASTS[updated.status] || updated.status === 'release_requested')) {
       const transition = updated.status === 'release_requested'
-        ? { msg: updated.handshake_receipt_buffer ? 'Handoff confirmed. Funds stay protected for a 2-hour inspection window.' : 'Release requested. Buyer has 48 hours to dispute.', type: 'blank' }
+        ? { msg: updated.handshake_receipt_buffer ? 'Handoff confirmed. Funds stay protected for a 2-hour inspection window.' : 'Release requested. Either participant has 48 hours to dispute.', type: 'blank' }
         : TRANSITION_TOASTS[updated.status]
       if (transition) {
         const { msg, type } = transition
@@ -202,21 +203,20 @@ export function useEscrow({
   }, [edgeCall, isSeller])
 
   /**
-   * BUYER: File a formal dispute during the applicable inspection/release window.
+   * Either transaction participant: File a formal dispute during the applicable inspection/release window.
    * Triggers: release_requested → disputed
    * Cancels the pending auto-release job.
    * Requires a reason string of at least 20 characters.
    */
   const dispute = useCallback((reason) => {
+    if (!deriveTransactionLifecycle(tx).canDispute) {
+      toast.error('This transaction is no longer within its dispute window')
+      return Promise.resolve({ success: false })
+    }
     if (!reason || reason.trim().length < 20) {
       toast.error('Please provide a detailed reason (minimum 20 characters)')
       return Promise.resolve({ success: false })
     }
-    if (isSeller) {
-      toast.error('Only the buyer can file a dispute')
-      return Promise.resolve({ success: false })
-    }
-
     setLoading('dispute')
     setError(null)
     return supabase.functions.invoke('process-dispute', {
@@ -245,12 +245,13 @@ export function useEscrow({
       toast.error(message)
       return { success: false, error: message }
     })
-  }, [isSeller, transactionId])
+  }, [transactionId, tx])
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
   const status    = tx?.status ?? 'pending'
-  const meta      = TX_STATUS_META[status] ?? TX_STATUS_META.pending
+  const lifecycle = deriveTransactionLifecycle(tx)
+  const meta      = { label: lifecycle.title, icon: lifecycle.phase === 'dispute' ? '🚨' : lifecycle.handoffConfirmed ? '🛡️' : (TX_STATUS_META[status] ?? TX_STATUS_META.pending).icon, color: lifecycle.tone === 'danger' ? 'red' : lifecycle.tone === 'success' ? 'green' : lifecycle.tone === 'warning' ? 'amber' : 'cyan', step: (TX_STATUS_META[status] ?? TX_STATUS_META.pending).step }
   const stepIndex = TX_STEPS.findIndex(s => s.key === status)
 
   // Which actions are available for the current user + status
@@ -258,7 +259,7 @@ export function useEscrow({
   const canShowQR          = isSeller  && status === 'meetup_initiated'
   const canRelease         = !isSeller && status === 'meetup_initiated'
   const canRequestRelease  = isSeller  && status === 'meetup_initiated' && tx?.payment_method !== 'campus_wallet'
-  const canDispute         = !isSeller && status === 'release_requested'
+  const canDispute         = lifecycle.canDispute
   const isTerminal         = status === 'released' || status === 'cancelled'
   const isDisputed         = status === 'disputed'
 

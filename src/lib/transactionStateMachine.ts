@@ -1,34 +1,25 @@
-export const TRANSACTION_STATES = [
-  'PENDING',
-  'LOCKED',
-  'MEETUP_INITIATED',
-  'RELEASE_REQUESTED',
-  'RELEASED',
-  'CANCELLED',
-  'DISPUTED',
-  'REFUNDED',
-] as const;
+import { TRANSACTION_STATUSES, type TransactionStatus } from './transactionLifecycle'
 
-export type TransactionState = typeof TRANSACTION_STATES[number];
+export const TRANSACTION_STATES = TRANSACTION_STATUSES
+export type { TransactionStatus }
 
-const transitions: Record<TransactionState, readonly TransactionState[]> = {
-  PENDING: ['LOCKED', 'CANCELLED'],
-  LOCKED: ['MEETUP_INITIATED', 'CANCELLED', 'DISPUTED', 'REFUNDED'],
-  MEETUP_INITIATED: ['RELEASE_REQUESTED', 'DISPUTED', 'CANCELLED'],
-  RELEASE_REQUESTED: ['RELEASED', 'DISPUTED', 'CANCELLED'],
-  RELEASED: [],
-  CANCELLED: [],
-  DISPUTED: ['RELEASED', 'REFUNDED'],
-  REFUNDED: [],
-};
+const transitions: Record<TransactionStatus, readonly TransactionStatus[]> = {
+  pending: ['locked', 'cancelled'],
+  locked: ['meetup_initiated', 'disputed', 'cancelled'],
+  meetup_initiated: ['release_requested', 'disputed', 'cancelled'],
+  release_requested: ['released', 'disputed', 'cancelled'],
+  disputed: ['released', 'cancelled'],
+  released: [],
+  cancelled: [],
+}
 
-export const canTransition = (from: TransactionState, to: TransactionState) =>
-  transitions[from]?.includes(to) ?? false;
+export const canTransition = (from: TransactionStatus, to: TransactionStatus) =>
+  transitions[from]?.includes(to) ?? false
 
-export const assertValidTransition = (from: TransactionState, to: TransactionState) => {
+export const assertValidTransition = (from: TransactionStatus, to: TransactionStatus) => {
   if (!canTransition(from, to)) {
-    throw new Error(`Invalid transaction transition: ${from} -> ${to}`);
+    throw new Error(`Invalid transaction transition: ${from} -> ${to}`)
   }
-};
+}
 
-export const getAllowedTransitions = (from: TransactionState) => [...(transitions[from] ?? [])];
+export const getAllowedTransitions = (from: TransactionStatus) => [...(transitions[from] ?? [])]

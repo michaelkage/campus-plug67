@@ -85,16 +85,11 @@ describe('escrow status vocabulary', () => {
     ])
   })
 
-  it('keeps the database status enum aligned with the client state machine', () => {
-    const states = [...clientStateMachine().matchAll(/'([A-Z_]+)'/g)].map(match => match[1])
+  it('keeps the database status vocabulary aligned with the canonical client state machine', () => {
+    const states = [...clientStateMachine().matchAll(/^  ([a-z_]+): \[/gm)].map(match => match[1])
 
-    for (const status of transactionStatuses()) {
-      expect(states).toContain(status.toUpperCase())
-    }
-
-    // REFUNDED is a client-only settlement outcome, never a persisted status.
-    expect(states).toContain('REFUNDED')
-    expect(transactionStatuses()).not.toContain('refunded')
+    expect(states.sort()).toEqual(transactionStatuses())
+    expect(states).not.toContain('refunded')
   })
 })
 

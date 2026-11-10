@@ -299,14 +299,14 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
     transactionId: initialTx.id,
     session,
     isSeller,
-    onRelease:     () => { onInvalidate(); toast.success('🎉 Funds released! Check your wallet.') },
+    onRelease:     () => { onInvalidate(); toast('Transaction resolved. Seller payout status is being confirmed.') },
     onDispute:     () => { onInvalidate() },
     onStatusChange: () => onInvalidate(),
   })
 
   const tx      = escrow.tx ?? initialTx
   const status  = tx.status ?? 'pending'
-  const stateUi = ESCROW_STATE[status] ?? ESCROW_STATE.pending
+  const stateUi = { ...(ESCROW_STATE[status] ?? ESCROW_STATE.pending), label: escrow.lifecycle.title }
   const counterpart = isSeller ? tx.buyer : tx.seller
 
   // ── Mutations that wrap useEscrow actions ─────────────────────────────────
@@ -497,7 +497,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
                 />
               )}
 
-              {/* BUYER: File dispute within 48h window */}
+              {/* Either participant: File a dispute within the server-authorized window */}
               {escrow.can.dispute && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--md-error)]/70">

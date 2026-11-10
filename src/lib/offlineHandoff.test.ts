@@ -3,6 +3,8 @@ import {
   createOfflineHandoffTicket,
   createOfflineHandoffToken,
   hashOfflineHandoffToken,
+  offlineHandoffCommitmentKey,
+  offlineHandoffReceiptKey,
   verifyOfflineHandoffTicket,
   type OfflineHandoffCommitment,
 } from './offlineHandoff'
@@ -72,7 +74,7 @@ describe('offline handoff voucher', () => {
     await expect(verifyOfflineHandoffTicket(JSON.stringify({ ...ticket, token: createOfflineHandoffToken() }), commitment)).rejects.toThrow(/cryptographic check/)
   })
 
-  it('rejects expired vouchers and malformed QR input', async () => {
+  it('does not trust the device clock to authorize or reject an offline proof', async () => {
     const token = createOfflineHandoffToken()
     const commitment: OfflineHandoffCommitment = {
       ...commitmentBase,
@@ -88,7 +90,13 @@ describe('offline handoff voucher', () => {
       safe_zone_id: commitment.safe_zone_id,
     }, token)
 
-    await expect(verifyOfflineHandoffTicket(JSON.stringify(ticket), commitment, Date.parse(commitment.expires_at))).rejects.toThrow(/expired/)
+    await expect(verifyOfflineHandoffTicket(JSON.stringify(ticket), commitment)).resolves.toMatchObject({ voucher_id: commitment.voucher_id })
     await expect(verifyOfflineHandoffTicket('not-json', commitment)).rejects.toThrow(/valid offline handoff QR/)
+  })
+
+  it('stores buyer commitments separately from queued receipts', () => {
+    expect(offlineHandoffCommitmentKey('transaction-1')).not.toBe(offlineHandoffReceiptKey('transaction-1'))
+    expect(offlineHandoffCommitmentKey('transaction-1')).toBe('offline-handoff-commitment:transaction-1')
+    expect(offlineHandoffReceiptKey('transaction-1')).toBe('offline-handoff-receipt:transaction-1')
   })
 })

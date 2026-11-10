@@ -254,7 +254,12 @@ export async function parseOfflineReceiptQr(
     false,
     ['verify'],
   )
-  const valid = await crypto.subtle.verify({ name: 'Ed25519' }, publicKey, signature, payloadBytes)
+  const valid = await crypto.subtle.verify(
+    { name: 'Ed25519' },
+    publicKey,
+    toArrayBuffer(signature),
+    toArrayBuffer(payloadBytes),
+  )
   if (!valid) throw new Error('The linked voucher signature is invalid')
 
   const core = stored.receipt.core

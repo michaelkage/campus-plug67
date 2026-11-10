@@ -1,6 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
 import { verifyAuthenticationResponse } from "https://esm.sh/@simplewebauthn/server@10.0.0";
-import { decodeBase64Url, encodeBase64Url } from "https://deno.land/std@0.168.0/encoding/base64url.ts";
 import {
   getAuthenticatedUser,
   getBearerToken,
@@ -16,6 +15,7 @@ const RP_ID = Deno.env.get("RP_ID") ?? "campusplug.ng";
 const APP_ORIGIN = Deno.env.get("APP_ORIGIN") ?? "https://campusplug.ng";
 const VOUCHER_TTL_MS = 30 * 60 * 1000;
 const SYNC_GRACE_MS = 6 * 60 * 60 * 1000;
+const QR_STEP_SECONDS = 30;
 
 type AuthenticationResponseJSON = Parameters<typeof verifyAuthenticationResponse>[0]["response"];
 
@@ -98,6 +98,19 @@ function getAdminClient() {
   });
 }
 
+function encodeBase64Url(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeBase64Url(value: string): Uint8Array {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
 function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -154,7 +167,7 @@ async function getSigningKey(admin: ReturnType<typeof getAdminClient>) {
       { name: "Ed25519" },
       true,
       ["sign", "verify"],
-    );
+    ) as CryptoKeyPair;
     const privateBytes = new Uint8Array(await crypto.subtle.exportKey("pkcs8", generated.privateKey));
     const publicBytes = new Uint8Array(await crypto.subtle.exportKey("raw", generated.publicKey));
 
@@ -494,7 +507,7 @@ async function reconcileReceipt(req: Request, userId: string, admin: ReturnType<
           // the authenticator counter. Signature, UV, RP ID and the one-time voucher
           // receipt nonce remain mandatory; this offline proof is not counter-based.
           counter: 0,
-          transports: Array.isArray(credential.transports) ? credential.transports : undefined,
+          transports: Array.isArray(credential.transports) ? credential.transports as never : undefined,
         },
         requireUserVerification: true,
       });

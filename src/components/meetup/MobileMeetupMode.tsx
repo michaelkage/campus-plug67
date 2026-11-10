@@ -60,7 +60,7 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
     }
     const confirmation=data as {success?:boolean;error?:string}|null;
     if(!confirmation?.success)throw new Error(confirmation?.error||'Handoff confirmation failed');
-    await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});
+    await removeLocalTransaction(offlineHandoffReceiptKey(transactionId)).catch(()=>{});
     toast.success('Handoff confirmed. Funds remain protected for a 2-hour inspection window.');
     onReleased?.();
   }catch(error){toast.error(error instanceof Error?error.message:'QR handoff verification failed')}finally{setBusy(false)}}

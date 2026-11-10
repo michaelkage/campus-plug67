@@ -83,7 +83,7 @@ BEGIN
     transaction_id, buyer_id, seller_id, amount, safe_zone_id, token_hash, expires_at, consumed_at
   )
   VALUES (
-    v_tx.id, v_tx.buyer_id, v_tx.seller_id, v_tx.amount, v_tx.buyer_safe_zone_id, p_token_hash, now() + interval '24 hours', NULL
+    v_tx.id, v_tx.buyer_id, v_tx.seller_id, v_tx.amount, v_tx.buyer_safe_zone_id, p_token_hash, now() + interval '10 minutes', NULL
   )
   ON CONFLICT (transaction_id) DO UPDATE
     SET buyer_id = EXCLUDED.buyer_id,
@@ -95,8 +95,7 @@ BEGIN
         consumed_at = NULL,
         created_at = now()
     WHERE public.offline_handoff_vouchers.consumed_at IS NULL
-      AND (public.offline_handoff_vouchers.expires_at <= now()
-        OR public.offline_handoff_vouchers.token_hash = EXCLUDED.token_hash)
+      AND public.offline_handoff_vouchers.expires_at <= now()
   RETURNING * INTO v_voucher;
 
   IF NOT FOUND THEN RAISE EXCEPTION 'Unable to rotate offline handoff voucher'; END IF;

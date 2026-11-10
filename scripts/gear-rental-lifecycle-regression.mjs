@@ -96,6 +96,8 @@ for (const item of [
   "confirm_gear_rental_return",
   "settle_gear_rental_return",
   '24-hour return inspection',
+  'Return confirmed. Funds remain held for the 24-hour inspection window.',
+  'Inspection window complete. Rental fee released and security deposit refunded.',
   "cancel_gear_rental_request",
   "open_gear_rental_dispute",
   'create_gear_rental_dispute_return_code',

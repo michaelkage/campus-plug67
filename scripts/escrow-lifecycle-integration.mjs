@@ -417,7 +417,7 @@ async function cleanup() {
     await admin.from("wallet_escrow_holds").delete().in("transaction_id", transactionIds);
     await admin.from("scheduled_jobs").delete().in("entity_id", transactionIds);
     await admin.from("plug_credit_ledger").delete().in("reference_id", transactionIds);
-    await admin.from("audit_logs").delete().in("entity_id", transactionIds);
+    await admin.from("audit_logs").delete().in("entity_id", [...transactionIds, ...caseIds]);
     await admin.from("transactions").delete().in("id", transactionIds);
   }
   if (fundingReferences.length) {

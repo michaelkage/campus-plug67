@@ -90,8 +90,9 @@ describe('offline handoff voucher', () => {
       safe_zone_id: commitment.safe_zone_id,
     }, token)
 
+    vi.setSystemTime(new Date('2026-11-11T10:00:00.000Z'))
     await expect(verifyOfflineHandoffTicket(JSON.stringify(ticket), commitment)).resolves.toMatchObject({ voucher_id: commitment.voucher_id })
-    await expect(verifyOfflineHandoffTicket(JSON.stringify({ ...ticket, expires_at: '2026-11-11T10:00:00.000Z' }), commitment)).resolves.toMatchObject({ voucher_id: commitment.voucher_id })
+    await expect(verifyOfflineHandoffTicket(JSON.stringify({ ...ticket, expires_at: '2026-11-12T10:00:00.000Z' }), commitment)).resolves.toMatchObject({ voucher_id: commitment.voucher_id })
     await expect(verifyOfflineHandoffTicket('not-json', commitment)).rejects.toThrow(/valid offline handoff QR/)
   })
 

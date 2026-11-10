@@ -304,7 +304,8 @@ export default function OfflineEscrowHandoff({
             <div className="flex justify-center"><QRCodeSVG value={qrValue} size={240} level="M" includeMargin/></div>
             <div className="text-center text-xs font-bold text-slate-900">Show this rotating code to the seller</div>
             <div className="text-center text-[11px] text-slate-600">Voucher expires in {formatExpiry(voucher.claims.expires_at)}</div>
-            <div className="text-center text-[10px] text-slate-500">Refreshes every 30 seconds · one-time use</div>
+            <div className="text-center text-[10px] text-slate-500">Refreshes every 30 seconds · one-time server redemption</div>
+            <div className="text-center text-[10px] text-slate-500">Freshness aid only, not proof of proximity. Meet in person and inspect the item.</div>
           </div>
         ) : voucher && voucherExpired ? (
           <div className="rounded-md border border-outline-variant bg-surface-container-high p-4 text-sm">

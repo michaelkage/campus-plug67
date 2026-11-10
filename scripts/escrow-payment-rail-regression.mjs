@@ -31,19 +31,26 @@ assert.ok(autoReleaseBranch.includes('handshake_receipt_buffer IS NOT NULL'),
   'The generic worker must not settle QR inspection handoffs');
 assert.ok(autoReleaseBranch.includes("'needs_attention'"),
   'The generic worker must not release while a refund needs attention');
-assert.ok(!autoReleaseBranch.includes('INSERT INTO public.plug_credit_ledger'),
-  'Paystack auto-release must use the payout pipeline, not PlugCredit');
+assert.ok(autoReleaseBranch.includes("INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)"),
+  'Paystack auto-release must credit the seller wallet');
+assert.ok(autoReleaseBranch.includes("payout_status = 'paid'"),
+  'The payout state must only become paid after the seller wallet credit is verified');
+assert.ok(autoReleaseBranch.includes('Seller escrow credit could not be verified'),
+  'An idempotent replay must verify the existing seller credit before resolving escrow');
 
-assert.ok(escrow.includes("'funds_released', false"),
-  'Escrow resolution must not claim provider payout is already complete');
+assert.ok(escrow.includes("'seller_wallet_credited', p_action = 'auto_release'"));
+assert.ok(escrow.includes("'funds_released', p_action = 'auto_release'"));
 assert.ok(escrow.includes("'escrow_resolved', p_action = 'auto_release'"));
 
 assert.ok(inspection.includes("t.handshake_receipt_buffer IS NOT NULL"));
 assert.ok(inspection.includes("COALESCE(t.refund_status, '') NOT IN"));
 assert.ok(inspection.includes("v_tx.refund_status, '') IN"),
   'Inspection settlement must re-check the refund lock after taking the transaction lock');
-assert.ok(!inspection.includes('INSERT INTO public.plug_credit_ledger'),
-  'Paystack inspection settlement must not credit the internal wallet');
+assert.ok(inspection.includes("INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)"),
+  'Paystack inspection settlement must credit the seller wallet');
+assert.ok(inspection.includes("payout_status = 'paid'"),
+  'Inspection settlement must mark payout paid only after credit verification');
+assert.ok(inspection.includes('Seller inspection settlement credit could not be verified'));
 
 const claimantBranch = verdict.slice(verdict.indexOf("IF p_verdict = 'claimant'"), verdict.indexOf("ELSIF p_verdict = 'respondent'"));
 const respondentBranch = verdict.slice(verdict.indexOf("ELSIF p_verdict = 'respondent'"), verdict.indexOf('ELSE\n    RAISE EXCEPTION'));
@@ -51,10 +58,10 @@ assert.ok(claimantBranch.indexOf('UPDATE public.wallet_escrow_holds') < claimant
   'Wallet refund hold must be resolved before transaction status triggers synchronize it');
 assert.ok(respondentBranch.indexOf('UPDATE public.wallet_escrow_holds') < respondentBranch.indexOf('UPDATE public.transactions'),
   'Wallet release hold must be resolved before transaction status triggers synchronize it');
-assert.ok(respondentBranch.includes("IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN"));
-assert.ok(!respondentBranch.includes('INSERT INTO public.plug_credit_ledger') ||
-  respondentBranch.indexOf("IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN") < respondentBranch.indexOf('INSERT INTO public.plug_credit_ledger'),
-  'Paystack dispute release must not create a PlugCredit balance credit');
+assert.ok(respondentBranch.includes("INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)"),
+  'Seller-favourable dispute verdict must settle seller proceeds to the wallet');
+assert.ok(respondentBranch.includes("payout_status = 'paid'"),
+  'Seller-favourable dispute verdict must align payout state with the wallet credit');
 
 assert.ok(adminRefund.includes('p_action: "refund"'),
   'Admin Paystack refund must continue through the escrow cancellation RPC');

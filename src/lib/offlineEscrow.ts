@@ -77,8 +77,15 @@ function canonicalJson(value: unknown): string {
   }
   return JSON.stringify(value)
 }
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength)
+  copy.set(bytes)
+  return copy.buffer
+}
+
 async function sha256(value: string | Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', typeof value === 'string' ? encoder.encode(value) : value))
+  const bytes = typeof value === 'string' ? encoder.encode(value) : value
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', toArrayBuffer(bytes)))
 }
 async function sha256Hex(value: string | Uint8Array): Promise<string> {
   return Array.from(await sha256(value), byte => byte.toString(16).padStart(2, '0')).join('')
@@ -180,12 +187,12 @@ export async function verifyOfflineQr(rawValue: string, sellerId: string) {
   }
   const publicKey = await crypto.subtle.importKey(
     'raw',
-    decodeBase64Url(cached.public_key),
+    toArrayBuffer(decodeBase64Url(cached.public_key)),
     { name: 'Ed25519' },
     false,
     ['verify'],
   )
-  const valid = await crypto.subtle.verify({ name: 'Ed25519' }, publicKey, signature, payloadBytes)
+  const valid = await crypto.subtle.verify({ name: 'Ed25519' }, publicKey, toArrayBuffer(signature), toArrayBuffer(payloadBytes))
   if (!valid) throw new Error('Offline voucher signature is invalid')
 
   const issuedAt = Date.parse(claims.issued_at)
@@ -242,7 +249,7 @@ export async function parseOfflineReceiptQr(
 
   const publicKey = await crypto.subtle.importKey(
     'raw',
-    decodeBase64Url(key.public_key),
+    toArrayBuffer(decodeBase64Url(key.public_key)),
     { name: 'Ed25519' },
     false,
     ['verify'],

@@ -61,6 +61,11 @@ describe('Campus Plug database transaction state machine', () => {
     expect(lifecycle.payout.settled).toBe(false)
   })
 
+  it('requires explicit payout confirmation even for Campus Wallet', () => {
+    const lifecycle = deriveTransactionLifecycle({ status: 'released', payment_method: 'campus_wallet', payout_status: 'not_applicable' })
+    expect(lifecycle.payout.settled).toBe(false)
+  })
+
   it('only reports a completed refund from an explicit refund status', () => {
     expect(deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'succeeded' }).description)
       .toContain('refund has been processed')

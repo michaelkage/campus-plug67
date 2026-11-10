@@ -47,7 +47,7 @@ if (safeSwap.includes('qr_secret') || safeSwap.includes('release_code')) throw n
 for (const invariant of ['prepare_offline_handoff', 'get_offline_handoff_commitment', 'offline-handoff-seller:', 'offline-handoff-buyer:']) {
   if (!safeSwap.includes(invariant)) throw new Error(`Safe Swap offline voucher wiring is missing: ${invariant}`)
 }
-for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released']) {
+for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released', 'sync it before the 10-minute QR expiry']) {
   if (!meetup.includes(invariant)) throw new Error(`Mobile offline handoff wiring is missing: ${invariant}`)
 }
 console.log('Offline handoff voucher security regression checks passed.')

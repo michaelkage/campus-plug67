@@ -352,6 +352,19 @@ export default function OfflineEscrowHandoff({
             </div>
           )}
         </div>
+        {receiptPending && (
+          <div className="rounded-md border border-tertiary/30 bg-tertiary/10 p-3 text-xs">
+            <div className="flex items-center gap-2 font-bold"><CloudOff size={15}/>Receipt saved on this phone</div>
+            <p className="mt-1 text-on-surface-variant">Your confirmation is queued. Funds remain locked until the server accepts it and starts the inspection timer.</p>
+            {online && <button onClick={() => void syncPendingOfflineEscrowReceipts(userId).then(results => {
+              if (results.some(result => result.success && !result.awaitingBuyerSync)) {
+                setReceiptPending(false)
+                setLastMessage('Buyer confirmation synchronized. Inspection window started.')
+                onReconciledRef.current?.()
+              }
+            })} className="mt-2 inline-flex items-center gap-2 text-primary font-bold"><RefreshCw size={13}/>Retry confirmation</button>}
+          </div>
+        )}
         <div className="rounded-md bg-surface-container-high p-3 text-[11px] text-on-surface-variant">
           Funds remain in escrow. The two-hour inspection period starts only after your confirmation reaches the server.
         </div>
@@ -404,7 +417,7 @@ export default function OfflineEscrowHandoff({
       {receiptPending && (
         <div className="rounded-md border border-tertiary/30 bg-tertiary/10 p-3 text-xs">
           <div className="flex items-center gap-2 font-bold"><CloudOff size={15}/>Receipt saved on this phone</div>
-          <p className="mt-1 text-on-surface-variant">No money has been paid out. The receipt will synchronize when this device is online.</p>
+          <p className="mt-1 text-on-surface-variant">This receipt remains available for buyer confirmation. If this phone is offline, it will synchronize when connectivity returns. Seller sync alone never starts the inspection timer.</p>
           {online && <button onClick={() => void syncPendingOfflineEscrowReceipts(userId).then(results => {
             const started = results.some(result => result.success && !result.awaitingBuyerSync)
             const waiting = results.some(result => result.success && result.awaitingBuyerSync)

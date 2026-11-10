@@ -63,7 +63,7 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
     if(error){
       const httpStatus=(error as {status?:number}).status;
       if(!navigator.onLine||!httpStatus||httpStatus===0){
-        toast.success('QR verified offline. Your handoff proof is saved and will sync when connection returns. Funds have not been released.');
+        toast.success('QR verified offline. Your handoff proof is saved. Reconnect and sync it before the 10-minute QR expiry. Funds have not been released.');
         return;
       }
       await removeLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>{});

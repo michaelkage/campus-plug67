@@ -1,7 +1,7 @@
 -- Keep each payment rail on one settlement path.
--- Paystack money is settled through the external payout/refund lifecycle; only
--- Campus Wallet transactions may write the PlugCredit ledger during escrow
--- settlement. QR inspection expiry is owned by the dedicated inspection worker.
+-- Seller proceeds from both payment methods are credited to the PlugCredit
+-- ledger on release; Paystack buyer refunds return through Paystack only.
+-- QR inspection expiry is owned by the dedicated inspection worker.
 
 CREATE OR REPLACE FUNCTION public.process_escrow_action(
   p_transaction_id uuid,

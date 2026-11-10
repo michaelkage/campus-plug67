@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(7);
+SELECT plan(8);
 
 -- Exercise the escrow RPC/trigger path as trusted database code, not as a browser row update.
 SELECT set_config('app.escrow_transition', 'true', true);
@@ -18,7 +18,8 @@ VALUES
   ('f2000000-0000-4000-8000-000000000001', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 1', 'Other', 10000, 'reserved', 'University of Lagos'),
   ('f2000000-0000-4000-8000-000000000002', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 2', 'Other', 10000, 'reserved', 'University of Lagos'),
   ('f2000000-0000-4000-8000-000000000003', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 3', 'Other', 10000, 'reserved', 'University of Lagos'),
-  ('f2000000-0000-4000-8000-000000000004', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 4', 'Other', 10000, 'reserved', 'University of Lagos');
+  ('f2000000-0000-4000-8000-000000000004', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 4', 'Other', 10000, 'reserved', 'University of Lagos'),
+  ('f2000000-0000-4000-8000-000000000005', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 5', 'Other', 10000, 'reserved', 'University of Lagos');
 
 INSERT INTO public.transactions (
   id, listing_id, buyer_id, seller_id, amount, status,
@@ -34,7 +35,8 @@ FROM (
     ('f3000000-0000-4000-8000-000000000001'::uuid, 'f2000000-0000-4000-8000-000000000001'::uuid),
     ('f3000000-0000-4000-8000-000000000002'::uuid, 'f2000000-0000-4000-8000-000000000002'::uuid),
     ('f3000000-0000-4000-8000-000000000003'::uuid, 'f2000000-0000-4000-8000-000000000003'::uuid),
-    ('f3000000-0000-4000-8000-000000000004'::uuid, 'f2000000-0000-4000-8000-000000000004'::uuid)
+    ('f3000000-0000-4000-8000-000000000004'::uuid, 'f2000000-0000-4000-8000-000000000004'::uuid),
+    ('f3000000-0000-4000-8000-000000000005'::uuid, 'f2000000-0000-4000-8000-000000000005'::uuid)
 ) AS fixture(id, listing_id)
 CROSS JOIN LATERAL (
   SELECT id FROM public.safe_zones
@@ -139,7 +141,32 @@ SELECT throws_ok(
   'Expired voucher cannot authorize buyer-confirmed inspection'
 );
 
--- 5. Seller-requested release is a separate path and must remain unaffected.
+-- 5. The RPC itself rejects an unconsumed voucher after its server expiry.
+INSERT INTO public.offline_handoff_vouchers (
+  transaction_id, buyer_id, seller_id, amount, safe_zone_id,
+  token_hash, expires_at, consumed_at
+)
+SELECT
+  tx.id, tx.buyer_id, tx.seller_id, tx.amount, tx.buyer_safe_zone_id,
+  encode(extensions.digest(convert_to('offline-expired-token-0000000000000000', 'UTF8'), 'sha256'), 'hex'),
+  now() - interval '10 minutes', NULL
+FROM public.transactions AS tx
+WHERE tx.id = 'f3000000-0000-4000-8000-000000000005';
+
+SELECT throws_ok(
+  $
+    SELECT public.confirm_offline_handoff(
+      'f3000000-0000-4000-8000-000000000005',
+      (SELECT id FROM public.offline_handoff_vouchers WHERE transaction_id = 'f3000000-0000-4000-8000-000000000005'),
+      'offline-expired-token-0000000000000000'
+    )
+  $,
+  'P0001',
+  'Offline handoff QR has expired',
+  'Server-side confirmation rejects an unconsumed voucher after expiry'
+);
+
+-- 6. Seller-requested release is a separate path and must remain unaffected.
 SELECT lives_ok(
   $$
     UPDATE public.transactions

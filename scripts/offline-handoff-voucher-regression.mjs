@@ -13,6 +13,10 @@ const meetup = read('src/components/meetup/MobileMeetupMode.tsx')
 const requiredMigrationInvariants = [
   'CREATE TABLE IF NOT EXISTS public.offline_handoff_vouchers',
   'token_hash text NOT NULL',
+  'amount bigint NOT NULL',
+  'safe_zone_id uuid NOT NULL',
+  'v_tx.amount <> v_voucher.amount',
+  'v_tx.buyer_safe_zone_id IS DISTINCT FROM v_voucher.safe_zone_id',
   'ALTER TABLE public.offline_handoff_vouchers ENABLE ROW LEVEL SECURITY',
   'REVOKE ALL ON TABLE public.offline_handoff_vouchers FROM PUBLIC, anon, authenticated',
   'CREATE OR REPLACE FUNCTION public.prepare_offline_handoff',

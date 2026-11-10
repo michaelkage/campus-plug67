@@ -21,6 +21,18 @@ assert.ok(!claim.includes("NOT v_tx.paystack_ref"),
   "Text references must never be used as booleans");
 assert.ok(migration.includes("GRANT EXECUTE ON FUNCTION public.claim_paystack_refund(uuid) TO service_role"));
 
+assert.ok(migration.includes("CREATE OR REPLACE FUNCTION public.open_escrow_dispute_case"));
+const openCase = migration.slice(
+  migration.indexOf("CREATE OR REPLACE FUNCTION public.open_escrow_dispute_case"),
+  migration.indexOf("CREATE OR REPLACE FUNCTION public.claim_paystack_refund"),
+);
+assert.ok(openCase.length > 0);
+assert.ok(!/INSERT INTO public\\.jury_cases\\s*\\([\\s\\S]*?\\bhigh_value\\b/i.test(openCase),
+  "Generated jury_cases.high_value must not be inserted explicitly");
+assert.ok(!/INSERT INTO public\\.jury_cases\\s*\\([\\s\\S]*?\\brequired_votes\\b/i.test(openCase),
+  "Generated jury_cases.required_votes must not be inserted explicitly");
+
+
 assert.ok(resolver.includes("p_verdict IS NULL OR p_verdict NOT IN ('claimant', 'respondent')"));
 assert.ok(resolver.includes("v_winner_id := CASE"));
 assert.ok(resolver.includes("WHEN p_verdict = 'claimant' THEN v_case.claimant_id"));

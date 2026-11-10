@@ -67,7 +67,7 @@ describe('Campus Plug database transaction state machine', () => {
   })
 
   it('only reports a completed refund from an explicit refund status', () => {
-    expect(deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'succeeded' }).description)
+    expect(deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'processed' }).description)
       .toContain('refund has been processed')
     expect(deriveTransactionLifecycle({ status: 'cancelled' }).description)
       .toContain('Check the refund record')

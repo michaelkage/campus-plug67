@@ -6,9 +6,9 @@ import { getLocalTransaction, removeLocalTransaction, saveLocalTransaction } fro
 import toast from 'react-hot-toast'
 
 type BarcodeDetectorLike={detect:(source:CanvasImageSource)=>Promise<Array<{rawValue:string}>>}
-type Props={transactionId:string;releaseUnlocked:boolean;offlineCommitment?:OfflineHandoffCommitment|null;onReleased?:()=>void}
+type Props={transactionId:string;releaseUnlocked:boolean;offlineCommitment?:OfflineHandoffCommitment|null;safeZone?:{id:string;lat:number;lng:number;radius_m:number}|null;onReleased?:()=>void}
 
-export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineCommitment,onReleased}:Props){
+export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineCommitment,safeZone,onReleased}:Props){
   const videoRef=useRef<HTMLVideoElement>(null);const streamRef=useRef<MediaStream|null>(null);const [scanning,setScanning]=useState(false);const [duressOpen,setDuressOpen]=useState(false);const [code,setCode]=useState('');const [manualQr,setManualQr]=useState('');const [busy,setBusy]=useState(false)
   useEffect(()=>()=>{streamRef.current?.getTracks().forEach(track=>track.stop())},[])
   const stopScan=()=>{streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;setScanning(false)}
@@ -44,6 +44,16 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
 
   const release=async(raw:string)=>{setBusy(true);try{
     if(!offlineCommitment)throw new Error('Offline verification is not prepared. Open Safe Swap while connected before scanning.');
+    if(!safeZone)throw new Error('The approved Safe Swap Zone details are not cached on this phone. Reconnect and reload Safe Swap before scanning.');
+    if(!navigator.geolocation)throw new Error('Phone GPS is required to confirm the handoff location.');
+    const position=await new Promise<GeolocationPosition>((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:12000,maximumAge:0}));
+    if(position.coords.accuracy>50)throw new Error('GPS accuracy is too low. Refresh your location and try again.');
+    const toRadians=(degrees:number)=>degrees*Math.PI/180;
+    const lat1=toRadians(position.coords.latitude),lat2=toRadians(safeZone.lat);
+    const dLat=toRadians(safeZone.lat-position.coords.latitude),dLng=toRadians(safeZone.lng-position.coords.longitude);
+    const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+    const distance=6371000*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));
+    if(distance>safeZone.radius_m)throw new Error('You must be inside the same approved Safe Swap Zone to confirm this handoff.');
     const ticket=await verifyOfflineHandoffTicket(raw,offlineCommitment);
     await saveLocalTransaction({
       id:`offline-handoff-buyer:${transactionId}`,

@@ -8,6 +8,7 @@ describe('Campus Plug database transaction state machine', () => {
     expect(canTransition('locked', 'meetup_initiated')).toBe(true)
     expect(canTransition('meetup_initiated', 'release_requested')).toBe(true)
     expect(canTransition('release_requested', 'released')).toBe(true)
+    expect(canTransition('release_requested', 'cancelled')).toBe(true)
     expect(getAllowedTransitions('disputed')).toEqual(['released', 'cancelled'])
   })
 

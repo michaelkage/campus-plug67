@@ -30,8 +30,9 @@ export default function SafeSwapZone(){
       return true;
     };
     const load = async () => {
-      if(!navigator.onLine){await restoreOfflineContext();return}
-      if (!profile?.university) {await restoreOfflineContext();return}
+      await restoreOfflineContext();
+      if(!navigator.onLine)return;
+      if (!profile?.university) return
       const { data: zoneData } = await supabase
         .from('safe_zones')
         .select('id,name,description,lat,lng,radius_m,zone_type')
@@ -51,14 +52,14 @@ export default function SafeSwapZone(){
           const txData=data as Tx;
           const zoneId=txData.buyer_safe_zone_id||txData.seller_safe_zone_id;
           const safeZone=(zoneData||[]).find(zone=>zone.id===zoneId) as SafeZone|undefined;
-          if(safeZone)await saveLocalTransaction({
-            id:`offline-handoff-context:${transactionId}`,
-            ownerId:user.id,
-            kind:'offline-handoff-context',
-            payload:{tx:txData,safeZone},
-            status:'synced',
-            updatedAt:Date.now(),
-          }).catch(()=>{});
+          if(safeZone){
+            const key=`offline-handoff-context:${transactionId}`;
+            const payload={tx:txData,safeZone};
+            const previous=await getLocalTransaction(key).catch(()=>undefined);
+            if(!previous||JSON.stringify(previous.payload)!==JSON.stringify(payload)){
+              await saveLocalTransaction({id:key,ownerId:user.id,kind:'offline-handoff-context',payload,status:'synced',updatedAt:Date.now()}).catch(()=>{});
+            }
+          }
         }
         if(!data)await restoreOfflineContext();
         const draft = await getLocalTransaction(`safe-arrival:${transactionId}`).catch(() => undefined);

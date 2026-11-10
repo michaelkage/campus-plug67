@@ -86,7 +86,7 @@ describe('escrow status vocabulary', () => {
   })
 
   it('keeps the database status vocabulary aligned with the canonical client state machine', () => {
-    const states = [...clientStateMachine().matchAll(/'([a-z_]+)'/g)].map(match => match[1])
+    const states = [...clientStateMachine().matchAll(/^  ([a-z_]+): \[/gm)].map(match => match[1])
 
     expect(states.sort()).toEqual(transactionStatuses())
     expect(states).not.toContain('refunded')

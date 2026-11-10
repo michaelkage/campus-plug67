@@ -32,7 +32,7 @@ export function createOfflineHandoffToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/g, '')
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '')
 }
 
 export async function hashOfflineHandoffToken(token: string): Promise<string> {

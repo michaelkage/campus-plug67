@@ -77,7 +77,7 @@ export function deriveTransactionLifecycle(
   const inspectionDeadline = tx?.auto_release_at ?? null
   const payout = payoutPresentation(tx ?? {})
 
-  const base = {
+  const base: Pick<TransactionLifecycle, 'status' | 'handoffConfirmed' | 'inspectionDeadline' | 'payout' | 'canDispute' | 'terminal'> = {
     status,
     handoffConfirmed,
     inspectionDeadline,

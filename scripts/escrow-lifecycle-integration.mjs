@@ -413,6 +413,7 @@ async function cleanup() {
     await admin.from("jury_cases").delete().in("id", caseIds);
   }
   if (transactionIds.length) {
+    await admin.from("messages").delete().in("transaction_id", transactionIds);
     await admin.from("wallet_escrow_holds").delete().in("transaction_id", transactionIds);
     await admin.from("scheduled_jobs").delete().in("entity_id", transactionIds);
     await admin.from("plug_credit_ledger").delete().in("reference_id", transactionIds);

@@ -149,7 +149,7 @@ export default function SafeSwapZone(){
       const key=offlineHandoffReceiptKey(transactionId);
       try{
         const local=await getLocalTransaction(key).catch(()=>undefined);
-        if(!local||local.ownerId!==user.id||local.kind!=='offline-handoff-receipt'||!local.payload||typeof local.payload!=='object')return;
+        if(!local||local.ownerId!==user.id||local.kind!=='offline-handoff-receipt'||local.status==='failed'||!local.payload||typeof local.payload!=='object')return;
         const receipt=local.payload as {transactionId?:string;voucherId?:string;token?:string};
         if(receipt.transactionId!==transactionId||!receipt.voucherId||!receipt.token)return;
         await saveLocalTransaction({...local,status:'syncing',updatedAt:Date.now(),error:undefined});
@@ -158,7 +158,7 @@ export default function SafeSwapZone(){
         });
         if(error){
           const status=(error as {status?:number}).status;
-          const transient=!navigator.onLine||!status||status===0||status>=500;
+          const transient=!navigator.onLine||!status||status===0||status===401||status===408||status===429||status>=500;
           await saveLocalTransaction({...local,status:transient?'queued':'failed',updatedAt:Date.now(),error:error.message}).catch(()=>{});
           if(!transient)toast.error(error.message||'The saved handoff proof needs attention');
           return;

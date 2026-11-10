@@ -410,7 +410,7 @@ export default function OfflineEscrowHandoff({
       {receiptForBuyer && receiptQr && (
         <div className="rounded-md border border-primary/30 bg-white p-4 space-y-3">
           <div className="text-center text-xs font-black text-slate-900">Show this receipt QR to the buyer</div>
-          <div className="flex justify-center"><QRCodeSVG value={receiptQr} size={260} level="M" includeMargin/></div>
+          <div className="flex justify-center"><QRCodeSVG value={receiptQr} size={360} level="L" includeMargin/></div>
           <p className="text-center text-[11px] text-slate-600">The buyer scans this after your passkey signature. Only then does the two-hour inspection timer start.</p>
         </div>
       )}

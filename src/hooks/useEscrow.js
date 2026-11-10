@@ -22,7 +22,8 @@ import { supabase, callEdgeFunction, formatNaira } from '@/lib/supabase'
 import { useTransactionStatus } from './useRealtime'
 
 // ── Status metadata ────────────────────────────────────────────────────────────
-import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'\nimport { deriveTransactionLifecycle } from '@/lib/transactionLifecycle'
+import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'
+import { deriveTransactionLifecycle } from '@/lib/transactionLifecycle'
 
 export { TX_STATUS, TX_STATUS_META, TX_STEPS }
 
@@ -32,7 +33,7 @@ const TRANSITION_TOASTS = {
   locked:            { msg: '🔐 Payment confirmed! Funds locked in escrow.',    type: 'success' },
   meetup_initiated:  { msg: '📍 Meetup initiated. QR code is now active.',      type: 'success' },
 
-  released:          { msg: '🎉 Exchange complete! Funds have been released.',   type: 'success' },
+  released:          { msg: 'Transaction resolved. Checking seller payout status.', type: 'blank' },
   disputed:          { msg: '🚨 Dispute filed. Under review within 24 hours.',  type: 'blank'   },
   cancelled:         { msg: '❌ Transaction cancelled.',                         type: 'error'   },
 }
@@ -208,15 +209,14 @@ export function useEscrow({
    * Requires a reason string of at least 20 characters.
    */
   const dispute = useCallback((reason) => {
+    if (!deriveTransactionLifecycle(tx).canDispute) {
+      toast.error('This transaction is no longer within its dispute window')
+      return Promise.resolve({ success: false })
+    }
     if (!reason || reason.trim().length < 20) {
       toast.error('Please provide a detailed reason (minimum 20 characters)')
       return Promise.resolve({ success: false })
     }
-    if (isSeller) {
-      toast.error('Only the buyer can file a dispute')
-      return Promise.resolve({ success: false })
-    }
-
     setLoading('dispute')
     setError(null)
     return supabase.functions.invoke('process-dispute', {
@@ -245,12 +245,13 @@ export function useEscrow({
       toast.error(message)
       return { success: false, error: message }
     })
-  }, [transactionId])
+  }, [transactionId, tx])
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
   const status    = tx?.status ?? 'pending'
-  const lifecycle = deriveTransactionLifecycle(tx)\n  const meta      = { label: lifecycle.title, icon: lifecycle.phase === 'dispute' ? '🚨' : lifecycle.handoffConfirmed ? '🛡️' : (TX_STATUS_META[status] ?? TX_STATUS_META.pending).icon, color: lifecycle.tone === 'danger' ? 'red' : lifecycle.tone === 'success' ? 'green' : lifecycle.tone === 'warning' ? 'amber' : 'cyan', step: (TX_STATUS_META[status] ?? TX_STATUS_META.pending).step }
+  const lifecycle = deriveTransactionLifecycle(tx)
+  const meta      = { label: lifecycle.title, icon: lifecycle.phase === 'dispute' ? '🚨' : lifecycle.handoffConfirmed ? '🛡️' : (TX_STATUS_META[status] ?? TX_STATUS_META.pending).icon, color: lifecycle.tone === 'danger' ? 'red' : lifecycle.tone === 'success' ? 'green' : lifecycle.tone === 'warning' ? 'amber' : 'cyan', step: (TX_STATUS_META[status] ?? TX_STATUS_META.pending).step }
   const stepIndex = TX_STEPS.findIndex(s => s.key === status)
 
   // Which actions are available for the current user + status

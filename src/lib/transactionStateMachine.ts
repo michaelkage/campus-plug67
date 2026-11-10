@@ -7,7 +7,7 @@ const transitions: Record<TransactionStatus, readonly TransactionStatus[]> = {
   pending: ['locked', 'cancelled'],
   locked: ['meetup_initiated', 'disputed', 'cancelled'],
   meetup_initiated: ['release_requested', 'disputed', 'cancelled'],
-  release_requested: ['released', 'disputed'],
+  release_requested: ['released', 'disputed', 'cancelled'],
   disputed: ['released', 'cancelled'],
   released: [],
   cancelled: [],

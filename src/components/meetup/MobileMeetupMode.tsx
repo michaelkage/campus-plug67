@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Camera, CheckCircle2, MapPinned, ShieldAlert, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { verifyOfflineHandoffTicket, type OfflineHandoffCommitment } from '@/lib/offlineHandoff'
@@ -12,10 +12,10 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
   const videoRef=useRef<HTMLVideoElement>(null);const streamRef=useRef<MediaStream|null>(null);const [scanning,setScanning]=useState(false);const [duressOpen,setDuressOpen]=useState(false);const [code,setCode]=useState('');const [manualQr,setManualQr]=useState('');const [busy,setBusy]=useState(false)
   useEffect(()=>()=>{streamRef.current?.getTracks().forEach(track=>track.stop())},[])
   const stopScan=()=>{streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;setScanning(false)}
-  const syncStoredReceipt=async()=>{
+  const syncStoredReceipt=useCallback(async()=>{
     if(!navigator.onLine)return false;
     const local=await getLocalTransaction(`offline-handoff-buyer:${transactionId}`).catch(()=>undefined);
-    if(!local||!local.payload||typeof local.payload!=='object')return false;
+    if(!local||local.ownerId!==offlineCommitment?.buyer_id||!local.payload||typeof local.payload!=='object')return false;
     const receipt=local.payload as {transactionId?:string;voucherId?:string;token?:string};
     if(receipt.transactionId!==transactionId||!receipt.voucherId||!receipt.token)return false;
     const {data,error}=await supabase.rpc('confirm_offline_handoff',{
@@ -32,14 +32,14 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
     toast.success('Offline handoff synchronized. Funds remain protected for the two-hour inspection window.');
     onReleased?.();
     return true;
-  };
+  },[transactionId,offlineCommitment?.buyer_id,onReleased]);
 
   useEffect(()=>{
     const sync=()=>{void syncStoredReceipt()};
     window.addEventListener('online',sync);
     if(navigator.onLine)void syncStoredReceipt();
     return()=>window.removeEventListener('online',sync);
-  },[transactionId]);
+  },[syncStoredReceipt]);
 
   const release=async(raw:string)=>{setBusy(true);try{
     if(!offlineCommitment)throw new Error('Offline verification is not prepared. Open Safe Swap while connected before scanning.');

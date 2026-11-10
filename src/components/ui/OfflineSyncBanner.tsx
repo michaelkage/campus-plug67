@@ -23,7 +23,7 @@ export default function OfflineSyncBanner() {
           <CloudOff size={16} />
         </span>
         <div className="min-w-0 flex-1 leading-5">
-          <strong className="font-semibold">Offline mode:</strong> cached app assets may still load, but payments, chats, escrow actions, and Safe Swap check-ins require a live connection. A locally saved draft is not a completed or synced action.
+          <strong className="font-semibold">Offline mode:</strong> cached app assets may still load, but payments, chats, new Safe Swap check-ins, and final escrow settlement require a live connection. A prepared one-time handoff QR can be verified locally for 10 minutes; its proof must sync before expiry. A locally saved draft is not a completed or synced action.
         </div>
       </div>
     </div>

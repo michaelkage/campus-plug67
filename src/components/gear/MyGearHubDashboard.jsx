@@ -497,7 +497,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
                 />
               )}
 
-              {/* BUYER: File dispute within 48h window */}
+              {/* Either participant: File a dispute within the server-authorized window */}
               {escrow.can.dispute && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--md-error)]/70">

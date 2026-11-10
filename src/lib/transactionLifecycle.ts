@@ -63,9 +63,6 @@ function payoutPresentation(tx: TransactionLifecycleInput) {
   if (status === 'processing' || status === 'approved_for_settlement') {
     return { status, title: 'Payout processing', description: 'The transaction is resolved. The payment provider is still processing the seller payout.', settled: false }
   }
-  if (tx.status === 'released' && tx.payment_method === 'campus_wallet') {
-    return { status, title: 'Wallet settlement recorded', description: 'The wallet settlement path has completed its transaction resolution.', settled: true }
-  }
   return { status, title: 'Settlement status unavailable', description: 'Check the latest server settlement record before treating the seller as paid.', settled: false }
 }
 

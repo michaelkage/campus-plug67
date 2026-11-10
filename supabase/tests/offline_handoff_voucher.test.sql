@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(6);
+SELECT plan(7);
 
 -- Isolated database-level trigger tests. These fixtures are rolled back at the end.
 INSERT INTO auth.users (
@@ -61,7 +61,7 @@ INSERT INTO public.offline_handoff_vouchers (
 )
 SELECT
   tx.id, tx.buyer_id, tx.seller_id, tx.amount, tx.buyer_safe_zone_id,
-  repeat('a', 64), now() + interval '10 minutes', now()
+  encode(extensions.digest(convert_to('offline-handoff-test-token-0000000000000000', 'UTF8'), 'sha256'), 'hex'), now() + interval '10 minutes', now()
 FROM public.transactions AS tx
 WHERE tx.id = 'f3000000-0000-4000-8000-000000000002';
 
@@ -92,6 +92,19 @@ SELECT is(
   (SELECT released_at IS NULL FROM public.transactions WHERE id = 'f3000000-0000-4000-8000-000000000002'),
   true,
   'Voucher confirmation does not set a payout timestamp'
+);
+
+-- A lost client response may cause the same proof to be synced again. The RPC
+-- must return the existing inspection result without changing transaction state.
+SELECT set_config('request.jwt.claim.sub', 'f1000000-0000-4000-8000-000000000001', true);
+SELECT is(
+  (public.confirm_offline_handoff(
+    'f3000000-0000-4000-8000-000000000002',
+    (SELECT id FROM public.offline_handoff_vouchers WHERE transaction_id = 'f3000000-0000-4000-8000-000000000002'),
+    'offline-handoff-test-token-0000000000000000'
+  )->>'already_confirmed')::boolean,
+  true,
+  'A repeated sync returns the existing inspection result idempotently'
 );
 
 -- 4. A voucher whose expiry is not later than its consumption cannot authorize inspection.

@@ -306,7 +306,7 @@ function TransactionCard({ tx: initialTx, userId, onInvalidate }) {
 
   const tx      = escrow.tx ?? initialTx
   const status  = tx.status ?? 'pending'
-  const stateUi = ESCROW_STATE[status] ?? ESCROW_STATE.pending
+  const stateUi = { ...(ESCROW_STATE[status] ?? ESCROW_STATE.pending), label: escrow.lifecycle.title }
   const counterpart = isSeller ? tx.buyer : tx.seller
 
   // ── Mutations that wrap useEscrow actions ─────────────────────────────────

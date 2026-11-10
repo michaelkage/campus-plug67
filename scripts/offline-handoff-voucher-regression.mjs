@@ -25,6 +25,8 @@ const requiredMigrationInvariants = [
   "v_actor <> v_voucher.buyer_id",
   "v_tx.status <> 'meetup_initiated'",
   'Keep the global escrow lock order: transaction first, voucher second.',
+  "v_hash <> v_voucher.token_hash",
+  "v_tx.status IN ('release_requested', 'released')",
   "handshake_receipt_buffer = now()",
   "'funds_released', false",
 ]

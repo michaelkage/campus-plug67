@@ -157,12 +157,29 @@ BEGIN
         RAISE EXCEPTION 'Transaction is not eligible for legacy auto-release';
       END IF;
 
-      -- Paystack seller settlement is approved by the transaction trigger.
-      -- Never credit the internal wallet from this external-payment path.
+      -- Paystack-funded marketplace proceeds settle into the seller's
+      -- PlugCredit balance. The unique reference/reason index makes retries safe.
+      INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
+      VALUES (tx.seller_id, tx.amount, 'Escrow auto-release', tx.id)
+      ON CONFLICT DO NOTHING;
+
+      IF NOT EXISTS (
+        SELECT 1
+          FROM public.plug_credit_ledger
+         WHERE reference_id = tx.id
+           AND user_id = tx.seller_id
+           AND amount = tx.amount
+           AND reason = 'Escrow auto-release'
+      ) THEN
+        RAISE EXCEPTION 'Seller escrow credit could not be verified';
+      END IF;
+
       UPDATE public.transactions
          SET status = 'released',
              released_at = now(),
-             completed_at = now()
+             completed_at = now(),
+             payout_status = 'paid',
+             payout_failure_reason = NULL
        WHERE id = tx.id;
 
     ELSE
@@ -189,10 +206,11 @@ BEGIN
     'action', p_action,
     'status', CASE WHEN p_action = 'release' THEN 'inspection_pending' ELSE p_action END,
     'escrow_resolved', p_action = 'auto_release',
-    'funds_released', false,
+    'seller_wallet_credited', p_action = 'auto_release',
+    'funds_released', p_action = 'auto_release',
     'message', CASE
       WHEN p_action = 'release' THEN 'Handoff confirmed. Funds remain protected for a two-hour inspection window.'
-      WHEN p_action = 'auto_release' THEN 'Escrow resolved. Seller payout still requires settlement confirmation.'
+      WHEN p_action = 'auto_release' THEN 'Escrow resolved and the seller PlugCredit balance has been credited.'
       ELSE 'Escrow action completed.'
     END
   );
@@ -264,10 +282,27 @@ BEGIN
        FOR UPDATE;
 
       PERFORM set_config('app.escrow_transition', 'true', true);
+      INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
+      VALUES (v_tx.seller_id, v_tx.amount, 'Escrow auto-release', v_tx.id)
+      ON CONFLICT DO NOTHING;
+
+      IF NOT EXISTS (
+        SELECT 1
+          FROM public.plug_credit_ledger
+         WHERE reference_id = v_tx.id
+           AND user_id = v_tx.seller_id
+           AND amount = v_tx.amount
+           AND reason = 'Escrow auto-release'
+      ) THEN
+        RAISE EXCEPTION 'Seller inspection settlement credit could not be verified';
+      END IF;
+
       UPDATE public.transactions
          SET status = 'released',
              released_at = now(),
-             completed_at = now()
+             completed_at = now(),
+             payout_status = 'paid',
+             payout_failure_reason = NULL
        WHERE id = v_tx.id
          AND status = 'release_requested'
          AND handshake_receipt_buffer IS NOT NULL;
@@ -424,12 +459,12 @@ BEGIN
     v_reason := 'Dispute settlement: released to seller';
     PERFORM set_config('app.escrow_transition', 'true', true);
 
-    -- Only Campus Wallet is credited in the internal ledger. Paystack
-    -- transactions are moved to approved_for_settlement by the status trigger.
-    IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN
-      INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
-      VALUES (v_recipient, v_tx.amount, v_reason, v_tx.id);
+    -- Both payment rails settle seller proceeds into the internal wallet.
+    -- Campus Wallet additionally consumes its existing held balance.
+    INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
+    VALUES (v_recipient, v_tx.amount, v_reason, v_tx.id);
 
+    IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN
       UPDATE public.wallet_escrow_holds
          SET status = 'released',
              resolved_at = now()
@@ -443,7 +478,9 @@ BEGIN
        SET status = 'released',
            released_at = now(),
            completed_at = now(),
-           updated_at = now()
+           updated_at = now(),
+           payout_status = 'paid',
+           payout_failure_reason = NULL
      WHERE id = v_tx.id;
   ELSE
     RAISE EXCEPTION 'Invalid verdict %. Must be claimant or respondent', p_verdict;
@@ -479,10 +516,7 @@ BEGIN
     'recipient', v_recipient,
     'amount', v_tx.amount,
     'payment_method', COALESCE(v_tx.payment_method, 'paystack'),
-    'payout_status', CASE
-      WHEN COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN 'paid'
-      ELSE 'approved_for_settlement'
-    END
+    'payout_status', 'paid'
   );
 END;
 $function$;

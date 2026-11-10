@@ -77,10 +77,6 @@ BEGIN
   IF FOUND AND v_voucher.consumed_at IS NOT NULL THEN
     RAISE EXCEPTION 'An offline handoff voucher has already been consumed';
   END IF;
-  IF FOUND AND v_voucher.expires_at > now() THEN
-    RAISE EXCEPTION 'An active offline handoff QR already exists';
-  END IF;
-
   INSERT INTO public.offline_handoff_vouchers (
     transaction_id, buyer_id, seller_id, token_hash, expires_at, consumed_at
   )
@@ -95,7 +91,6 @@ BEGIN
         consumed_at = NULL,
         created_at = now()
     WHERE public.offline_handoff_vouchers.consumed_at IS NULL
-      AND public.offline_handoff_vouchers.expires_at <= now()
   RETURNING * INTO v_voucher;
 
   IF NOT FOUND THEN RAISE EXCEPTION 'Unable to rotate offline handoff voucher'; END IF;

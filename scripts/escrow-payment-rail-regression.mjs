@@ -3,7 +3,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 const read = (file) => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
-const migration = read('supabase/migrations/20261110153000_fix_escrow_payment_rail_integrity.sql');
+const migration = read('supabase/migrations/20261110161000_restore_paystack_external_payout.sql');
 const adminRefund = read('supabase/functions/admin-refund-escrow/index.ts');
 const disputeFunction = read('supabase/functions/process-dispute/index.ts');
 

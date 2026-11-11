@@ -174,13 +174,16 @@ SELECT is(
   'A repeated sync returns the existing inspection result idempotently'
 );
 
--- Paystack inspection completion resolves escrow, but it is not proof of an
--- external bank transfer. The status trigger must leave payout pending.
+-- Paystack inspection completion is performed by the service-role worker.
+-- Its transaction trigger updates protected seller aggregates, so exercise the
+-- same trusted JWT role used in production rather than bypassing that guard.
+SELECT set_config('request.jwt.claim.role', 'service_role', true);
 UPDATE public.transactions
    SET status = 'released',
        released_at = now(),
        completed_at = now()
  WHERE id = 'f3000000-0000-4000-8000-000000000002';
+SELECT set_config('request.jwt.claim.role', 'authenticated', true);
 
 SELECT is(
   (SELECT payout_status FROM public.transactions WHERE id = 'f3000000-0000-4000-8000-000000000002'),

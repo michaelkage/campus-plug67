@@ -11,11 +11,16 @@ const disputeFunction = read('supabase/functions/process-dispute/index.ts');
 const extract = (source, name, nextName) => {
   const start = source.indexOf(`CREATE OR REPLACE FUNCTION public.${name}`);
   assert.notEqual(start, -1, `Missing replacement for ${name}`);
-  const end = nextName
+  const nextFunction = nextName
     ? source.indexOf(`CREATE OR REPLACE FUNCTION public.${nextName}`, start + 1)
-    : source.indexOf(`REVOKE ALL ON FUNCTION public.${name}`, start + 1);
-  assert.notEqual(end, -1, `Could not isolate ${name}`);
-  return source.slice(start, end);
+    : -1;
+  if (nextName) {
+    assert.notEqual(nextFunction, -1, `Could not isolate ${name}`);
+    return source.slice(start, nextFunction);
+  }
+  const terminator = source.indexOf("\\n$function$;", start);
+  assert.notEqual(terminator, -1, `Could not isolate ${name}`);
+  return source.slice(start, terminator + "\\n$function$;".length);
 };
 
 const escrow = extract(refundMigration, 'process_escrow_action', 'resolve_dispute_verdict');

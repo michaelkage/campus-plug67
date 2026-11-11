@@ -45,6 +45,7 @@ for (const invariant of [
   'IF v_voucher.expires_at > now() THEN',
   'IF v_voucher.token_hash <> p_token_hash THEN',
   'IF v_voucher.token_hash = p_token_hash THEN',
+  'Offline handoff context changed; a new QR token is required',
   "now() + interval '24 hours'",
   'Never slide the TTL.',
   'Only the seller can prepare the handoff QR',
@@ -58,7 +59,8 @@ for (const invariant of ['mismatched transactions', 'device clock', 'cryptograph
   if (!test.includes(invariant)) throw new Error(`Missing offline handoff test case: ${invariant}`)
 }
 if (safeSwap.includes('qr_secret') || safeSwap.includes('release_code')) throw new Error('Safe Swap must not expose the legacy static QR secret')
-for (const invariant of ['prepare_offline_handoff', 'get_offline_handoff_commitment', 'Expired offline handoff voucher requires a new QR token', 'offline-handoff-seller:', 'offlineHandoffCommitmentKey(', 'offlineHandoffReceiptKey(', 'safeZone={zones.find(zone=>zone.id===tx?.buyer_safe_zone_id)||null}']) {
+for (const invariant of ['prepare_offline_handoff', 'get_offline_handoff_commitment', 'Expired offline handoff voucher requires a new QR token',
+  'Offline handoff context changed; a new QR token is required', 'offline-handoff-seller:', 'offlineHandoffCommitmentKey(', 'offlineHandoffReceiptKey(', 'safeZone={zones.find(zone=>zone.id===tx?.buyer_safe_zone_id)||null}']) {
   if (!safeSwap.includes(invariant)) throw new Error(`Safe Swap offline voucher wiring is missing: ${invariant}`)
 }
 for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released', 'sync it before the QR\'s 24-hour server expiry', 'safeZone.radius_m', 'position.coords.accuracy>50']) {

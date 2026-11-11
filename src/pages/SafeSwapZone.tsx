@@ -100,11 +100,18 @@ export default function SafeSwapZone(){
         }
         if(!navigator.onLine)throw new Error('Connect once to prepare the offline handoff QR.');
         if(!cancelled)setOfflineTicket(null);
-        const token=cachedToken||createOfflineHandoffToken();
-        const tokenHash=await hashOfflineHandoffToken(token);
-        const {data,error:prepareError}=await supabase.rpc('prepare_offline_handoff',{p_transaction_id:transactionId,p_token_hash:tokenHash});
-        if(prepareError)throw prepareError;
-        const prepared=data as {success?:boolean;message?:string;voucher_id:string;transaction_id:string;expires_at:string;buyer_id:string;seller_id:string;amount:number|string;safe_zone_id:string}|null;
+        let token=cachedToken||createOfflineHandoffToken();
+        let tokenHash=await hashOfflineHandoffToken(token);
+        let preparedResult=await supabase.rpc('prepare_offline_handoff',{p_transaction_id:transactionId,p_token_hash:tokenHash});
+        // The server refuses to extend an expired token. Rotate the bearer
+        // secret once, then prepare a fresh 24-hour voucher.
+        if(preparedResult.error?.message?.includes('Expired offline handoff voucher requires a new QR token')){
+          token=createOfflineHandoffToken();
+          tokenHash=await hashOfflineHandoffToken(token);
+          preparedResult=await supabase.rpc('prepare_offline_handoff',{p_transaction_id:transactionId,p_token_hash:tokenHash});
+        }
+        if(preparedResult.error)throw preparedResult.error;
+        const prepared=preparedResult.data as {success?:boolean;message?:string;voucher_id:string;transaction_id:string;expires_at:string;buyer_id:string;seller_id:string;amount:number|string;safe_zone_id:string}|null;
         if(!prepared?.success)throw new Error(prepared?.message||'Unable to prepare offline QR');
         const ticket=createOfflineHandoffTicket({
           voucher_id:prepared.voucher_id, transaction_id:prepared.transaction_id, expires_at:prepared.expires_at,

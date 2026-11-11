@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(25);
+SELECT plan(28);
 
 -- The voucher table is an internal verification store. Participants must use
 -- the narrowly scoped RPCs; neither authenticated nor anonymous clients may
@@ -274,6 +274,36 @@ SELECT is(
   'Refreshing the same active token does not extend its expiry'
 );
 
+-- A changed transaction binding invalidates the old QR even while its
+-- original 24-hour expiry is still active.
+UPDATE public.transactions
+   SET amount = amount + 1
+ WHERE id = 'f3000000-0000-4000-8000-000000000006';
+
+SELECT throws_ok(
+  $ SELECT public.prepare_offline_handoff(
+       'f3000000-0000-4000-8000-000000000006',
+       repeat('a', 64)
+     ) $,
+  'P0001',
+  'Offline handoff context changed; a new QR token is required',
+  'A QR bound to an old transaction context cannot be reused'
+);
+SELECT ok(
+  (public.prepare_offline_handoff(
+    'f3000000-0000-4000-8000-000000000006',
+    repeat('b', 64)
+  )->>'success')::boolean,
+  'Seller can rotate the QR when transaction binding changes'
+);
+SELECT is(
+  (SELECT amount FROM public.offline_handoff_vouchers
+    WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006'),
+  (SELECT amount FROM public.transactions
+    WHERE id = 'f3000000-0000-4000-8000-000000000006'),
+  'Rotated voucher is bound to the updated transaction amount'
+);
+
 UPDATE public.offline_handoff_vouchers
    SET expires_at = now() - interval '1 minute'
  WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006';
@@ -281,7 +311,7 @@ UPDATE public.offline_handoff_vouchers
 SELECT throws_ok(
   $test$ SELECT public.prepare_offline_handoff(
        'f3000000-0000-4000-8000-000000000006',
-       repeat('a', 64)
+       repeat('b', 64)
      ) $test$,
   'P0001',
   'Expired offline handoff voucher requires a new QR token',

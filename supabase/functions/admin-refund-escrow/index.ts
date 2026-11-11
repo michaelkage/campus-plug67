@@ -22,7 +22,10 @@ Deno.serve(async (req: Request) => {
     .select("id,listing_id,buyer_id,seller_id,amount,status,payment_method,paystack_ref,refund_status,paystack_refund_id")
     .eq("id", transactionId).single();
   if (txError || !tx) return jsonResponse({ error: "Transaction not found" }, 404, {}, req);
-  if (!["locked","meetup_initiated","release_requested","disputed"].includes(tx.status)) return jsonResponse({ error: "Transaction cannot be refunded from its current state" }, 400, {}, req);
+  const retryingFailedRefund = tx.status === "cancelled" && tx.refund_status === "failed";
+  if (!["locked","meetup_initiated","release_requested","disputed"].includes(tx.status) && !retryingFailedRefund) {
+    return jsonResponse({ error: "Transaction cannot be refunded from its current state" }, 400, {}, req);
+  }
 
   if ((tx.payment_method ?? "paystack") === "campus_wallet") {
     if (tx.status === "disputed") {

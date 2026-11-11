@@ -193,6 +193,22 @@ BEGIN
      WHERE id = v_tx.id;
   END IF;
 
+  -- Keep the listing unavailable while the refund is pending, processing, or
+  -- needs-attention. Only a confirmed provider success may return inventory.
+  IF v_refund.status = 'processed' AND v_tx.status = 'cancelled' THEN
+    UPDATE public.listings AS listing
+       SET status = 'active', updated_at = now()
+     WHERE listing.id = v_tx.listing_id
+       AND listing.status IN ('reserved', 'sold')
+       AND NOT EXISTS (
+         SELECT 1
+           FROM public.transactions AS other
+          WHERE other.listing_id = listing.id
+            AND other.id <> v_tx.id
+            AND other.status IN ('pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed')
+       );
+  END IF;
+
   RETURN jsonb_build_object(
     'success', true,
     'refund_reference', v_refund.refund_reference,
@@ -227,7 +243,8 @@ BEGIN
   IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN
     RAISE EXCEPTION 'Campus Wallet transactions do not use Paystack refunds';
   END IF;
-  IF v_tx.status NOT IN ('locked','meetup_initiated','release_requested','disputed') THEN
+  IF v_tx.status NOT IN ('locked','meetup_initiated','release_requested','disputed')
+     AND NOT (v_tx.status = 'cancelled' AND v_tx.refund_status = 'failed') THEN
     RAISE EXCEPTION 'Transaction cannot be refunded from its current state';
   END IF;
   IF v_tx.paystack_ref IS NULL OR length(trim(v_tx.paystack_ref)) = 0 THEN
@@ -385,7 +402,8 @@ BEGIN
       IF NOT privileged THEN
         RAISE EXCEPTION 'Refund is an administrative action';
       END IF;
-      IF tx.status NOT IN ('locked', 'meetup_initiated', 'release_requested', 'disputed') THEN
+      IF tx.status NOT IN ('locked', 'meetup_initiated', 'release_requested', 'disputed')
+         AND NOT (tx.status = 'cancelled' AND tx.refund_status IN ('pending', 'processing', 'needs-attention', 'processed')) THEN
         RAISE EXCEPTION 'Transaction cannot be refunded';
       END IF;
       IF COALESCE(tx.refund_status, '') NOT IN ('pending', 'processing', 'needs-attention', 'processed') THEN
@@ -399,9 +417,19 @@ BEGIN
              cancelled_at = now(),
              updated_at = now()
        WHERE id = tx.id;
-      UPDATE public.listings
-         SET status = 'active', updated_at = now()
-       WHERE id = tx.listing_id AND status = 'sold';
+      IF tx.refund_status = 'processed' THEN
+        UPDATE public.listings AS listing
+           SET status = 'active', updated_at = now()
+         WHERE listing.id = tx.listing_id
+           AND listing.status IN ('reserved', 'sold')
+           AND NOT EXISTS (
+             SELECT 1
+               FROM public.transactions AS other
+              WHERE other.listing_id = listing.id
+                AND other.id <> tx.id
+                AND other.status IN ('pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed')
+           );
+      END IF;
 
     WHEN 'auto_release' THEN
       IF NOT privileged THEN
@@ -564,17 +592,19 @@ BEGIN
        SET plug_score = greatest(coalesce(plug_score, 500) - 50, 0)
      WHERE id = v_tx.seller_id;
 
-    UPDATE public.listings AS l
-       SET status = 'active', updated_at = now()
-     WHERE l.id = v_tx.listing_id
-       AND l.status IN ('reserved', 'sold')
-       AND NOT EXISTS (
-         SELECT 1
-           FROM public.transactions AS other
-          WHERE other.listing_id = l.id
-            AND other.id <> v_tx.id
-            AND other.status IN ('pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed')
-       );
+    IF v_tx.refund_status = 'processed' THEN
+      UPDATE public.listings AS l
+         SET status = 'active', updated_at = now()
+       WHERE l.id = v_tx.listing_id
+         AND l.status IN ('reserved', 'sold')
+         AND NOT EXISTS (
+           SELECT 1
+             FROM public.transactions AS other
+            WHERE other.listing_id = l.id
+              AND other.id <> v_tx.id
+              AND other.status IN ('pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed')
+         );
+    END IF;
 
   ELSIF p_verdict = 'respondent' THEN
     v_recipient := v_tx.seller_id;

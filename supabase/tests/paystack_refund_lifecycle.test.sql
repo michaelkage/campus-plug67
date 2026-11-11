@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(20);
+SELECT plan(22);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -20,6 +20,7 @@ INSERT INTO public.transactions (
   ('f4300000-0000-4000-8000-000000000002', 'f4200000-0000-4000-8000-000000000002', 'f4100000-0000-4000-8000-000000000001', 'f4100000-0000-4000-8000-000000000002', 20000, 'locked', 'paystack', 'refund-fixture-reference-2');
 
 SELECT set_config('request.jwt.claim.role', 'service_role', true);
+UPDATE public.listings SET status = 'sold' WHERE id = 'f4200000-0000-4000-8000-000000000001';
 
 SELECT is(
   has_function_privilege('authenticated', 'public.record_paystack_refund(text,text,text,bigint,text)', 'EXECUTE'),
@@ -43,6 +44,11 @@ SELECT is(
   (SELECT refund_status FROM public.transactions WHERE id = 'f4300000-0000-4000-8000-000000000001'),
   'pending',
   'Transaction refund summary reflects pending provider state'
+);
+SELECT is(
+  (SELECT status FROM public.listings WHERE id = 'f4200000-0000-4000-8000-000000000001'),
+  'sold',
+  'Pending refund does not return the listing to active inventory'
 );
 
 SELECT is(
@@ -84,10 +90,19 @@ SELECT is(
   false,
   'Needs-attention refund blocks a duplicate provider refund request'
 );
+SELECT set_config('app.escrow_transition', 'true', true);
+UPDATE public.transactions
+   SET status = 'cancelled', cancelled_at = now()
+ WHERE id = 'f4300000-0000-4000-8000-000000000001';
 SELECT is(
   (public.record_paystack_refund('refund-fixture-reference-1', '991', 'processed', 10000, 'NGN')->>'status'),
   'processed',
   'Processed event completes the refund lifecycle'
+);
+SELECT is(
+  (SELECT status FROM public.listings WHERE id = 'f4200000-0000-4000-8000-000000000001'),
+  'active',
+  'Only confirmed refund processing returns cancelled inventory to active'
 );
 SELECT is(
   (public.record_paystack_refund('refund-fixture-reference-1', NULL, 'pending', 10000, 'NGN')->>'duplicate_or_stale')::boolean,
@@ -113,10 +128,14 @@ SELECT is(
   'failed',
   'Failed provider refund is recorded as terminal for its attempt'
 );
+UPDATE public.transactions
+   SET status = 'cancelled', cancelled_at = now()
+ WHERE id = 'f4300000-0000-4000-8000-000000000002';
+UPDATE public.listings SET status = 'sold' WHERE id = 'f4200000-0000-4000-8000-000000000002';
 SELECT is(
   (public.claim_paystack_refund('f4300000-0000-4000-8000-000000000002')->>'claimed')::boolean,
   true,
-  'A failed refund can be retried with a new provider attempt'
+  'A failed refund can be retried after escrow cancellation'
 );
 SELECT is(
   (public.record_paystack_refund('refund-fixture-reference-2', NULL, 'pending', 20000, 'NGN')->>'status'),
@@ -133,6 +152,11 @@ SELECT is(
   (SELECT paystack_refund_id FROM public.transactions WHERE id = 'f4300000-0000-4000-8000-000000000002'),
   NULL,
   'Starting a new attempt clears the previous provider id from the transaction summary'
+);
+SELECT is(
+  (SELECT status FROM public.listings WHERE id = 'f4200000-0000-4000-8000-000000000002'),
+  'sold',
+  'A retried pending refund keeps the listing unavailable'
 );
 
 SELECT * FROM finish();

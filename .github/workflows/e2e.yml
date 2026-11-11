@@ -21,9 +21,6 @@ jobs:
     name: Playwright smoke tests
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    env:
-      E2E_TEST_EMAIL: campus-plug-e2e@campusplug.test
-      E2E_TEST_PASSWORD: CampusPlugE2E!2026
     steps:
       - uses: actions/checkout@v4
 
@@ -81,6 +78,16 @@ jobs:
           cat "$RUNNER_TEMP/security-gate.log"
           echo "Local security gate did not become ready." >&2
           exit 1
+
+      - name: Generate ephemeral E2E credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          password="$(openssl rand -hex 32)"
+          {
+            echo "E2E_TEST_EMAIL=campus-plug-e2e@campusplug.test"
+            printf 'E2E_TEST_PASSWORD=%s\\n' "$password"
+          } >> "$GITHUB_ENV"
 
       - name: Create isolated local student account
         run: node scripts/create-e2e-user.mjs

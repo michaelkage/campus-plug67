@@ -9,26 +9,21 @@ on:
 permissions:
   contents: read
 
-# Do not cancel an in-flight validation just because another commit lands.
-# GitHub-hosted runners are disposable, and cancelled builds hide the actual
-# state of the commit that triggered them.
+# Browser journeys run against a disposable local Supabase stack. Never use
+# production student accounts or production database credentials in Playwright.
 concurrency:
   group: browser-e2e-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   e2e:
-    # Dependabot pull_request runs do not receive repository secrets. The live,
-    # credentialed journey is still exercised on main pushes with configured secrets.
     if: github.actor != 'dependabot[bot]'
     name: Playwright smoke tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
-      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
-      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      E2E_TEST_EMAIL: campus-plug-e2e@campusplug.test
+      E2E_TEST_PASSWORD: CampusPlugE2E!2026
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +34,53 @@ jobs:
 
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund --prefer-offline
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+
+      - name: Start disposable Supabase database
+        run: |
+          supabase start --exclude studio
+          supabase db reset --local
+
+      - name: Export local Supabase credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          {
+            echo "SUPABASE_URL=$API_URL"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "VITE_SUPABASE_URL=$API_URL"
+            echo "VITE_SUPABASE_ANON_KEY=$ANON_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Start local security gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup supabase functions serve security-gate --no-verify-jwt > "$RUNNER_TEMP/security-gate.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/security-gate.pid"
+          for attempt in $(seq 1 45); do
+            status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              --request POST "$SUPABASE_URL/functions/v1/security-gate" \
+              --header "apikey: $VITE_SUPABASE_ANON_KEY" \
+              --header 'content-type: application/json' \
+              --data '{"action":"check"}' || true)"
+            if [ "$status" = "200" ]; then
+              echo "Local security gate is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/security-gate.log"
+          echo "Local security gate did not become ready." >&2
+          exit 1
+
+      - name: Create isolated local student account
+        run: node scripts/create-e2e-user.mjs
 
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock --prefer-offline @playwright/test@1.55.0
@@ -52,10 +94,10 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium
 
-      - name: Build production bundle
+      - name: Build production bundle against local Supabase
         run: npm run build
 
-      - name: Run browser smoke and journey tests
+      - name: Run browser smoke and authenticated journey tests
         run: npx playwright test
 
       - name: Upload Playwright report
@@ -66,3 +108,12 @@ jobs:
           path: playwright-report/
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Stop local services
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/security-gate.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/security-gate.pid")" 2>/dev/null || true
+          fi
+          supabase stop || true

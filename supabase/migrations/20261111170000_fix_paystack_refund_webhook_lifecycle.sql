@@ -11,7 +11,7 @@ ALTER TABLE public.paystack_refund_records
 
 ALTER TABLE public.paystack_refund_records
   DROP CONSTRAINT IF EXISTS paystack_refund_records_status_check,
-  ADD CONSTRAINT paystack_refund_records_status_check
+  ADD CONSTRAINT paystack_refund_records_state_check
     CHECK (status IN ('pending','processing','needs-attention','processed','failed','cancelled','needs_attention'));
 
 ALTER TABLE public.paystack_refund_records

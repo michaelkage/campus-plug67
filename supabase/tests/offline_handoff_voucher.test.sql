@@ -281,10 +281,10 @@ UPDATE public.transactions
  WHERE id = 'f3000000-0000-4000-8000-000000000006';
 
 SELECT throws_ok(
-  $ SELECT public.prepare_offline_handoff(
+  $test$ SELECT public.prepare_offline_handoff(
        'f3000000-0000-4000-8000-000000000006',
        repeat('a', 64)
-     ) $,
+     ) $test$,
   'P0001',
   'Offline handoff context changed; a new QR token is required',
   'A QR bound to an old transaction context cannot be reused'

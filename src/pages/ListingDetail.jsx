@@ -163,7 +163,7 @@ function PurchaseJourneyGuide() {
           </li>
         ))}
       </ol>
-      <p className="text-[11px] leading-5 text-on-surface/50">Never scan the QR or confirm receipt before you have inspected and received the item. If something is wrong, either participant can dispute within two hours after QR handoff or within 48 hours after a seller-requested release. The deadline starts settlement processing; it is not proof that the seller has already been paid.</p>
+      <p className="text-[11px] leading-5 text-on-surface/50">Never scan the QR or confirm receipt before you have inspected and received the item. You have two hours to dispute after QR handoff, or 48 hours to dispute after a seller-requested release. The deadline starts settlement processing; it is not proof that the seller has already been paid.</p>
     </section>
   )
 }

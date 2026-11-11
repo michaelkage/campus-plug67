@@ -1,8 +1,8 @@
--- Restore Paystack proceeds to the existing external settlement pipeline.
--- Campus Wallet seller proceeds continue to be credited to PlugCredit.
 -- Keep each payment rail on one settlement path.
--- Seller proceeds from both payment methods are credited to the PlugCredit
--- ledger on release; Paystack buyer refunds return through Paystack only.
+-- Campus Wallet seller proceeds are credited to PlugCredit atomically.
+-- Paystack-funded seller proceeds are approved for external settlement; this
+-- migration does not initiate or confirm a Paystack transfer.
+-- Paystack buyer refunds return through Paystack only.
 -- QR inspection expiry is owned by the dedicated inspection worker.
 
 CREATE OR REPLACE FUNCTION public.process_escrow_action(

@@ -35,6 +35,7 @@ if (webhook.includes('.from("transactions").update(patch)')) fail("Webhook must 
 const adminRefund = read("supabase/functions/admin-refund-escrow/index.ts");
 assertIncludes(adminRefund, 'admin.rpc("record_paystack_refund"', "Admin refunds must use the atomic provider refund recorder");
 assertIncludes(adminRefund, 'tx.status === "cancelled" && tx.refund_status === "failed"', "Admin refund endpoint must allow a controlled retry after a provider failure");
+assertIncludes(adminRefund, 'recordedRefund?.status === "failed"', "A synchronous provider failure must not be reported as a completed escrow refund");
 const dispute = read("supabase/functions/process-dispute/index.ts");
 assertIncludes(dispute, 'admin.rpc("record_paystack_refund"', "Dispute refunds must use the atomic provider refund recorder");
 console.log("Paystack refund idempotency regression checks passed (static source invariants).");

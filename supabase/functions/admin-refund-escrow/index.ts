@@ -86,6 +86,13 @@ Deno.serve(async (req: Request) => {
     console.error("Paystack refund was initiated but could not be recorded", recordError.message);
     return jsonResponse({ error: "Refund was initiated but transaction state could not be recorded; reconciliation is required" }, 500, {}, req);
   }
+  if (recordedRefund?.status === "failed" || recordedRefund?.status === "cancelled") {
+    return jsonResponse({
+      error: "Paystack did not complete the refund. The transaction remains protected from inventory reuse and can be retried after reconciliation.",
+      refund_status: recordedRefund.status,
+      paystack_refund_id: refundId,
+    }, 502, {}, req);
+  }
 
   const { data, error } = await admin.rpc("process_escrow_action", { p_transaction_id: tx.id, p_action: "refund", p_qr_secret: null, p_reason: null });
   if (error) return jsonResponse({ error: error.message }, 500, {}, req);

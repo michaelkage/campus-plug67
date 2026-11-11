@@ -209,7 +209,8 @@ export default function ListingDetail() {
     if (updated.status === 'disputed') toast('🚨 Dispute filed — under review')
   })
 
-  const activeTx = liveTx || existingTx
+  // Ignore realtime state from a previously viewed listing/transaction.
+  const activeTx = liveTx?.id === existingTx?.id ? liveTx : existingTx
   const isSeller = user?.id === listing?.seller_id
 
   const handleBuy = async () => {

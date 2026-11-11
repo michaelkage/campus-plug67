@@ -111,8 +111,22 @@ export function deriveTransactionLifecycle(
       return { ...base, phase: 'dispute', title: 'Dispute under review', description: 'Automatic settlement is paused while the dispute is resolved. Funds remain protected pending the authoritative verdict.', tone: 'danger', canDispute: false }
     case 'released':
       return { ...base, phase: 'resolution', title: payout.settled ? 'Transaction settled' : 'Transaction resolved · payout pending', description: payout.settled ? 'The transaction has been resolved and seller settlement is recorded.' : 'The transaction resolution is recorded, but seller payout is not yet confirmed. Do not treat this as paid.', tone: payout.status === 'failed' ? 'warning' : payout.settled ? 'success' : 'warning' }
-    case 'cancelled':
-      return { ...base, phase: 'cancelled', title: 'Transaction cancelled', description: tx?.refund_status === 'processed' ? 'The buyer refund has been processed.' : 'The transaction is cancelled. Check the refund record for confirmation that money has returned to the buyer.', tone: 'neutral' }
+    case 'cancelled': {
+      const refundStatus = tx?.refund_status ?? null
+      if (refundStatus === 'processed') {
+        return { ...base, phase: 'cancelled', title: 'Transaction cancelled · refund complete', description: 'Paystack confirmed that the buyer refund was processed. Bank posting may still take additional time.', tone: 'success' }
+      }
+      if (refundStatus === 'pending' || refundStatus === 'processing') {
+        return { ...base, phase: 'cancelled', title: 'Refund in progress', description: 'Paystack has accepted the refund request, but the refund is not complete yet. The listing stays unavailable until the provider confirms processing.', tone: 'warning' }
+      }
+      if (refundStatus === 'needs-attention' || refundStatus === 'needs_attention') {
+        return { ...base, phase: 'cancelled', title: 'Refund needs attention', description: 'Paystack needs additional customer bank details before the refund can continue. The refund is not complete and requires support follow-up.', tone: 'warning' }
+      }
+      if (refundStatus === 'failed') {
+        return { ...base, phase: 'cancelled', title: 'Refund failed · retry required', description: 'Paystack could not complete the refund. The buyer has not been refunded; the provider failure must be reconciled and a new refund attempt made.', tone: 'danger' }
+      }
+      return { ...base, phase: 'cancelled', title: 'Transaction cancelled', description: 'The transaction is cancelled. Check the refund record for confirmation that money has returned to the buyer.', tone: 'neutral' }
+    }
     default:
       return { ...base, phase: 'unknown', title: 'Transaction status unavailable', description: 'The server status could not be mapped to a known transaction stage. No financial action should be inferred.', tone: 'neutral', canDispute: false, terminal: false }
   }

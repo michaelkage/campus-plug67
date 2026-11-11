@@ -43,11 +43,11 @@ if (migration.includes('token text NOT NULL')) throw new Error('The database mus
 for (const invariant of ["now() + interval '24 hours'", "public.offline_handoff_vouchers.token_hash = EXCLUDED.token_hash", 'Fresh buyer Safe Swap Zone verification is required']) { if (!durableMigration.includes(invariant)) throw new Error(`Missing durable offline handoff migration invariant: ${invariant}`) }
 for (const invariant of [
   'IF v_voucher.expires_at > now() THEN',
-  'IF v_voucher.token_hash <> p_token_hash THEN',
+  'ELSIF v_voucher.token_hash <> p_token_hash THEN',
   'IF v_voucher.token_hash = p_token_hash THEN',
   'Offline handoff context changed; a new QR token is required',
   "now() + interval '24 hours'",
-  'Never slide the TTL.',
+  'Same active token and same transaction binding: preserve its expiry.',
   'Only the seller can prepare the handoff QR',
 ]) {
   if (!expiryMigration.includes(invariant)) throw new Error(`Missing fixed-expiry voucher invariant: ${invariant}`)

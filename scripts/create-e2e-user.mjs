@@ -9,6 +9,11 @@ if (!supabaseUrl || !serviceRoleKey || !email || !password) {
   throw new Error('Local Supabase URL, service-role key, and E2E credentials are required')
 }
 
+const target = new URL(supabaseUrl)
+if (!['127.0.0.1', 'localhost'].includes(target.hostname)) {
+  throw new Error('E2E user provisioning is restricted to localhost Supabase instances')
+}
+
 const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })

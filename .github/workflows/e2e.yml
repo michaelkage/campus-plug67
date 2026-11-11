@@ -86,7 +86,7 @@ jobs:
           password="$(openssl rand -hex 32)"
           {
             echo "E2E_TEST_EMAIL=campus-plug-e2e@campusplug.test"
-            printf 'E2E_TEST_PASSWORD=%s\\n' "$password"
+            printf 'E2E_TEST_PASSWORD=%s\n' "$password"
           } >> "$GITHUB_ENV"
 
       - name: Create isolated local student account

@@ -23,6 +23,24 @@ INSERT INTO public.messages (
 
 -- Exercise the same authenticated RLS and trigger path used by the chat client.
 SET LOCAL ROLE authenticated;
+
+-- The sender must be rejected while the fixture is still unread. Testing this
+-- after the receiver update would only exercise an unchanged false->true value
+-- and would never enter the trigger's read-receipt authorization branch.
+SELECT set_config('request.jwt.claim.sub', 'f4000000-0000-4000-8000-000000000001', true);
+
+SELECT throws_ok(
+  $$
+    UPDATE public.messages
+       SET read = true
+     WHERE id = 'f5000000-0000-4000-8000-000000000001'
+  $$,
+  'P0001',
+  'messages: only the receiver can mark an unread message as read',
+  'The sender cannot forge a read receipt for an outgoing unread message'
+);
+
+-- The legitimate receiver can then persist the same unread->read transition.
 SELECT set_config('request.jwt.claim.sub', 'f4000000-0000-4000-8000-000000000002', true);
 
 SELECT lives_ok(
@@ -44,19 +62,6 @@ SELECT is(
   ),
   true,
   'The read receipt is visible as persisted state to the receiver'
-);
-
-SELECT set_config('request.jwt.claim.sub', 'f4000000-0000-4000-8000-000000000001', true);
-
-SELECT throws_ok(
-  $$
-    UPDATE public.messages
-       SET read = true
-     WHERE id = 'f5000000-0000-4000-8000-000000000001'
-  $$,
-  'P0001',
-  'messages: only the receiver can mark an unread message as read',
-  'The sender cannot forge a read receipt for an outgoing message'
 );
 
 SELECT * FROM finish();

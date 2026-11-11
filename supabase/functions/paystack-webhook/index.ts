@@ -67,11 +67,31 @@ serve(async (req: Request) => {
 
   if (event.event?.startsWith("refund.")) {
     const data = event.data as Record<string, unknown> | undefined;
-    const transactionReference = typeof data?.transaction_reference === "string" ? data.transaction_reference : null;
-    const status = typeof data?.status === "string" ? data.status.toLowerCase() : null;
-    const refundReference = typeof data?.refund_reference === "string" ? data.refund_reference : null;
-    if (!transactionReference || !refundReference || !status ||
-        !["pending", "processed", "failed", "cancelled", "needs_attention"].includes(status)) {
+    const nestedTransaction = data?.transaction;
+    const transactionReference =
+      typeof data?.transaction_reference === "string"
+        ? data.transaction_reference
+        : typeof nestedTransaction === "object" && nestedTransaction !== null &&
+            typeof (nestedTransaction as Record<string, unknown>).reference === "string"
+          ? (nestedTransaction as Record<string, unknown>).reference as string
+          : null;
+    const statusValue = typeof data?.status === "string" ? data.status.toLowerCase().replaceAll("_", "-") : null;
+    const eventStatus = event.event.slice("refund.".length).toLowerCase().replaceAll("_", "-");
+    const status = statusValue ?? eventStatus;
+    // Paystack's refund.pending event legitimately has no refund_reference.
+    // Prefer its stable numeric refund id when available; later events may
+    // correlate to the pending row by transaction reference.
+    const refundReference =
+      data?.id != null
+        ? String(data.id)
+        : typeof data?.refund_reference === "string" && data.refund_reference.length > 0
+          ? data.refund_reference
+          : null;
+    const amount = Number(data?.amount);
+    const currency = typeof data?.currency === "string" ? data.currency.toUpperCase() : "NGN";
+    const allowedStatuses = ["pending", "processing", "needs-attention", "processed", "failed", "cancelled"];
+    if (!transactionReference || !status || !allowedStatuses.includes(status) ||
+        !Number.isSafeInteger(amount) || amount <= 0 || currency !== "NGN") {
       return jsonResponse({ error: "Invalid refund event payload" }, 400, {}, req);
     }
 
@@ -79,6 +99,8 @@ serve(async (req: Request) => {
       p_transaction_reference: transactionReference,
       p_refund_reference: refundReference,
       p_status: status,
+      p_amount: amount,
+      p_currency: currency,
     });
     if (error) {
       console.error("Paystack refund recording failed", error.message);

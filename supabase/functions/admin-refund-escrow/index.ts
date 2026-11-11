@@ -71,14 +71,20 @@ Deno.serve(async (req: Request) => {
 
   const refund = payload.data ?? {};
   const refundId = refund.id != null ? String(refund.id) : null;
-  const refundStatus = typeof refund.status === "string" ? refund.status : "pending";
-  const { error: markError } = await admin.from("transactions").update({
-    refund_status: refundStatus, paystack_refund_id: refundId,
-    refund_initiated_at: new Date().toISOString(), refund_failure_reason: null,
-  }).eq("id", tx.id);
-  if (markError) return jsonResponse({ error: "Refund was initiated but transaction state could not be recorded" }, 500, {}, req);
+  const refundStatus = typeof refund.status === "string" ? refund.status.toLowerCase().replaceAll("_", "-") : "pending";
+  const { data: recordedRefund, error: recordError } = await admin.rpc("record_paystack_refund", {
+    p_transaction_reference: tx.paystack_ref,
+    p_refund_reference: refundId,
+    p_status: refundStatus,
+    p_amount: Number(refund.amount ?? tx.amount),
+    p_currency: typeof refund.currency === "string" ? refund.currency.toUpperCase() : "NGN",
+  });
+  if (recordError) {
+    console.error("Paystack refund was initiated but could not be recorded", recordError.message);
+    return jsonResponse({ error: "Refund was initiated but transaction state could not be recorded; reconciliation is required" }, 500, {}, req);
+  }
 
   const { data, error } = await admin.rpc("process_escrow_action", { p_transaction_id: tx.id, p_action: "refund", p_qr_secret: null, p_reason: null });
   if (error) return jsonResponse({ error: error.message }, 500, {}, req);
-  return jsonResponse({ ...data, refund_status: refundStatus, paystack_refund_id: refundId }, 200, {}, req);
+  return jsonResponse({ ...data, refund_status: recordedRefund?.status ?? refundStatus, paystack_refund_id: refundId }, 200, {}, req);
 });

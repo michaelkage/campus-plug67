@@ -83,12 +83,17 @@ async function executeVerdict(juryCase: DisputeCase, verdict: string) {
           throw new Error(message);
         }
         const refund = payload.data ?? {};
-        await admin.from("transactions").update({
-          refund_status: typeof refund.status === "string" ? refund.status : "pending",
-          paystack_refund_id: refund.id != null ? String(refund.id) : null,
-          refund_initiated_at: new Date().toISOString(),
-          refund_failure_reason: null,
-        }).eq("id", tx.id);
+        const { error: recordError } = await admin.rpc("record_paystack_refund", {
+          p_transaction_reference: tx.paystack_ref,
+          p_refund_reference: refund.id != null ? String(refund.id) : null,
+          p_status: typeof refund.status === "string" ? refund.status.toLowerCase().replaceAll("_", "-") : "pending",
+          p_amount: Number(refund.amount ?? tx.amount),
+          p_currency: typeof refund.currency === "string" ? refund.currency.toUpperCase() : "NGN",
+        });
+        if (recordError) {
+          console.error("Dispute refund was initiated but could not be recorded", recordError.message);
+          throw new Error("Dispute refund was initiated but its provider state could not be recorded; reconciliation is required");
+        }
       } else if (claim?.status === "processing" && !claim?.refund_id) {
         throw new Error("A Paystack refund is already being initiated for this transaction; dispute settlement will retry after reconciliation");
       }

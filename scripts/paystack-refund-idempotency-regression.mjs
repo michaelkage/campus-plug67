@@ -18,6 +18,8 @@ assertIncludes(migration, "v_refund.transaction_id <> v_tx.id", "Provider refund
 assertIncludes(migration, "v_refund.updated_at >= v_tx.refund_initiated_at", "A retry must accept new null-reference pending events without replaying stale terminal events");
 assertIncludes(migration, "needs-attention", "Needs-attention refunds must remain visible and block duplicate claims");
 assertIncludes(migration, "refund_initiated_at = clock_timestamp()", "A new retry must have a timestamp later than the prior failed attempt");
+assertIncludes(migration, "created_at, updated_at", "Refund attempts must have monotonic insertion timestamps");
+assertIncludes(migration, "updated_at = clock_timestamp()", "Refund event updates must have monotonic timestamps");
 assertIncludes(migration, "AND NOT (v_tx.status = 'cancelled' AND v_tx.refund_status = 'failed')", "A failed refund may be retried after escrow cancellation");
 assertIncludes(migration, "v_refund.status = 'processed' AND v_tx.status = 'cancelled'", "Only provider-confirmed refunds may reactivate cancelled inventory");
 assertIncludes(migration, "IF tx.refund_status = 'processed' THEN", "Synchronous refund completion may reactivate inventory only after provider success");

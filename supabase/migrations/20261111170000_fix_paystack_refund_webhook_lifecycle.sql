@@ -120,11 +120,12 @@ BEGIN
   IF NOT v_found THEN
     INSERT INTO public.paystack_refund_records(
       transaction_id, transaction_reference, refund_reference, status, amount, currency,
-      processed_at, failure_reason
+      processed_at, failure_reason, created_at, updated_at
     ) VALUES (
       v_tx.id, p_transaction_reference, v_reference, v_status, p_amount, upper(p_currency),
-      CASE WHEN v_status = 'processed' THEN now() ELSE NULL END,
-      CASE WHEN v_status = 'failed' THEN 'Paystack reported refund.failed' ELSE NULL END
+      CASE WHEN v_status = 'processed' THEN clock_timestamp() ELSE NULL END,
+      CASE WHEN v_status = 'failed' THEN 'Paystack reported refund.failed' ELSE NULL END,
+      clock_timestamp(), clock_timestamp()
     )
     RETURNING * INTO v_refund;
   ELSE
@@ -160,13 +161,13 @@ BEGIN
            status = v_status,
            amount = p_amount,
            currency = upper(p_currency),
-           processed_at = CASE WHEN v_status = 'processed' THEN COALESCE(processed_at, now()) ELSE processed_at END,
+           processed_at = CASE WHEN v_status = 'processed' THEN COALESCE(processed_at, clock_timestamp()) ELSE processed_at END,
            failure_reason = CASE
              WHEN v_status = 'failed' THEN 'Paystack reported refund.failed'
              WHEN v_status = 'needs-attention' THEN 'Paystack requires customer bank details to continue the refund'
              ELSE NULL
            END,
-           updated_at = now()
+           updated_at = clock_timestamp()
      WHERE id = v_refund.id
      RETURNING * INTO v_refund;
   END IF;
@@ -181,7 +182,7 @@ BEGIN
        SET refund_status = v_refund.status,
            paystack_refund_id = COALESCE(paystack_refund_id, v_refund.refund_reference),
            refund_processed_at = CASE
-             WHEN v_refund.status = 'processed' THEN COALESCE(refund_processed_at, now())
+             WHEN v_refund.status = 'processed' THEN COALESCE(refund_processed_at, clock_timestamp())
              ELSE refund_processed_at
            END,
            refund_failure_reason = CASE
@@ -189,7 +190,7 @@ BEGIN
              WHEN v_refund.status = 'needs-attention' THEN 'Paystack requires customer bank details to continue the refund'
              ELSE NULL
            END,
-           updated_at = now()
+           updated_at = clock_timestamp()
      WHERE id = v_tx.id;
   END IF;
 

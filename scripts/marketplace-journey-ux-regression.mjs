@@ -14,6 +14,8 @@ const gigs = read('src/pages/Gigs.jsx');
 const booking = read('src/components/ui/GigBooking.tsx');
 const serviceActions = read('src/components/services/ServiceBookingActions.jsx');
 const inbox = read('src/pages/Chat.jsx');
+assertIncludes(listing, 'liveTx?.id === existingTx?.id ? liveTx : existingTx',
+  'Listing detail must not reuse realtime transaction state from a previous listing');
 
 assertIncludes(listing, 'How a protected purchase works',
   'Marketplace checkout must explain the buyer/seller journey before payment');

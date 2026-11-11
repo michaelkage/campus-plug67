@@ -37,9 +37,11 @@ if (listing.includes('Auto-releases in ')) {
   fail('Escrow countdown must describe the dispute/inspection deadline, not promise immediate payout');
 }
 
-for (const label of ['Funds held', 'Pickup', 'Protected release window', 'Complete']) {
+for (const label of ['Funds held', 'Pickup', 'Protected release window', 'Resolved']) {
   assertIncludes(states, `label: '${label}'`,
     `Marketplace progress must include the ${label} step`);
+assertIncludes(states, "label: 'Resolved'",
+  'Transaction resolution must not be presented as confirmed payout');
 }
 
 assertIncludes(gigs, 'How service bookings work',

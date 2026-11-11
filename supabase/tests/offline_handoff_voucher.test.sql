@@ -264,13 +264,20 @@ SELECT ok(
     WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006'),
   'New offline QR receives a fixed 24-hour server expiry'
 );
-SELECT is(
-  (SELECT expires_at FROM public.offline_handoff_vouchers
-    WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006'),
-  (public.prepare_offline_handoff(
+WITH existing_expiry AS MATERIALIZED (
+  SELECT expires_at
+    FROM public.offline_handoff_vouchers
+   WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006'
+), refreshed AS MATERIALIZED (
+  SELECT (public.prepare_offline_handoff(
     'f3000000-0000-4000-8000-000000000006',
     repeat('a', 64)
-  )->>'expires_at')::timestamptz,
+  )->>'expires_at')::timestamptz AS expires_at
+  FROM existing_expiry
+)
+SELECT is(
+  (SELECT expires_at FROM existing_expiry),
+  (SELECT expires_at FROM refreshed),
   'Refreshing the same active token does not extend its expiry'
 );
 

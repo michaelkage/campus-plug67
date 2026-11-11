@@ -79,6 +79,9 @@ BEGIN
      WHERE refund_reference = v_reference
      FOR UPDATE;
     v_found := FOUND;
+    IF v_found AND v_refund.transaction_id <> v_tx.id THEN
+      RAISE EXCEPTION 'Refund reference is already bound to another transaction';
+    END IF;
   END IF;
 
   IF NOT v_found THEN
@@ -101,7 +104,9 @@ BEGIN
      ORDER BY created_at DESC
      LIMIT 1
      FOR UPDATE;
-    IF FOUND AND v_refund.status IN ('processed','failed','cancelled') THEN
+    IF FOUND
+       AND v_refund.status IN ('processed','failed','cancelled')
+       AND (v_tx.refund_initiated_at IS NULL OR v_refund.updated_at >= v_tx.refund_initiated_at) THEN
       RETURN jsonb_build_object(
         'success', true,
         'duplicate_or_stale', true,
@@ -238,7 +243,7 @@ BEGIN
 
   UPDATE public.transactions
      SET refund_status = 'processing',
-         refund_initiated_at = COALESCE(refund_initiated_at, now()),
+         refund_initiated_at = now(),
          refund_failure_reason = NULL,
          updated_at = now()
    WHERE id = p_transaction_id;

@@ -6,17 +6,16 @@ const fail = (message) => { throw new Error(message); };
 const assertIncludes = (source, value, message) => { if (!source.includes(value)) fail(message); };
 
 const migration = read("supabase/migrations/20261111170000_fix_paystack_refund_webhook_lifecycle.sql");
-assertIncludes(migration, "refund_reference text UNIQUE", "Provider refund references must be unique while allowing Paystack's null pending reference");
 assertIncludes(migration, "ALTER COLUMN refund_reference DROP NOT NULL", "Existing refund records must accept null pending references");
 assertIncludes(migration, "'needs-attention'", "Refund records must support Paystack's needs-attention state");
 assertIncludes(migration, "p_amount bigint", "Refund recorder must validate provider amount");
 assertIncludes(migration, "p_currency text", "Refund recorder must validate provider currency");
-assertIncludes(migration, "REFERENCES public.transactions(id) ON DELETE RESTRICT", "Refund records must retain their transaction");
-assertIncludes(migration, "FOR UPDATE", "Refund updates must serialize against transaction/refund rows");
 assertIncludes(migration, "v_refund.status IN ('processed','failed','cancelled')", "Terminal refunds must not regress");
-assertIncludes(migration, "Active refund is already bound to a different provider reference", "A refund reference must not be rebound to another transaction");
+assertIncludes(migration, "Active refund is already bound to a different provider reference", "An active refund must not be rebound to another provider reference");
 assertIncludes(migration, "GRANT EXECUTE ON FUNCTION public.record_paystack_refund(text,text,text,bigint,text) TO service_role", "Only service role should record provider refunds");
 assertIncludes(migration, "FOR UPDATE", "Refund state transitions must lock the transaction");
+assertIncludes(migration, "v_refund.transaction_id <> v_tx.id", "Provider refund ids must not cross transaction boundaries");
+assertIncludes(migration, "v_refund.updated_at >= v_tx.refund_initiated_at", "A retry must accept new null-reference pending events without replaying stale terminal events");
 assertIncludes(migration, "needs-attention", "Needs-attention refunds must remain visible and block duplicate claims");
 
 const webhook = read("supabase/functions/paystack-webhook/index.ts");

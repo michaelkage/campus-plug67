@@ -88,7 +88,7 @@ serve(async (req: Request) => {
           ? data.refund_reference
           : null;
     const amount = Number(data?.amount);
-    const currency = typeof data?.currency === "string" ? data.currency.toUpperCase() : "NGN";
+    const currency = typeof data?.currency === "string" ? data.currency.toUpperCase() : "";
     const allowedStatuses = ["pending", "processing", "needs-attention", "processed", "failed", "cancelled"];
     if (!transactionReference || !status || !allowedStatuses.includes(status) ||
         !Number.isSafeInteger(amount) || amount <= 0 || currency !== "NGN") {

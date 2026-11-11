@@ -105,7 +105,10 @@ export default function SafeSwapZone(){
         let preparedResult=await supabase.rpc('prepare_offline_handoff',{p_transaction_id:transactionId,p_token_hash:tokenHash});
         // The server refuses to extend an expired token. Rotate the bearer
         // secret once, then prepare a fresh 24-hour voucher.
-        if(preparedResult.error?.message?.includes('Expired offline handoff voucher requires a new QR token')){
+        if(
+          preparedResult.error?.message?.includes('Expired offline handoff voucher requires a new QR token')
+          || preparedResult.error?.message?.includes('Offline handoff context changed; a new QR token is required')
+        ){
           token=createOfflineHandoffToken();
           tokenHash=await hashOfflineHandoffToken(token);
           preparedResult=await supabase.rpc('prepare_offline_handoff',{p_transaction_id:transactionId,p_token_hash:tokenHash});

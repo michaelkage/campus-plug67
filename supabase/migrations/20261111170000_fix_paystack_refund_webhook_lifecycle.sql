@@ -260,7 +260,7 @@ BEGIN
 
   UPDATE public.transactions
      SET refund_status = 'processing',
-         refund_initiated_at = now(),
+         refund_initiated_at = clock_timestamp(),
          paystack_refund_id = NULL,
          refund_processed_at = NULL,
          refund_failure_reason = NULL,

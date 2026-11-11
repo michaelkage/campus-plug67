@@ -17,6 +17,11 @@ assertIncludes(migration, "FOR UPDATE", "Refund state transitions must lock the 
 assertIncludes(migration, "v_refund.transaction_id <> v_tx.id", "Provider refund ids must not cross transaction boundaries");
 assertIncludes(migration, "v_refund.updated_at >= v_tx.refund_initiated_at", "A retry must accept new null-reference pending events without replaying stale terminal events");
 assertIncludes(migration, "needs-attention", "Needs-attention refunds must remain visible and block duplicate claims");
+assertIncludes(migration, "refund_initiated_at = clock_timestamp()", "A new retry must have a timestamp later than the prior failed attempt");
+assertIncludes(migration, "AND NOT (v_tx.status = 'cancelled' AND v_tx.refund_status = 'failed')", "A failed refund may be retried after escrow cancellation");
+assertIncludes(migration, "v_refund.status = 'processed' AND v_tx.status = 'cancelled'", "Only provider-confirmed refunds may reactivate cancelled inventory");
+assertIncludes(migration, "IF tx.refund_status = 'processed' THEN", "Synchronous refund completion may reactivate inventory only after provider success");
+assertIncludes(migration, "listing.status IN ('reserved', 'sold')", "Inventory restoration must handle reserved and sold listings safely");
 
 const webhook = read("supabase/functions/paystack-webhook/index.ts");
 assertIncludes(webhook, "p_refund_reference: refundReference", "Webhook must pass provider refund identity");
@@ -27,6 +32,7 @@ assertIncludes(webhook, 'admin.rpc("record_paystack_refund"', "Webhook must use 
 if (webhook.includes('.from("transactions").update(patch)')) fail("Webhook must not directly overwrite transaction refund state");
 const adminRefund = read("supabase/functions/admin-refund-escrow/index.ts");
 assertIncludes(adminRefund, 'admin.rpc("record_paystack_refund"', "Admin refunds must use the atomic provider refund recorder");
+assertIncludes(adminRefund, 'tx.status === "cancelled" && tx.refund_status === "failed"', "Admin refund endpoint must allow a controlled retry after a provider failure");
 const dispute = read("supabase/functions/process-dispute/index.ts");
 assertIncludes(dispute, 'admin.rpc("record_paystack_refund"', "Dispute refunds must use the atomic provider refund recorder");
 console.log("Paystack refund idempotency regression checks passed (static source invariants).");

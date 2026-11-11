@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(18);
+SELECT plan(20);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -128,6 +128,11 @@ SELECT is(
     WHERE transaction_id = 'f4300000-0000-4000-8000-000000000002'),
   2,
   'Retry creates a new attempt instead of mutating the previous failed attempt'
+);
+SELECT is(
+  (SELECT paystack_refund_id FROM public.transactions WHERE id = 'f4300000-0000-4000-8000-000000000002'),
+  NULL,
+  'Starting a new attempt clears the previous provider id from the transaction summary'
 );
 
 SELECT * FROM finish();

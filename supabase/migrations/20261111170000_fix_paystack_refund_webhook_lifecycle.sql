@@ -244,6 +244,8 @@ BEGIN
   UPDATE public.transactions
      SET refund_status = 'processing',
          refund_initiated_at = now(),
+         paystack_refund_id = NULL,
+         refund_processed_at = NULL,
          refund_failure_reason = NULL,
          updated_at = now()
    WHERE id = p_transaction_id;

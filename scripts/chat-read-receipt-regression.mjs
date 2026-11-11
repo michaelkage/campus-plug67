@@ -19,4 +19,8 @@ assert.ok(inbox.includes("message.transaction_id ?? 'general'"))
 assert.ok(inbox.includes("transactionId ?? 'general'"))
 assert.ok(inbox.includes('encodeURIComponent(transactionId)'))
 
+const nav = await readFile(new URL('../src/components/layout/TopNav.jsx', import.meta.url), 'utf8')
+assert.ok(nav.includes("select('id',{count:'exact',head:true})"))
+assert.ok(nav.includes("queryKey:['unread-messages',user?.id]"))
+
 console.log('Chat transaction scoping and read-receipt regression checks passed.')

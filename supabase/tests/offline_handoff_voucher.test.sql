@@ -1,6 +1,66 @@
 BEGIN;
 
-SELECT plan(8);
+SELECT plan(20);
+
+-- The voucher table is an internal verification store. Participants must use
+-- the narrowly scoped RPCs; neither authenticated nor anonymous clients may
+-- inspect or mutate voucher rows directly.
+SELECT ok(
+  (SELECT relrowsecurity FROM pg_catalog.pg_class WHERE oid = 'public.offline_handoff_vouchers'::regclass),
+  'Offline handoff vouchers have row-level security enabled'
+);
+SELECT is(
+  has_table_privilege('authenticated', 'public.offline_handoff_vouchers', 'SELECT'),
+  false,
+  'Authenticated users cannot read voucher rows directly'
+);
+SELECT is(
+  has_table_privilege('authenticated', 'public.offline_handoff_vouchers', 'INSERT'),
+  false,
+  'Authenticated users cannot create voucher rows directly'
+);
+SELECT is(
+  has_table_privilege('authenticated', 'public.offline_handoff_vouchers', 'UPDATE'),
+  false,
+  'Authenticated users cannot modify voucher rows directly'
+);
+SELECT is(
+  has_table_privilege('authenticated', 'public.offline_handoff_vouchers', 'DELETE'),
+  false,
+  'Authenticated users cannot delete voucher rows directly'
+);
+SELECT is(
+  has_table_privilege('anon', 'public.offline_handoff_vouchers', 'SELECT'),
+  false,
+  'Anonymous users cannot read voucher rows directly'
+);
+SELECT ok(
+  has_function_privilege('authenticated', 'public.prepare_offline_handoff(uuid,text)', 'EXECUTE'),
+  'Authenticated sellers can prepare a handoff through the scoped RPC'
+);
+SELECT ok(
+  has_function_privilege('authenticated', 'public.get_offline_handoff_commitment(uuid)', 'EXECUTE'),
+  'Authenticated buyers can retrieve their commitment through the scoped RPC'
+);
+SELECT ok(
+  has_function_privilege('authenticated', 'public.confirm_offline_handoff(uuid,uuid,text)', 'EXECUTE'),
+  'Authenticated buyers can confirm handoff through the scoped RPC'
+);
+SELECT is(
+  has_function_privilege('anon', 'public.prepare_offline_handoff(uuid,text)', 'EXECUTE'),
+  false,
+  'Anonymous users cannot prepare handoff vouchers'
+);
+SELECT is(
+  has_function_privilege('anon', 'public.get_offline_handoff_commitment(uuid)', 'EXECUTE'),
+  false,
+  'Anonymous users cannot retrieve handoff commitments'
+);
+SELECT is(
+  has_function_privilege('anon', 'public.confirm_offline_handoff(uuid,uuid,text)', 'EXECUTE'),
+  false,
+  'Anonymous users cannot confirm offline handoffs'
+);
 
 -- Exercise the escrow RPC/trigger path as trusted database code, not as a browser row update.
 SELECT set_config('app.escrow_transition', 'true', true);

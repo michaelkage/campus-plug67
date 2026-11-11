@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(28);
+SELECT plan(29);
 
 -- The voucher table is an internal verification store. Participants must use
 -- the narrowly scoped RPCs; neither authenticated nor anonymous clients may
@@ -254,7 +254,7 @@ SELECT set_config('request.jwt.claim.sub', 'f1000000-0000-4000-8000-000000000002
 SELECT ok(
   (public.prepare_offline_handoff(
     'f3000000-0000-4000-8000-000000000006',
-    repeat('a', 64)
+    encode(extensions.digest(convert_to('offline-context-old-token-0000000000000000', 'UTF8'), 'sha256'), 'hex')
   )->>'success')::boolean,
   'Seller can prepare a fresh offline QR'
 );
@@ -271,7 +271,7 @@ WITH existing_expiry AS MATERIALIZED (
 ), refreshed AS MATERIALIZED (
   SELECT (public.prepare_offline_handoff(
     'f3000000-0000-4000-8000-000000000006',
-    repeat('a', 64)
+    encode(extensions.digest(convert_to('offline-context-old-token-0000000000000000', 'UTF8'), 'sha256'), 'hex')
   )->>'expires_at')::timestamptz AS expires_at
   FROM existing_expiry
 )
@@ -290,7 +290,7 @@ UPDATE public.transactions
 SELECT throws_ok(
   $test$ SELECT public.prepare_offline_handoff(
        'f3000000-0000-4000-8000-000000000006',
-       repeat('a', 64)
+       encode(extensions.digest(convert_to('offline-context-old-token-0000000000000000', 'UTF8'), 'sha256'), 'hex')
      ) $test$,
   'P0001',
   'Offline handoff context changed; a new QR token is required',
@@ -310,6 +310,20 @@ SELECT is(
     WHERE id = 'f3000000-0000-4000-8000-000000000006'),
   'Rotated voucher is bound to the updated transaction amount'
 );
+
+SELECT set_config('request.jwt.claim.sub', 'f1000000-0000-4000-8000-000000000001', true);
+SELECT throws_ok(
+  $ SELECT public.confirm_offline_handoff(
+       'f3000000-0000-4000-8000-000000000006',
+       (SELECT id FROM public.offline_handoff_vouchers
+         WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006'),
+       'offline-context-old-token-0000000000000000'
+     ) $,
+  'P0001',
+  'Invalid offline handoff proof',
+  'The previous QR token cannot confirm after transaction binding rotation'
+);
+SELECT set_config('request.jwt.claim.sub', 'f1000000-0000-4000-8000-000000000002', true);
 
 UPDATE public.offline_handoff_vouchers
    SET expires_at = now() - interval '1 minute'

@@ -199,7 +199,8 @@ includes(listingDetail, 'Continue to Safe Swap handoff', 'Every buyer must use s
 if (/QR release action unlocks 24 hours|QR release unlocks 24 hours|24-hour gate has opened|after the 24-hour gate/i.test(listingDetail)) {
   fail('Listing detail must not show the obsolete 24-hour delay for buyer QR handoff')
 }
-includes(listingDetail, 'two hours after QR handoff', 'Buyer-facing purchase guide must state the two-hour QR inspection dispute window')
+includes(listingDetail, 'two hours to dispute after QR handoff', 'Buyer-facing purchase guide must state the two-hour QR inspection dispute window')
+includes(listingDetail, 'A QR-confirmed handoff starts a two-hour inspection window', 'Buyer-facing purchase guide must explain when QR inspection begins')
 includes(listingDetail, 'seller-requested release', 'Buyer-facing purchase guide must distinguish the seller-requested release window')
 
 if (!packageJson.scripts['test:platform-integrity'].includes('wallet-inspection-buffer-regression.mjs')) {

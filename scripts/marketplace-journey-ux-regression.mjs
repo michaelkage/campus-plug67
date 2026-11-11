@@ -33,6 +33,11 @@ assertIncludes(listing, '6. Settlement is confirmed',
   'Marketplace guidance must distinguish the inspection deadline from confirmed settlement');
 assertIncludes(listing, 'not proof that the seller has already been paid',
   'Marketplace guidance must not equate transaction resolution with seller payout');
+assertIncludes(listing, 'server settlement is triggered at the deadline. Seller payout confirmation follows separately.',
+  'Seller-requested release must distinguish the settlement deadline from confirmed payout');
+if (listing.includes('funds auto-release at the deadline') || listing.includes('automatically releases the funds when the timer ends')) {
+  fail('Seller-requested release must not imply that transaction resolution guarantees completed payout');
+}
 assertIncludes(listing, 'Server settlement is still being confirmed.',
   'Expired inspection deadlines must not be presented as completed payouts');
 if (listing.includes('Auto-releases in ')) {

@@ -42,7 +42,7 @@ jobs:
 
       - name: Start disposable Supabase database
         run: |
-          supabase start --exclude studio
+          supabase start --exclude studio,inbucket
           supabase db reset --local
 
       - name: Export local Supabase credentials

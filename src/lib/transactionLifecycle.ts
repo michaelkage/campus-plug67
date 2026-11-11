@@ -106,7 +106,7 @@ export function deriveTransactionLifecycle(
           tone: expired ? 'warning' : 'info',
         }
       }
-      return { ...base, phase: 'seller_release_window', title: 'Seller requested release', description: 'The seller requested release. Either participant may dispute during the configured window before automatic settlement.', tone: 'warning' }
+      return { ...base, phase: 'seller_release_window', title: 'Seller requested release', description: 'The seller requested release. Either participant may dispute during the configured window. If no dispute is filed, server settlement is triggered at the deadline; seller payout confirmation follows separately.', tone: 'warning' }
     case 'disputed':
       return { ...base, phase: 'dispute', title: 'Dispute under review', description: 'Automatic settlement is paused while the dispute is resolved. Funds remain protected pending the authoritative verdict.', tone: 'danger', canDispute: false }
     case 'released':

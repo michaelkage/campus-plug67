@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(29);
+SELECT plan(31);
 
 -- The voucher table is an internal verification store. Participants must use
 -- the narrowly scoped RPCs; neither authenticated nor anonymous clients may
@@ -172,6 +172,29 @@ SELECT is(
   )->>'already_confirmed')::boolean,
   true,
   'A repeated sync returns the existing inspection result idempotently'
+);
+
+-- Paystack inspection completion resolves escrow, but it is not proof of an
+-- external bank transfer. The status trigger must leave payout pending.
+UPDATE public.transactions
+   SET status = 'released',
+       released_at = now(),
+       completed_at = now()
+ WHERE id = 'f3000000-0000-4000-8000-000000000002';
+
+SELECT is(
+  (SELECT payout_status FROM public.transactions WHERE id = 'f3000000-0000-4000-8000-000000000002'),
+  'approved_for_settlement',
+  'Paystack escrow resolution approves settlement without claiming the seller was paid'
+);
+SELECT is(
+  (SELECT count(*)::integer
+     FROM public.plug_credit_ledger
+    WHERE reference_id = 'f3000000-0000-4000-8000-000000000002'
+      AND user_id = 'f1000000-0000-4000-8000-000000000002'
+      AND reason = 'Escrow auto-release'),
+  0,
+  'Paystack escrow resolution does not silently credit PlugCredit as a substitute for bank payout'
 );
 
 -- 4. A voucher that expired before consumption cannot authorize inspection.

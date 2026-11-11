@@ -27,6 +27,15 @@ assertIncludes(listing, 'No 24-hour wait is required for buyer QR confirmation.'
   'Buyer QR handoff must not inherit the seller-requested release eligibility gate');
 assertIncludes(listing, '48 hours to dispute',
   'Marketplace guidance must disclose the dispute window');
+assertIncludes(listing, '6. Settlement is confirmed',
+  'Marketplace guidance must distinguish the inspection deadline from confirmed settlement');
+assertIncludes(listing, 'not proof that the seller has already been paid',
+  'Marketplace guidance must not equate transaction resolution with seller payout');
+assertIncludes(listing, 'Server settlement is still being confirmed.',
+  'Expired inspection deadlines must not be presented as completed payouts');
+if (listing.includes('Auto-releases in ')) {
+  fail('Escrow countdown must describe the dispute/inspection deadline, not promise immediate payout');
+}
 
 for (const label of ['Funds held', 'Pickup', 'Protected release window', 'Complete']) {
   assertIncludes(states, `label: '${label}'`,

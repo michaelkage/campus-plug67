@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(24);
+SELECT plan(25);
 
 -- The voucher table is an internal verification store. Participants must use
 -- the narrowly scoped RPCs; neither authenticated nor anonymous clients may
@@ -279,10 +279,10 @@ UPDATE public.offline_handoff_vouchers
  WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006';
 
 SELECT throws_ok(
-  $ SELECT public.prepare_offline_handoff(
+  $test$ SELECT public.prepare_offline_handoff(
        'f3000000-0000-4000-8000-000000000006',
        repeat('a', 64)
-     ) $,
+     ) $test$,
   'P0001',
   'Expired offline handoff voucher requires a new QR token',
   'An expired QR token cannot be revived'

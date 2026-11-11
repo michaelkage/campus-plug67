@@ -74,17 +74,41 @@ BEGIN
     END IF;
 
     IF v_voucher.expires_at > now() THEN
-      IF v_voucher.token_hash <> p_token_hash THEN
+      IF v_voucher.buyer_id IS DISTINCT FROM v_tx.buyer_id
+         OR v_voucher.seller_id IS DISTINCT FROM v_tx.seller_id
+         OR v_voucher.amount IS DISTINCT FROM v_tx.amount
+         OR v_voucher.safe_zone_id IS DISTINCT FROM v_tx.buyer_safe_zone_id THEN
+        IF v_voucher.token_hash = p_token_hash THEN
+          RAISE EXCEPTION 'Offline handoff context changed; a new QR token is required';
+        END IF;
+
+        -- A changed transaction binding invalidates the previous QR token.
+        UPDATE public.offline_handoff_vouchers
+           SET buyer_id = v_tx.buyer_id,
+               seller_id = v_tx.seller_id,
+               amount = v_tx.amount,
+               safe_zone_id = v_tx.buyer_safe_zone_id,
+               token_hash = p_token_hash,
+               expires_at = now() + interval '24 hours',
+               consumed_at = NULL,
+               created_at = now()
+         WHERE id = v_voucher.id
+         RETURNING * INTO v_voucher;
+      ELSIF v_voucher.token_hash <> p_token_hash THEN
         RAISE EXCEPTION 'An active offline handoff voucher already exists';
       END IF;
-      -- Same active token: return its existing expiry. Never slide the TTL.
+      -- Same active token and same transaction binding: preserve its expiry.
     ELSE
       IF v_voucher.token_hash = p_token_hash THEN
         RAISE EXCEPTION 'Expired offline handoff voucher requires a new QR token';
       END IF;
 
       UPDATE public.offline_handoff_vouchers
-         SET token_hash = p_token_hash,
+         SET buyer_id = v_tx.buyer_id,
+             seller_id = v_tx.seller_id,
+             amount = v_tx.amount,
+             safe_zone_id = v_tx.buyer_safe_zone_id,
+             token_hash = p_token_hash,
              expires_at = now() + interval '24 hours',
              consumed_at = NULL,
              created_at = now()

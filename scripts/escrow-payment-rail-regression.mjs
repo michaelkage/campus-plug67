@@ -18,9 +18,9 @@ const extract = (source, name, nextName) => {
     assert.notEqual(nextFunction, -1, `Could not isolate ${name}`);
     return source.slice(start, nextFunction);
   }
-  const terminator = source.indexOf("\\n$function$;", start);
+  const terminator = source.indexOf("\n$function$;", start);
   assert.notEqual(terminator, -1, `Could not isolate ${name}`);
-  return source.slice(start, terminator + "\\n$function$;".length);
+  return source.slice(start, terminator + "\n$function$;".length);
 };
 
 const escrow = extract(refundMigration, 'process_escrow_action', 'resolve_dispute_verdict');

@@ -84,6 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
           {
             echo "E2E_TEST_EMAIL=campus-plug-e2e@campusplug.test"
             printf 'E2E_TEST_PASSWORD=%s\n' "$password"

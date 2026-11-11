@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(20);
+SELECT plan(24);
 
 -- The voucher table is an internal verification store. Participants must use
 -- the narrowly scoped RPCs; neither authenticated nor anonymous clients may
@@ -79,7 +79,8 @@ VALUES
   ('f2000000-0000-4000-8000-000000000002', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 2', 'Other', 10000, 'reserved', 'University of Lagos'),
   ('f2000000-0000-4000-8000-000000000003', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 3', 'Other', 10000, 'reserved', 'University of Lagos'),
   ('f2000000-0000-4000-8000-000000000004', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 4', 'Other', 10000, 'reserved', 'University of Lagos'),
-  ('f2000000-0000-4000-8000-000000000005', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 5', 'Other', 10000, 'reserved', 'University of Lagos');
+  ('f2000000-0000-4000-8000-000000000005', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 5', 'Other', 10000, 'reserved', 'University of Lagos'),
+  ('f2000000-0000-4000-8000-000000000006', 'f1000000-0000-4000-8000-000000000002', 'Offline trigger fixture 6', 'Other', 10000, 'reserved', 'University of Lagos');
 
 INSERT INTO public.transactions (
   id, listing_id, buyer_id, seller_id, amount, status,
@@ -96,7 +97,8 @@ FROM (
     ('f3000000-0000-4000-8000-000000000002'::uuid, 'f2000000-0000-4000-8000-000000000002'::uuid),
     ('f3000000-0000-4000-8000-000000000003'::uuid, 'f2000000-0000-4000-8000-000000000003'::uuid),
     ('f3000000-0000-4000-8000-000000000004'::uuid, 'f2000000-0000-4000-8000-000000000004'::uuid),
-    ('f3000000-0000-4000-8000-000000000005'::uuid, 'f2000000-0000-4000-8000-000000000005'::uuid)
+    ('f3000000-0000-4000-8000-000000000005'::uuid, 'f2000000-0000-4000-8000-000000000005'::uuid),
+    ('f3000000-0000-4000-8000-000000000006'::uuid, 'f2000000-0000-4000-8000-000000000006'::uuid)
 ) AS fixture(id, listing_id)
 CROSS JOIN LATERAL (
   SELECT id FROM public.safe_zones
@@ -237,6 +239,60 @@ SELECT lives_ok(
      WHERE id = 'f3000000-0000-4000-8000-000000000004'
   $$,
   'Seller-requested release with a null receipt buffer bypasses the buyer voucher guard'
+);
+
+-- 7. Refreshing an active QR must not slide its fixed 24-hour expiry.
+-- Once expired, the old bearer token cannot be revived; a fresh token is required.
+UPDATE public.transactions
+   SET buyer_arrived = true,
+       seller_arrived = true,
+       mobile_release_ready_at = now(),
+       seller_location_captured_at = now()
+ WHERE id = 'f3000000-0000-4000-8000-000000000006';
+SELECT set_config('request.jwt.claim.sub', 'f1000000-0000-4000-8000-000000000002', true);
+
+SELECT ok(
+  (public.prepare_offline_handoff(
+    'f3000000-0000-4000-8000-000000000006',
+    repeat('a', 64)
+  )->>'success')::boolean,
+  'Seller can prepare a fresh offline QR'
+);
+SELECT ok(
+  (SELECT expires_at > now() + interval '23 hours 59 minutes'
+     FROM public.offline_handoff_vouchers
+    WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006'),
+  'New offline QR receives a fixed 24-hour server expiry'
+);
+SELECT is(
+  (SELECT expires_at FROM public.offline_handoff_vouchers
+    WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006'),
+  (public.prepare_offline_handoff(
+    'f3000000-0000-4000-8000-000000000006',
+    repeat('a', 64)
+  )->>'expires_at')::timestamptz,
+  'Refreshing the same active token does not extend its expiry'
+);
+
+UPDATE public.offline_handoff_vouchers
+   SET expires_at = now() - interval '1 minute'
+ WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006';
+
+SELECT throws_ok(
+  $ SELECT public.prepare_offline_handoff(
+       'f3000000-0000-4000-8000-000000000006',
+       repeat('a', 64)
+     ) $,
+  'P0001',
+  'Expired offline handoff voucher requires a new QR token',
+  'An expired QR token cannot be revived'
+);
+SELECT ok(
+  (public.prepare_offline_handoff(
+    'f3000000-0000-4000-8000-000000000006',
+    repeat('c', 64)
+  )->>'success')::boolean,
+  'Seller can rotate an expired QR to a new token'
 );
 
 SELECT finish();

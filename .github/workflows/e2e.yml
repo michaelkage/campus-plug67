@@ -35,6 +35,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund --prefer-offline
 
+      - name: Normalize legacy migrations for PostgreSQL immutability
+        run: node scripts/normalize-migrations.mjs
+
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:

@@ -37,7 +37,10 @@ test.describe('authenticated student journey', () => {
     await expect(page.getByText('No listings found')).toBeVisible()
     await search.fill('')
 
-    await expect(page.getByText(/All Categories|Textbooks/).first()).toBeVisible()
+    const categoryFilter = page.getByRole('combobox', { name: 'Category filter' })
+    await expect(categoryFilter).toBeVisible()
+    await expect(categoryFilter).toHaveValue('')
+    await expect(categoryFilter.locator('option').filter({ hasText: 'Textbooks' })).toHaveCount(1)
     const firstListing = page.locator('a[href^="/marketplace/"]').first()
     if (await firstListing.count()) {
       await firstListing.click()
@@ -67,8 +70,8 @@ test.describe('authenticated student journey', () => {
     }
 
     await page.goto('/')
-    await page.getByRole('button', { name: /account|profile/i }).click()
-    await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
+    await page.getByRole('button', { name: 'Account menu' }).click()
+    await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click()
     await expect(page).toHaveURL(/\/auth(?:\?|$)/, { timeout: 15_000 })
     await expect(page.getByLabel('University email')).toBeVisible()
 

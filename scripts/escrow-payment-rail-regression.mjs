@@ -61,6 +61,12 @@ assert.ok(respondentBranch.includes("INSERT INTO public.plug_credit_ledger(user_
 assert.ok(respondentBranch.indexOf("IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN") <
   respondentBranch.indexOf('INSERT INTO public.plug_credit_ledger'),
   'Paystack dispute verdict must not credit the internal wallet');
+assert.ok(respondentBranch.includes("IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN"),
+  'Only Campus Wallet dispute proceeds may settle directly into PlugCredit');
+assert.ok(verdict.includes("ELSE 'approved_for_settlement'"),
+  'Paystack seller-favourable dispute verdict must remain pending external settlement');
+assert.ok(!respondentBranch.includes("payout_status = 'paid'"),
+  'Paystack seller-favourable dispute verdict must not claim a completed bank transfer');
 
 assert.ok(adminRefund.includes('p_action: "refund"'),
   'Admin Paystack refund must continue through the escrow cancellation RPC');

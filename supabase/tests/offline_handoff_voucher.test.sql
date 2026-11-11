@@ -313,12 +313,12 @@ SELECT is(
 
 SELECT set_config('request.jwt.claim.sub', 'f1000000-0000-4000-8000-000000000001', true);
 SELECT throws_ok(
-  $ SELECT public.confirm_offline_handoff(
+  $test$ SELECT public.confirm_offline_handoff(
        'f3000000-0000-4000-8000-000000000006',
        (SELECT id FROM public.offline_handoff_vouchers
          WHERE transaction_id = 'f3000000-0000-4000-8000-000000000006'),
        'offline-context-old-token-0000000000000000'
-     ) $,
+     ) $test$,
   'P0001',
   'Invalid offline handoff proof',
   'The previous QR token cannot confirm after transaction binding rotation'

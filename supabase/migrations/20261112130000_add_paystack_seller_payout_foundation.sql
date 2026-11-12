@@ -308,18 +308,18 @@ BEGIN
      FOR UPDATE OF t SKIP LOCKED
      LIMIT v_limit
   LOOP
-    SELECT * INTO v_recipient
-      FROM public.seller_payout_recipients
-     WHERE seller_id = v_tx.seller_id AND is_active
-     ORDER BY updated_at DESC
+    SELECT recipient.* INTO v_recipient
+      FROM public.seller_payout_recipients AS recipient
+     WHERE recipient.seller_id = v_tx.seller_id AND recipient.is_active
+     ORDER BY recipient.updated_at DESC
      LIMIT 1
      FOR UPDATE;
     IF NOT FOUND THEN CONTINUE; END IF;
 
-    SELECT * INTO v_last
-      FROM public.seller_payout_transfers
-     WHERE transaction_id = v_tx.id
-     ORDER BY attempt_number DESC
+    SELECT previous.* INTO v_last
+      FROM public.seller_payout_transfers AS previous
+     WHERE previous.transaction_id = v_tx.id
+     ORDER BY previous.attempt_number DESC
      LIMIT 1
      FOR UPDATE;
 

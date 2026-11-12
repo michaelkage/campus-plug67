@@ -11,6 +11,11 @@ type PaystackEvent = {
     amount?: unknown;
     currency?: unknown;
     metadata?: Record<string, unknown>;
+    status?: unknown;
+    id?: unknown;
+    transfer_code?: unknown;
+    recipient?: unknown;
+    failures?: unknown;
   };
 };
 
@@ -63,6 +68,44 @@ serve(async (req: Request) => {
     event = parsed as PaystackEvent;
   } catch {
     return jsonResponse({ error: "Invalid JSON payload" }, 400, {}, req);
+  }
+
+  if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
+    const data = event.data as Record<string, unknown> | undefined;
+    const reference = typeof data?.reference === "string" ? data.reference : null;
+    const amount = Number(data?.amount);
+    const currency = typeof data?.currency === "string" ? data.currency.toUpperCase() : "";
+    const eventStatus = event.event.slice("transfer.".length);
+    const payloadStatus = typeof data?.status === "string" ? data.status.toLowerCase() : eventStatus;
+    const recipient = data?.recipient;
+    const recipientCode =
+      typeof recipient === "object" && recipient !== null &&
+      typeof (recipient as Record<string, unknown>).recipient_code === "string"
+        ? (recipient as Record<string, unknown>).recipient_code as string
+        : typeof recipient === "string" && /^RCP_[A-Za-z0-9]+$/.test(recipient)
+          ? recipient
+          : null;
+
+    if (!reference || !Number.isSafeInteger(amount) || amount <= 0 ||
+        currency !== "NGN" || payloadStatus !== eventStatus || !recipientCode) {
+      return jsonResponse({ error: "Invalid transfer event payload" }, 400, {}, req);
+    }
+
+    const { data: recorded, error } = await admin.rpc("record_paystack_transfer", {
+      p_reference: reference,
+      p_status: eventStatus,
+      p_amount: amount,
+      p_currency: currency,
+      p_recipient_code: recipientCode,
+      p_transfer_code: typeof data?.transfer_code === "string" ? data.transfer_code : null,
+      p_provider_transfer_id: data?.id != null ? String(data.id) : null,
+      p_message: typeof data?.failures === "string" ? data.failures : null,
+    });
+    if (error) {
+      console.error("Paystack transfer recording failed", error.message);
+      return jsonResponse({ error: "Could not record transfer event" }, 500, {}, req);
+    }
+    return jsonResponse(recorded ?? { ok: true }, 200, {}, req);
   }
 
   if (event.event?.startsWith("refund.")) {

@@ -137,6 +137,49 @@ BEGIN
 END;
 $function$;
 
+
+-- A Paystack transfer-success recorder changes payout_status to paid. Credit
+-- the denormalized earnings total exactly once at that authoritative boundary.
+CREATE OR REPLACE FUNCTION public.credit_seller_earnings_after_external_payout()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+BEGIN
+  IF NEW.payout_status = 'paid'
+     AND OLD.payout_status IS DISTINCT FROM 'paid'
+     AND COALESCE(NEW.payment_method, 'paystack') <> 'campus_wallet' THEN
+    IF NEW.status NOT IN ('released', 'completed')
+       OR NEW.payment_verified IS DISTINCT FROM true
+       OR NEW.amount IS NULL
+       OR NEW.amount <= 0 THEN
+      RAISE EXCEPTION 'External seller payout cannot be recorded before verified escrow resolution';
+    END IF;
+
+    UPDATE public.profiles
+       SET total_earnings = COALESCE(total_earnings, 0) + NEW.amount
+     WHERE id = NEW.seller_id;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Seller profile not found while recording confirmed payout';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_credit_seller_earnings_after_external_payout ON public.transactions;
+CREATE TRIGGER trg_credit_seller_earnings_after_external_payout
+AFTER UPDATE OF payout_status ON public.transactions
+FOR EACH ROW
+WHEN (
+  OLD.payout_status IS DISTINCT FROM 'paid'
+  AND NEW.payout_status = 'paid'
+  AND COALESCE(NEW.payment_method, 'paystack') <> 'campus_wallet'
+)
+EXECUTE FUNCTION public.credit_seller_earnings_after_external_payout();
+
 -- Public profile earnings are a financial figure, not gross escrow volume.
 -- Keep completed sales visible while excluding Paystack escrow until the
 -- corresponding seller transfer has actually succeeded.
@@ -209,6 +252,7 @@ DO $assertions$
 DECLARE
   v_trigger text := pg_get_functiondef('public.handle_transaction_update()'::regprocedure);
   v_stats text := pg_get_functiondef('private.get_public_profile_stats(uuid)'::regprocedure);
+  v_earnings_trigger text := pg_get_functiondef('public.credit_seller_earnings_after_external_payout()'::regprocedure);
 BEGIN
   IF position('CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END' IN v_trigger) = 0 THEN
     RAISE EXCEPTION 'External escrow release must not increment seller earnings before payout';
@@ -219,6 +263,11 @@ BEGIN
   IF position('t.payout_status = ''paid''' IN v_stats) = 0
      OR position('t.payment_method' IN v_stats) = 0 THEN
     RAISE EXCEPTION 'Public profile earnings must include only wallet credits or confirmed external payouts';
+  END IF;
+  IF position('OLD.payout_status IS DISTINCT FROM ''paid''' IN v_earnings_trigger) = 0
+     OR position('NEW.payment_verified IS DISTINCT FROM true' IN v_earnings_trigger) = 0
+     OR position('COALESCE(NEW.payment_method, ''paystack'') <> ''campus_wallet''' IN v_earnings_trigger) = 0 THEN
+    RAISE EXCEPTION 'External seller earnings must be credited once, only after verified Paystack payout';
   END IF;
 END;
 $assertions$;

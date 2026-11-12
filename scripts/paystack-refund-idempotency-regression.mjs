@@ -46,7 +46,6 @@ const dispute = read("supabase/functions/process-dispute/index.ts");
 assertIncludes(dispute, 'admin.rpc("record_paystack_refund"', "Dispute refunds must use the atomic provider refund recorder");
 assertIncludes(dispute, "reference: requestReference", "Dispute refunds must use the persisted Paystack idempotency reference");
 assertIncludes(dispute, "fetchPaystackRefund(secret, requestReference)", "Dispute refund retries must reconcile the same provider reference");
-console.log("Paystack refund idempotency regression checks passed (static source invariants).");
 
 const refundReconciler = read("supabase/functions/reconcile-paystack-refunds/index.ts");
 assertIncludes(refundReconciler, 'isServiceRoleRequest(req)', "Refund reconciliation must be service-role only");
@@ -60,3 +59,5 @@ assertIncludes(paymentReconciliationWorkflow, 'cron: "*/10 * * * *"', "Payment a
 assertIncludes(paymentReconciliationWorkflow, 'secrets.SUPABASE_SERVICE_ROLE_KEY', "Scheduled refund reconciliation must use the existing service-role secret contract");
 assertIncludes(paymentReconciliationWorkflow, '/functions/v1/reconcile-paystack-refunds', "Scheduled payment reconciliation must invoke the refund reconciler");
 assertIncludes(paymentReconciliationWorkflow, '--max-time 900', "Refund reconciliation request must allow the bounded 50-item provider lookup batch to finish");
+
+console.log("Paystack refund idempotency and scheduled reconciliation regression checks passed (static source invariants).");

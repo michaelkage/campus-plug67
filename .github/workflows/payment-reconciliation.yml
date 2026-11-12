@@ -46,7 +46,7 @@ jobs:
           # The Edge Function reads PAYSTACK_SECRET_KEY from Supabase secrets.
           # This request only reconciles existing provider refunds; it never creates one.
           curl --fail-with-body --silent --show-error \
-            --retry 2 --retry-delay 3 --retry-all-errors --max-time 900 \
+            --max-time 840 \
             -X POST \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \

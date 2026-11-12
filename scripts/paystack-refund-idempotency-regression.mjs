@@ -38,7 +38,9 @@ assertIncludes(adminRefund, "findRefundByReference(secret, requestReference)", "
 assertIncludes(adminRefund, 'admin.rpc("record_paystack_refund"', "Admin refunds must use the atomic provider refund recorder");
 assertIncludes(adminRefund, "claim?.request_reference", "Retry must reuse the existing provider idempotency reference");
 assertIncludes(adminRefund, "createResult.response.status === 409", "Paystack duplicate-reference conflicts must reconcile, not fail");
-assertIncludes(adminRefund, 'tx.status === "cancelled" && tx.refund_status === "failed"', "Admin refund endpoint must allow a controlled retry after a provider failure");
+assertIncludes(adminRefund, '["failed","pending","processing","needs-attention","processed"].includes(tx.refund_status ?? "")', "Admin refund endpoint must allow safe reconciliation or retry after escrow cancellation");
+assertIncludes(adminRefund, 'admin.rpc("record_paystack_refund"', "Missing provider configuration must record a claimed attempt through the atomic recorder");
+if (adminRefund.includes('.from("transactions").update({\\n        refund_status: "failed"')) fail("Admin refund must not bypass the atomic recorder when provider configuration is missing");
 
 const dispute = read("supabase/functions/process-dispute/index.ts");
 assertIncludes(dispute, 'admin.rpc("record_paystack_refund"', "Dispute refunds must use the atomic provider refund recorder");

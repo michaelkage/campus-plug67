@@ -213,7 +213,7 @@ BEGIN
        AND NOT EXISTS (
          SELECT 1 FROM public.jury_cases AS dispute
           WHERE dispute.transaction_id = t.id
-            AND dispute.status NOT IN ('closed','decided')
+            AND COALESCE(dispute.status, 'open') NOT IN ('closed','decided')
        )
      ORDER BY COALESCE(t.payout_approved_at, t.released_at, t.updated_at), t.id
      FOR UPDATE OF t SKIP LOCKED

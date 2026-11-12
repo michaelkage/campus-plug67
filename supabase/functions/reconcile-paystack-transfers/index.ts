@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
     .select("id,transaction_id,reference,amount_kobo,currency,status,recipient_id")
     .in("status", ["processing", "pending"])
     .order("updated_at", { ascending: true })
-    .limit(50);
+    .limit(10);
   if (error) return jsonResponse({ error: "Could not load outstanding transfers" }, 500, {}, req);
 
   const results: Array<Record<string, unknown>> = [];

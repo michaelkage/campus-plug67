@@ -7,7 +7,9 @@ const onboarding = read('supabase/functions/manage-payout-recipient/index.ts');
 const worker = read('supabase/functions/process-paystack-payouts/index.ts');
 const reconciler = read('supabase/functions/reconcile-paystack-transfers/index.ts');
 const webhook = read('supabase/functions/paystack-webhook/index.ts');
-const workflow = read('.github/workflows/payment-reconciliation.yml');
+const workflow = read('.github/workflows/seller-payout-reconciliation.yml');
+const settingsUi = read('src/components/wallet/SellerPayoutSettings.tsx');
+const settingsPage = read('src/pages/Settings.jsx');
 
 assert.ok(migration.includes('CREATE TABLE IF NOT EXISTS public.seller_payout_recipients'));
 assert.ok(migration.includes('CREATE TABLE IF NOT EXISTS public.seller_payout_transfers'));
@@ -92,5 +94,12 @@ assert.ok(webhook.includes('admin.rpc("record_paystack_transfer"'));
 
 assert.ok(workflow.includes('/functions/v1/process-paystack-payouts'));
 assert.ok(workflow.includes('/functions/v1/reconcile-paystack-transfers'));
+assert.ok(workflow.includes('timeout-minutes: 10'));
+assert.ok(workflow.includes("cron: \"*/10 * * * *\""));
+assert.ok(settingsUi.includes("action: 'resolve'"));
+assert.ok(settingsUi.includes("action: 'save'"));
+assert.ok(settingsUi.includes('confirm_ownership: true'));
+assert.ok(settingsUi.includes('Your full account number is sent directly to Paystack'));
+assert.ok(settingsPage.includes('SellerPayoutSettings'));
 
 console.log('Paystack seller payout lifecycle regression checks passed.');

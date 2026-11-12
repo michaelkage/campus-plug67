@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.seller_payout_transfers (
   transaction_id uuid NOT NULL REFERENCES public.transactions(id) ON DELETE RESTRICT,
   seller_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
   recipient_id uuid NOT NULL REFERENCES public.seller_payout_recipients(id) ON DELETE RESTRICT,
-  attempt_number smallint NOT NULL CHECK (attempt_number BETWEEN 1 AND 3),
+  attempt_number smallint NOT NULL CHECK (attempt_number BETWEEN 1 AND 5),
   reference text NOT NULL UNIQUE CHECK (
     length(reference) BETWEEN 16 AND 50
     AND reference ~ '^[a-z0-9_-]+$'
@@ -316,7 +316,7 @@ BEGIN
                 (prior.status = 'processing' AND prior.lease_expires_at <= now())
                 OR (
                   prior.status IN ('failed','reversed')
-                  AND prior.attempt_number < 3
+                  AND prior.attempt_number < 5
                   AND prior.updated_at <= now() - (interval '5 minutes' * prior.attempt_number)
                 )
               )
@@ -390,7 +390,7 @@ BEGIN
         );
         CONTINUE;
       ELSIF v_last.status IN ('failed','reversed')
-         AND v_last.attempt_number < 3
+         AND v_last.attempt_number < 5
          AND v_last.updated_at <= now() - (interval '5 minutes' * v_last.attempt_number) THEN
         SELECT recipient.* INTO v_recipient
           FROM public.seller_payout_recipients AS recipient
@@ -673,12 +673,100 @@ BEGIN
 END;
 $function$;
 
+
+CREATE OR REPLACE FUNCTION public.confirm_paystack_transfer_not_created(
+  p_reference text,
+  p_note text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_transfer public.seller_payout_transfers%ROWTYPE;
+  v_tx public.transactions%ROWTYPE;
+  v_note text := trim(COALESCE(p_note, ''));
+BEGIN
+  IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
+    RAISE EXCEPTION 'Service role required';
+  END IF;
+  IF p_reference IS NULL OR length(v_note) < 20 OR length(v_note) > 500 THEN
+    RAISE EXCEPTION 'A transfer reference and a 20-500 character support note are required';
+  END IF;
+
+  SELECT * INTO v_transfer
+    FROM public.seller_payout_transfers
+   WHERE reference = p_reference
+   FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Unknown seller payout reference'; END IF;
+  IF v_transfer.status <> 'needs_attention'
+     OR v_transfer.provider_transfer_code IS NOT NULL
+     OR v_transfer.provider_transfer_id IS NOT NULL
+     OR v_transfer.created_at > now() - interval '30 minutes' THEN
+    RAISE EXCEPTION 'Transfer is not eligible for manual not-created confirmation';
+  END IF;
+
+  SELECT * INTO v_tx
+    FROM public.transactions
+   WHERE id = v_transfer.transaction_id
+   FOR UPDATE;
+  IF NOT FOUND
+     OR v_tx.seller_id <> v_transfer.seller_id
+     OR v_tx.status NOT IN ('released','completed')
+     OR v_tx.payment_verified IS DISTINCT FROM true
+     OR COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet'
+     OR COALESCE(v_tx.refund_status, '') IN ('pending','processing','needs-attention','needs_attention','processed')
+     OR EXISTS (
+       SELECT 1 FROM public.jury_cases AS dispute
+        WHERE dispute.transaction_id = v_tx.id
+          AND COALESCE(dispute.status, 'open') NOT IN ('closed','decided')
+     )
+     OR EXISTS (
+       SELECT 1 FROM public.seller_payout_transfers AS other
+        WHERE other.transaction_id = v_tx.id
+          AND other.id <> v_transfer.id
+          AND other.status IN ('processing','pending','success')
+     ) THEN
+    RAISE EXCEPTION 'Seller payout is no longer eligible for manual recovery';
+  END IF;
+
+  UPDATE public.seller_payout_transfers
+     SET status = 'failed',
+         provider_status = 'manual-confirmed-not-created',
+         failure_reason = left('Operator confirmed no provider transfer exists: ' || v_note, 500),
+         lease_expires_at = NULL,
+         completed_at = now(),
+         updated_at = now()
+   WHERE id = v_transfer.id;
+
+  UPDATE public.transactions
+     SET payout_status = 'failed',
+         payout_reference = v_transfer.reference,
+         payout_failure_reason = left('Manual recovery confirmed no provider transfer exists: ' || v_note, 500)
+   WHERE id = v_tx.id;
+
+  INSERT INTO public.notifications(user_id, type, title, body, data)
+  VALUES (
+    v_tx.seller_id,
+    'seller_payout_retry_queued',
+    '🔄 Seller payout retry queued',
+    'Support verified that no bank transfer was created. Campus Plug will safely retry this payout using a new reference.',
+    jsonb_build_object('transaction_id', v_tx.id, 'payout_reference', v_transfer.reference, 'payout_status', 'failed')
+  );
+
+  RETURN jsonb_build_object('success', true, 'status', 'failed', 'retry_eligible', v_transfer.attempt_number < 5);
+END;
+$function$;
+
 REVOKE ALL ON FUNCTION public.save_seller_payout_recipient(uuid,text,text,text,text,text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.claim_seller_payout_transfers(integer) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.record_paystack_transfer(text,text,bigint,text,text,text,text,text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.confirm_paystack_transfer_not_created(text,text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.save_seller_payout_recipient(uuid,text,text,text,text,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.claim_seller_payout_transfers(integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.record_paystack_transfer(text,text,bigint,text,text,text,text,text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.confirm_paystack_transfer_not_created(text,text) TO service_role;
 
 COMMENT ON TABLE public.seller_payout_recipients IS
   'Verified Paystack transfer recipients. Stores recipient code and masked metadata only; never stores bank account numbers.';

@@ -106,6 +106,7 @@ assert.ok(!reconciler.includes('"/transfer"'), 'Transfer reconciliation must nev
 assert.ok(reconciler.includes('record_paystack_transfer'));
 assert.ok(reconciler.includes('.limit(10)'), 'Scheduled transfer reconciliation must use a bounded batch');
 assert.ok(reconciler.includes('last_reconciled_at'), 'Pending transfer reconciliation must rotate fairly across the backlog');
+assert.ok(reconciler.includes('"needs_attention"'), 'Manual-attention transfers must still reconcile after merchant approval');
 assert.ok(manualRecovery.includes('/transfer/verify/'));
 assert.ok(manualRecovery.includes('confirm_not_created !== true'));
 assert.ok(manualRecovery.includes('confirm_paystack_transfer_not_created'));

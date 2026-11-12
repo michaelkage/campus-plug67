@@ -1,4 +1,15 @@
 -- Seller bank payout foundation. Paystack-funded escrow remains outside PlugCredit.
+ALTER TABLE public.transactions
+  DROP CONSTRAINT IF EXISTS transactions_payout_status_check;
+ALTER TABLE public.transactions
+  ADD CONSTRAINT transactions_payout_status_check
+  CHECK (payout_status IN (
+    'not_applicable','approved_for_settlement','processing',
+    'needs_attention','paid','failed'
+  ));
+CREATE INDEX IF NOT EXISTS transactions_payout_needs_attention_idx
+  ON public.transactions(updated_at)
+  WHERE payout_status = 'needs_attention';
 -- Account numbers are sent to Paystack for verification/recipient creation and
 -- are never persisted by Campus Plug. Only the provider recipient code and
 -- masked account metadata are stored.
@@ -436,9 +447,16 @@ BEGIN
      WHERE id = v_transfer.id;
 
     UPDATE public.transactions
-       SET payout_status = 'processing',
+       SET payout_status = CASE
+             WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention'
+             ELSE 'processing'
+           END,
            payout_reference = v_transfer.reference,
-           payout_failure_reason = CASE WHEN v_status = 'otp' THEN 'Paystack transfer requires merchant OTP approval' WHEN v_status = 'needs_attention' THEN left(COALESCE(p_message, 'Paystack transfer requires manual reconciliation'), 500) ELSE NULL END
+           payout_failure_reason = CASE
+             WHEN v_status = 'otp' THEN 'Paystack transfer requires merchant OTP approval'
+             WHEN v_status = 'needs_attention' THEN left(COALESCE(p_message, 'Paystack transfer requires manual reconciliation'), 500)
+             ELSE NULL
+           END
      WHERE id = v_tx.id;
   END IF;
 

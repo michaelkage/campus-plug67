@@ -44,6 +44,7 @@ describe('seller payout lifecycle presentation', () => {
 
     expect(lifecycle.title).toBe('Transaction settled')
     expect(lifecycle.payout.settled).toBe(true)
-    expect(lifecycle.payout.title).toBe('Seller paid')
+    expect(lifecycle.payout.title).toBe('Bank transfer successful')
+    expect(lifecycle.payout.description).toContain('may take additional time')
   })
 })

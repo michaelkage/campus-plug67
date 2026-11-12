@@ -62,11 +62,13 @@ function validTransfer(data: PaystackTransfer, claimed: ClaimedTransfer, require
       amount !== Number(claimed.amount_kobo) ||
       String(data.currency ?? "").toUpperCase() !== "NGN") return false;
   const actualRecipient = recipientCode(data.recipient);
-  return !requireRecipient || actualRecipient === null || actualRecipient === claimed.recipient_code;
+  return !requireRecipient || actualRecipient === claimed.recipient_code;
 }
 
 async function record(claimed: ClaimedTransfer, data: PaystackTransfer, fallbackStatus?: string) {
-  const status = typeof data.status === "string" ? data.status.toLowerCase() : fallbackStatus ?? "";
+  const rawStatus = typeof data.status === "string" ? data.status.toLowerCase() : fallbackStatus ?? "";
+  const allowed = ["pending","success","failed","reversed","otp","abandoned","blocked","rejected","received","needs_attention"];
+  const status = allowed.includes(rawStatus) ? rawStatus : "needs_attention";
   const { data: result, error } = await admin!.rpc("record_paystack_transfer", {
     p_reference: claimed.reference,
     p_status: status,
@@ -104,6 +106,15 @@ Deno.serve(async (req: Request) => {
 
       if (verified.response.ok && verified.payload?.status === true && verified.payload.data) {
         if (!validTransfer(verified.payload.data, item, true)) {
+          const { error } = await admin.rpc("record_paystack_transfer", {
+            p_reference: item.reference, p_status: "needs_attention",
+            p_amount: item.amount_kobo, p_currency: "NGN",
+            p_recipient_code: item.recipient_code,
+            p_transfer_code: verified.payload.data.transfer_code ?? null,
+            p_provider_transfer_id: verified.payload.data.id != null ? String(verified.payload.data.id) : null,
+            p_message: "Provider verification mismatch: amount, currency, reference or recipient did not match the approved payout",
+          });
+          if (error) throw new Error(error.message);
           results.push({ transaction_id: item.transaction_id, action: "manual_review", reason: "Provider verification did not match the approved amount, currency, reference or recipient" });
           continue;
         }
@@ -144,10 +155,22 @@ Deno.serve(async (req: Request) => {
         verified = await requestPaystack<PaystackTransfer>(
           `/transfer/verify/${encodeURIComponent(item.reference)}`,
         );
-        if (verified.response.ok && verified.payload?.status === true && verified.payload.data &&
-            validTransfer(verified.payload.data, item, true)) {
-          const recorded = await record(item, verified.payload.data);
-          results.push({ transaction_id: item.transaction_id, action: "reconciled_duplicate_reference", result: recorded });
+        if (verified.response.ok && verified.payload?.status === true && verified.payload.data) {
+          if (!validTransfer(verified.payload.data, item, true)) {
+            const { error } = await admin.rpc("record_paystack_transfer", {
+              p_reference: item.reference, p_status: "needs_attention",
+              p_amount: item.amount_kobo, p_currency: "NGN",
+              p_recipient_code: item.recipient_code,
+              p_transfer_code: verified.payload.data.transfer_code ?? null,
+              p_provider_transfer_id: verified.payload.data.id != null ? String(verified.payload.data.id) : null,
+              p_message: "Duplicate-reference lookup mismatch: provider transfer does not match approved payout",
+            });
+            if (error) throw new Error(error.message);
+            results.push({ transaction_id: item.transaction_id, action: "manual_review" });
+          } else {
+            const recorded = await record(item, verified.payload.data);
+            results.push({ transaction_id: item.transaction_id, action: "reconciled_duplicate_reference", result: recorded });
+          }
         } else {
           results.push({ transaction_id: item.transaction_id, action: "deferred_duplicate_reference" });
         }
@@ -178,6 +201,15 @@ Deno.serve(async (req: Request) => {
 
       const transfer = initiated.payload.data;
       if (!validTransfer(transfer, item, false)) {
+        const { error } = await admin.rpc("record_paystack_transfer", {
+          p_reference: item.reference, p_status: "needs_attention",
+          p_amount: item.amount_kobo, p_currency: "NGN",
+          p_recipient_code: item.recipient_code,
+          p_transfer_code: transfer.transfer_code ?? null,
+          p_provider_transfer_id: transfer.id != null ? String(transfer.id) : null,
+          p_message: "Paystack initiation response mismatch: amount, currency or reference did not match approved payout",
+        });
+        if (error) throw new Error(error.message);
         results.push({ transaction_id: item.transaction_id, action: "manual_review", reason: "Paystack initiation response did not match the approved amount, currency or reference" });
         continue;
       }

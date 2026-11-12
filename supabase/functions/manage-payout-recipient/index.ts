@@ -49,10 +49,22 @@ async function paystack<T>(path: string, init?: RequestInit): Promise<{ response
 async function resolveAccount(accountNumber: string, bankCode: string): Promise<ResolvedAccount> {
   const query = new URLSearchParams({ account_number: accountNumber, bank_code: bankCode });
   const { response, payload } = await paystack<ResolvedAccount>(`/bank/resolve?${query.toString()}`);
-  if (!response.ok || payload?.status !== true || !payload.data?.account_name) {
+  if (!response.ok || payload?.status !== true || !payload.data?.account_name ||
+      (payload.data.account_number && payload.data.account_number !== accountNumber)) {
     throw new Error(payload?.message || "The bank could not verify this account. Check the account number and bank.");
   }
   return payload.data;
+}
+
+async function resolveBankName(bankCode: string): Promise<string> {
+  const query = new URLSearchParams({ country: "nigeria", perPage: "100", page: "1" });
+  const { response, payload } = await paystack<Bank[]>(`/bank?${query.toString()}`);
+  if (!response.ok || payload?.status !== true || !Array.isArray(payload.data)) {
+    throw new Error("Unable to verify the selected bank");
+  }
+  const bank = payload.data.find((item) => item.code === bankCode && item.active !== false);
+  if (!bank) throw new Error("Selected bank is not an active Nigerian bank");
+  return bank.name;
 }
 
 Deno.serve(async (req: Request) => {
@@ -165,11 +177,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: payload?.message || "Paystack could not create the payout recipient" }, 502, {}, req);
     }
 
-    const bankName = typeof input.bank_name === "string" ? input.bank_name.trim() : "";
-    if (bankName.length < 2 || bankName.length > 120) {
-      return jsonResponse({ error: "Select a valid bank from the bank list and try again" }, 400, {}, req);
-    }
-
+    const bankName = await resolveBankName(bankCode);
     const { data, error } = await admin.rpc("save_seller_payout_recipient", {
       p_seller_id: user.id,
       p_recipient_code: recipientCode,

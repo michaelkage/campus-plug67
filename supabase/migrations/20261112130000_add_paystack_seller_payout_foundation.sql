@@ -749,9 +749,13 @@ BEGIN
   INSERT INTO public.notifications(user_id, type, title, body, data)
   VALUES (
     v_tx.seller_id,
-    'seller_payout_retry_queued',
-    '🔄 Seller payout retry queued',
-    'Support verified that no bank transfer was created. Campus Plug will safely retry this payout using a new reference.',
+    CASE WHEN v_transfer.attempt_number < 5 THEN 'seller_payout_retry_queued' ELSE 'seller_payout_manual_review' END,
+    CASE WHEN v_transfer.attempt_number < 5 THEN '🔄 Seller payout retry queued' ELSE '⚠️ Seller payout needs support review' END,
+    CASE
+      WHEN v_transfer.attempt_number < 5
+        THEN 'Support verified that no bank transfer was created. Campus Plug will safely retry this payout using a new reference.'
+      ELSE 'Support verified that no bank transfer was created, but the automatic retry limit has been reached. Contact Campus Plug support for manual settlement.'
+    END,
     jsonb_build_object('transaction_id', v_tx.id, 'payout_reference', v_transfer.reference, 'payout_status', 'failed')
   );
 

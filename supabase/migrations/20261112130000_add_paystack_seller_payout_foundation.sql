@@ -295,6 +295,33 @@ BEGIN
        AND COALESCE(t.refund_status, '') NOT IN (
          'pending','processing','needs-attention','needs_attention','processed'
        )
+       AND (
+         (
+           t.payout_status = 'approved_for_settlement'
+           AND NOT EXISTS (
+             SELECT 1 FROM public.seller_payout_transfers AS prior
+              WHERE prior.transaction_id = t.id
+           )
+         )
+         OR EXISTS (
+           SELECT 1
+             FROM public.seller_payout_transfers AS prior
+            WHERE prior.transaction_id = t.id
+              AND prior.attempt_number = (
+                SELECT max(previous.attempt_number)
+                  FROM public.seller_payout_transfers AS previous
+                 WHERE previous.transaction_id = t.id
+              )
+              AND (
+                (prior.status = 'processing' AND prior.lease_expires_at <= now())
+                OR (
+                  prior.status IN ('failed','reversed')
+                  AND prior.attempt_number < 3
+                  AND prior.updated_at <= now() - (interval '5 minutes' * prior.attempt_number)
+                )
+              )
+         )
+       )
        AND EXISTS (
          SELECT 1 FROM public.seller_payout_recipients AS recipient
           WHERE recipient.seller_id = t.seller_id AND recipient.is_active

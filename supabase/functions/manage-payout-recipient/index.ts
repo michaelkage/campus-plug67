@@ -195,7 +195,7 @@ Deno.serve(async (req: Request) => {
       p_account_last4: accountNumber.slice(-4),
     });
     if (error) {
-      console.error("Payout recipient persistence failed", error.message);
+      console.error("Payout recipient persistence failed");
       return jsonResponse({ error: "The bank account was verified, but Campus Plug could not save the recipient. Contact support before trying another account." }, 500, {}, req);
     }
 
@@ -209,7 +209,7 @@ Deno.serve(async (req: Request) => {
       },
     }, 200, {}, req);
   } catch (error) {
-    console.error("Payout recipient setup failed", error instanceof Error ? error.message : "unknown error");
+    console.error("Payout recipient setup failed");
     return jsonResponse({ error: "Unable to save the payout account right now" }, 502, {}, req);
   }
 });

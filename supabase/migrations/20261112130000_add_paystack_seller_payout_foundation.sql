@@ -83,9 +83,8 @@ CREATE INDEX IF NOT EXISTS seller_payout_transfers_transaction_idx
 
 ALTER TABLE public.seller_payout_recipients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_payout_transfers ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.seller_payout_recipients FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON public.seller_payout_transfers FROM PUBLIC, anon, authenticated;
-REVOKE DELETE ON public.seller_payout_recipients, public.seller_payout_transfers FROM service_role;
+REVOKE ALL ON public.seller_payout_recipients FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON public.seller_payout_transfers FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE ON public.seller_payout_recipients TO service_role;
 GRANT SELECT, INSERT, UPDATE ON public.seller_payout_transfers TO service_role;
 

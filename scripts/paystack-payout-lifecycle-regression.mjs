@@ -60,7 +60,10 @@ assert.ok(record.includes("UPDATE public.transactions\n       SET payout_status 
 assert.ok(record.includes("UPDATE public.transactions\n       SET payout_status = 'failed'"));
 assert.ok(record.includes("v_previous_status = 'success' AND v_transfer.earnings_reversed_at IS NULL"));
 assert.ok(record.includes("GREATEST(COALESCE(total_earnings, 0) - v_tx.amount, 0)"));
-assert.ok(record.includes("AND v_status <> v_previous_status"), 'Terminal provider transfer states cannot be overwritten by stale events');
+assert.ok(record.includes("v_previous_status IN ('failed','reversed','abandoned','blocked','rejected')"), 'Terminal provider transfer states cannot be overwritten by stale events');
+assert.ok(record.includes("seller_payout_success"));
+assert.ok(record.includes("seller_payout_reversed"));
+assert.ok(record.includes("seller_payout_manual_review"));
 assert.ok(record.includes("CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE 'pending' END"));
 
 assert.ok(onboarding.includes('getAuthenticatedUser(req)'));

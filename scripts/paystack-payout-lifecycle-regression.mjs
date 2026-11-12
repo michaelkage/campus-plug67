@@ -45,6 +45,7 @@ assert.ok(claim.includes("t.payout_status IN ('approved_for_settlement', 'failed
 assert.ok(claim.includes("dispute.status NOT IN ('closed','decided')"));
 assert.ok(claim.includes("FOR UPDATE OF t SKIP LOCKED"));
 assert.ok(claim.includes("v_last.status = 'processing' AND v_last.lease_expires_at <= now()"));
+assert.ok(claim.includes('v_last.submission_attempts >= 10'), 'Exhausted ambiguous submissions must move to manual review');
 assert.ok(claim.includes("v_last.status IN ('failed','reversed')"));
 assert.ok(claim.includes("'cp_tr_' || replace(gen_random_uuid()::text, '-', '')"));
 assert.ok(claim.includes('WHERE id = v_transfer.recipient_id'), 'A retry must remain bound to its original beneficiary snapshot');

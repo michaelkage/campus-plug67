@@ -29,7 +29,10 @@ BEGIN
     RAISE EXCEPTION 'Campus Wallet transactions do not use Paystack refunds';
   END IF;
   IF v_tx.status NOT IN ('locked','meetup_initiated','release_requested','disputed')
-     AND NOT (v_tx.status = 'cancelled' AND v_tx.refund_status = 'failed') THEN
+     AND NOT (
+       v_tx.status = 'cancelled'
+       AND v_tx.refund_status IN ('failed','pending','processing','needs-attention','processed')
+     ) THEN
     RAISE EXCEPTION 'Transaction cannot be refunded from its current state';
   END IF;
   IF v_tx.paystack_ref IS NULL OR length(trim(v_tx.paystack_ref)) = 0 THEN

@@ -94,6 +94,7 @@ assert.ok(worker.includes('claim_seller_payout_transfers'));
 assert.ok(worker.includes('/transfer/verify/'));
 assert.ok(worker.includes('recipient: item.recipient_code'));
 assert.ok(worker.includes('reference: item.reference'));
+assert.ok(worker.includes('return actualRecipient === claimed.recipient_code || (!requireRecipient && actualRecipient === null)'), 'A provider-supplied beneficiary mismatch must never be accepted');
 assert.ok(worker.includes('deferred_ambiguous_submission'));
 assert.ok(worker.includes('initiated.response.status === 409'));
 assert.ok(worker.includes('p_status: "needs_attention"'));

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(31);
+SELECT plan(34);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -143,6 +143,16 @@ SELECT is((SELECT attempt_number::integer FROM payout_retry), 2, 'Retry incremen
 SELECT isnt((SELECT reference FROM payout_retry), (SELECT reference FROM payout_claim), 'Retry creates a new provider reference after conclusive reversal');
 SELECT is((SELECT recipient_code FROM payout_retry), 'RCP_payoutfixture1', 'Retry remains bound to the verified active recipient');
 SELECT is((SELECT count(*)::integer FROM public.seller_payout_transfers WHERE transaction_id = 'f5300000-0000-4000-8000-000000000001'), 2, 'Each provider attempt remains separately auditable');
+SELECT is(
+  (public.record_paystack_transfer(
+    (SELECT reference FROM payout_retry), 'otp', 12500, 'NGN',
+    'RCP_payoutfixture1', 'TRF_payoutfixture2', '51002', 'Merchant OTP approval required'
+  )->>'status'),
+  'needs_attention',
+  'OTP-required transfers are moved to manual attention rather than auto-finalized'
+);
+SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'needs_attention', 'OTP state is visible in the transaction payout status');
+SELECT is((SELECT count(*)::integer FROM public.claim_seller_payout_transfers(10)), 0, 'OTP-required payout is not resubmitted by the automatic worker');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -720,6 +720,8 @@ BEGIN
      OR v_tx.seller_id <> v_transfer.seller_id
      OR v_tx.status NOT IN ('released','completed')
      OR v_tx.payment_verified IS DISTINCT FROM true
+     OR v_tx.payout_status <> 'needs_attention'
+     OR v_tx.payout_reference IS DISTINCT FROM v_transfer.reference
      OR COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet'
      OR COALESCE(v_tx.refund_status, '') IN ('pending','processing','needs-attention','needs_attention','processed')
      OR EXISTS (

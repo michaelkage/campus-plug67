@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(35);
+SELECT plan(40);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -89,6 +89,14 @@ SELECT is(
 SELECT is(has_function_privilege('authenticated', 'public.save_seller_payout_recipient(uuid,text,text,text,text,text)', 'EXECUTE'), false, 'Only service role can persist provider recipients');
 SELECT is(has_function_privilege('authenticated', 'public.claim_seller_payout_transfers(integer)', 'EXECUTE'), false, 'Only service role can claim seller transfers');
 SELECT is(has_function_privilege('authenticated', 'public.record_paystack_transfer(text,text,bigint,text,text,text,text,text)', 'EXECUTE'), false, 'Only service role can record provider transfer events');
+SELECT is(has_table_privilege('service_role', 'public.seller_payout_recipients', 'DELETE'), false, 'Recipient history cannot be deleted');
+SELECT is(has_table_privilege('service_role', 'public.seller_payout_transfers', 'DELETE'), false, 'Transfer audit history cannot be deleted');
+SELECT throws_ok(
+  $ UPDATE public.seller_payout_recipients SET account_last4 = '9999' WHERE seller_id = 'f5100000-0000-4000-8000-000000000002' $,
+  'P0001',
+  'Verified payout recipient identity is immutable; create a new recipient instead',
+  'Verified recipient identity cannot be rewritten'
+);
 
 CREATE TEMP TABLE payout_claim AS
 SELECT * FROM public.claim_seller_payout_transfers(10);
@@ -159,6 +167,18 @@ SELECT is(
   'Late success cannot overwrite a conclusive transfer reversal'
 );
 SELECT is((SELECT total_earnings::bigint FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 0::bigint, 'Late success after reversal cannot restore earnings');
+SELECT throws_ok(
+  $ UPDATE public.seller_payout_transfers SET amount_kobo = 12499 WHERE reference = (SELECT reference FROM payout_claim) $,
+  'P0001',
+  'Payout transfer financial identity is immutable',
+  'Transfer amount cannot be changed after claim'
+);
+SELECT throws_ok(
+  $ UPDATE public.seller_payout_transfers SET status = 'success' WHERE reference = (SELECT reference FROM payout_claim) $,
+  'P0001',
+  'Terminal payout attempt status is immutable',
+  'A reversed transfer cannot be manually changed back to success'
+);
 
 UPDATE public.seller_payout_transfers
    SET updated_at = now() - interval '10 minutes'

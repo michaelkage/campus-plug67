@@ -199,7 +199,15 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "The bank account was verified, but Campus Plug could not save the recipient. Contact support before trying another account." }, 500, {}, req);
     }
 
-    return jsonResponse({ recipient: data }, 200, {}, req);
+    return jsonResponse({
+      recipient: {
+        bank_name: data.bank_name,
+        account_name: data.account_name,
+        account_last4: data.account_last4,
+        currency: data.currency,
+        verified_at: data.verified_at,
+      },
+    }, 200, {}, req);
   } catch (error) {
     console.error("Payout recipient setup failed", error instanceof Error ? error.message : "unknown error");
     return jsonResponse({ error: "Unable to save the payout account right now" }, 502, {}, req);

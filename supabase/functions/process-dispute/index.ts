@@ -117,14 +117,17 @@ async function executeVerdict(juryCase: DisputeCase, verdict: string) {
             if (response.status >= 500 || response.status === 408) {
               throw new Error("Paystack returned an ambiguous server response; the same refund reference is retained for reconciliation");
             }
-            await admin.rpc("record_paystack_refund", {
+            const { error: failureRecordError } = await admin.rpc("record_paystack_refund", {
               p_transaction_reference: tx.paystack_ref,
               p_refund_reference: null,
               p_status: "failed",
               p_amount: tx.amount,
               p_currency: "NGN",
             });
-            await admin.from("transactions").update({ refund_status: "failed", refund_failure_reason: message }).eq("id", tx.id);
+            if (failureRecordError) {
+              console.error("Paystack dispute refund rejection could not be recorded atomically", failureRecordError.message);
+              throw new Error("Paystack rejected the dispute refund, but local state could not be reconciled; the stable reference remains available for recovery");
+            }
             throw new Error(message);
           } else if (!refund && payload?.data && typeof payload.data === "object") {
             refund = payload.data as Record<string, unknown>;

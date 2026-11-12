@@ -165,16 +165,15 @@ Deno.serve(async (req: Request) => {
             refund_request_reference: requestReference,
           }, 503, {}, req);
         }
-        await recordRefund(tx, {
-          id: undefined,
+        const { error: failureRecordError } = await recordRefund(tx, {
           status: "failed",
           amount: tx.amount,
           currency: "NGN",
         });
-        await admin.from("transactions").update({
-          refund_status: "failed",
-          refund_failure_reason: message,
-        }).eq("id", tx.id);
+        if (failureRecordError) {
+          console.error("Paystack rejection could not be recorded atomically", failureRecordError.message);
+          return jsonResponse({ error: "Paystack rejected the refund, but local state could not be reconciled. The same provider reference is retained for safe recovery." }, 500, {}, req);
+        }
         return jsonResponse({ error: message, refund_status: "failed" }, 502, {}, req);
       } else {
         refund = createResult.payload.data;

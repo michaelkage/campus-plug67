@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(45);
+SELECT plan(46);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -202,6 +202,15 @@ SELECT is(
 );
 SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'needs_attention', 'OTP state is visible in the transaction payout status');
 SELECT is((SELECT count(*)::integer FROM public.claim_seller_payout_transfers(10)), 0, 'OTP-required payout is not resubmitted by the automatic worker');
+SELECT throws_ok(
+  $ SELECT public.confirm_paystack_transfer_not_created(
+    (SELECT reference FROM payout_retry),
+    'Support checked the Paystack dashboard and found no transfer.'
+  ) $,
+  'P0001',
+  'Transfer is not eligible for manual not-created confirmation',
+  'OTP transfer with provider identifiers cannot be falsely marked absent'
+);
 
 INSERT INTO public.seller_payout_transfers (
   transaction_id, seller_id, recipient_id, attempt_number,

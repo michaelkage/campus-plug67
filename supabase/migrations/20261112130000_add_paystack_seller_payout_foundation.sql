@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS public.seller_payout_transfers (
 CREATE UNIQUE INDEX IF NOT EXISTS seller_payout_transfer_code_uidx
   ON public.seller_payout_transfers(provider_transfer_code)
   WHERE provider_transfer_code IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS seller_payout_transfer_provider_id_uidx
+  ON public.seller_payout_transfers(provider_transfer_id)
+  WHERE provider_transfer_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS seller_payout_transfers_reconcile_idx
   ON public.seller_payout_transfers(status, updated_at)
   WHERE status IN ('processing','pending');
@@ -366,7 +369,7 @@ BEGIN
            provider_status = v_status,
            provider_transfer_code = COALESCE(p_transfer_code, provider_transfer_code),
            provider_transfer_id = COALESCE(p_provider_transfer_id, provider_transfer_id),
-           provider_message = p_message,
+           provider_message = left(p_message, 500),
            failure_reason = NULL,
            lease_expires_at = NULL,
            completed_at = COALESCE(completed_at, now()),
@@ -385,7 +388,7 @@ BEGIN
            provider_transfer_code = COALESCE(p_transfer_code, provider_transfer_code),
            provider_transfer_id = COALESCE(p_provider_transfer_id, provider_transfer_id),
            provider_message = p_message,
-           failure_reason = COALESCE(p_message, 'Paystack reversed the transfer'),
+           failure_reason = left(COALESCE(p_message, 'Paystack reversed the transfer'), 500),
            lease_expires_at = NULL,
            completed_at = COALESCE(completed_at, now()),
            earnings_reversed_at = CASE WHEN v_previous_status = 'success' THEN COALESCE(earnings_reversed_at, now()) ELSE earnings_reversed_at END,
@@ -410,7 +413,7 @@ BEGIN
            provider_transfer_code = COALESCE(p_transfer_code, provider_transfer_code),
            provider_transfer_id = COALESCE(p_provider_transfer_id, provider_transfer_id),
            provider_message = p_message,
-           failure_reason = COALESCE(p_message, 'Paystack transfer did not complete'),
+           failure_reason = left(COALESCE(p_message, 'Paystack transfer did not complete'), 500),
            lease_expires_at = NULL,
            completed_at = now(),
            updated_at = now()
@@ -435,7 +438,7 @@ BEGIN
     UPDATE public.transactions
        SET payout_status = 'processing',
            payout_reference = v_transfer.reference,
-           payout_failure_reason = CASE WHEN v_status = 'otp' THEN 'Paystack transfer requires merchant OTP approval' WHEN v_status = 'needs_attention' THEN COALESCE(p_message, 'Paystack transfer requires manual reconciliation') ELSE NULL END
+           payout_failure_reason = CASE WHEN v_status = 'otp' THEN 'Paystack transfer requires merchant OTP approval' WHEN v_status = 'needs_attention' THEN left(COALESCE(p_message, 'Paystack transfer requires manual reconciliation'), 500) ELSE NULL END
      WHERE id = v_tx.id;
   END IF;
 
@@ -453,4 +456,4 @@ GRANT EXECUTE ON FUNCTION public.record_paystack_transfer(text,text,bigint,text,
 COMMENT ON TABLE public.seller_payout_recipients IS
   'Verified Paystack transfer recipients. Stores recipient code and masked metadata only; never stores bank account numbers.';
 COMMENT ON TABLE public.seller_payout_transfers IS
-  'Append-only-per-attempt Paystack transfer lifecycle. Every retry after a conclusive failure receives a new reference.';
+  'One auditable row per Paystack transfer attempt. Every retry after a conclusive failure receives a new reference.';

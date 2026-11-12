@@ -15,6 +15,13 @@ VALUES (
   'Seller payout fixture', 'Other', 12500, 'sold', 'University of Lagos'
 );
 
+INSERT INTO public.listings (id, seller_id, title, category, price, status, university)
+VALUES (
+  'f5200000-0000-4000-8000-000000000002',
+  'f5100000-0000-4000-8000-000000000002',
+  'Disputed payout fixture', 'Other', 15000, 'sold', 'University of Lagos'
+);
+
 INSERT INTO public.transactions (
   id, listing_id, buyer_id, seller_id, amount, status,
   payment_method, paystack_ref, payment_verified, payout_status,
@@ -35,13 +42,6 @@ INSERT INTO public.transactions (
   'f5100000-0000-4000-8000-000000000002',
   15000, 'released', 'paystack', 'payout-fixture-reference-2',
   true, 'approved_for_settlement', now(), now(), now()
-);
-
-INSERT INTO public.listings (id, seller_id, title, category, price, status, university)
-VALUES (
-  'f5200000-0000-4000-8000-000000000002',
-  'f5100000-0000-4000-8000-000000000002',
-  'Disputed payout fixture', 'Other', 15000, 'sold', 'University of Lagos'
 );
 
 INSERT INTO public.jury_cases (

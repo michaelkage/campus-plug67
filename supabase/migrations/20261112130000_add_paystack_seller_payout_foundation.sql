@@ -369,9 +369,13 @@ BEGIN
   IF v_previous_status = 'success' AND v_status <> 'reversed' THEN
     RETURN jsonb_build_object('success', true, 'duplicate_or_stale', true, 'status', v_previous_status);
   END IF;
-  IF v_previous_status IN ('failed','reversed','abandoned','blocked','rejected')
-     AND v_status <> v_previous_status THEN
-    RETURN jsonb_build_object('success', true, 'duplicate_or_stale', true, 'status', v_previous_status);
+  IF v_previous_status IN ('failed','reversed','abandoned','blocked','rejected') THEN
+    RETURN jsonb_build_object(
+      'success', true,
+      'duplicate_or_stale', true,
+      'status', v_previous_status,
+      'same_status', v_status = v_previous_status
+    );
   END IF;
 
   IF v_status = 'success' THEN
@@ -392,6 +396,16 @@ BEGIN
            payout_reference = v_transfer.reference,
            payout_failure_reason = NULL
      WHERE id = v_tx.id;
+
+    INSERT INTO public.notifications(user_id, type, title, body, data)
+    VALUES (
+      v_tx.seller_id,
+      'seller_payout_success',
+      '🏦 Bank transfer successful',
+      'Paystack marked your ₦' || to_char(v_tx.amount / 100.0, 'FM999,999,999,990.00') ||
+        ' transfer successful. Your bank may take additional time to post the funds.',
+      jsonb_build_object('transaction_id', v_tx.id, 'payout_reference', v_transfer.reference, 'payout_status', 'paid')
+    );
   ELSIF v_status = 'reversed' THEN
     UPDATE public.seller_payout_transfers
        SET status = 'reversed',
@@ -417,6 +431,15 @@ BEGIN
            payout_reference = v_transfer.reference,
            payout_failure_reason = 'Paystack transfer reversed: ' || COALESCE(p_message, 'funds returned to merchant balance')
      WHERE id = v_tx.id;
+
+    INSERT INTO public.notifications(user_id, type, title, body, data)
+    VALUES (
+      v_tx.seller_id,
+      'seller_payout_reversed',
+      '⚠️ Bank transfer reversed',
+      'Paystack reversed the bank transfer for this sale. The payout is no longer complete and needs another attempt or support review.',
+      jsonb_build_object('transaction_id', v_tx.id, 'payout_reference', v_transfer.reference, 'payout_status', 'failed')
+    );
   ELSIF v_status IN ('failed','abandoned','blocked','rejected') THEN
     UPDATE public.seller_payout_transfers
        SET status = v_status,
@@ -435,6 +458,15 @@ BEGIN
            payout_reference = v_transfer.reference,
            payout_failure_reason = COALESCE(p_message, 'Paystack transfer ' || v_status)
      WHERE id = v_tx.id;
+
+    INSERT INTO public.notifications(user_id, type, title, body, data)
+    VALUES (
+      v_tx.seller_id,
+      'seller_payout_failed',
+      '⚠️ Seller payout needs attention',
+      'Your exchange is complete, but Paystack could not complete the bank transfer. The payout will be retried only after the provider reports a conclusive result.',
+      jsonb_build_object('transaction_id', v_tx.id, 'payout_reference', v_transfer.reference, 'payout_status', 'failed')
+    );
   ELSE
     UPDATE public.seller_payout_transfers
        SET status = CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE 'pending' END,
@@ -458,6 +490,20 @@ BEGIN
              ELSE NULL
            END
      WHERE id = v_tx.id;
+
+    IF v_status IN ('otp','needs_attention') THEN
+      INSERT INTO public.notifications(user_id, type, title, body, data)
+      VALUES (
+        v_tx.seller_id,
+        'seller_payout_manual_review',
+        '⚠️ Bank payout requires manual approval',
+        CASE
+          WHEN v_status = 'otp' THEN 'Paystack requires merchant OTP approval before this transfer can continue. Campus Plug will not attempt to bypass that approval.'
+          ELSE 'The provider transfer details need manual review. Your seller payout remains unconfirmed.'
+        END,
+        jsonb_build_object('transaction_id', v_tx.id, 'payout_reference', v_transfer.reference, 'payout_status', 'needs_attention')
+      );
+    END IF;
   END IF;
 
   RETURN jsonb_build_object('success', true, 'status', CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE v_status END, 'transaction_id', v_tx.id);

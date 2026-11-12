@@ -47,3 +47,10 @@ assertIncludes(dispute, 'admin.rpc("record_paystack_refund"', "Dispute refunds m
 assertIncludes(dispute, "reference: requestReference", "Dispute refunds must use the persisted Paystack idempotency reference");
 assertIncludes(dispute, "fetchPaystackRefund(secret, requestReference)", "Dispute refund retries must reconcile the same provider reference");
 console.log("Paystack refund idempotency regression checks passed (static source invariants).");
+
+const refundReconciler = read("supabase/functions/reconcile-paystack-refunds/index.ts");
+assertIncludes(refundReconciler, 'isServiceRoleRequest(req)', "Scheduled refund reconciliation must be service-role only");
+assertIncludes(refundReconciler, '.in("refund_status", ["pending", "processing", "needs-attention", "needs_attention"])', "Refund reconciliation must only inspect outstanding provider refunds");
+assertIncludes(refundReconciler, 'admin.rpc(\n        "record_paystack_refund"', "Refund reconciliation must persist provider state through the atomic recorder");
+assertIncludes(refundReconciler, 'reference: tx.refund_request_reference', "Refund reconciliation must query Paystack using the persisted idempotency reference");
+if (refundReconciler.includes('method: "POST"')) fail("Refund reconciliation must never initiate a new provider refund");

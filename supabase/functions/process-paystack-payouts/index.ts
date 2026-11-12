@@ -62,7 +62,10 @@ function validTransfer(data: PaystackTransfer, claimed: ClaimedTransfer, require
       amount !== Number(claimed.amount_kobo) ||
       String(data.currency ?? "").toUpperCase() !== "NGN") return false;
   const actualRecipient = recipientCode(data.recipient);
-  return !requireRecipient || actualRecipient === claimed.recipient_code;
+  // Paystack's initiation response may omit the expanded recipient object,
+  // but if it supplies one, it must match the immutable beneficiary snapshot.
+  // Verification responses always require an explicit recipient match.
+  return actualRecipient === claimed.recipient_code || (!requireRecipient && actualRecipient === null);
 }
 
 async function record(claimed: ClaimedTransfer, data: PaystackTransfer, fallbackStatus?: string) {

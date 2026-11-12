@@ -1,0 +1,56 @@
+name: Campus Plug Seller Payout Reconciliation
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: campus-plug-seller-payout-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  payout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Submit approved Paystack seller payouts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
+          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
+
+          # A bounded batch prevents a payout run from starving payment/refund reconciliation.
+          # Ambiguous requests reuse their persisted Paystack transfer reference.
+          curl --fail-with-body --silent --show-error \
+            --max-time 180 \
+            -X POST \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"limit":5}' \
+            "${SUPABASE_URL}/functions/v1/process-paystack-payouts"
+
+      - name: Reconcile pending Paystack seller transfers
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
+          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
+
+          # Verification only. This endpoint never creates or retries a transfer.
+          curl --fail-with-body --silent --show-error \
+            --max-time 180 \
+            -X POST \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            "${SUPABASE_URL}/functions/v1/reconcile-paystack-transfers"

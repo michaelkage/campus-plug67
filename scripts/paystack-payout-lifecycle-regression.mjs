@@ -6,6 +6,7 @@ const migration = read('supabase/migrations/20261112130000_add_paystack_seller_p
 const onboarding = read('supabase/functions/manage-payout-recipient/index.ts');
 const worker = read('supabase/functions/process-paystack-payouts/index.ts');
 const reconciler = read('supabase/functions/reconcile-paystack-transfers/index.ts');
+const manualRecovery = read('supabase/functions/resolve-paystack-payout-attention/index.ts');
 const webhook = read('supabase/functions/paystack-webhook/index.ts');
 const workflow = read('.github/workflows/seller-payout-reconciliation.yml');
 const settingsUi = read('src/components/wallet/SellerPayoutSettings.tsx');
@@ -28,6 +29,8 @@ assert.ok(migration.includes('seller_payout_transfer_provider_id_uidx'));
 assert.ok(migration.includes('REVOKE DELETE ON public.seller_payout_recipients, public.seller_payout_transfers FROM service_role'));
 assert.ok(migration.includes('guard_seller_payout_recipient_mutation'));
 assert.ok(migration.includes('guard_seller_payout_transfer_mutation'));
+assert.ok(migration.includes('confirm_paystack_transfer_not_created'));
+assert.ok(migration.includes('attempt_number BETWEEN 1 AND 5'));
 assert.ok(migration.includes('Terminal payout attempt status is immutable'));
 
 const saveRecipient = migration.slice(
@@ -102,6 +105,10 @@ assert.ok(!reconciler.includes('"/transfer"'), 'Transfer reconciliation must nev
 assert.ok(reconciler.includes('record_paystack_transfer'));
 assert.ok(reconciler.includes('.limit(10)'), 'Scheduled transfer reconciliation must use a bounded batch');
 assert.ok(reconciler.includes('last_reconciled_at'), 'Pending transfer reconciliation must rotate fairly across the backlog');
+assert.ok(manualRecovery.includes('/transfer/verify/'));
+assert.ok(manualRecovery.includes('confirm_not_created !== true'));
+assert.ok(manualRecovery.includes('confirm_paystack_transfer_not_created'));
+assert.ok(!manualRecovery.includes('"/transfer"'), 'Manual recovery must never initiate a new transfer');
 
 assert.ok(webhook.includes('event.event === "transfer.success"'));
 assert.ok(webhook.includes('event.event === "transfer.failed"'));

@@ -97,6 +97,7 @@ assert.notEqual(profileStatsStart, -1, 'Missing payout-aware public profile stat
 const profileStatsEnd = payoutPresentation.indexOf('$function$;', profileStatsStart);
 assert.notEqual(profileStatsEnd, -1, 'Could not isolate payout-aware profile stats helper');
 const profileStats = payoutPresentation.slice(profileStatsStart, profileStatsEnd + '$function$;'.length);
+const earningsTrigger = extract(payoutPresentation, 'credit_seller_earnings_after_external_payout');
 
 assert.ok(triggerDefinition.includes('CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END'),
   'Paystack escrow resolution must not inflate seller earnings before bank payout');
@@ -112,5 +113,11 @@ assert.ok(profileStats.includes("t.payout_status = 'paid'"),
   'Profile earnings must include Paystack proceeds only after confirmed transfer success');
 assert.ok(!profileStats.includes("sum(t.amount) FILTER (\n          WHERE t.status = 'released'::text OR t.status = 'completed'::text\n        )"),
   'Profile earnings must not treat every released Paystack escrow as paid');
+assert.ok(earningsTrigger.includes("OLD.payout_status IS DISTINCT FROM 'paid'"),
+  'Confirmed external payout must credit earnings only on the first paid transition');
+assert.ok(earningsTrigger.includes("NEW.payment_verified IS DISTINCT FROM true"),
+  'External earnings must require a verified payment');
+assert.ok(earningsTrigger.includes("COALESCE(NEW.payment_method, 'paystack') <> 'campus_wallet'"),
+  'External payout earnings trigger must not double-credit Campus Wallet proceeds');
 
 console.log('Escrow payment-rail integrity regression checks passed.');

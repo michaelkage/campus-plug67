@@ -191,7 +191,7 @@ export default function SellerPayoutSettings() {
                 autoComplete="off"
                 maxLength={10}
                 value={accountNumber}
-                onChange={(event) => { setAccountNumber(event.target.value.replace(/\\D/g, '').slice(0, 10)); resetVerification() }}
+                onChange={(event) => { setAccountNumber(event.target.value.replace(/\D/g, '').slice(0, 10)); resetVerification() }}
                 placeholder="0123456789"
                 disabled={verifying || saving}
               />
@@ -225,7 +225,7 @@ export default function SellerPayoutSettings() {
               type="button"
               className="btn-secondary"
               onClick={() => void verifyAccount()}
-              disabled={!selectedBank || !/^\\d{10}$/.test(accountNumber) || verifying || saving}
+              disabled={!selectedBank || !/^\d{10}$/.test(accountNumber) || verifying || saving}
             >
               {verifying ? 'Verifying…' : 'Verify bank account'}
             </button>

@@ -30,6 +30,8 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
 export default function SellerPayoutSettings() {
   const [banks, setBanks] = useState<Bank[]>([])
   const [saved, setSaved] = useState<SavedRecipient | null>(null)
+  const [onboardingEnabled, setOnboardingEnabled] = useState(false)
+  const [executionEnabled, setExecutionEnabled] = useState(false)
   const [bankCode, setBankCode] = useState('')
   const [accountNumber, setAccountNumber] = useState('')
   const [resolved, setResolved] = useState<ResolvedAccount | null>(null)
@@ -43,13 +45,23 @@ export default function SellerPayoutSettings() {
 
   useEffect(() => {
     let active = true
-    void Promise.all([
-      invoke<{ banks: Bank[] }>({ action: 'list_banks' }),
-      invoke<{ recipient: SavedRecipient | null }>({ action: 'current' }),
-    ]).then(([bankResult, recipientResult]) => {
+    void invoke<{
+      recipient: SavedRecipient | null
+      onboarding_enabled: boolean
+      payout_execution_enabled: boolean
+    }>({ action: 'current' }).then(async (recipientResult) => {
       if (!active) return
-      setBanks(bankResult.banks)
       setSaved(recipientResult.recipient)
+      setOnboardingEnabled(recipientResult.onboarding_enabled)
+      setExecutionEnabled(recipientResult.payout_execution_enabled)
+      if (recipientResult.onboarding_enabled) {
+        try {
+          const bankResult = await invoke<{ banks: Bank[] }>({ action: 'list_banks' })
+          if (active) setBanks(bankResult.banks)
+        } catch (cause) {
+          if (active) setError(cause instanceof Error ? cause.message : 'Unable to load Nigerian banks')
+        }
+      }
     }).catch((cause) => {
       if (active) setError(cause instanceof Error ? cause.message : 'Unable to load payout settings')
     }).finally(() => {
@@ -146,75 +158,88 @@ export default function SellerPayoutSettings() {
         </div>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block space-y-1.5">
-          <span className="text-xs font-semibold text-on-surface/65">Bank</span>
-          <select
-            className="input w-full"
-            value={bankCode}
-            onChange={(event) => { setBankCode(event.target.value); resetVerification() }}
-            disabled={verifying || saving}
-          >
-            <option value="">Select your bank</option>
-            {banks.map((bank) => <option key={bank.code} value={bank.code}>{bank.name}</option>)}
-          </select>
-        </label>
-        <label className="block space-y-1.5">
-          <span className="text-xs font-semibold text-on-surface/65">10-digit account number</span>
-          <input
-            className="input w-full"
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={10}
-            value={accountNumber}
-            onChange={(event) => { setAccountNumber(event.target.value.replace(/\D/g, '').slice(0, 10)); resetVerification() }}
-            placeholder="0123456789"
-            disabled={verifying || saving}
-          />
-        </label>
-      </div>
-
-      {resolved && (
-        <div className="rounded-lg border border-primary/25 bg-primary/5 p-4">
-          <div className="flex items-center gap-2 text-xs font-bold text-primary">
-            <ShieldCheck size={15} /> Bank account verified
-          </div>
-          <p className="mt-2 text-sm font-bold">{resolved.account_name}</p>
-          <p className="text-xs text-on-surface/55">{selectedBank?.name} · •••• {resolved.account_last4}</p>
-          <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-on-surface/70">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(event) => setConfirmed(event.target.checked)}
-              className="mt-0.5"
-              disabled={saving}
-            />
-            <span>I confirm this account belongs to me and the verified account name is correct.</span>
-          </label>
+      {!onboardingEnabled ? (
+        <div className="rounded-lg border border-[var(--md-outline-variant)] p-4 text-xs leading-relaxed text-on-surface/55">
+          Seller bank setup is not open yet. You can continue using Campus Wallet; Paystack bank payout onboarding will appear here when the payout service is approved.
         </div>
+      ) : (
+        <>
+          {!executionEnabled && (
+            <div className="rounded-lg border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3 text-xs leading-relaxed text-on-surface/60">
+              Bank details can be verified and saved, but automatic seller transfers are not active yet. Escrow resolution will not be treated as bank payment.
+            </div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-on-surface/65">Bank</span>
+              <select
+                className="input w-full"
+                value={bankCode}
+                onChange={(event) => { setBankCode(event.target.value); resetVerification() }}
+                disabled={verifying || saving}
+              >
+                <option value="">Select your bank</option>
+                {banks.map((bank) => <option key={bank.code} value={bank.code}>{bank.name}</option>)}
+              </select>
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-on-surface/65">10-digit account number</span>
+              <input
+                className="input w-full"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={10}
+                value={accountNumber}
+                onChange={(event) => { setAccountNumber(event.target.value.replace(/\\D/g, '').slice(0, 10)); resetVerification() }}
+                placeholder="0123456789"
+                disabled={verifying || saving}
+              />
+            </label>
+          </div>
+
+          {resolved && (
+            <div className="rounded-lg border border-primary/25 bg-primary/5 p-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-primary">
+                <ShieldCheck size={15} /> Bank account verified
+              </div>
+              <p className="mt-2 text-sm font-bold">{resolved.account_name}</p>
+              <p className="text-xs text-on-surface/55">{selectedBank?.name} · •••• {resolved.account_last4}</p>
+              <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs leading-relaxed text-on-surface/70">
+                <input
+                  type="checkbox"
+                  checked={confirmed}
+                  onChange={(event) => setConfirmed(event.target.checked)}
+                  className="mt-0.5"
+                  disabled={saving}
+                />
+                <span>I confirm this account belongs to me and the verified account name is correct.</span>
+              </label>
+            </div>
+          )}
+
+          {error && <p className="rounded-md bg-error/10 px-3 py-2 text-xs text-error" role="alert">{error}</p>}
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => void verifyAccount()}
+              disabled={!selectedBank || !/^\\d{10}$/.test(accountNumber) || verifying || saving}
+            >
+              {verifying ? 'Verifying…' : 'Verify bank account'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void saveAccount()}
+              disabled={!resolved || !confirmed || saving || verifying}
+            >
+              {saving ? 'Saving…' : saved ? 'Replace payout account' : 'Save payout account'}
+            </button>
+          </div>
+        </>
       )}
-
-      {error && <p className="rounded-md bg-error/10 px-3 py-2 text-xs text-error" role="alert">{error}</p>}
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => void verifyAccount()}
-          disabled={!selectedBank || !/^\d{10}$/.test(accountNumber) || verifying || saving}
-        >
-          {verifying ? 'Verifying…' : 'Verify bank account'}
-        </button>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => void saveAccount()}
-          disabled={!resolved || !confirmed || saving || verifying}
-        >
-          {saving ? 'Saving…' : saved ? 'Replace payout account' : 'Save payout account'}
-        </button>
-      </div>
 
       <p className="flex items-start gap-2 text-[11px] leading-relaxed text-on-surface/40">
         <Wallet size={14} className="mt-0.5 shrink-0" />

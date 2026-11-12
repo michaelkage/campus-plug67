@@ -304,7 +304,7 @@ BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
     RAISE EXCEPTION 'Service role required';
   END IF;
-  IF v_status NOT IN ('pending','success','failed','reversed','otp','abandoned','blocked','rejected','received') THEN
+  IF v_status NOT IN ('pending','success','failed','reversed','otp','needs_attention','abandoned','blocked','rejected','received') THEN
     RAISE EXCEPTION 'Unsupported Paystack transfer status';
   END IF;
   IF p_reference IS NULL OR p_amount IS NULL OR p_amount <= 0
@@ -418,7 +418,7 @@ BEGIN
      WHERE id = v_tx.id;
   ELSE
     UPDATE public.seller_payout_transfers
-       SET status = CASE WHEN v_status = 'otp' THEN 'needs_attention' ELSE 'pending' END,
+       SET status = CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE 'pending' END,
            provider_status = v_status,
            provider_transfer_code = COALESCE(p_transfer_code, provider_transfer_code),
            provider_transfer_id = COALESCE(p_provider_transfer_id, provider_transfer_id),
@@ -430,11 +430,11 @@ BEGIN
     UPDATE public.transactions
        SET payout_status = 'processing',
            payout_reference = v_transfer.reference,
-           payout_failure_reason = CASE WHEN v_status = 'otp' THEN 'Paystack transfer requires merchant OTP approval' ELSE NULL END
+           payout_failure_reason = CASE WHEN v_status = 'otp' THEN 'Paystack transfer requires merchant OTP approval' WHEN v_status = 'needs_attention' THEN COALESCE(p_message, 'Paystack transfer requires manual reconciliation') ELSE NULL END
      WHERE id = v_tx.id;
   END IF;
 
-  RETURN jsonb_build_object('success', true, 'status', CASE WHEN v_status = 'otp' THEN 'needs_attention' ELSE v_status END, 'transaction_id', v_tx.id);
+  RETURN jsonb_build_object('success', true, 'status', CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE v_status END, 'transaction_id', v_tx.id);
 END;
 $function$;
 

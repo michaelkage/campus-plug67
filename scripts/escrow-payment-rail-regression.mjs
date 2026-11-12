@@ -92,7 +92,11 @@ assert.ok(disputeFunction.includes('admin.rpc("resolve_dispute_verdict"'),
 
 const payoutPresentation = read('supabase/migrations/20261112110000_separate_escrow_resolution_from_seller_payout.sql');
 const triggerDefinition = extract(payoutPresentation, 'handle_transaction_update');
-const profileStats = extract(payoutPresentation, 'get_public_profile_stats');
+const profileStatsStart = payoutPresentation.indexOf('CREATE OR REPLACE FUNCTION private.get_public_profile_stats');
+assert.notEqual(profileStatsStart, -1, 'Missing payout-aware public profile stats helper');
+const profileStatsEnd = payoutPresentation.indexOf('$function$;', profileStatsStart);
+assert.notEqual(profileStatsEnd, -1, 'Could not isolate payout-aware profile stats helper');
+const profileStats = payoutPresentation.slice(profileStatsStart, profileStatsEnd + '$function$;'.length);
 
 assert.ok(triggerDefinition.includes('CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END'),
   'Paystack escrow resolution must not inflate seller earnings before bank payout');

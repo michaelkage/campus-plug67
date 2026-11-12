@@ -89,4 +89,24 @@ assert.ok(adminRefund.includes('p_action: "refund"'),
 assert.ok(disputeFunction.includes('admin.rpc("resolve_dispute_verdict"'),
   'Dispute verdict must continue through the atomic database resolver');
 
+
+const payoutPresentation = read('supabase/migrations/20261112110000_separate_escrow_resolution_from_seller_payout.sql');
+const triggerDefinition = extract(payoutPresentation, 'handle_transaction_update');
+const profileStats = extract(payoutPresentation, 'get_public_profile_stats');
+
+assert.ok(triggerDefinition.includes('CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END'),
+  'Paystack escrow resolution must not inflate seller earnings before bank payout');
+assert.ok(triggerDefinition.includes('Campus Wallet Credited'),
+  'Campus Wallet seller notification must confirm the actual internal credit');
+assert.ok(triggerDefinition.includes('bank payout has not yet been confirmed'),
+  'Paystack seller notification must distinguish escrow resolution from bank payout');
+assert.ok(triggerDefinition.includes("'payout_status', 'approved_for_settlement'"),
+  'Paystack seller notification must expose payout as pending settlement');
+assert.ok(profileStats.includes("COALESCE(t.payment_method, 'paystack') = 'campus_wallet'"),
+  'Profile earnings must include Campus Wallet proceeds credited at escrow release');
+assert.ok(profileStats.includes("t.payout_status = 'paid'"),
+  'Profile earnings must include Paystack proceeds only after confirmed transfer success');
+assert.ok(!profileStats.includes("sum(t.amount) FILTER (\n          WHERE t.status = 'released'::text OR t.status = 'completed'::text\n        )"),
+  'Profile earnings must not treat every released Paystack escrow as paid');
+
 console.log('Escrow payment-rail integrity regression checks passed.');

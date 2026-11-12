@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(34);
+SELECT plan(35);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -19,13 +19,41 @@ INSERT INTO public.transactions (
   id, listing_id, buyer_id, seller_id, amount, status,
   payment_method, paystack_ref, payment_verified, payout_status,
   released_at, completed_at, payout_approved_at
-) VALUES (
+) VALUES
+(
   'f5300000-0000-4000-8000-000000000001',
   'f5200000-0000-4000-8000-000000000001',
   'f5100000-0000-4000-8000-000000000001',
   'f5100000-0000-4000-8000-000000000002',
   12500, 'released', 'paystack', 'payout-fixture-reference-1',
   true, 'approved_for_settlement', now(), now(), now()
+),
+(
+  'f5300000-0000-4000-8000-000000000002',
+  'f5200000-0000-4000-8000-000000000002',
+  'f5100000-0000-4000-8000-000000000001',
+  'f5100000-0000-4000-8000-000000000002',
+  15000, 'released', 'paystack', 'payout-fixture-reference-2',
+  true, 'approved_for_settlement', now(), now(), now()
+);
+
+INSERT INTO public.listings (id, seller_id, title, category, price, status, university)
+VALUES (
+  'f5200000-0000-4000-8000-000000000002',
+  'f5100000-0000-4000-8000-000000000002',
+  'Disputed payout fixture', 'Other', 15000, 'sold', 'University of Lagos'
+);
+
+INSERT INTO public.jury_cases (
+  id, transaction_id, claimant_id, respondent_id, dispute_reason, amount, status
+) VALUES (
+  'f5400000-0000-4000-8000-000000000001',
+  'f5300000-0000-4000-8000-000000000002',
+  'f5100000-0000-4000-8000-000000000001',
+  'f5100000-0000-4000-8000-000000000002',
+  'Payout must remain paused while dispute is open',
+  15000,
+  'open'
 );
 
 SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
@@ -67,6 +95,7 @@ SELECT * FROM public.claim_seller_payout_transfers(10);
 
 SELECT is((SELECT count(*)::integer FROM payout_claim), 1, 'Eligible released Paystack escrow is claimed once');
 SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'processing', 'Claim moves transaction into payout processing');
+SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000002'), 'approved_for_settlement', 'Open dispute prevents payout claim');
 SELECT ok((SELECT reference ~ '^cp_tr_[a-f0-9]{32}$' FROM payout_claim), 'Transfer reference is stable-format and Paystack compatible');
 SELECT is((SELECT count(*)::integer FROM public.claim_seller_payout_transfers(10)), 0, 'Concurrent claim cannot create a second in-flight transfer');
 

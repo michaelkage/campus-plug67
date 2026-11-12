@@ -14,6 +14,9 @@ concurrency:
 
 jobs:
   reconcile:
+    # Reconciliation calls mutate provider-backed transaction state. Keep
+    # scheduled and manual execution on the protected default branch only.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

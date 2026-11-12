@@ -532,7 +532,12 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'duplicate_or_stale', true, 'status', v_previous_status);
   END IF;
   IF v_previous_status IN ('failed','reversed','abandoned','blocked','rejected')
-     OR (v_previous_status = 'needs_attention' AND v_status IN ('otp','needs_attention')) THEN
+     OR (
+       v_previous_status = 'needs_attention'
+       AND v_status IN ('otp','needs_attention')
+       AND (p_transfer_code IS NULL OR p_transfer_code IS NOT DISTINCT FROM v_transfer.provider_transfer_code)
+       AND (p_provider_transfer_id IS NULL OR p_provider_transfer_id IS NOT DISTINCT FROM v_transfer.provider_transfer_id)
+     ) THEN
     RETURN jsonb_build_object(
       'success', true,
       'duplicate_or_stale', true,

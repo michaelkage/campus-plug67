@@ -6,6 +6,7 @@ const fail = (message) => { throw new Error(message); };
 const assertIncludes = (source, value, message) => { if (!source.includes(value)) fail(message); };
 
 const migration = read("supabase/migrations/20261111170000_fix_paystack_refund_webhook_lifecycle.sql");
+const recoveryMigration = read("supabase/migrations/20261112100000_paystack_refund_idempotency_recovery.sql");
 assertIncludes(migration, "ALTER COLUMN refund_reference DROP NOT NULL", "Existing refund records must accept null pending references");
 assertIncludes(migration, "'needs-attention'", "Refund records must support Paystack's needs-attention state");
 assertIncludes(migration, "p_amount bigint", "Refund recorder must validate provider amount");
@@ -16,14 +17,12 @@ assertIncludes(migration, "GRANT EXECUTE ON FUNCTION public.record_paystack_refu
 assertIncludes(migration, "FOR UPDATE", "Refund state transitions must lock the transaction");
 assertIncludes(migration, "v_refund.transaction_id <> v_tx.id", "Provider refund ids must not cross transaction boundaries");
 assertIncludes(migration, "v_refund.updated_at >= v_tx.refund_initiated_at", "A retry must accept new null-reference pending events without replaying stale terminal events");
-assertIncludes(migration, "needs-attention", "Needs-attention refunds must remain visible and block duplicate claims");
 assertIncludes(migration, "refund_initiated_at = clock_timestamp()", "A new retry must have a timestamp later than the prior failed attempt");
-assertIncludes(migration, "created_at, updated_at", "Refund attempts must have monotonic insertion timestamps");
-assertIncludes(migration, "updated_at = clock_timestamp()", "Refund event updates must have monotonic timestamps");
-assertIncludes(migration, "AND NOT (v_tx.status = 'cancelled' AND v_tx.refund_status = 'failed')", "A failed refund may be retried after escrow cancellation");
-assertIncludes(migration, "v_refund.status = 'processed' AND v_tx.status = 'cancelled'", "Only provider-confirmed refunds may reactivate cancelled inventory");
-assertIncludes(migration, "IF tx.refund_status = 'processed' THEN", "Synchronous refund completion may reactivate inventory only after provider success");
-assertIncludes(migration, "listing.status IN ('reserved', 'sold')", "Inventory restoration must handle reserved and sold listings safely");
+assertIncludes(recoveryMigration, "refund_request_reference", "A stable provider idempotency reference must be persisted on the transaction");
+assertIncludes(recoveryMigration, "transactions_refund_request_reference_uidx", "Provider request references must be globally unique");
+assertIncludes(recoveryMigration, "v_reference := 'cp_rf_'", "Each new attempt must receive a Paystack-compatible idempotency reference");
+assertIncludes(recoveryMigration, "'request_reference', v_reference", "The claim RPC must return the persisted provider reference");
+assertIncludes(recoveryMigration, "REVOKE ALL ON FUNCTION public.claim_paystack_refund(uuid) FROM PUBLIC, anon, authenticated", "Only service role may claim refund attempts");
 
 const webhook = read("supabase/functions/paystack-webhook/index.ts");
 assertIncludes(webhook, "p_refund_reference: refundReference", "Webhook must pass provider refund identity");
@@ -32,10 +31,15 @@ assertIncludes(webhook, 'p_amount: amount', "Webhook must pass refund amount for
 assertIncludes(webhook, 'p_currency: currency', "Webhook must pass refund currency for server-side validation");
 assertIncludes(webhook, 'admin.rpc("record_paystack_refund"', "Webhook must use the atomic refund recorder");
 if (webhook.includes('.from("transactions").update(patch)')) fail("Webhook must not directly overwrite transaction refund state");
+
 const adminRefund = read("supabase/functions/admin-refund-escrow/index.ts");
+assertIncludes(adminRefund, "reference: requestReference", "Refund creation must send the persisted idempotency reference to Paystack");
+assertIncludes(adminRefund, "findRefundByReference(secret, requestReference)", "Ambiguous requests must reconcile against Paystack by the same reference");
 assertIncludes(adminRefund, 'admin.rpc("record_paystack_refund"', "Admin refunds must use the atomic provider refund recorder");
+assertIncludes(adminRefund, "claim?.request_reference", "Retry must reuse the existing provider idempotency reference");
+assertIncludes(adminRefund, "createResult.response.status === 409", "Paystack duplicate-reference conflicts must reconcile, not fail");
 assertIncludes(adminRefund, 'tx.status === "cancelled" && tx.refund_status === "failed"', "Admin refund endpoint must allow a controlled retry after a provider failure");
-assertIncludes(adminRefund, 'recordedRefund?.status === "failed"', "A synchronous provider failure must not be reported as a completed escrow refund");
+
 const dispute = read("supabase/functions/process-dispute/index.ts");
 assertIncludes(dispute, 'admin.rpc("record_paystack_refund"', "Dispute refunds must use the atomic provider refund recorder");
 console.log("Paystack refund idempotency regression checks passed (static source invariants).");

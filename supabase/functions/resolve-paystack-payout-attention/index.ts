@@ -33,9 +33,9 @@ Deno.serve(async (req: Request) => {
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const reference = typeof body?.reference === "string" ? body.reference.trim() : "";
   const note = typeof body?.note === "string" ? body.note.trim() : "";
-  if (!reference || body?.confirm_not_created !== true || note.length < 20 || note.length > 500) {
+  if (!reference || note.length < 20 || note.length > 500) {
     return jsonResponse({
-      error: "A transfer reference, explicit no-transfer confirmation and a 20-500 character support note are required",
+      error: "A transfer reference and a 20-500 character support note are required",
     }, 400, {}, req);
   }
 
@@ -104,9 +104,14 @@ Deno.serve(async (req: Request) => {
   if (response.status !== 404) {
     return jsonResponse({ error: payload?.message || "Paystack did not conclusively verify the transfer" }, 502, {}, req);
   }
+  if (body?.confirm_not_created !== true) {
+    return jsonResponse({
+      error: "Paystack returned no transfer. Explicitly confirm that the provider dashboard also shows no transfer before retrying.",
+    }, 409, {}, req);
+  }
   if (transfer.provider_transfer_code || transfer.provider_transfer_id) {
     return jsonResponse({
-      error: "Paystack did not return the transfer, but a provider transfer identifier was already recorded. Manual not-created confirmation is blocked.",
+      error: "A provider transfer identifier was already recorded. Manual not-created confirmation is blocked.",
     }, 409, {}, req);
   }
 

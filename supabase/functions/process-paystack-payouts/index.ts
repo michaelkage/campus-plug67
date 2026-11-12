@@ -88,6 +88,12 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   if (!admin || !serviceKey || !paystackSecret) return json({ error: "Payout worker is not configured" }, 503);
   if (!isServiceRoleRequest(req)) return json({ error: "Forbidden" }, 403);
+  // Transfers remain opt-in until the merchant account, balance controls,
+  // webhook delivery and operational recovery procedures are independently
+  // verified. The scheduled workflow is safe to deploy while this is false.
+  if (Deno.env.get("PAYSTACK_SELLER_PAYOUTS_ENABLED") !== "true") {
+    return json({ success: true, enabled: false, skipped: true, reason: "Seller payout execution is disabled by configuration" });
+  }
 
   const body = await req.json().catch(() => ({}));
   const requestedLimit = body && typeof body === "object" ? Number((body as Record<string, unknown>).limit ?? 10) : 10;

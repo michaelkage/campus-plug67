@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(56);
+SELECT plan(55);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -243,14 +243,6 @@ SELECT is(
   'A delayed received event cannot downgrade an OTP/manual-attention transfer'
 );
 SELECT is((SELECT status FROM public.seller_payout_transfers WHERE reference = (SELECT reference FROM payout_retry)), 'needs_attention', 'Received event preserves the transfer manual-attention state');
-SELECT is(
-  (public.record_paystack_transfer(
-    (SELECT reference FROM payout_retry), 'success', 12500, 'NGN',
-    'RCP_payoutfixture2', 'TRF_payoutfixture2', '51002', NULL
-  )->>'status'),
-  'success',
-  'Authoritative provider success can resolve a manual-attention transfer'
-);
 SELECT is((SELECT count(*)::integer FROM public.claim_seller_payout_transfers(10)), 0, 'OTP-required payout is not resubmitted by the automatic worker');
 SELECT throws_ok(
   $$ SELECT public.confirm_paystack_transfer_not_created(

@@ -85,8 +85,96 @@ ALTER TABLE public.seller_payout_recipients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_payout_transfers ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.seller_payout_recipients FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.seller_payout_transfers FROM PUBLIC, anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.seller_payout_recipients TO service_role;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.seller_payout_transfers TO service_role;
+REVOKE DELETE ON public.seller_payout_recipients, public.seller_payout_transfers FROM service_role;
+GRANT SELECT, INSERT, UPDATE ON public.seller_payout_recipients TO service_role;
+GRANT SELECT, INSERT, UPDATE ON public.seller_payout_transfers TO service_role;
+
+
+CREATE OR REPLACE FUNCTION public.guard_seller_payout_recipient_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $function$
+BEGIN
+  IF NEW.seller_id IS DISTINCT FROM OLD.seller_id
+     OR NEW.provider IS DISTINCT FROM OLD.provider
+     OR NEW.recipient_code IS DISTINCT FROM OLD.recipient_code
+     OR NEW.bank_code IS DISTINCT FROM OLD.bank_code
+     OR NEW.bank_name IS DISTINCT FROM OLD.bank_name
+     OR NEW.account_name IS DISTINCT FROM OLD.account_name
+     OR NEW.account_last4 IS DISTINCT FROM OLD.account_last4
+     OR NEW.currency IS DISTINCT FROM OLD.currency
+     OR NEW.country IS DISTINCT FROM OLD.country
+     OR NEW.verified_at IS DISTINCT FROM OLD.verified_at
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'Verified payout recipient identity is immutable; create a new recipient instead';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS seller_payout_recipient_identity_guard ON public.seller_payout_recipients;
+CREATE TRIGGER seller_payout_recipient_identity_guard
+BEFORE UPDATE ON public.seller_payout_recipients
+FOR EACH ROW EXECUTE FUNCTION public.guard_seller_payout_recipient_mutation();
+
+CREATE OR REPLACE FUNCTION public.guard_seller_payout_transfer_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $function$
+BEGIN
+  IF NEW.transaction_id IS DISTINCT FROM OLD.transaction_id
+     OR NEW.seller_id IS DISTINCT FROM OLD.seller_id
+     OR NEW.recipient_id IS DISTINCT FROM OLD.recipient_id
+     OR NEW.attempt_number IS DISTINCT FROM OLD.attempt_number
+     OR NEW.reference IS DISTINCT FROM OLD.reference
+     OR NEW.amount_kobo IS DISTINCT FROM OLD.amount_kobo
+     OR NEW.currency IS DISTINCT FROM OLD.currency
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'Payout transfer financial identity is immutable';
+  END IF;
+
+  IF OLD.provider_transfer_code IS NOT NULL
+     AND NEW.provider_transfer_code IS DISTINCT FROM OLD.provider_transfer_code THEN
+    RAISE EXCEPTION 'Provider transfer code cannot be replaced';
+  END IF;
+  IF OLD.provider_transfer_id IS NOT NULL
+     AND NEW.provider_transfer_id IS DISTINCT FROM OLD.provider_transfer_id THEN
+    RAISE EXCEPTION 'Provider transfer ID cannot be replaced';
+  END IF;
+  IF OLD.earnings_reversed_at IS NOT NULL
+     AND NEW.earnings_reversed_at IS DISTINCT FROM OLD.earnings_reversed_at THEN
+    RAISE EXCEPTION 'Payout earnings reversal is immutable';
+  END IF;
+  IF NEW.submission_attempts < OLD.submission_attempts THEN
+    RAISE EXCEPTION 'Payout submission attempt count cannot decrease';
+  END IF;
+
+  IF OLD.status = 'success' AND NEW.status NOT IN ('success','reversed') THEN
+    RAISE EXCEPTION 'Successful payout can only remain successful or be reversed';
+  END IF;
+  IF OLD.status IN ('failed','reversed','abandoned','blocked','rejected')
+     AND NEW.status <> OLD.status THEN
+    RAISE EXCEPTION 'Terminal payout attempt status is immutable';
+  END IF;
+  IF OLD.status = 'needs_attention'
+     AND NEW.status NOT IN ('needs_attention','pending','success','failed','reversed') THEN
+    RAISE EXCEPTION 'Invalid payout status transition from manual review';
+  END IF;
+  IF OLD.status IN ('processing','pending')
+     AND NEW.status NOT IN ('processing','pending','needs_attention','success','failed','reversed','abandoned','blocked','rejected') THEN
+    RAISE EXCEPTION 'Invalid payout status transition';
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS seller_payout_transfer_identity_guard ON public.seller_payout_transfers;
+CREATE TRIGGER seller_payout_transfer_identity_guard
+BEFORE UPDATE ON public.seller_payout_transfers
+FOR EACH ROW EXECUTE FUNCTION public.guard_seller_payout_transfer_mutation();
 
 CREATE OR REPLACE FUNCTION public.save_seller_payout_recipient(
   p_seller_id uuid,
@@ -141,14 +229,15 @@ BEGIN
     true, now(), now()
   )
   ON CONFLICT (recipient_code) DO UPDATE
-    SET bank_code = EXCLUDED.bank_code,
-        bank_name = EXCLUDED.bank_name,
-        account_name = EXCLUDED.account_name,
-        account_last4 = EXCLUDED.account_last4,
-        is_active = true,
-        verified_at = now(),
+    SET is_active = true,
         updated_at = now()
     WHERE public.seller_payout_recipients.seller_id = EXCLUDED.seller_id
+      AND public.seller_payout_recipients.bank_code = EXCLUDED.bank_code
+      AND public.seller_payout_recipients.bank_name = EXCLUDED.bank_name
+      AND public.seller_payout_recipients.account_name = EXCLUDED.account_name
+      AND public.seller_payout_recipients.account_last4 = EXCLUDED.account_last4
+      AND public.seller_payout_recipients.currency = EXCLUDED.currency
+      AND public.seller_payout_recipients.country = EXCLUDED.country
   RETURNING * INTO v_recipient;
 
   IF NOT FOUND THEN

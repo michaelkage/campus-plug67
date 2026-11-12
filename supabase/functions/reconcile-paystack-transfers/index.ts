@@ -93,7 +93,9 @@ Deno.serve(async (req: Request) => {
         Number.isSafeInteger(amount) && amount === Number(transfer.amount_kobo) &&
         String(data.currency ?? "").toUpperCase() === "NGN" &&
         actualRecipient === recipient.recipient_code;
-      const status = matches && typeof data.status === "string" ? data.status.toLowerCase() : "needs_attention";
+      const rawStatus = typeof data.status === "string" ? data.status.toLowerCase() : "";
+      const supportedStatuses = ["pending","success","failed","reversed","otp","abandoned","blocked","rejected","received","needs_attention"];
+      const status = matches && supportedStatuses.includes(rawStatus) ? rawStatus : "needs_attention";
       const { data: recorded, error: recordError } = await admin.rpc("record_paystack_transfer", {
         p_reference: transfer.reference,
         p_status: status,
@@ -102,9 +104,11 @@ Deno.serve(async (req: Request) => {
         p_recipient_code: recipient.recipient_code,
         p_transfer_code: typeof data.transfer_code === "string" ? data.transfer_code : null,
         p_provider_transfer_id: data.id != null ? String(data.id) : null,
-        p_message: matches
-          ? (typeof data.failures === "string" ? data.failures : null)
-          : "Transfer verification mismatch: provider amount, currency, reference or recipient differs from the approved payout",
+        p_message: !matches
+          ? "Transfer verification mismatch: provider amount, currency, reference or recipient differs from the approved payout"
+          : !supportedStatuses.includes(rawStatus)
+            ? "Paystack returned an unsupported transfer status; manual review is required"
+            : (typeof data.failures === "string" ? data.failures : null),
       });
       if (recordError) throw new Error(recordError.message);
 

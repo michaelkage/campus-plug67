@@ -188,7 +188,7 @@ BEGIN
        AND COALESCE(t.payment_method, 'paystack') <> 'campus_wallet'
        AND t.paystack_ref IS NOT NULL
        AND t.amount > 0
-       AND t.payout_status IN ('approved_for_settlement', 'failed')
+       AND t.payout_status IN ('approved_for_settlement', 'failed', 'processing')
        AND COALESCE(t.refund_status, '') NOT IN (
          'pending','processing','needs-attention','needs_attention','processed'
        )

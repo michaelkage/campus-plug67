@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.4";
-import { isServiceRoleRequest, jsonResponse, optionsResponse } from "../_shared/auth.ts";
+import { isServiceRoleRequest, optionsResponse } from "../_shared/auth.ts";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceKey = Deno.env.get("EDGE_FUNCTION_SERVICE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";

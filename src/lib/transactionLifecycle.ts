@@ -56,7 +56,7 @@ export function canOpenTransactionDispute(
 function payoutPresentation(tx: TransactionLifecycleInput) {
   const status = tx.payout_status ?? 'not_applicable'
   if (status === 'paid') {
-    return { status, title: 'Seller paid', description: 'The seller payout has been completed.', settled: true }
+    return { status, title: 'Bank transfer successful', description: 'Paystack marked the bank transfer successful. The recipient bank may take additional time to post the funds.', settled: true }
   }
   if (status === 'failed') {
     return { status, title: 'Payout needs attention', description: 'The transaction is resolved, but the payout failed and needs reconciliation.', settled: false }

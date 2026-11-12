@@ -158,6 +158,8 @@ export default function SellerPayoutSettings() {
         </div>
       )}
 
+      {error && <p className="rounded-md bg-error/10 px-3 py-2 text-xs text-error" role="alert">{error}</p>}
+
       {!onboardingEnabled ? (
         <div className="rounded-lg border border-[var(--md-outline-variant)] p-4 text-xs leading-relaxed text-on-surface/55">
           Seller bank setup is not open yet. You can continue using Campus Wallet; Paystack bank payout onboarding will appear here when the payout service is approved.
@@ -217,8 +219,6 @@ export default function SellerPayoutSettings() {
               </label>
             </div>
           )}
-
-          {error && <p className="rounded-md bg-error/10 px-3 py-2 text-xs text-error" role="alert">{error}</p>}
 
           <div className="flex flex-wrap gap-2">
             <button

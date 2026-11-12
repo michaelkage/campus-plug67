@@ -369,7 +369,8 @@ BEGIN
   IF v_previous_status = 'success' AND v_status <> 'reversed' THEN
     RETURN jsonb_build_object('success', true, 'duplicate_or_stale', true, 'status', v_previous_status);
   END IF;
-  IF v_previous_status IN ('failed','reversed','abandoned','blocked','rejected') THEN
+  IF v_previous_status IN ('failed','reversed','abandoned','blocked','rejected')
+     OR (v_previous_status = 'needs_attention' AND v_status IN ('otp','needs_attention')) THEN
     RETURN jsonb_build_object(
       'success', true,
       'duplicate_or_stale', true,
@@ -412,7 +413,7 @@ BEGIN
            provider_status = v_status,
            provider_transfer_code = COALESCE(p_transfer_code, provider_transfer_code),
            provider_transfer_id = COALESCE(p_provider_transfer_id, provider_transfer_id),
-           provider_message = p_message,
+           provider_message = left(p_message, 500),
            failure_reason = left(COALESCE(p_message, 'Paystack reversed the transfer'), 500),
            lease_expires_at = NULL,
            completed_at = COALESCE(completed_at, now()),
@@ -429,7 +430,7 @@ BEGIN
     UPDATE public.transactions
        SET payout_status = 'failed',
            payout_reference = v_transfer.reference,
-           payout_failure_reason = 'Paystack transfer reversed: ' || COALESCE(p_message, 'funds returned to merchant balance')
+           payout_failure_reason = left('Paystack transfer reversed: ' || COALESCE(p_message, 'funds returned to merchant balance'), 500)
      WHERE id = v_tx.id;
 
     INSERT INTO public.notifications(user_id, type, title, body, data)
@@ -446,7 +447,7 @@ BEGIN
            provider_status = v_status,
            provider_transfer_code = COALESCE(p_transfer_code, provider_transfer_code),
            provider_transfer_id = COALESCE(p_provider_transfer_id, provider_transfer_id),
-           provider_message = p_message,
+           provider_message = left(p_message, 500),
            failure_reason = left(COALESCE(p_message, 'Paystack transfer did not complete'), 500),
            lease_expires_at = NULL,
            completed_at = now(),
@@ -456,7 +457,7 @@ BEGIN
     UPDATE public.transactions
        SET payout_status = 'failed',
            payout_reference = v_transfer.reference,
-           payout_failure_reason = COALESCE(p_message, 'Paystack transfer ' || v_status)
+           payout_failure_reason = left(COALESCE(p_message, 'Paystack transfer ' || v_status), 500)
      WHERE id = v_tx.id;
 
     INSERT INTO public.notifications(user_id, type, title, body, data)
@@ -473,7 +474,7 @@ BEGIN
            provider_status = v_status,
            provider_transfer_code = COALESCE(p_transfer_code, provider_transfer_code),
            provider_transfer_id = COALESCE(p_provider_transfer_id, provider_transfer_id),
-           provider_message = p_message,
+           provider_message = left(p_message, 500),
            lease_expires_at = NULL,
            updated_at = now()
      WHERE id = v_transfer.id;

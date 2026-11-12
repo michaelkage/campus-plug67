@@ -226,6 +226,10 @@ INSERT INTO public.seller_payout_transfers (
   now() - interval '31 minutes', now() - interval '31 minutes'
 );
 
+UPDATE public.transactions
+   SET payout_reference = 'cp_tr_manualfixture3'
+ WHERE id = 'f5300000-0000-4000-8000-000000000001';
+
 SELECT is(
   (public.confirm_paystack_transfer_not_created(
     'cp_tr_manualfixture3',

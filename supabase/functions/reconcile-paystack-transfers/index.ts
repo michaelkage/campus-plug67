@@ -118,6 +118,9 @@ Deno.serve(async (req: Request) => {
       });
     } catch (error) {
       console.error("Paystack transfer reconciliation failed", transfer.reference, error instanceof Error ? error.message : "unknown error");
+      await admin.from("seller_payout_transfers")
+        .update({ last_reconciled_at: new Date().toISOString() })
+        .eq("id", transfer.id);
       results.push({ transaction_id: transfer.transaction_id, action: "deferred_internal_error" });
     }
   }

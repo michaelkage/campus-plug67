@@ -192,7 +192,7 @@ Deno.serve(async (req: Request) => {
         // Explicit 4xx validation rejection means no transfer was queued.
         const { data: failed, error } = await admin.rpc("record_paystack_transfer", {
           p_reference: item.reference,
-          p_status: "failed",
+          p_status: "needs_attention",
           p_amount: item.amount_kobo,
           p_currency: "NGN",
           p_recipient_code: item.recipient_code,
@@ -201,7 +201,7 @@ Deno.serve(async (req: Request) => {
           p_message: message.slice(0, 500),
         });
         if (error) throw new Error(error.message);
-        results.push({ transaction_id: item.transaction_id, action: "provider_rejected", result: failed });
+        results.push({ transaction_id: item.transaction_id, action: "provider_rejected_manual_review", result: failed });
         continue;
       }
 

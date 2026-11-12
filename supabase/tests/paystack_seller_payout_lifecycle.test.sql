@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(51);
+SELECT plan(53);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -223,6 +223,16 @@ SELECT is(
   'OTP-required transfers are moved to manual attention rather than auto-finalized'
 );
 SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'needs_attention', 'OTP state is visible in the transaction payout status');
+
+SELECT is(
+  (public.record_paystack_transfer(
+    (SELECT reference FROM payout_retry), 'pending', 12500, 'NGN',
+    'RCP_payoutfixture2', 'TRF_payoutfixture2', '51002', 'Delayed pending event'
+  )->>'status'),
+  'needs_attention',
+  'A delayed pending event cannot downgrade an OTP/manual-attention transfer'
+);
+SELECT is((SELECT status FROM public.seller_payout_transfers WHERE reference = (SELECT reference FROM payout_retry)), 'needs_attention', 'Pending event preserves the transfer manual-attention state');
 SELECT is((SELECT count(*)::integer FROM public.claim_seller_payout_transfers(10)), 0, 'OTP-required payout is not resubmitted by the automatic worker');
 SELECT throws_ok(
   $$ SELECT public.confirm_paystack_transfer_not_created(

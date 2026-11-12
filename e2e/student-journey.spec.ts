@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const email = process.env.E2E_TEST_EMAIL
 const password = process.env.E2E_TEST_PASSWORD
@@ -15,10 +15,19 @@ const journeyRoutes = [
   '/chat',
 ]
 
+async function signIn(page: Page) {
+  await page.goto('/auth')
+  await page.getByLabel('University email').fill(email!)
+  await page.locator('input#password').fill(password!)
+  await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page).toHaveURL(/\/$/)
+}
+
 test.describe('authenticated student journey', () => {
   test.skip(!email || !password, 'Set E2E_TEST_EMAIL and E2E_TEST_PASSWORD GitHub secrets to enable authenticated journey tests.')
 
   test('marketplace discovery and listing form journey works', async ({ page }) => {
+    await signIn(page)
     await page.goto('/marketplace')
     await expect(page).toHaveURL(/\/marketplace$/)
     await expect(page.getByRole('heading', { name: 'Marketplace', exact: true })).toBeVisible()
@@ -28,7 +37,10 @@ test.describe('authenticated student journey', () => {
     await expect(page.getByText('No listings found')).toBeVisible()
     await search.fill('')
 
-    await expect(page.getByText(/All Categories|Textbooks/).first()).toBeVisible()
+    const categoryFilter = page.getByRole('combobox', { name: 'Category filter' })
+    await expect(categoryFilter).toBeVisible()
+    await expect(categoryFilter).toHaveValue('')
+    await expect(categoryFilter.locator('option').filter({ hasText: 'Textbooks' })).toHaveCount(1)
     const firstListing = page.locator('a[href^="/marketplace/"]').first()
     if (await firstListing.count()) {
       await firstListing.click()
@@ -48,12 +60,7 @@ test.describe('authenticated student journey', () => {
   })
 
   test('sign in, traverse core student surfaces, sign out, and return to auth', async ({ page }) => {
-    await page.goto('/auth')
-    await page.getByLabel('University email').fill(email!)
-    await page.getByLabel('Password').fill(password!)
-    await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click()
-
-    await expect(page).toHaveURL(/\/$/)
+    await signIn(page)
 
     for (const route of journeyRoutes) {
       await page.goto(route)
@@ -63,8 +70,8 @@ test.describe('authenticated student journey', () => {
     }
 
     await page.goto('/')
-    await page.getByRole('button', { name: /account|profile/i }).click()
-    await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
+    await page.getByRole('button', { name: 'Account menu' }).click()
+    await page.getByRole('menuitem', { name: 'Sign Out', exact: true }).click()
     await expect(page).toHaveURL(/\/auth(?:\?|$)/, { timeout: 15_000 })
     await expect(page.getByLabel('University email')).toBeVisible()
 

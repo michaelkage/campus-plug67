@@ -13,7 +13,7 @@ export const TX_STEPS = Object.freeze([
   { key: TX_STATUS.LOCKED, label: 'Funds held' },
   { key: TX_STATUS.MEETUP_INITIATED, label: 'Pickup' },
   { key: TX_STATUS.RELEASE_REQUESTED, label: 'Protected release window' },
-  { key: TX_STATUS.RELEASED, label: 'Complete' },
+  { key: TX_STATUS.RELEASED, label: 'Resolved' },
 ])
 
 export const TX_STATUS_META = Object.freeze({

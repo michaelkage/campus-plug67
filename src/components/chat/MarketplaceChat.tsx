@@ -149,35 +149,50 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const subscriptionRef = useRef<any>(null)
+  const conversationEpochRef = useRef(0)
 
   useEffect(() => {
-    setupRealtimeSubscription()
+    const epoch = ++conversationEpochRef.current
+    setMessages([])
+    setOtherUser(null)
+    setupRealtimeSubscription(epoch)
     void (async () => {
-      await fetchOtherUser()
-      // Persist read receipts before loading the conversation so a stale
-      // initial fetch cannot repaint already-read messages as unread.
-      await markMessagesAsRead()
-      await fetchMessages()
+      await fetchOtherUser(epoch)
+      await fetchMessages(epoch)
+      // The realtime subscription also marks pending receipts when it becomes
+      // active or reconnects, closing the gap between initial load and subscribe.
     })()
-    return () => { if (subscriptionRef.current) void supabase.removeChannel(subscriptionRef.current) }
+    return () => {
+      if (conversationEpochRef.current === epoch) conversationEpochRef.current += 1
+      if (subscriptionRef.current) void supabase.removeChannel(subscriptionRef.current)
+    }
   }, [currentUserId, otherUserId, transactionId])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (epoch: number) => {
+    if (conversationEpochRef.current !== epoch) return
     try {
       setLoading(true)
       const conversationQuery = supabase.from('messages').select('*').or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`)
       const { data, error } = await (transactionId ? conversationQuery.eq('transaction_id', transactionId) : conversationQuery.is('transaction_id', null)).order('created_at', { ascending: true })
       if (error) throw error
-      setMessages((data || []).map(msg => ({ ...msg, isOptimistic: false, scanStatus: 'safe' as const })))
-    } catch (err: any) { console.error('Error fetching messages:', err) } finally { setLoading(false) }
+      if (conversationEpochRef.current === epoch) {
+        setMessages((data || []).map(msg => ({ ...msg, isOptimistic: false, scanStatus: 'safe' as const })))
+      }
+    } catch (err: any) { console.error('Error fetching messages:', err) } finally {
+      if (conversationEpochRef.current === epoch) setLoading(false)
+    }
   }
-  const fetchOtherUser = async () => {
-    try { const { data, error } = await supabase.from('profiles').select('*').eq('id', otherUserId).single(); if (error) throw error; setOtherUser(data) }
-    catch (err: any) { console.error('Error fetching chat user profile:', err) }
+  const fetchOtherUser = async (epoch: number) => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', otherUserId).single()
+      if (error) throw error
+      if (conversationEpochRef.current === epoch) setOtherUser(data)
+    } catch (err: any) { console.error('Error fetching chat user profile:', err) }
   }
-  const setupRealtimeSubscription = () => {
+  const setupRealtimeSubscription = (epoch: number) => {
     const subscription = supabase.channel(`chat:${[currentUserId, otherUserId].sort().join(':')}:${transactionId ?? 'general'}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+      if (conversationEpochRef.current !== epoch) return
       const newMsg = payload.new as Message
       if (!newMsg) return
       const relevant = ((newMsg.sender_id === currentUserId && newMsg.receiver_id === otherUserId) || (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId)) && (newMsg.transaction_id ?? null) === (transactionId ?? null)
@@ -203,7 +218,13 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
             })
         }
       } else if (payload.eventType === 'UPDATE') setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...newMsg, isOptimistic: false, scanStatus: 'safe' } : m))
-    }).subscribe()
+    }).subscribe(status => {
+      if (conversationEpochRef.current !== epoch) return
+      // Reconcile unread rows only after Postgres Changes is actually active.
+      // Calling this before SUBSCRIBED leaves a race where a message arrives
+      // after the UPDATE but before the listener is ready.
+      if (status === 'SUBSCRIBED') void markMessagesAsRead()
+    })
     subscriptionRef.current = subscription
   }
   const markMessagesAsRead = async () => {

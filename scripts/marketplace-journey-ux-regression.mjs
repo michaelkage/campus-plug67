@@ -14,6 +14,8 @@ const gigs = read('src/pages/Gigs.jsx');
 const booking = read('src/components/ui/GigBooking.tsx');
 const serviceActions = read('src/components/services/ServiceBookingActions.jsx');
 const inbox = read('src/pages/Chat.jsx');
+assertIncludes(listing, 'liveTx?.id === existingTx?.id ? liveTx : existingTx',
+  'Listing detail must not reuse realtime transaction state from a previous listing');
 
 assertIncludes(listing, 'How a protected purchase works',
   'Marketplace checkout must explain the buyer/seller journey before payment');
@@ -27,10 +29,26 @@ assertIncludes(listing, 'No 24-hour wait is required for buyer QR confirmation.'
   'Buyer QR handoff must not inherit the seller-requested release eligibility gate');
 assertIncludes(listing, '48 hours to dispute',
   'Marketplace guidance must disclose the dispute window');
+assertIncludes(listing, '6. Settlement is confirmed',
+  'Marketplace guidance must distinguish the inspection deadline from confirmed settlement');
+assertIncludes(listing, 'not proof that the seller has already been paid',
+  'Marketplace guidance must not equate transaction resolution with seller payout');
+assertIncludes(listing, 'server settlement is triggered at the deadline. Seller payout confirmation follows separately.',
+  'Seller-requested release must distinguish the settlement deadline from confirmed payout');
+if (listing.includes('funds auto-release at the deadline') || listing.includes('automatically releases the funds when the timer ends')) {
+  fail('Seller-requested release must not imply that transaction resolution guarantees completed payout');
+}
+assertIncludes(listing, 'Server settlement is still being confirmed.',
+  'Expired inspection deadlines must not be presented as completed payouts');
+if (listing.includes('Auto-releases in ')) {
+  fail('Escrow countdown must describe the dispute/inspection deadline, not promise immediate payout');
+}
 
-for (const label of ['Funds held', 'Pickup', 'Protected release window', 'Complete']) {
+for (const label of ['Funds held', 'Pickup', 'Protected release window', 'Resolved']) {
   assertIncludes(states, `label: '${label}'`,
     `Marketplace progress must include the ${label} step`);
+assertIncludes(states, "label: 'Resolved'",
+  'Transaction resolution must not be presented as confirmed payout');
 }
 
 assertIncludes(gigs, 'How service bookings work',

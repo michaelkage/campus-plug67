@@ -4,25 +4,37 @@ import assert from 'node:assert/strict';
 
 const read = (file) => fs.readFileSync(path.join(process.cwd(), file), 'utf8');
 const migration = read('supabase/migrations/20261110161000_restore_paystack_external_payout.sql');
+const refundMigration = read('supabase/migrations/20261111170000_fix_paystack_refund_webhook_lifecycle.sql');
 const adminRefund = read('supabase/functions/admin-refund-escrow/index.ts');
 const disputeFunction = read('supabase/functions/process-dispute/index.ts');
 
-const extract = (name, nextName) => {
-  const start = migration.indexOf(`CREATE OR REPLACE FUNCTION public.${name}`);
+const extract = (source, name, nextName) => {
+  const start = source.indexOf(`CREATE OR REPLACE FUNCTION public.${name}`);
   assert.notEqual(start, -1, `Missing replacement for ${name}`);
-  const end = nextName
-    ? migration.indexOf(`CREATE OR REPLACE FUNCTION public.${nextName}`, start + 1)
-    : migration.indexOf(`REVOKE ALL ON FUNCTION public.${name}`, start + 1);
-  assert.notEqual(end, -1, `Could not isolate ${name}`);
-  return migration.slice(start, end);
+  const nextFunction = nextName
+    ? source.indexOf(`CREATE OR REPLACE FUNCTION public.${nextName}`, start + 1)
+    : -1;
+  if (nextName) {
+    assert.notEqual(nextFunction, -1, `Could not isolate ${name}`);
+    return source.slice(start, nextFunction);
+  }
+  const terminator = source.indexOf("\n$function$;", start);
+  assert.notEqual(terminator, -1, `Could not isolate ${name}`);
+  return source.slice(start, terminator + "\n$function$;".length);
 };
 
-const escrow = extract('process_escrow_action', 'settle_due_paystack_inspections');
-const inspection = extract('settle_due_paystack_inspections', 'resolve_dispute_verdict');
-const verdict = extract('resolve_dispute_verdict');
+const escrow = extract(refundMigration, 'process_escrow_action', 'resolve_dispute_verdict');
+const inspection = extract(migration, 'settle_due_paystack_inspections', 'resolve_dispute_verdict');
+const verdict = extract(refundMigration, 'resolve_dispute_verdict');
 
 const refundBranch = escrow.slice(escrow.indexOf("WHEN 'refund' THEN"), escrow.indexOf("WHEN 'auto_release' THEN"));
-assert.match(refundBranch, /refund_status[^\n]*NOT IN \('pending', 'processing', 'processed'\)/);
+assert.match(refundBranch, /refund_status[^\n]*NOT IN \('pending', 'processing', 'needs-attention', 'processed'\)/);
+assert.ok(refundBranch.includes("tx.status = 'cancelled' AND tx.refund_status IN"),
+  'A failed Paystack refund can be retried after the transaction was cancelled');
+assert.ok(refundBranch.includes("IF tx.refund_status = 'processed' THEN"),
+  'Cancelled inventory may be restored only after provider-confirmed refund success');
+assert.ok(refundMigration.includes("v_refund.status = 'processed' AND v_tx.status = 'cancelled'"),
+  'A processed webhook restores inventory when it arrives after escrow cancellation');
 assert.ok(!refundBranch.includes('INSERT INTO public.plug_credit_ledger'),
   'A Paystack provider refund must not also credit the internal wallet');
 
@@ -51,6 +63,8 @@ assert.ok(!inspection.includes("payout_status = 'paid'"),
 
 const claimantBranch = verdict.slice(verdict.indexOf("IF p_verdict = 'claimant'"), verdict.indexOf("ELSIF p_verdict = 'respondent'"));
 const respondentBranch = verdict.slice(verdict.indexOf("ELSIF p_verdict = 'respondent'"), verdict.indexOf('ELSE\n    RAISE EXCEPTION'));
+assert.ok(claimantBranch.includes("IF v_tx.refund_status = 'processed' THEN"),
+  'A dispute refund must not reactivate inventory while Paystack is still processing it');
 assert.ok(claimantBranch.indexOf('UPDATE public.wallet_escrow_holds') < claimantBranch.indexOf('UPDATE public.transactions'),
   'Wallet refund hold must be resolved before transaction status triggers synchronize it');
 assert.ok(respondentBranch.indexOf('UPDATE public.wallet_escrow_holds') < respondentBranch.indexOf('UPDATE public.transactions'),
@@ -61,10 +75,49 @@ assert.ok(respondentBranch.includes("INSERT INTO public.plug_credit_ledger(user_
 assert.ok(respondentBranch.indexOf("IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN") <
   respondentBranch.indexOf('INSERT INTO public.plug_credit_ledger'),
   'Paystack dispute verdict must not credit the internal wallet');
+assert.ok(respondentBranch.includes("IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN"),
+  'Only Campus Wallet dispute proceeds may settle directly into PlugCredit');
+assert.ok(verdict.includes("ELSE 'approved_for_settlement'"),
+  'Paystack seller-favourable dispute verdict must remain pending external settlement');
+assert.ok(!respondentBranch.includes("payout_status = 'paid'"),
+  'Paystack seller-favourable dispute verdict must not claim a completed bank transfer');
 
+assert.ok(adminRefund.includes('retryingCancelledRefund') && adminRefund.includes('["failed","pending","processing","needs-attention","processed"].includes(tx.refund_status ?? "")'),
+  'Admin refund flow must allow a safe retry after failure and reconciliation while a provider refund is outstanding');
 assert.ok(adminRefund.includes('p_action: "refund"'),
   'Admin Paystack refund must continue through the escrow cancellation RPC');
 assert.ok(disputeFunction.includes('admin.rpc("resolve_dispute_verdict"'),
   'Dispute verdict must continue through the atomic database resolver');
+
+
+const payoutPresentation = read('supabase/migrations/20261112110000_separate_escrow_resolution_from_seller_payout.sql');
+const triggerDefinition = extract(payoutPresentation, 'handle_transaction_update');
+const profileStatsStart = payoutPresentation.indexOf('CREATE OR REPLACE FUNCTION private.get_public_profile_stats');
+assert.notEqual(profileStatsStart, -1, 'Missing payout-aware public profile stats helper');
+const profileStatsEnd = payoutPresentation.indexOf('$function$;', profileStatsStart);
+assert.notEqual(profileStatsEnd, -1, 'Could not isolate payout-aware profile stats helper');
+const profileStats = payoutPresentation.slice(profileStatsStart, profileStatsEnd + '$function$;'.length);
+const earningsTrigger = extract(payoutPresentation, 'credit_seller_earnings_after_external_payout');
+
+assert.ok(triggerDefinition.includes('CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END'),
+  'Paystack escrow resolution must not inflate seller earnings before bank payout');
+assert.ok(triggerDefinition.includes('Campus Wallet Credited'),
+  'Campus Wallet seller notification must confirm the actual internal credit');
+assert.ok(triggerDefinition.includes('bank payout has not yet been confirmed'),
+  'Paystack seller notification must distinguish escrow resolution from bank payout');
+assert.ok(triggerDefinition.includes("'payout_status', 'approved_for_settlement'"),
+  'Paystack seller notification must expose payout as pending settlement');
+assert.ok(profileStats.includes("COALESCE(t.payment_method, 'paystack') = 'campus_wallet'"),
+  'Profile earnings must include Campus Wallet proceeds credited at escrow release');
+assert.ok(profileStats.includes("t.payout_status = 'paid'"),
+  'Profile earnings must include Paystack proceeds only after confirmed transfer success');
+assert.ok(!profileStats.includes("sum(t.amount) FILTER (\n          WHERE t.status = 'released'::text OR t.status = 'completed'::text\n        )"),
+  'Profile earnings must not treat every released Paystack escrow as paid');
+assert.ok(earningsTrigger.includes("OLD.payout_status IS DISTINCT FROM 'paid'"),
+  'Confirmed external payout must credit earnings only on the first paid transition');
+assert.ok(earningsTrigger.includes("NEW.payment_verified IS DISTINCT FROM true"),
+  'External earnings must require a verified payment');
+assert.ok(earningsTrigger.includes("COALESCE(NEW.payment_method, 'paystack') <> 'campus_wallet'"),
+  'External payout earnings trigger must not double-credit Campus Wallet proceeds');
 
 console.log('Escrow payment-rail integrity regression checks passed.');

@@ -58,6 +58,6 @@ const paymentReconciliationWorkflow = read(".github/workflows/payment-reconcilia
 assertIncludes(paymentReconciliationWorkflow, 'cron: "*/10 * * * *"', "Payment and refund reconciliation must run on the established ten-minute schedule");
 assertIncludes(paymentReconciliationWorkflow, 'secrets.SUPABASE_SERVICE_ROLE_KEY', "Scheduled refund reconciliation must use the existing service-role secret contract");
 assertIncludes(paymentReconciliationWorkflow, '/functions/v1/reconcile-paystack-refunds', "Scheduled payment reconciliation must invoke the refund reconciler");
-assertIncludes(paymentReconciliationWorkflow, '--max-time 900', "Refund reconciliation request must allow the bounded 50-item provider lookup batch to finish");
+assertIncludes(paymentReconciliationWorkflow, '--max-time 840', "Refund reconciliation request must allow the bounded 50-item provider lookup batch to finish");
 
 console.log("Paystack refund idempotency and scheduled reconciliation regression checks passed (static source invariants).");

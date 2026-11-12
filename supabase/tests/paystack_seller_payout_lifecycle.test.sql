@@ -28,6 +28,7 @@ INSERT INTO public.transactions (
   true, 'approved_for_settlement', now(), now(), now()
 );
 
+SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
 SELECT set_config('request.jwt.claim.role', 'service_role', true);
 
 INSERT INTO public.seller_payout_recipients (

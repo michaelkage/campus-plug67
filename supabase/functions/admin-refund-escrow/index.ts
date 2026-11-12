@@ -76,8 +76,9 @@ Deno.serve(async (req: Request) => {
     .select("id,listing_id,buyer_id,seller_id,amount,status,payment_method,paystack_ref,refund_status,paystack_refund_id")
     .eq("id", transactionId).single();
   if (txError || !tx) return jsonResponse({ error: "Transaction not found" }, 404, {}, req);
-  const retryingFailedRefund = tx.status === "cancelled" && tx.refund_status === "failed";
-  if (!["locked","meetup_initiated","release_requested","disputed"].includes(tx.status) && !retryingFailedRefund) {
+  const retryingCancelledRefund = tx.status === "cancelled" &&
+    ["failed","pending","processing","needs-attention","processed"].includes(tx.refund_status ?? "");
+  if (!["locked","meetup_initiated","release_requested","disputed"].includes(tx.status) && !retryingCancelledRefund) {
     return jsonResponse({ error: "Transaction cannot be refunded from its current state" }, 400, {}, req);
   }
 
@@ -104,10 +105,15 @@ Deno.serve(async (req: Request) => {
   const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
   if (!secret) {
     if (claim.claimed) {
-      await admin.from("transactions").update({
-        refund_status: "failed",
-        refund_failure_reason: "Paystack refund service is not configured",
-      }).eq("id", tx.id);
+      const { error: failureRecordError } = await recordRefund(tx, {
+        status: "failed",
+        amount: tx.amount,
+        currency: "NGN",
+      });
+      if (failureRecordError) {
+        console.error("Missing Paystack configuration could not be recorded atomically", failureRecordError.message);
+        return jsonResponse({ error: "Paystack refund service is not configured and the attempt could not be reconciled safely" }, 500, {}, req);
+      }
     }
     return jsonResponse({ error: "Paystack refund service is not configured" }, 500, {}, req);
   }

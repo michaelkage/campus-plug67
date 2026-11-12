@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(29);
+SELECT plan(31);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -121,6 +121,15 @@ SELECT is(
 );
 SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'failed', 'Reversed payout is no longer represented as paid');
 SELECT is((SELECT total_earnings FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 0::bigint, 'Reversal compensates the previously credited seller earnings');
+SELECT is(
+  (public.record_paystack_transfer(
+    (SELECT reference FROM payout_claim), 'success', 12500, 'NGN',
+    'RCP_payoutfixture1', 'TRF_payoutfixture1', '51001', NULL
+  )->>'duplicate_or_stale')::boolean,
+  true,
+  'Late success cannot overwrite a conclusive transfer reversal'
+);
+SELECT is((SELECT total_earnings FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 0::bigint, 'Late success after reversal cannot restore earnings');
 
 UPDATE public.seller_payout_transfers
    SET updated_at = now() - interval '10 minutes'

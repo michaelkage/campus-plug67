@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
   const { data: transfers, error } = await admin
     .from("seller_payout_transfers")
     .select("id,transaction_id,reference,amount_kobo,currency,status,recipient_id,last_reconciled_at")
-    .in("status", ["processing", "pending"])
+    .in("status", ["processing", "pending", "needs_attention"])
     .order("last_reconciled_at", { ascending: true, nullsFirst: true })
     .order("updated_at", { ascending: true })
     .limit(10);

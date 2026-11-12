@@ -86,7 +86,8 @@ assert.ok(onboarding.includes('resolveBankName(bankCode)'));
 assert.ok(onboarding.includes('account_number: accountNumber'));
 assert.ok(onboarding.includes('p_account_last4: accountNumber.slice(-4)'));
 assert.ok(!onboarding.includes('p_account_number:'), 'Account number must not be passed to persistence RPC');
-assert.ok(onboarding.includes('return jsonResponse({ recipient: data }, 200, {}, req)'));
+assert.ok(onboarding.includes('bank_name: data.bank_name'));
+assert.ok(!onboarding.includes('recipient_id: data.recipient_id'), 'Internal recipient IDs must not be exposed to clients');
 assert.ok(!onboarding.includes('return jsonResponse({ recipient_code: recipientCode'), 'Provider recipient code must not be exposed in the user response');
 
 assert.ok(worker.includes('claim_seller_payout_transfers'));

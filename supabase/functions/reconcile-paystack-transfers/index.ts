@@ -50,8 +50,9 @@ Deno.serve(async (req: Request) => {
 
   const { data: transfers, error } = await admin
     .from("seller_payout_transfers")
-    .select("id,transaction_id,reference,amount_kobo,currency,status,recipient_id")
+    .select("id,transaction_id,reference,amount_kobo,currency,status,recipient_id,last_reconciled_at")
     .in("status", ["processing", "pending"])
+    .order("last_reconciled_at", { ascending: true, nullsFirst: true })
     .order("updated_at", { ascending: true })
     .limit(10);
   if (error) return jsonResponse({ error: "Could not load outstanding transfers" }, 500, {}, req);
@@ -71,10 +72,16 @@ Deno.serve(async (req: Request) => {
 
       const { response, payload } = await verify(transfer.reference);
       if (response.status === 404) {
+        await admin.from("seller_payout_transfers")
+          .update({ last_reconciled_at: new Date().toISOString() })
+          .eq("id", transfer.id);
         results.push({ transaction_id: transfer.transaction_id, action: "not_yet_visible" });
         continue;
       }
       if (!response.ok || payload?.status !== true || !payload.data) {
+        await admin.from("seller_payout_transfers")
+          .update({ last_reconciled_at: new Date().toISOString() })
+          .eq("id", transfer.id);
         results.push({ transaction_id: transfer.transaction_id, action: "deferred_provider_error", http_status: response.status });
         continue;
       }

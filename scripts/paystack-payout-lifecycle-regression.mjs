@@ -52,6 +52,7 @@ assert.ok(claim.includes("FOR UPDATE OF t SKIP LOCKED"));
 assert.ok(claim.includes("v_last.status = 'processing' AND v_last.lease_expires_at <= now()"));
 assert.ok(claim.includes('v_last.submission_attempts >= 10'), 'Exhausted ambiguous submissions must move to manual review');
 assert.ok(claim.includes("v_last.status IN ('failed','reversed')"));
+assert.ok(claim.includes("inflight.lease_expires_at <= now()"), 'Expired in-flight references must be recoverable without an active recipient');
 assert.ok(claim.includes("'cp_tr_' || replace(gen_random_uuid()::text, '-', '')"));
 assert.ok(claim.includes('WHERE id = v_transfer.recipient_id'), 'A retry must remain bound to its original beneficiary snapshot');
 
@@ -100,6 +101,7 @@ assert.ok(reconciler.includes('actualRecipient === recipient.recipient_code'));
 assert.ok(!reconciler.includes('"/transfer"'), 'Transfer reconciliation must never initiate transfers');
 assert.ok(reconciler.includes('record_paystack_transfer'));
 assert.ok(reconciler.includes('.limit(10)'), 'Scheduled transfer reconciliation must use a bounded batch');
+assert.ok(reconciler.includes('last_reconciled_at'), 'Pending transfer reconciliation must rotate fairly across the backlog');
 
 assert.ok(webhook.includes('event.event === "transfer.success"'));
 assert.ok(webhook.includes('event.event === "transfer.failed"'));

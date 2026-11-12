@@ -17,7 +17,7 @@ INSERT INTO public.transactions (
   id, listing_id, buyer_id, seller_id, amount, status, payment_method, paystack_ref
 ) VALUES
   ('f4300000-0000-4000-8000-000000000001', 'f4200000-0000-4000-8000-000000000001', 'f4100000-0000-4000-8000-000000000001', 'f4100000-0000-4000-8000-000000000002', 10000, 'locked', 'paystack', 'refund-fixture-reference-1'),
-  ('f4300000-0000-4000-8000-000000000002', 'f4200000-0000-4000-8000-000000000001', 'f4100000-0000-4000-8000-000000000001', 'f4100000-0000-4000-8000-000000000002', 20000, 'locked', 'paystack', 'refund-fixture-reference-2');
+  ('f4300000-0000-4000-8000-000000000002', 'f4200000-0000-4000-8000-000000000002', 'f4100000-0000-4000-8000-000000000001', 'f4100000-0000-4000-8000-000000000002', 20000, 'locked', 'paystack', 'refund-fixture-reference-2');
 
 SELECT set_config('request.jwt.claim.role', 'service_role', true);
 UPDATE public.listings SET status = 'sold' WHERE id = 'f4200000-0000-4000-8000-000000000001';

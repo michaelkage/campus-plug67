@@ -42,4 +42,6 @@ assertIncludes(adminRefund, 'tx.status === "cancelled" && tx.refund_status === "
 
 const dispute = read("supabase/functions/process-dispute/index.ts");
 assertIncludes(dispute, 'admin.rpc("record_paystack_refund"', "Dispute refunds must use the atomic provider refund recorder");
+assertIncludes(dispute, "reference: requestReference", "Dispute refunds must use the persisted Paystack idempotency reference");
+assertIncludes(dispute, "fetchPaystackRefund(secret, requestReference)", "Dispute refund retries must reconcile the same provider reference");
 console.log("Paystack refund idempotency regression checks passed (static source invariants).");

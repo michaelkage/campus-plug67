@@ -54,6 +54,19 @@ async function assignJurors(caseId: string, required: number, excludeIds: string
   return selected;
 }
 
+async function fetchPaystackRefund(secret: string, reference: string): Promise<Record<string, unknown> | null> {
+  const query = new URLSearchParams({ reference, perPage: "1", page: "1" });
+  const response = await fetch(`https://api.paystack.co/refund?${query.toString()}`, {
+    headers: { Authorization: `Bearer ${secret}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.status || !Array.isArray(payload.data)) return null;
+  return payload.data.find((item: Record<string, unknown>) =>
+    typeof item.reference === "string" && item.reference.toLowerCase() === reference.toLowerCase()
+  ) ?? null;
+}
+
 async function executeVerdict(juryCase: DisputeCase, verdict: string) {
   if (verdict === "claimant") {
     const { data: tx, error: txError } = await admin.from("transactions")
@@ -63,26 +76,61 @@ async function executeVerdict(juryCase: DisputeCase, verdict: string) {
     if ((tx.payment_method ?? "paystack") !== "campus_wallet") {
       const { data: claim, error: claimError } = await admin.rpc("claim_paystack_refund", { p_transaction_id: tx.id });
       if (claimError) throw claimError;
-      if (claim?.claimed) {
+      if (claim?.status === "needs-attention") {
+        throw new Error("The Paystack refund needs verified customer bank details before this dispute can be financially settled");
+      }
+      if (claim?.claimed || claim?.status === "processing") {
+        const requestReference = claim?.request_reference as string | undefined;
+        if (!requestReference || !/^[A-Za-z0-9_-]{8,64}$/.test(requestReference)) {
+          throw new Error("The Paystack refund idempotency reference is missing; manual reconciliation is required");
+        }
         const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
         if (!secret) throw new Error("Paystack refund service is not configured");
-        const response = await fetch("https://api.paystack.co/refund", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            transaction: tx.paystack_ref,
-            amount: tx.amount,
-            customer_note: `Campus Plug dispute refund for ${tx.paystack_ref}`,
-            merchant_note: `Campus Plug dispute refund for transaction ${tx.id}`,
-          }),
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.status) {
-          const message = payload?.message || "Paystack rejected the dispute refund";
-          await admin.from("transactions").update({ refund_status: "failed", refund_failure_reason: message }).eq("id", tx.id);
-          throw new Error(message);
+        let refund = claim.claimed ? null : await fetchPaystackRefund(secret, requestReference);
+        if (!refund) {
+          let response: Response | null = null;
+          let payload: Record<string, unknown> | null = null;
+          try {
+            response = await fetch("https://api.paystack.co/refund", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                transaction: tx.paystack_ref,
+                amount: tx.amount,
+                reference: requestReference,
+                customer_note: `Campus Plug dispute refund for ${tx.paystack_ref}`,
+                merchant_note: `Campus Plug dispute refund for transaction ${tx.id}`,
+              }),
+              signal: AbortSignal.timeout(15_000),
+            });
+            payload = await response.json().catch(() => null);
+          } catch (error) {
+            console.error("Dispute refund request outcome is ambiguous", error);
+            refund = await fetchPaystackRefund(secret, requestReference);
+            if (!refund) throw new Error("Dispute refund is still being reconciled against its stable Paystack reference");
+          }
+          if (!refund && response?.status === 409) {
+            refund = await fetchPaystackRefund(secret, requestReference);
+            if (!refund) throw new Error("Paystack reports this dispute refund reference already exists but it is not yet retrievable");
+          } else if (!refund && response && (!response.ok || !payload?.status || !payload?.data)) {
+            const message = typeof payload?.message === "string" ? payload.message : "Paystack rejected the dispute refund";
+            if (response.status >= 500 || response.status === 408) {
+              throw new Error("Paystack returned an ambiguous server response; the same refund reference is retained for reconciliation");
+            }
+            await admin.rpc("record_paystack_refund", {
+              p_transaction_reference: tx.paystack_ref,
+              p_refund_reference: null,
+              p_status: "failed",
+              p_amount: tx.amount,
+              p_currency: "NGN",
+            });
+            await admin.from("transactions").update({ refund_status: "failed", refund_failure_reason: message }).eq("id", tx.id);
+            throw new Error(message);
+          } else if (!refund && payload?.data && typeof payload.data === "object") {
+            refund = payload.data as Record<string, unknown>;
+          }
         }
-        const refund = payload.data ?? {};
+        if (!refund) throw new Error("Paystack dispute refund could not yet be confirmed");
         const { error: recordError } = await admin.rpc("record_paystack_refund", {
           p_transaction_reference: tx.paystack_ref,
           p_refund_reference: refund.id != null ? String(refund.id) : null,
@@ -92,14 +140,11 @@ async function executeVerdict(juryCase: DisputeCase, verdict: string) {
         });
         if (recordError) {
           console.error("Dispute refund was initiated but could not be recorded", recordError.message);
-          throw new Error("Dispute refund was initiated but its provider state could not be recorded; reconciliation is required");
+          throw new Error("Dispute refund exists but its provider state could not be recorded; retry will reconcile the same provider reference");
         }
-      } else if (claim?.status === "processing" && !claim?.refund_id) {
-        throw new Error("A Paystack refund is already being initiated for this transaction; dispute settlement will retry after reconciliation");
       }
     }
   }
-
   const { data, error } = await admin.rpc("resolve_dispute_verdict", { p_case_id: juryCase.id, p_verdict: verdict, p_admin_override: false });
   if (error) throw error;
   const messages: Record<string, string> = { claimant: "⚖️ The cross-campus jury found in your favour. Your escrow protection is restored.", respondent: "⚖️ The cross-campus jury found against you. The escrow has been released." };

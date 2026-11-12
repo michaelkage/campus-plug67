@@ -260,6 +260,14 @@ BEGIN
       RETURNING * INTO v_transfer;
     END IF;
 
+    -- A claimed transfer is bound to the recipient captured on that attempt.
+    -- Changing a seller's active bank account must never redirect an in-flight
+    -- provider reference to a different beneficiary.
+    SELECT * INTO v_recipient
+      FROM public.seller_payout_recipients
+     WHERE id = v_transfer.recipient_id;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Payout recipient snapshot is missing'; END IF;
+
     UPDATE public.transactions
        SET payout_status = 'processing',
            payout_reference = v_transfer.reference,

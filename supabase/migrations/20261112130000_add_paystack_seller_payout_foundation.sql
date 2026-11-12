@@ -748,7 +748,7 @@ BEGIN
   UPDATE public.transactions
      SET payout_status = 'failed',
          payout_reference = v_transfer.reference,
-         payout_failure_reason = left('Manual recovery confirmed no provider transfer exists: ' || v_note, 500)
+         payout_failure_reason = CASE WHEN v_transfer.attempt_number < 5 THEN 'Support confirmed no bank transfer was created. A new payout attempt is queued.' ELSE 'Support confirmed no bank transfer was created, but manual settlement is required.' END
    WHERE id = v_tx.id;
 
   INSERT INTO public.notifications(user_id, type, title, body, data)

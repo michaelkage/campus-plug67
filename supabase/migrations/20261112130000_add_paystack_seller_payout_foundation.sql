@@ -356,10 +356,7 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'duplicate_or_stale', true, 'status', v_previous_status);
   END IF;
   IF v_previous_status IN ('failed','reversed','abandoned','blocked','rejected')
-     AND v_status IN ('pending','otp','received') THEN
-    RETURN jsonb_build_object('success', true, 'duplicate_or_stale', true, 'status', v_previous_status);
-  END IF;
-  IF v_previous_status = 'reversed' AND v_status <> 'reversed' THEN
+     AND v_status <> v_previous_status THEN
     RETURN jsonb_build_object('success', true, 'duplicate_or_stale', true, 'status', v_previous_status);
   END IF;
 

@@ -243,6 +243,30 @@ BEGIN
                updated_at = now()
          WHERE id = v_last.id
         RETURNING * INTO v_transfer;
+      ELSIF v_last.status = 'processing'
+         AND v_last.lease_expires_at <= now()
+         AND v_last.submission_attempts >= 10 THEN
+        UPDATE public.seller_payout_transfers
+           SET status = 'needs_attention',
+               failure_reason = 'Transfer submission could not be confirmed after ten same-reference recovery attempts',
+               lease_expires_at = NULL,
+               updated_at = now()
+         WHERE id = v_last.id;
+
+        UPDATE public.transactions
+           SET payout_status = 'needs_attention',
+               payout_failure_reason = 'Transfer submission outcome remains ambiguous; manual Paystack reconciliation is required'
+         WHERE id = v_tx.id;
+
+        INSERT INTO public.notifications(user_id, type, title, body, data)
+        VALUES (
+          v_tx.seller_id,
+          'seller_payout_manual_review',
+          '⚠️ Bank payout needs manual review',
+          'Campus Plug could not confirm the Paystack transfer outcome. No new transfer reference was created. Support must reconcile the existing reference before another attempt.',
+          jsonb_build_object('transaction_id', v_tx.id, 'payout_reference', v_last.reference, 'payout_status', 'needs_attention')
+        );
+        CONTINUE;
       ELSIF v_last.status IN ('failed','reversed')
          AND v_last.attempt_number < 3
          AND v_last.updated_at <= now() - (interval '5 minutes' * v_last.attempt_number) THEN

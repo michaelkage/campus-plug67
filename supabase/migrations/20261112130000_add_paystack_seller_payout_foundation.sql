@@ -654,7 +654,7 @@ BEGIN
            payout_reference = v_transfer.reference,
            payout_failure_reason = CASE
              WHEN v_status = 'otp' THEN 'Paystack transfer requires merchant OTP approval'
-             WHEN v_status = 'needs_attention' THEN left(COALESCE(p_message, 'Paystack transfer requires manual reconciliation'), 500)
+             WHEN v_status = 'needs_attention' THEN 'Paystack requires manual review. Your bank payout is not yet confirmed.'
              ELSE NULL
            END
      WHERE id = v_tx.id;

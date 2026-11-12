@@ -92,7 +92,7 @@ SELECT is(has_function_privilege('authenticated', 'public.record_paystack_transf
 SELECT is(has_table_privilege('service_role', 'public.seller_payout_recipients', 'DELETE'), false, 'Recipient history cannot be deleted');
 SELECT is(has_table_privilege('service_role', 'public.seller_payout_transfers', 'DELETE'), false, 'Transfer audit history cannot be deleted');
 SELECT throws_ok(
-  $ UPDATE public.seller_payout_recipients SET account_last4 = '9999' WHERE seller_id = 'f5100000-0000-4000-8000-000000000002' $,
+  $$ UPDATE public.seller_payout_recipients SET account_last4 = '9999' WHERE seller_id = 'f5100000-0000-4000-8000-000000000002' $$,
   'P0001',
   'Verified payout recipient identity is immutable; create a new recipient instead',
   'Verified recipient identity cannot be rewritten'
@@ -168,13 +168,13 @@ SELECT is(
 );
 SELECT is((SELECT total_earnings::bigint FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 0::bigint, 'Late success after reversal cannot restore earnings');
 SELECT throws_ok(
-  $ UPDATE public.seller_payout_transfers SET amount_kobo = 12499 WHERE reference = (SELECT reference FROM payout_claim) $,
+  $$ UPDATE public.seller_payout_transfers SET amount_kobo = 12499 WHERE reference = (SELECT reference FROM payout_claim) $$,
   'P0001',
   'Payout transfer financial identity is immutable',
   'Transfer amount cannot be changed after claim'
 );
 SELECT throws_ok(
-  $ UPDATE public.seller_payout_transfers SET status = 'success' WHERE reference = (SELECT reference FROM payout_claim) $,
+  $$ UPDATE public.seller_payout_transfers SET status = 'success' WHERE reference = (SELECT reference FROM payout_claim) $$,
   'P0001',
   'Terminal payout attempt status is immutable',
   'A reversed transfer cannot be manually changed back to success'

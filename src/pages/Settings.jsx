@@ -4,6 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
+import SellerPayoutSettings from '@/components/wallet/SellerPayoutSettings'
 
 const defaults={reducedMotion:false,compactMode:false,transactionAlerts:true,chatAlerts:true}
 
@@ -30,6 +31,7 @@ export default function Settings(){
      <div className="flex flex-col gap-3 sm:flex-row sm:items-center"><input className="input flex-1" value={universityInput} onChange={e=>setUniversityInput(e.target.value)} placeholder="e.g. University of Lagos" aria-label="University" /><button className="btn-primary sm:shrink-0" onClick={saveUniversity} disabled={saving}>Save</button></div>
      {profile?.university&&<p className="mt-3 text-xs text-on-surface/40">Current: <span className="text-on-surface/70">{profile.university}</span></p>}
    </section>
+   <SellerPayoutSettings />
    <section className="surface p-5"><div className="flex items-center gap-3 mb-5"><Monitor size={18} className="text-primary"/><div><h2 className="font-black">Appearance</h2><p className="text-xs text-on-surface/40">Your preference is applied immediately.</p></div></div>
      <div className="grid gap-3 sm:grid-cols-2"><button onClick={()=>{setTheme('dark');void saveProfile('dark')}} className={`rounded-md border p-4 text-left ${theme==='dark'?'border-primary/40 bg-primary/10':'border-[var(--md-outline-variant)]'}`}><Moon size={17}/><div className="mt-3 font-bold">Material Dark</div><div className="text-xs text-on-surface/40">Balanced campus default.</div>{theme==='dark'&&<Check className="mt-2 text-primary" size={15}/>}</button><button onClick={()=>{setTheme('amoled');void saveProfile('amoled')}} className={`rounded-md border p-4 text-left ${theme==='amoled'?'border-primary/40 bg-primary/10':'border-[var(--md-outline-variant)]'}`}><Sparkles size={17}/><div className="mt-3 font-bold">AMOLED</div><div className="text-xs text-on-surface/40">True-black surfaces for OLED screens.</div>{theme==='amoled'&&<Check className="mt-2 text-primary" size={15}/>}</button></div>
    </section>

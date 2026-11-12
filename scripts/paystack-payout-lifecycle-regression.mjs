@@ -105,6 +105,7 @@ assert.ok(webhook.includes('admin.rpc("record_paystack_transfer"'));
 assert.ok(workflow.includes('/functions/v1/process-paystack-payouts'));
 assert.ok(workflow.includes('/functions/v1/reconcile-paystack-transfers'));
 assert.ok(workflow.includes('timeout-minutes: 10'));
+assert.ok(workflow.includes("if: github.ref == 'refs/heads/main'"), 'Transfer scheduler must refuse non-main refs');
 assert.ok(workflow.includes("cron: \"*/10 * * * *\""));
 assert.ok(settingsUi.includes("action: 'resolve'"));
 assert.ok(settingsUi.includes('onboardingEnabled'));

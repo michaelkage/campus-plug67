@@ -10,6 +10,7 @@ const webhook = read('supabase/functions/paystack-webhook/index.ts');
 const workflow = read('.github/workflows/seller-payout-reconciliation.yml');
 const settingsUi = read('src/components/wallet/SellerPayoutSettings.tsx');
 const settingsPage = read('src/pages/Settings.jsx');
+const lifecycle = read('src/lib/transactionLifecycle.ts');
 
 assert.ok(migration.includes('CREATE TABLE IF NOT EXISTS public.seller_payout_recipients'));
 assert.ok(migration.includes('CREATE TABLE IF NOT EXISTS public.seller_payout_transfers'));
@@ -68,6 +69,7 @@ assert.ok(record.includes("seller_payout_manual_review"));
 assert.ok(record.includes("CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE 'pending' END"));
 
 assert.ok(onboarding.includes('getAuthenticatedUser(req)'));
+assert.ok(onboarding.includes('PAYSTACK_SELLER_PAYOUT_ONBOARDING_ENABLED'));
 assert.ok(onboarding.includes('enforceRateLimitWithToken'));
 assert.ok(onboarding.includes('resolveAccount(accountNumber, bankCode)'));
 assert.ok(onboarding.includes('normalizeName(input.confirmed_account_name) !== normalizeName(resolved.account_name ?? "")'));
@@ -105,9 +107,14 @@ assert.ok(workflow.includes('/functions/v1/reconcile-paystack-transfers'));
 assert.ok(workflow.includes('timeout-minutes: 10'));
 assert.ok(workflow.includes("cron: \"*/10 * * * *\""));
 assert.ok(settingsUi.includes("action: 'resolve'"));
+assert.ok(settingsUi.includes('onboardingEnabled'));
+assert.ok(settingsUi.includes('executionEnabled'));
 assert.ok(settingsUi.includes("action: 'save'"));
 assert.ok(settingsUi.includes('confirm_ownership: true'));
 assert.ok(settingsUi.includes('Your full account number is sent directly to Paystack'));
 assert.ok(settingsPage.includes('SellerPayoutSettings'));
+assert.ok(lifecycle.includes("status === 'needs_attention'"));
+assert.ok(lifecycle.includes('Bank transfer successful'));
+assert.ok(lifecycle.includes('recipient bank may take additional time'));
 
 console.log('Paystack seller payout lifecycle regression checks passed.');

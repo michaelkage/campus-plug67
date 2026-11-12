@@ -169,6 +169,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "The confirmed account name no longer matches the bank's verified account name. Verify it again." }, 409, {}, req);
     }
 
+    const bankName = await resolveBankName(bankCode);
     const { response, payload } = await paystack<Recipient>("/transferrecipient", {
       method: "POST",
       body: JSON.stringify({
@@ -185,7 +186,6 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: payload?.message || "Paystack could not create the payout recipient" }, 502, {}, req);
     }
 
-    const bankName = await resolveBankName(bankCode);
     const { data, error } = await admin.rpc("save_seller_payout_recipient", {
       p_seller_id: user.id,
       p_recipient_code: recipientCode,

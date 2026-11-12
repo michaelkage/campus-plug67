@@ -43,7 +43,7 @@ assert.ok(claim.includes("t.payment_verified IS TRUE"));
 assert.ok(claim.includes("COALESCE(t.payment_method, 'paystack') <> 'campus_wallet'"));
 assert.ok(claim.includes("t.status IN ('released', 'completed')"));
 assert.ok(claim.includes("t.payout_status IN ('approved_for_settlement', 'failed', 'processing')"));
-assert.ok(claim.includes("dispute.status NOT IN ('closed','decided')"));
+assert.ok(claim.includes("COALESCE(dispute.status, 'open') NOT IN ('closed','decided')"));
 assert.ok(claim.includes("FOR UPDATE OF t SKIP LOCKED"));
 assert.ok(claim.includes("v_last.status = 'processing' AND v_last.lease_expires_at <= now()"));
 assert.ok(claim.includes('v_last.submission_attempts >= 10'), 'Exhausted ambiguous submissions must move to manual review');

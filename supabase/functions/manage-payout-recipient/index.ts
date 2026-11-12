@@ -117,7 +117,15 @@ Deno.serve(async (req: Request) => {
       .eq("is_active", true)
       .maybeSingle();
     if (error) return jsonResponse({ error: "Unable to load saved payout account" }, 500, {}, req);
-    return jsonResponse({ recipient: data ?? null }, 200, {}, req);
+    return jsonResponse({
+      recipient: data ?? null,
+      onboarding_enabled: Deno.env.get("PAYSTACK_SELLER_PAYOUT_ONBOARDING_ENABLED") === "true",
+      payout_execution_enabled: Deno.env.get("PAYSTACK_SELLER_PAYOUTS_ENABLED") === "true",
+    }, 200, {}, req);
+  }
+
+  if (Deno.env.get("PAYSTACK_SELLER_PAYOUT_ONBOARDING_ENABLED") !== "true") {
+    return jsonResponse({ error: "Seller bank payout setup is not open yet" }, 409, {}, req);
   }
 
   const accountNumber = input.account_number;

@@ -128,7 +128,7 @@ SELECT is(
   'Only provider success confirms seller payout'
 );
 SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'paid', 'Confirmed provider success marks transaction payout paid');
-SELECT is((SELECT total_earnings FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 12500::bigint, 'Confirmed payout credits seller earnings exactly once');
+SELECT is((SELECT total_earnings::bigint FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 12500::bigint, 'Confirmed payout credits seller earnings exactly once');
 
 SELECT is(
   (public.record_paystack_transfer(
@@ -138,7 +138,7 @@ SELECT is(
   true,
   'Duplicate success webhook is idempotent'
 );
-SELECT is((SELECT total_earnings FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 12500::bigint, 'Duplicate success does not double-credit earnings');
+SELECT is((SELECT total_earnings::bigint FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 12500::bigint, 'Duplicate success does not double-credit earnings');
 
 SELECT is(
   (public.record_paystack_transfer(
@@ -149,7 +149,7 @@ SELECT is(
   'A provider reversal is recorded as a distinct terminal state'
 );
 SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'failed', 'Reversed payout is no longer represented as paid');
-SELECT is((SELECT total_earnings FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 0::bigint, 'Reversal compensates the previously credited seller earnings');
+SELECT is((SELECT total_earnings::bigint FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 0::bigint, 'Reversal compensates the previously credited seller earnings');
 SELECT is(
   (public.record_paystack_transfer(
     (SELECT reference FROM payout_claim), 'success', 12500, 'NGN',
@@ -158,7 +158,7 @@ SELECT is(
   true,
   'Late success cannot overwrite a conclusive transfer reversal'
 );
-SELECT is((SELECT total_earnings FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 0::bigint, 'Late success after reversal cannot restore earnings');
+SELECT is((SELECT total_earnings::bigint FROM public.profiles WHERE id = 'f5100000-0000-4000-8000-000000000002'), 0::bigint, 'Late success after reversal cannot restore earnings');
 
 UPDATE public.seller_payout_transfers
    SET updated_at = now() - interval '10 minutes'

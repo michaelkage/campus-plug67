@@ -322,9 +322,17 @@ BEGIN
               )
          )
        )
-       AND EXISTS (
-         SELECT 1 FROM public.seller_payout_recipients AS recipient
-          WHERE recipient.seller_id = t.seller_id AND recipient.is_active
+       AND (
+         EXISTS (
+           SELECT 1 FROM public.seller_payout_recipients AS recipient
+            WHERE recipient.seller_id = t.seller_id AND recipient.is_active
+         )
+         OR EXISTS (
+           SELECT 1 FROM public.seller_payout_transfers AS inflight
+            WHERE inflight.transaction_id = t.id
+              AND inflight.status = 'processing'
+              AND inflight.lease_expires_at <= now()
+         )
        )
        AND NOT EXISTS (
          SELECT 1 FROM public.jury_cases AS dispute
@@ -335,14 +343,6 @@ BEGIN
      FOR UPDATE OF t SKIP LOCKED
      LIMIT v_limit
   LOOP
-    SELECT recipient.* INTO v_recipient
-      FROM public.seller_payout_recipients AS recipient
-     WHERE recipient.seller_id = v_tx.seller_id AND recipient.is_active
-     ORDER BY recipient.updated_at DESC
-     LIMIT 1
-     FOR UPDATE;
-    IF NOT FOUND THEN CONTINUE; END IF;
-
     SELECT previous.* INTO v_last
       FROM public.seller_payout_transfers AS previous
      WHERE previous.transaction_id = v_tx.id
@@ -353,6 +353,12 @@ BEGIN
     IF FOUND THEN
       IF v_last.status = 'processing' AND v_last.lease_expires_at <= now()
          AND v_last.submission_attempts < 10 THEN
+        SELECT recipient.* INTO v_recipient
+          FROM public.seller_payout_recipients AS recipient
+         WHERE recipient.id = v_last.recipient_id
+         FOR UPDATE;
+        IF NOT FOUND THEN RAISE EXCEPTION 'In-flight payout recipient snapshot is missing'; END IF;
+
         UPDATE public.seller_payout_transfers
            SET submission_attempts = submission_attempts + 1,
                lease_expires_at = now() + interval '3 minutes',
@@ -386,6 +392,14 @@ BEGIN
       ELSIF v_last.status IN ('failed','reversed')
          AND v_last.attempt_number < 3
          AND v_last.updated_at <= now() - (interval '5 minutes' * v_last.attempt_number) THEN
+        SELECT recipient.* INTO v_recipient
+          FROM public.seller_payout_recipients AS recipient
+         WHERE recipient.seller_id = v_tx.seller_id AND recipient.is_active
+         ORDER BY recipient.updated_at DESC
+         LIMIT 1
+         FOR UPDATE;
+        IF NOT FOUND THEN CONTINUE; END IF;
+
         v_attempt := v_last.attempt_number + 1;
         INSERT INTO public.seller_payout_transfers (
           transaction_id, seller_id, recipient_id, attempt_number,
@@ -401,6 +415,14 @@ BEGIN
         CONTINUE;
       END IF;
     ELSE
+      SELECT recipient.* INTO v_recipient
+        FROM public.seller_payout_recipients AS recipient
+       WHERE recipient.seller_id = v_tx.seller_id AND recipient.is_active
+       ORDER BY recipient.updated_at DESC
+       LIMIT 1
+       FOR UPDATE;
+      IF NOT FOUND THEN CONTINUE; END IF;
+
       v_attempt := 1;
       INSERT INTO public.seller_payout_transfers (
         transaction_id, seller_id, recipient_id, attempt_number,

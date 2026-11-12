@@ -82,8 +82,8 @@ assert.ok(verdict.includes("ELSE 'approved_for_settlement'"),
 assert.ok(!respondentBranch.includes("payout_status = 'paid'"),
   'Paystack seller-favourable dispute verdict must not claim a completed bank transfer');
 
-assert.ok(adminRefund.includes('retryingFailedRefund'),
-  'Admin refund flow must allow a retry after a failed provider refund');
+assert.ok(adminRefund.includes('retryingCancelledRefund') && adminRefund.includes('["failed","pending","processing","needs-attention","processed"].includes(tx.refund_status ?? "")'),
+  'Admin refund flow must allow a safe retry after failure and reconciliation while a provider refund is outstanding');
 assert.ok(adminRefund.includes('p_action: "refund"'),
   'Admin Paystack refund must continue through the escrow cancellation RPC');
 assert.ok(disputeFunction.includes('admin.rpc("resolve_dispute_verdict"'),

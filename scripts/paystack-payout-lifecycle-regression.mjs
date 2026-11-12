@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const migration = read('supabase/migrations/20261112130000_add_paystack_seller_payout_foundation.sql');
+const transitionGuard = read('supabase/migrations/20261112160000_preserve_paystack_payout_manual_attention.sql');
 const onboarding = read('supabase/functions/manage-payout-recipient/index.ts');
 const worker = read('supabase/functions/process-paystack-payouts/index.ts');
 const reconciler = read('supabase/functions/reconcile-paystack-transfers/index.ts');
@@ -13,6 +14,9 @@ const settingsUi = read('src/components/wallet/SellerPayoutSettings.tsx');
 const settingsPage = read('src/pages/Settings.jsx');
 const lifecycle = read('src/lib/transactionLifecycle.ts');
 
+assert.ok(transitionGuard.includes("v_previous_status = 'needs_attention'"));
+assert.ok(transitionGuard.includes("v_status IN ('pending','received')"));
+assert.ok(transitionGuard.includes("'duplicate_or_stale', true"));
 assert.ok(migration.includes('CREATE TABLE IF NOT EXISTS public.seller_payout_recipients'));
 assert.ok(migration.includes('CREATE TABLE IF NOT EXISTS public.seller_payout_transfers'));
 assert.ok(migration.includes('ALTER TABLE public.seller_payout_recipients ENABLE ROW LEVEL SECURITY'));
@@ -76,6 +80,7 @@ assert.ok(record.includes("seller_payout_success"));
 assert.ok(record.includes("seller_payout_reversed"));
 assert.ok(record.includes("seller_payout_manual_review"));
 assert.ok(record.includes("CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE 'pending' END"));
+assert.ok(/delayed pending event cannot downgrade/i.test(read('supabase/tests/paystack_seller_payout_lifecycle.test.sql')));
 
 assert.ok(onboarding.includes('getAuthenticatedUser(req)'));
 assert.ok(onboarding.includes('PAYSTACK_SELLER_PAYOUT_ONBOARDING_ENABLED'));

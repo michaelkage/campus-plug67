@@ -140,6 +140,9 @@ export default function SellerPayoutSettings() {
           <p className="mt-2 text-[11px] text-on-surface/40">
             Verified {new Date(saved.verified_at).toLocaleDateString()} · {saved.currency}
           </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-on-surface/50">
+            Replacing this account applies to future transfer attempts. Transfers already submitted remain bound to the previous account until Paystack resolves them.
+          </p>
         </div>
       )}
 

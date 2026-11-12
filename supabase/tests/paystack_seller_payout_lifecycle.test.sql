@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(40);
+SELECT plan(45);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -202,6 +202,41 @@ SELECT is(
 );
 SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'needs_attention', 'OTP state is visible in the transaction payout status');
 SELECT is((SELECT count(*)::integer FROM public.claim_seller_payout_transfers(10)), 0, 'OTP-required payout is not resubmitted by the automatic worker');
+
+INSERT INTO public.seller_payout_transfers (
+  transaction_id, seller_id, recipient_id, attempt_number,
+  reference, amount_kobo, currency, status, submission_attempts,
+  created_at, updated_at
+) VALUES (
+  'f5300000-0000-4000-8000-000000000001',
+  'f5100000-0000-4000-8000-000000000002',
+  (SELECT id FROM public.seller_payout_recipients WHERE seller_id = 'f5100000-0000-4000-8000-000000000002' AND is_active),
+  3,
+  'cp_tr_manualfixture3',
+  12500, 'NGN', 'needs_attention', 1,
+  now() - interval '31 minutes', now() - interval '31 minutes'
+);
+
+SELECT is(
+  (public.confirm_paystack_transfer_not_created(
+    'cp_tr_manualfixture3',
+    'Support verified the reference is absent from the Paystack dashboard.'
+  )->>'retry_eligible')::boolean,
+  true,
+  'Manual no-transfer confirmation requires a mature, provider-absent reference and remains retry eligible'
+);
+SELECT is((SELECT status FROM public.seller_payout_transfers WHERE reference = 'cp_tr_manualfixture3'), 'failed', 'Manual confirmation closes only the uncreated attempt');
+SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'failed', 'Manual no-transfer confirmation makes the payout safely retryable');
+
+UPDATE public.seller_payout_transfers
+   SET updated_at = now() - interval '16 minutes'
+ WHERE reference = 'cp_tr_manualfixture3';
+
+CREATE TEMP TABLE payout_manual_retry AS
+SELECT * FROM public.claim_seller_payout_transfers(10);
+
+SELECT is((SELECT count(*)::integer FROM payout_manual_retry), 1, 'Manually confirmed absent transfer can be retried with a new attempt');
+SELECT is((SELECT attempt_number::integer FROM payout_manual_retry), 4, 'Manual recovery preserves attempt history and increments attempt number');
 
 SELECT * FROM finish();
 ROLLBACK;

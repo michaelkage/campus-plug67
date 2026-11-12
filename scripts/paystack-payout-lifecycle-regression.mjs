@@ -23,6 +23,7 @@ assert.ok(migration.includes("account_last4 text NOT NULL"));
 assert.ok(migration.includes("recipient_code ~ '^RCP_[A-Za-z0-9]+$'"));
 assert.ok(migration.includes("reference ~ '^[a-z0-9_-]+$'"));
 assert.ok(migration.includes("UNIQUE(transaction_id, attempt_number)"));
+assert.ok(migration.includes('seller_payout_transfer_provider_id_uidx'));
 
 const saveRecipient = migration.slice(
   migration.indexOf('CREATE OR REPLACE FUNCTION public.save_seller_payout_recipient'),
@@ -59,6 +60,7 @@ assert.ok(record.includes("UPDATE public.transactions\n       SET payout_status 
 assert.ok(record.includes("UPDATE public.transactions\n       SET payout_status = 'failed'"));
 assert.ok(record.includes("v_previous_status = 'success' AND v_transfer.earnings_reversed_at IS NULL"));
 assert.ok(record.includes("GREATEST(COALESCE(total_earnings, 0) - v_tx.amount, 0)"));
+assert.ok(record.includes("AND v_status <> v_previous_status"), 'Terminal provider transfer states cannot be overwritten by stale events');
 assert.ok(record.includes("CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE 'pending' END"));
 
 assert.ok(onboarding.includes('getAuthenticatedUser(req)'));
@@ -80,11 +82,13 @@ assert.ok(worker.includes('deferred_ambiguous_submission'));
 assert.ok(worker.includes('initiated.response.status === 409'));
 assert.ok(worker.includes('p_status: "needs_attention"'));
 assert.ok(worker.includes('isServiceRoleRequest(req)'));
+assert.ok(worker.includes('PAYSTACK_SELLER_PAYOUTS_ENABLED') && worker.includes('!== "true"'), 'Actual money movement must remain disabled until explicitly enabled');
 
 assert.ok(reconciler.includes('/transfer/verify/'));
 assert.ok(reconciler.includes('actualRecipient === recipient.recipient_code'));
 assert.ok(!reconciler.includes('"/transfer"'), 'Transfer reconciliation must never initiate transfers');
 assert.ok(reconciler.includes('record_paystack_transfer'));
+assert.ok(reconciler.includes('.limit(10)'), 'Scheduled transfer reconciliation must use a bounded batch');
 
 assert.ok(webhook.includes('event.event === "transfer.success"'));
 assert.ok(webhook.includes('event.event === "transfer.failed"'));

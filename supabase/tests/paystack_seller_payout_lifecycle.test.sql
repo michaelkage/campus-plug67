@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(49);
+SELECT plan(51);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -91,6 +91,8 @@ SELECT is(has_function_privilege('authenticated', 'public.claim_seller_payout_tr
 SELECT is(has_function_privilege('authenticated', 'public.record_paystack_transfer(text,text,bigint,text,text,text,text,text)', 'EXECUTE'), false, 'Only service role can record provider transfer events');
 SELECT is(has_table_privilege('service_role', 'public.seller_payout_recipients', 'DELETE'), false, 'Recipient history cannot be deleted');
 SELECT is(has_table_privilege('service_role', 'public.seller_payout_transfers', 'DELETE'), false, 'Transfer audit history cannot be deleted');
+SELECT is(has_table_privilege('service_role', 'public.seller_payout_recipients', 'TRUNCATE'), false, 'Recipient history cannot be truncated');
+SELECT is(has_table_privilege('service_role', 'public.seller_payout_transfers', 'TRUNCATE'), false, 'Transfer audit history cannot be truncated');
 SELECT throws_ok(
   $$ UPDATE public.seller_payout_recipients SET account_last4 = '9999' WHERE seller_id = 'f5100000-0000-4000-8000-000000000002' $$,
   'P0001',

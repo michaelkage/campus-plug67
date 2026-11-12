@@ -25,6 +25,9 @@ assert.ok(migration.includes("recipient_code ~ '^RCP_[A-Za-z0-9]+$'"));
 assert.ok(migration.includes("reference ~ '^[a-z0-9_-]+$'"));
 assert.ok(migration.includes("UNIQUE(transaction_id, attempt_number)"));
 assert.ok(migration.includes('seller_payout_transfer_provider_id_uidx'));
+assert.ok(migration.includes('REVOKE DELETE ON public.seller_payout_recipients, public.seller_payout_transfers FROM service_role'));
+assert.ok(migration.includes('guard_seller_payout_recipient_mutation'));
+assert.ok(migration.includes('guard_seller_payout_transfer_mutation'));
 
 const saveRecipient = migration.slice(
   migration.indexOf('CREATE OR REPLACE FUNCTION public.save_seller_payout_recipient'),
@@ -66,6 +69,7 @@ assert.ok(record.includes("v_previous_status IN ('failed','reversed','abandoned'
 assert.ok(record.includes("seller_payout_success"));
 assert.ok(record.includes("seller_payout_reversed"));
 assert.ok(record.includes("seller_payout_manual_review"));
+assert.ok(record.includes("Terminal payout attempt status is immutable"));
 assert.ok(record.includes("CASE WHEN v_status IN ('otp','needs_attention') THEN 'needs_attention' ELSE 'pending' END"));
 
 assert.ok(onboarding.includes('getAuthenticatedUser(req)'));

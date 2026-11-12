@@ -54,3 +54,9 @@ assertIncludes(refundReconciler, '.in("refund_status", ["pending", "processing",
 assertIncludes(refundReconciler, 'admin.rpc(\n        "record_paystack_refund"', "Refund reconciliation must persist provider state through the atomic recorder");
 assertIncludes(refundReconciler, 'fetchRefund(tx.refund_request_reference)', "Refund reconciliation must query Paystack using the persisted idempotency reference");
 if (refundReconciler.includes('method: "POST"')) fail("Refund reconciliation must never initiate a new provider refund");
+
+const paymentReconciliationWorkflow = read(".github/workflows/payment-reconciliation.yml");
+assertIncludes(paymentReconciliationWorkflow, 'cron: "*/10 * * * *"', "Payment and refund reconciliation must run on the established ten-minute schedule");
+assertIncludes(paymentReconciliationWorkflow, 'secrets.SUPABASE_SERVICE_ROLE_KEY', "Scheduled refund reconciliation must use the existing service-role secret contract");
+assertIncludes(paymentReconciliationWorkflow, '/functions/v1/reconcile-paystack-refunds', "Scheduled payment reconciliation must invoke the refund reconciler");
+assertIncludes(paymentReconciliationWorkflow, '--max-time 900', "Refund reconciliation request must allow the bounded 50-item provider lookup batch to finish");

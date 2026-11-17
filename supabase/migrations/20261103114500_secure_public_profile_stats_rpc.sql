@@ -1,0 +1,191 @@
+-- Keep public resume verification available without granting anonymous
+-- access to the underlying transaction or rating tables.
+--
+-- The exposed RPC is SECURITY INVOKER. Its narrowly scoped helper lives in
+-- the unexposed private schema and returns only the public profile projection.
+
+CREATE SCHEMA IF NOT EXISTS private;
+REVOKE ALL ON SCHEMA private FROM PUBLIC;
+GRANT USAGE ON SCHEMA private TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION private.get_public_profile_stats(p_profile_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+  WITH tx_stats AS (
+    SELECT
+      t.seller_id,
+      count(*) FILTER (
+        WHERE t.status = 'released'::text OR t.status = 'completed'::text
+      ) AS total_sales,
+      COALESCE(
+        sum(t.amount) FILTER (
+          WHERE t.status = 'released'::text OR t.status = 'completed'::text
+        ),
+        0::numeric
+      ) AS total_earnings
+    FROM public.transactions AS t
+    WHERE t.seller_id = p_profile_id
+    GROUP BY t.seller_id
+  )
+  SELECT pg_catalog.to_jsonb(stats)
+  FROM (
+    SELECT
+      p.id,
+      p.full_name,
+      p.university,
+      p.department,
+      p.level,
+      p.plug_score,
+      COALESCE(tx_stats.total_sales, 0::bigint) AS total_sales,
+      COALESCE(tx_stats.total_earnings, 0::numeric) AS total_earnings,
+      p.badges,
+      p.is_verified,
+      p.created_at,
+      COALESCE(rating_stats.avg_rating, 0::numeric) AS avg_rating,
+      COALESCE(rating_stats.rating_count, 0::bigint) AS rating_count,
+      (
+        SELECT count(*)
+        FROM public.listings AS listing
+        WHERE listing.seller_id = p.id
+          AND listing.status = 'active'
+      ) AS active_listings,
+      (
+        SELECT count(*)
+        FROM public.listing_exif_flags AS exif
+        JOIN public.listings AS listing ON listing.id = exif.listing_id
+        WHERE listing.seller_id = p.id
+          AND NOT exif.gps_mismatch
+          AND NOT exif.timestamp_flag
+      ) AS verified_uploads
+    FROM public.profiles AS p
+    LEFT JOIN tx_stats ON p.id = tx_stats.seller_id
+    LEFT JOIN public.profile_ratings AS rating_stats ON p.id = rating_stats.profile_id
+    WHERE p.id = p_profile_id
+  ) AS stats;
+$function$;
+
+REVOKE ALL ON FUNCTION private.get_public_profile_stats(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION private.get_public_profile_stats(uuid) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_public_profile_stats(p_profile_id uuid)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $function$
+  SELECT private.get_public_profile_stats(p_profile_id);
+$function$;
+
+REVOKE ALL ON FUNCTION public.get_public_profile_stats(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_public_profile_stats(uuid) TO anon, authenticated;
+
+-- The browser now uses the RPC. Retire direct access to the view because its
+-- SECURITY INVOKER definition would otherwise require broad base-table grants.
+REVOKE ALL PRIVILEGES ON TABLE public.public_profile_stats FROM PUBLIC, anon, authenticated;
+
+-- Retire direct access to the aggregate view as well. Both profile surfaces
+-- now consume the narrowly scoped public stats RPC; raw rating rows stay private.
+ALTER VIEW public.profile_ratings SET (security_invoker = true);
+REVOKE ALL PRIVILEGES ON TABLE public.profile_ratings FROM PUBLIC, anon, authenticated;
+
+DO $assertions$
+DECLARE
+  helper_oid oid := to_regprocedure('private.get_public_profile_stats(uuid)');
+  public_oid oid := to_regprocedure('public.get_public_profile_stats(uuid)');
+  sample_profile_id uuid;
+  sample_stats jsonb;
+BEGIN
+  IF helper_oid IS NULL OR public_oid IS NULL THEN
+    RAISE EXCEPTION 'Public profile stats RPC functions were not created';
+  END IF;
+
+  IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = helper_oid) THEN
+    RAISE EXCEPTION 'Private profile stats helper must be SECURITY DEFINER';
+  END IF;
+
+  IF NOT (
+    SELECT coalesce(proconfig, ARRAY[]::text[]) @> ARRAY['search_path=""']
+    FROM pg_proc WHERE oid = helper_oid
+  ) THEN
+    RAISE EXCEPTION 'Private profile stats helper must pin an empty search_path';
+  END IF;
+
+  IF NOT has_schema_privilege('anon', 'private', 'USAGE')
+     OR NOT has_schema_privilege('authenticated', 'private', 'USAGE')
+     OR NOT has_function_privilege('anon', helper_oid, 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', helper_oid, 'EXECUTE') THEN
+    RAISE EXCEPTION 'Client roles need private helper usage and execute for the public wrapper';
+  END IF;
+
+  IF (SELECT prosecdef FROM pg_proc WHERE oid = public_oid) THEN
+    RAISE EXCEPTION 'Public profile stats RPC must remain SECURITY INVOKER';
+  END IF;
+
+  IF NOT (
+    SELECT coalesce(proconfig, ARRAY[]::text[]) @> ARRAY['search_path=""']
+    FROM pg_proc WHERE oid = public_oid
+  ) THEN
+    RAISE EXCEPTION 'Public profile stats RPC must pin an empty search_path';
+  END IF;
+
+  IF NOT (
+    SELECT coalesce(reloptions, ARRAY[]::text[]) @> ARRAY['security_invoker=true']
+    FROM pg_class WHERE oid = 'public.profile_ratings'::regclass
+  ) THEN
+    RAISE EXCEPTION 'profile_ratings must use SECURITY INVOKER';
+  END IF;
+
+  IF has_table_privilege('anon', 'public.public_profile_stats', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.public_profile_stats', 'SELECT')
+     OR has_table_privilege('anon', 'public.profile_ratings', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.profile_ratings', 'SELECT') THEN
+    RAISE EXCEPTION 'Direct access to legacy profile aggregate views must be revoked';
+  END IF;
+
+  IF NOT has_function_privilege('anon', public_oid, 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', public_oid, 'EXECUTE') THEN
+    RAISE EXCEPTION 'Public profile stats RPC must be executable by anon and authenticated';
+  END IF;
+
+  IF has_table_privilege('anon', 'public.profile_ratings', 'INSERT')
+     OR has_table_privilege('anon', 'public.profile_ratings', 'UPDATE')
+     OR has_table_privilege('anon', 'public.profile_ratings', 'DELETE')
+     OR has_table_privilege('authenticated', 'public.profile_ratings', 'INSERT')
+     OR has_table_privilege('authenticated', 'public.profile_ratings', 'UPDATE')
+     OR has_table_privilege('authenticated', 'public.profile_ratings', 'DELETE') THEN
+    RAISE EXCEPTION 'Aggregate profile_ratings view must be read-only for client roles';
+  END IF;
+
+  SELECT p.id
+  INTO sample_profile_id
+  FROM public.profiles AS p
+  ORDER BY p.created_at DESC
+  LIMIT 1;
+
+  IF sample_profile_id IS NOT NULL THEN
+    sample_stats := public.get_public_profile_stats(sample_profile_id);
+
+    IF sample_stats IS NULL
+       OR sample_stats->>'id' IS DISTINCT FROM sample_profile_id::text
+       OR NOT (sample_stats ?& ARRAY[
+         'full_name',
+         'university',
+         'total_sales',
+         'total_earnings',
+         'avg_rating',
+         'rating_count',
+         'active_listings',
+         'verified_uploads'
+       ]) THEN
+      RAISE EXCEPTION 'Public profile stats RPC returned an incomplete projection';
+    END IF;
+  END IF;
+END;
+$assertions$;
+
+NOTIFY pgrst, 'reload schema';

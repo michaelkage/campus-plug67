@@ -1,0 +1,29 @@
+name: Campus Plug Payment Reconciliation
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: campus-plug-payment-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reconcile pending Paystack payments
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
+          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
+
+          curl --fail-with-body --silent --show-error             --retry 3 --retry-delay 3 --retry-all-errors --max-time 240             -X POST             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}"             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"             -H "Content-Type: application/json"             "${SUPABASE_URL}/functions/v1/reconcile-pending-payments"

@@ -1,0 +1,313 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
+import { supabase, scanChatMessage } from '@/lib/supabase'
+import { writeSecurityAudit } from '@/lib/audit'
+import { useAuth } from '@/contexts/AuthContext'
+import { scanLive } from '@/lib/chatScanner'
+import { Shield, AlertTriangle, Send, Lock, Info, X, Pencil, Check, Trash2, Loader } from 'lucide-react'
+import { Database } from '@/types/database'
+
+type Message = Database['public']['Tables']['messages']['Row']
+type Profile = Database['public']['Tables']['profiles']['Row']
+
+interface MarketplaceChatProps {
+  currentUserId: string
+  otherUserId: string
+  transactionId?: string
+}
+
+interface OptimisticMessage extends Omit<Message, 'id' | 'created_at'> {
+  id: string
+  created_at: string
+  isOptimistic: boolean
+  scanStatus: 'pending' | 'safe' | 'flagged' | 'error'
+}
+
+interface ChatSecurityWarning {
+  show: boolean
+  message: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+}
+
+const EDIT_WINDOW_MS = 60_000 // 60 seconds
+
+function useEditableMessage(message: any) {
+  const [canEdit, setCanEdit] = useState(false)
+  const [msLeft, setMsLeft] = useState(0)
+
+  useEffect(() => {
+    if (!message?.created_at || message.isOptimistic || message.content === '[Message deleted]') return
+    const isSystem = message.content?.startsWith('🔐') || message.content?.startsWith('📍') || message.content?.startsWith('🚨') || message.content?.startsWith('✅')
+    if (isSystem) return
+    const tick = () => {
+      const age = Date.now() - new Date(message.created_at).getTime()
+      const left = Math.max(0, EDIT_WINDOW_MS - age)
+      setMsLeft(left)
+      setCanEdit(left > 0)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [message?.created_at, message?.content, message?.isOptimistic])
+
+  return { canEdit, msLeft }
+}
+
+function SystemMessage({ body }: { body: string }) {
+  const isDispute = body.includes('Dispute') || body.includes('dispute') || body.includes('🚨')
+  const isComplete = body.includes('complete') || body.includes('Released') || body.includes('✅')
+  const isLocked = body.includes('locked') || body.includes('🔐')
+  const cls = isDispute ? 'border-error/30 bg-error/5 text-error/80' : isComplete ? 'border-primary/30 bg-primary/5 text-primary/80' : isLocked ? 'border-primary/30 bg-primary/5 text-[var(--md-primary)]/80' : 'border-outline-variant bg-[var(--md-surface-container-high)] text-[var(--md-on-surface-variant)]'
+  return <div className={`mx-auto my-2 max-w-xs rounded-md border px-4 py-2 text-center text-xs font-medium ${cls}`}>{body}</div>
+}
+
+function TrustGuardWarning({ result, onDismiss }: any) {
+  if (!result || result.clean) return null
+  const critical = result.blocked
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} className={`mx-4 mb-2 rounded-md border p-3 ${critical ? 'border-[var(--md-error)]\/40 bg-[var(--md-error-container)]' : 'border-[var(--md-secondary)]\/40 bg-[var(--md-secondary-container)]\/30'}`}>
+      <div className="flex items-start gap-2.5">
+        <div className="mt-0.5 shrink-0">{critical ? <AlertTriangle size={14} className="text-error" /> : <Shield size={14} className="text-tertiary" />}</div>
+        <div className="min-w-0 flex-1">
+          <div className={`mb-0.5 text-xs font-bold ${critical ? 'text-error' : 'text-tertiary'}`}>{critical ? '🚨 Trust Guard: Escrow Protection at Risk' : '⚠️ Trust Guard Warning'}</div>
+          <div className="text-xs leading-relaxed text-[var(--md-on-surface-variant)]">{result.message}</div>
+          <div className="mt-1.5 text-xs italic text-[var(--md-on-surface-variant)]">Stay in-app to keep your PlugPay protection and PlugScore bonuses active.</div>
+        </div>
+        {!critical && <button onClick={onDismiss} className="shrink-0 text-[var(--md-on-surface-variant)] hover:text-on-surface/50"><X size={12} /></button>}
+      </div>
+    </motion.div>
+  )
+}
+
+interface MessageBubbleProps {
+  message: OptimisticMessage
+  isOwn: boolean
+  onEdit: (msgId: string, newContent: string, originalContent: string) => Promise<void>
+  onDelete: (msgId: string, originalContent: string) => Promise<void>
+}
+
+function MessageBubble({ message, isOwn, onEdit, onDelete }: MessageBubbleProps) {
+  const { canEdit, msLeft } = useEditableMessage(isOwn ? message : null)
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(message.content)
+  const [saving, setSaving] = useState(false)
+  const isSystem = message.content?.startsWith('🔐') || message.content?.startsWith('📍') || message.content?.startsWith('🚨') || message.content?.startsWith('✅')
+  if (isSystem) return <SystemMessage body={message.content} />
+  const isDeleted = message.content === '[Message deleted]'
+  const handleSaveEdit = async () => {
+    if (!editText.trim() || editText === message.content) { setEditing(false); return }
+    setSaving(true)
+    try { await onEdit(message.id, editText.trim(), message.content) } finally { setSaving(false); setEditing(false) }
+  }
+  const editSecs = Math.ceil(msLeft / 1000)
+  return (
+    <motion.div initial={{ opacity: 0, y: 6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.15 }} className={`group mb-1 flex ${isOwn ? 'justify-end' : 'justify-start'} px-4`}>
+      <div className="max-w-[72%]">
+        {editing ? (
+          <div className="flex items-end gap-2">
+            <textarea className="resize-none rounded-md border border-[var(--md-primary)] bg-[var(--md-surface-container-high)] px-3 py-2 text-sm text-on-surface outline-none" rows={2} value={editText} onChange={e => setEditText(e.target.value)} autoFocus />
+            <div className="flex flex-col gap-1">
+              <button onClick={handleSaveEdit} disabled={saving} className="rounded-lg bg-primary/20 p-1.5 text-primary hover:bg-primary/30 disabled:opacity-50"><Check size={13} /></button>
+              <button onClick={() => { setEditing(false); setEditText(message.content) }} className="rounded-lg bg-[var(--md-surface-container-high)] p-1.5 text-[var(--md-on-surface-variant)] hover:text-on-surface"><X size={13} /></button>
+            </div>
+          </div>
+        ) : (
+          <div className={`rounded-md px-4 py-2.5 text-sm leading-relaxed ${isOwn ? 'rounded-br-sm bg-primary font-medium text-on-primary' : 'rounded-bl-sm border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] text-[var(--md-on-surface)]'} ${isDeleted ? 'italic opacity-40' : ''}`}>{message.content}</div>
+        )}
+        <div className={`mt-0.5 flex items-center gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+          <div className="text-[10px] text-on-surface/35">{new Date(message.created_at).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}{isOwn && <span className="ml-1">{message.read ? '✓✓' : '✓'}</span>}</div>
+          {isOwn && !isDeleted && !editing && !message.isOptimistic && <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            {canEdit && <button onClick={() => setEditing(true)} className="flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 text-[9px] text-[var(--md-on-surface-variant)] transition-colors hover:bg-primary/10 hover:text-[var(--md-primary)]" title={`Edit (${editSecs}s remaining)`}><Pencil size={9} /> {editSecs}s</button>}
+            {canEdit && <button onClick={() => onDelete(message.id, message.content)} className="rounded p-0.5 text-[var(--md-on-surface-variant)] transition-colors hover:bg-error/10 hover:text-error" title="Delete (within 60s)"><Trash2 size={10} /></button>}
+          </div>}
+          {message.isOptimistic && <span className={`font-mono text-[9px] ${message.scanStatus === 'pending' ? 'text-yellow-400' : 'text-red-400'}`}>{message.scanStatus === 'pending' ? 'SENDING...' : message.scanStatus === 'flagged' ? 'FLAGGED' : 'FAILED'}</span>}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+function DateSep({ date }: { date: string }) {
+  const d = new Date(date), today = new Date()
+  const diff = Math.floor((today.getTime() - d.getTime()) / 86400000)
+  const label = diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : d.toLocaleDateString('en-NG', { weekday: 'long', month: 'short', day: 'numeric' })
+  return <div className="my-3 flex items-center gap-3 px-4"><div className="h-px flex-1 bg-surface-container-highest" /><span className="text-[10px] font-medium text-[var(--md-on-surface-variant)]">{label}</span><div className="h-px flex-1 bg-surface-container-highest" /></div>
+}
+
+export default function MarketplaceChat({ currentUserId, otherUserId, transactionId }: MarketplaceChatProps) {
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  const [messages, setMessages] = useState<OptimisticMessage[]>([])
+  const [otherUser, setOtherUser] = useState<Profile | null>(null)
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [scanResult, setScanResult] = useState<any>(null)
+  const [warnDismissed, setWarnDismissed] = useState(false)
+  const [securityWarning, setSecurityWarning] = useState<ChatSecurityWarning>({ show: false, message: '', severity: 'medium' })
+  const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const subscriptionRef = useRef<any>(null)
+
+  useEffect(() => {
+    setupRealtimeSubscription()
+    void (async () => {
+      await fetchOtherUser()
+      // Persist read receipts before loading the conversation so a stale
+      // initial fetch cannot repaint already-read messages as unread.
+      await markMessagesAsRead()
+      await fetchMessages()
+    })()
+    return () => { if (subscriptionRef.current) void supabase.removeChannel(subscriptionRef.current) }
+  }, [currentUserId, otherUserId, transactionId])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  const fetchMessages = async () => {
+    try {
+      setLoading(true)
+      const conversationQuery = supabase.from('messages').select('*').or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`)
+      const { data, error } = await (transactionId ? conversationQuery.eq('transaction_id', transactionId) : conversationQuery.is('transaction_id', null)).order('created_at', { ascending: true })
+      if (error) throw error
+      setMessages((data || []).map(msg => ({ ...msg, isOptimistic: false, scanStatus: 'safe' as const })))
+    } catch (err: any) { console.error('Error fetching messages:', err) } finally { setLoading(false) }
+  }
+  const fetchOtherUser = async () => {
+    try { const { data, error } = await supabase.from('profiles').select('*').eq('id', otherUserId).single(); if (error) throw error; setOtherUser(data) }
+    catch (err: any) { console.error('Error fetching chat user profile:', err) }
+  }
+  const setupRealtimeSubscription = () => {
+    const subscription = supabase.channel(`chat:${[currentUserId, otherUserId].sort().join(':')}:${transactionId ?? 'general'}`).on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+      const newMsg = payload.new as Message
+      if (!newMsg) return
+      const relevant = ((newMsg.sender_id === currentUserId && newMsg.receiver_id === otherUserId) || (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId)) && (newMsg.transaction_id ?? null) === (transactionId ?? null)
+      if (!relevant) return
+      if (payload.eventType === 'INSERT') {
+        setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), { ...newMsg, isOptimistic: false, scanStatus: 'safe' as const }])
+        if (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId) {
+          void supabase.from('messages')
+            .update({ read: true })
+            .eq('id', newMsg.id)
+            .eq('receiver_id', currentUserId)
+            .eq('read', false)
+            .select('id')
+            .maybeSingle()
+            .then(({ data, error }) => {
+              if (error || !data) {
+                console.error('Failed to persist incoming message read receipt:', error || 'No row was updated')
+                void markMessagesAsRead()
+                return
+              }
+              setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, read: true } : m))
+              void qc.invalidateQueries({ queryKey: ['chat-inbox', currentUserId] })
+            })
+        }
+      } else if (payload.eventType === 'UPDATE') setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...newMsg, isOptimistic: false, scanStatus: 'safe' } : m))
+    }).subscribe()
+    subscriptionRef.current = subscription
+  }
+  const markMessagesAsRead = async () => {
+    const unreadQuery = supabase.from('messages')
+      .update({ read: true })
+      .eq('sender_id', otherUserId)
+      .eq('receiver_id', currentUserId)
+    const { error } = await (transactionId ? unreadQuery.eq('transaction_id', transactionId) : unreadQuery.is('transaction_id', null))
+      .eq('read', false)
+      .select('id')
+    if (error) {
+      console.error('Error persisting incoming messages as read:', error)
+      return false
+    }
+
+    // PostgREST can return no error when RLS filters every UPDATE row.
+    // Verify the persisted state before marking the conversation read locally.
+    const verifyQuery = supabase.from('messages').select('id')
+      .eq('sender_id', otherUserId)
+      .eq('receiver_id', currentUserId)
+    const { data: remainingUnread, error: verifyError } = await (transactionId ? verifyQuery.eq('transaction_id', transactionId) : verifyQuery.is('transaction_id', null))
+      .eq('read', false)
+      .limit(1)
+    if (verifyError || remainingUnread?.length) {
+      console.error('Incoming message read receipts were not fully persisted:', verifyError || 'Unread rows remain')
+      return false
+    }
+
+    setMessages(prev => prev.map(message =>
+      message.sender_id === otherUserId && message.receiver_id === currentUserId && (message.transaction_id ?? null) === (transactionId ?? null)
+        ? { ...message, read: true }
+        : message
+    ))
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['unread-messages', currentUserId] }),
+      qc.invalidateQueries({ queryKey: ['chat-inbox', currentUserId] }),
+    ])
+    return true
+  }
+  const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => { const val = e.target.value; setInput(val); setWarnDismissed(false); setScanResult(val.trim().length > 3 ? scanLive(val) : null) }, [])
+  const handleSendMessage = async () => {
+    const text = input.trim(); if (!text || sending || scanResult?.blocked) return
+    setSending(true); setInput(''); setScanResult(null); setSecurityWarning({ show: false, message: '', severity: 'medium' })
+    const tempId = `temp-${Date.now()}`
+    const optimisticMessage: OptimisticMessage = { id: tempId, sender_id: currentUserId, receiver_id: otherUserId, transaction_id: transactionId || undefined, content: text, read: false, message_type: 'text', created_at: new Date().toISOString(), isOptimistic: true, scanStatus: 'pending' }
+    setMessages(prev => [...prev, optimisticMessage])
+    try {
+      const scanResultData = await scanChatMessage(tempId, currentUserId, otherUserId, text, 'marketplace')
+      const scan = scanResultData as { flagged?: boolean; confidence?: number } | null
+      if (scan?.flagged && (scan.confidence ?? 1) >= 0.8) {
+        setSecurityWarning({ show: true, message: 'Message blocked: Off-platform payment or phone number sharing is restricted for safety.', severity: 'high' }); setMessages(prev => prev.filter(m => m.id !== tempId)); setSending(false); return
+      }
+      const { data, error } = await supabase.from('messages').insert({ sender_id: currentUserId, receiver_id: otherUserId, transaction_id: transactionId || null, content: text, message_type: 'text' }).select().single()
+      if (error) throw error
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...data, isOptimistic: false, scanStatus: 'safe' } : m)); markMessagesAsRead()
+    } catch (err: any) {
+      console.error('Failed to dispatch message:', err); setMessages(prev => prev.map(m => m.id === tempId ? { ...m, scanStatus: 'error' } : m)); setSecurityWarning({ show: true, message: 'Network transmission error. Tap to retry.', severity: 'low' })
+    } finally { setSending(false); inputRef.current?.focus() }
+  }
+  const handleEdit = async (msgId: string, newContent: string, originalContent: string) => {
+    try {
+      await writeSecurityAudit('message', msgId, 'edit', { original_content: originalContent, new_content: newContent, transaction_id: transactionId || null })
+      const { data, error } = await supabase.from('messages')
+        .update({ content: newContent })
+        .eq('id', msgId)
+        .eq('sender_id', currentUserId)
+        .select('*')
+        .single()
+      if (error) throw error
+      setMessages(prev => prev.map(message => message.id === msgId ? { ...data, isOptimistic: false, scanStatus: 'safe' } : message))
+    } catch (e) { console.error('Failed to edit message:', e) }
+  }
+  const handleDelete = async (msgId: string, originalContent: string) => {
+    if (!window.confirm('Delete this message?')) return
+    try {
+      await writeSecurityAudit('message', msgId, 'delete', { original_content: originalContent, transaction_id: transactionId || null })
+      const { data, error } = await supabase.from('messages')
+        .update({ content: '[Message deleted]' })
+        .eq('id', msgId)
+        .eq('sender_id', currentUserId)
+        .select('*')
+        .single()
+      if (error) throw error
+      setMessages(prev => prev.map(message => message.id === msgId ? { ...data, isOptimistic: false, scanStatus: 'safe' } : message))
+    } catch (e) { console.error('Failed to delete message:', e) }
+  }
+  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }
+  const grouped = messages.reduce((acc: any, msg: any) => { const day = new Date(msg.created_at).toDateString(); if (!acc[day]) acc[day] = []; acc[day].push(msg); return acc }, {})
+  const otherUserInitials = otherUser?.username?.slice(0, 2).toUpperCase() || '??'
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] font-sans">
+      <div className="flex shrink-0 items-center justify-between border-b border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-sm bg-gradient-to-br from-primary to-tertiary text-sm font-black text-on-primary">{otherUser?.avatar_url ? <img src={otherUser.avatar_url} alt="" className="h-full w-full rounded-sm object-cover" /> : otherUserInitials}</div>
+          <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold text-on-surface">{otherUser?.full_name || otherUser?.username || 'Unknown User'}</div><div className="flex items-center gap-1 text-[10px] font-semibold text-primary"><Shield size={9} />PlugPay Protected · 60s edit window</div></div>
+        </div>
+        {transactionId && <div className="flex items-center gap-1 font-mono text-[10px] text-[var(--md-on-surface-variant)]"><Lock size={9} />Evidence log</div>}
+      </div>
+      {transactionId && <div className="flex items-center gap-2 border-b border-[var(--md-outline-variant)] bg-[var(--md-primary-container)]\/20 px-4 py-2"><Info size={11} className="shrink-0 text-[var(--md-primary)]" /><span className="text-[10px] text-[var(--md-primary)]/70">Chat linked to transaction {transactionId.slice(0, 8).toUpperCase()}. Messages are preserved as dispute evidence.</span></div>}
+      {securityWarning.show && <div className={`flex items-start gap-2.5 border-b p-3 ${securityWarning.severity === 'high' || securityWarning.severity === 'critical' ? 'border-[var(--md-error)]\/40 bg-[var(--md-error-container)] text-error' : 'border-[var(--md-secondary)]\/40 bg-[var(--md-secondary-container)]\/30 text-tertiary'}`}>{securityWarning.severity === 'high' || securityWarning.severity === 'critical' ? <AlertTriangle size={14} className="mt-0.5 shrink-0" /> : <Shield size={14} className="mt-0.5 shrink-0" />}<div className="flex-1"><div className="text-xs font-bold uppercase">Trust Guard Alert</div><div className="mt-0.5 text-xs leading-relaxed text-on-surface/70">{securityWarning.message}</div></div><button onClick={() => setSecurityWarning({ show: false, message: '', severity: 'medium' })} className="text-[var(--md-on-surface-variant)] hover:text-on-surface/50"><X size={12} /></button></div>}
+      <div className="flex-1 overflow-y-auto bg-[var(--md-surface)] py-3">{loading ? <div className="flex h-full flex-col items-center justify-center gap-2 text-[var(--md-on-surface-variant)]"><Loader size={20} className="animate-spin text-[var(--md-primary)]" /><span className="font-mono text-xs">LOADING MESSAGES...</span></div> : messages.length === 0 ? <div className="py-12 text-center text-[var(--md-on-surface-variant)]"><Shield size={28} className="mx-auto mb-3 text-[var(--md-primary)] opacity-30" /><p className="text-sm">Start the conversation</p><p className="mt-1 text-xs">Keep communication here to ensure transaction protection.</p></div> : Object.entries(grouped).map(([day, msgs]: [string, any]) => <div key={day}><DateSep date={msgs[0].created_at} />{msgs.map((msg: OptimisticMessage) => <MessageBubble key={msg.id} message={msg} isOwn={msg.sender_id === currentUserId} onEdit={handleEdit} onDelete={handleDelete} />)}</div>)}<div ref={bottomRef} /></div>
+      <AnimatePresence>{scanResult && !scanResult.clean && !warnDismissed && <TrustGuardWarning result={scanResult} onDismiss={() => setWarnDismissed(true)} />}</AnimatePresence>
+      <div className="shrink-0 border-t border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3"><div className="flex items-end gap-2"><textarea ref={inputRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown} placeholder={scanResult?.blocked ? 'Remove payment/contact details to send...' : 'Type a message...'} rows={1} disabled={sending} className={`max-h-28 flex-1 resize-none rounded-md border bg-[var(--md-surface-container-high)] px-4 py-2.5 text-sm text-on-surface outline-none transition-colors placeholder:text-on-surface/30 ${scanResult?.blocked ? 'border-error/50 focus:border-error/70' : scanResult ? 'border-tertiary/40 focus:border-tertiary/60' : 'border-outline-variant focus:border-primary/50'}`} /><motion.button onClick={handleSendMessage} disabled={!input.trim() || sending || !!scanResult?.blocked} whileTap={{ scale: 0.92 }} className={`shrink-0 rounded-md p-2.5 transition-all ${input.trim() && !scanResult?.blocked ? 'bg-[var(--md-primary)] text-[var(--md-on-primary)] shadow-primary' : 'cursor-not-allowed bg-[var(--md-surface-container-high)] text-[var(--md-on-surface-variant)]'}`}><Send size={16} /></motion.button></div><div className="mt-1.5 text-center text-[10px] text-[var(--md-on-surface-variant)]">Enter to send · Editable for 60 seconds after sending</div></div>
+    </div>
+  )
+}

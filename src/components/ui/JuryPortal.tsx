@@ -1,0 +1,357 @@
+import { useState, useEffect, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
+import { supabase, callEdgeFunction, formatNaira } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+import { Scale, Clock, Shield, CheckCircle2, AlertTriangle, Award, Eye, ChevronRight } from 'lucide-react'
+import toast from 'react-hot-toast'
+
+// ── Evidence viewer ────────────────────────────────────────────────────────────
+function EvidenceViewer({ messages }: { messages: any[] }) {
+  return (
+    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+      {!messages?.length && (
+        <div className="text-center text-sm text-[var(--md-on-surface-variant)] py-4">No chat evidence for this transaction.</div>
+      )}
+      {messages?.map((m: any, i: number) => (
+        <div key={i} className={`flex gap-2 text-xs ${m.is_system ? 'justify-center' : ''}`}>
+          {m.is_system ? (
+            <div className="px-3 py-1.5 rounded-sm bg-[var(--md-surface-container-high)] text-[var(--md-on-surface-variant)] italic">{m.body}</div>
+          ) : (
+            <>
+              <div className="w-6 h-6 rounded-full bg-[var(--md-primary-container)] flex-shrink-0
+                              flex items-center justify-center text-[9px] font-bold text-on-primary-container">
+                {m.is_claimant ? 'C' : 'R'}
+              </div>
+              <div className={`flex-1 rounded-md px-3 py-2 ${
+                m.is_claimant ? 'bg-[var(--md-primary)]/8 border border-[var(--md-primary)]/15' : 'bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)]'
+              } ${m.flagged ? 'ring-1 ring-[var(--md-secondary)]/40' : ''}`}>
+                <div className="font-semibold text-[var(--md-on-surface)]/60 mb-0.5">
+                  {m.is_claimant ? 'Claimant' : 'Respondent'}
+                  {m.flagged && <span className="ml-2 text-[var(--md-secondary)] text-[9px] font-bold">⚠️ FLAGGED: {m.flag_type}</span>}
+                </div>
+                <div className="text-[var(--md-on-surface)]/80 leading-relaxed">{m.body}</div>
+                <div className="text-[var(--md-on-surface-variant)]/70 mt-1">{new Date(m.created_at).toLocaleString('en-NG', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── High-value review timer ────────────────────────────────────────────────────
+function ReviewTimer({ required, onReady }: { required: boolean; onReady: () => void }) {
+  const [elapsed, setElapsed] = useState(0)
+  const ready = !required || elapsed >= 20
+
+  useEffect(() => {
+    if (!required || ready) { if (required && elapsed >= 20) onReady(); return }
+    const id = setInterval(() => setElapsed(p => {
+      if (p >= 20) { clearInterval(id); onReady(); return 20 }
+      return p + 1
+    }), 1000)
+    return () => clearInterval(id)
+  }, [required, ready])
+
+  if (!required) return null
+
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-md border ${
+      ready ? 'border-[var(--md-primary)]/30 bg-[var(--md-primary)]/8' : 'border-[var(--md-secondary)]/30 bg-[var(--md-secondary)]/8'
+    }`}>
+      <Clock size={14} className={ready ? 'text-[var(--md-primary)]' : 'text-[var(--md-secondary)]'} />
+      <div className="flex-1">
+        <div className={`text-xs font-bold ${ready ? 'text-[var(--md-primary)]' : 'text-[var(--md-secondary)]'}`}>
+          {ready ? 'Review Complete — You May Vote' : `High-Value Case: Review for ${20 - elapsed}s more`}
+        </div>
+        <div className="h-1 mt-1.5 bg-[var(--md-surface-container-high)] rounded-full overflow-hidden">
+          <motion.div className={`h-full rounded-full ${ready ? 'bg-primary' : 'bg-tertiary'}`}
+            animate={{ width: `${Math.min(elapsed / 20 * 100, 100)}%` }}
+            transition={{ duration: 0.5 }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Single case view ──────────────────────────────────────────────────────────
+function CaseView({ juryCase, onVoted }: any) {
+  const { session, user } = useAuth()
+  const [verdict,     setVerdict]    = useState<string | null>(null)
+  const [reasoning,   setReasoning]  = useState('')
+  const [reviewReady, setReviewReady] = useState(!juryCase.high_value)
+  const [submitting,  setSubmitting]  = useState(false)
+  const [startedAt]                   = useState(Date.now())
+  const [tab,         setTab]         = useState<'summary'|'evidence'>('summary')
+
+  const msgs = (juryCase.evidence_messages || []).map((m: any, i: number, arr: any[]) => ({
+    ...m,
+    // Anonymise: claimant vs respondent only
+    is_claimant: m.sender_id === juryCase.claimant_id,
+  }))
+
+  const handleSubmit = async () => {
+    if (!verdict) { toast.error('Select a verdict first'); return }
+    if (!reviewReady) { toast.error('Please review the evidence before voting'); return }
+    setSubmitting(true)
+
+    const reviewed = Math.floor((Date.now() - startedAt) / 1000)
+    const { data, error } = await callEdgeFunction('process-dispute', {
+      action:        'submit_vote',
+      case_id:       juryCase.id,
+      verdict,
+      reasoning:     reasoning.trim() || null,
+      reviewed_for_s: reviewed,
+    }, session?.access_token)
+
+    setSubmitting(false)
+    if (error) { toast.error(error); return }
+
+    const disputeResult = data as { case_closed?: boolean; verdict?: string; votes_cast?: number } | null
+
+    toast.success(disputeResult?.case_closed
+      ? `⚖️ Verdict reached: ${disputeResult.verdict}. Justice served.`
+      : `✓ Vote recorded. ${disputeResult?.votes_cast} vote(s) so far.`
+    )
+    onVoted?.()
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Case header */}
+      <div className="bg-[var(--md-surface-container-high)] rounded-md p-4 space-y-2">
+        <div className="flex items-center gap-2 mb-3">
+          <Scale size={14} className="text-[var(--md-primary)]" />
+          <span className="text-xs font-bold text-[var(--md-primary)] uppercase tracking-wider">Peer Jury Case</span>
+          {juryCase.high_value && (
+            <span className="ml-auto tag tag-amber text-[9px]">⚠️ HIGH VALUE ₦50,000+</span>
+          )}
+        </div>
+        <div className="text-sm font-semibold text-[var(--md-on-surface)]/80 leading-relaxed">
+          "{juryCase.dispute_reason}"
+        </div>
+        <div className="flex items-center gap-4 text-xs text-[var(--md-on-surface-variant)] pt-2 border-t border-[var(--md-outline-variant)]">
+          <span>Amount: <span className="text-[var(--md-on-surface)]/70 font-mono font-bold">{formatNaira(juryCase.amount)}</span></span>
+          <span>Votes needed: <span className="text-[var(--md-on-surface)]/70 font-bold">{juryCase.required_votes}</span></span>
+          <span>Filed: <span className="text-[var(--md-on-surface)]/70">{new Date(juryCase.created_at).toLocaleDateString('en-NG')}</span></span>
+        </div>
+      </div>
+
+      {/* Tabs: Summary / Evidence */}
+      <div className="flex bg-[var(--md-surface-container-high)] rounded-md p-1">
+        {(['summary','evidence'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+              tab === t ? 'bg-[var(--md-primary)] text-[var(--md-on-primary)]' : 'text-[var(--md-on-surface-variant)] hover:text-[var(--md-on-surface)]/60'
+            }`}>
+            {t === 'summary' ? 'Case Summary' : `Evidence (${msgs.length})`}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'summary' && (
+        <div className="bg-[var(--md-surface-container-high)] rounded-md p-4 space-y-3 text-sm">
+          <div className="flex items-start gap-3 pb-3 border-b border-[var(--md-outline-variant)]">
+            <div className="w-7 h-7 rounded-full bg-[var(--md-primary)]/15 flex items-center justify-center text-xs font-bold text-[var(--md-primary)] flex-shrink-0">C</div>
+            <div>
+              <div className="text-xs font-bold text-[var(--md-primary)] mb-1">Claimant (Filed Dispute)</div>
+              <div className="text-[var(--md-on-surface)]/70">{juryCase.dispute_reason}</div>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-7 h-7 rounded-full bg-[var(--md-secondary)]/15 flex items-center justify-center text-xs font-bold text-[var(--md-secondary)] flex-shrink-0">R</div>
+            <div>
+              <div className="text-xs font-bold text-[var(--md-secondary)] mb-1">Respondent (Defending)</div>
+              <div className="text-[var(--md-on-surface-variant)] italic">No statement submitted — review chat evidence.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'evidence' && <EvidenceViewer messages={msgs} />}
+
+      {/* High-value review timer */}
+      <ReviewTimer required={juryCase.high_value} onReady={() => setReviewReady(true)} />
+
+      {/* Verdict selection */}
+      <div>
+        <div className="text-xs font-bold text-[var(--md-on-surface-variant)] uppercase tracking-wider mb-3">Your Verdict</div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { key:'claimant',   label:'Claimant Wins',   desc:'Dispute is valid',     color:'text-[var(--md-primary)] border-[var(--md-primary)]/30 bg-primary/10' },
+            { key:'split',      label:'Split Decision',  desc:'Both at fault',         color:'text-[var(--md-secondary)] border-[var(--md-secondary)]/30 bg-tertiary/10' },
+            { key:'respondent', label:'Respondent Wins', desc:'Dispute unfounded',     color:'text-[var(--md-secondary)] border-[var(--md-secondary)]/30 bg-[var(--md-secondary)]/10' },
+          ].map(v => (
+            <button key={v.key} onClick={() => setVerdict(v.key)}
+              className={`border rounded-md p-3 text-left transition-all ${
+                verdict === v.key ? v.color : 'border-[var(--md-outline-variant)] bg-transparent text-[var(--md-on-surface)]/50 hover:border-outline-variant'
+              }`}>
+              <div className="text-xs font-bold mb-0.5">{v.label}</div>
+              <div className="text-[10px] opacity-70">{v.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Reasoning */}
+      <div>
+        <label className="label">Your Reasoning (optional)</label>
+        <textarea className="input resize-none" rows={2}
+          placeholder="Explain your verdict briefly…"
+          value={reasoning} onChange={e => setReasoning(e.target.value)} />
+      </div>
+
+      {/* Submit */}
+      <motion.button whileTap={{ scale: 0.97 }} onClick={handleSubmit}
+        disabled={!verdict || !reviewReady || submitting}
+        className="w-full py-3.5 rounded-md font-bold text-sm flex items-center justify-center gap-2
+                   bg-[var(--md-primary)] text-[var(--md-on-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+        <Scale size={15} />
+        {submitting ? 'Submitting…' : 'Submit Verdict'}
+      </motion.button>
+
+      <p className="text-center text-xs text-[var(--md-on-surface-variant)]/70">
+        Correct verdicts earn +20 PlugScore · All votes are anonymous
+      </p>
+    </div>
+  )
+}
+
+// ── Jury Portal main ──────────────────────────────────────────────────────────
+
+/**
+ * JuryPortal — the full peer jury interface.
+ * Shows open cases assigned to this juror, accuracy stats, and rewards.
+ */
+export function JuryPortal() {
+  const { user, profile } = useAuth()
+  const qc = useQueryClient()
+  const [activeCase, setActiveCase] = useState<any>(null)
+
+  const { data: cases = [], isLoading } = useQuery({
+    queryKey: ['jury-cases', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('jury_cases')
+        .select('*')
+        .eq('status', 'deliberating')
+        .contains('jurors_assigned', [user!.id])
+        .order('created_at', { ascending: true })
+      return data || []
+    },
+    enabled: !!user?.id,
+    staleTime: 30_000,
+  })
+
+  // Filter cases the user hasn't voted on yet
+  const { data: myVotes = [] } = useQuery({
+    queryKey: ['my-jury-votes', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('jury_votes').select('case_id').eq('juror_id', user!.id)
+      return (data || []).map(v => v.case_id)
+    },
+    enabled: !!user?.id,
+  })
+
+  const pendingCases = cases.filter(c => !myVotes.includes(c.id))
+
+  if (!profile?.juror_enabled) return (
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md p-6 text-center">
+      <Scale size={28} className="mx-auto mb-3 text-[var(--md-on-surface)]/20" />
+      <div className="font-bold text-sm mb-1">Jury Access Required</div>
+      <p className="text-xs text-[var(--md-on-surface-variant)]">
+        Juror status is granted to Trusted+ users with ≥10 completed trades and no active disputes.
+      </p>
+    </div>
+  )
+
+  return (
+    <div className="bg-[var(--md-surface-container)] border border-[var(--md-outline-variant)] rounded-md overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--md-outline-variant)] bg-primary/5">
+        <div className="flex items-center gap-2">
+          <Scale size={16} className="text-[var(--md-primary)]" />
+          <span className="font-bold text-sm">Jury Portal</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          {profile.magistrate_at && (
+            <span className="tag tag-amber text-[10px]">⚖️ Magistrate</span>
+          )}
+          <div className="text-[var(--md-on-surface-variant)]">
+            Accuracy: <span className="font-mono font-bold text-[var(--md-primary)]">{profile.rolling_accuracy || 0}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-0 border-b border-[var(--md-outline-variant)]">
+        {[
+          { label:'Pending Cases',    val: pendingCases.length,                   color:'text-[var(--md-primary)]'       },
+          { label:'This Week',        val: profile.juror_streak || 0,             color:'text-[var(--md-primary)]' },
+          { label:'Free Tokens',      val: profile.free_listing_tokens || 0,      color:'text-[var(--md-secondary)]' },
+        ].map(({ label, val, color }, i) => (
+          <div key={label} className={`text-center py-4 ${i < 2 ? 'border-r border-[var(--md-outline-variant)]' : ''}`}>
+            <div className={`text-xl font-black font-mono ${color}`}>{val}</div>
+            <div className="text-[10px] text-[var(--md-on-surface-variant)] mt-0.5">{label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Case list or active case */}
+      <div className="p-5">
+        <AnimatePresence mode="wait">
+          {activeCase ? (
+            <motion.div key="case" initial={{ opacity:0, x:20 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-20 }}>
+              <button onClick={() => setActiveCase(null)}
+                className="flex items-center gap-1.5 text-xs text-[var(--md-on-surface-variant)] hover:text-[var(--md-primary)] mb-5 transition-colors">
+                ← Back to cases
+              </button>
+              <CaseView juryCase={activeCase} onVoted={() => {
+                setActiveCase(null)
+                qc.invalidateQueries({ queryKey: ['jury-cases'] })
+                qc.invalidateQueries({ queryKey: ['my-jury-votes'] })
+              }} />
+            </motion.div>
+          ) : (
+            <motion.div key="list" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
+              {isLoading && (
+                <div className="space-y-3">
+                  {[1,2].map(i => <div key={i} className="h-20 bg-[var(--md-surface-container-high)] rounded-md animate-pulse" />)}
+                </div>
+              )}
+              {!isLoading && pendingCases.length === 0 && (
+                <div className="text-center py-8">
+                  <CheckCircle2 size={28} className="mx-auto mb-3 text-[var(--md-primary)]/40" />
+                  <div className="text-sm font-semibold text-[var(--md-on-surface)]/50">No Pending Cases</div>
+                  <div className="text-xs text-[var(--md-on-surface-variant)] mt-1">You're all caught up. Check back later.</div>
+                </div>
+              )}
+              {pendingCases.map(c => (
+                <motion.button key={c.id} whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}
+                  onClick={() => setActiveCase(c)}
+                  className="w-full flex items-center gap-3 p-4 bg-[var(--md-surface-container-high)] border border-[var(--md-outline-variant)]
+                             rounded-md mb-3 text-left hover:border-primary/30 transition-all">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Scale size={14} className="text-[var(--md-primary)]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate">{c.dispute_reason.slice(0, 60)}…</div>
+                    <div className="flex items-center gap-3 text-xs text-[var(--md-on-surface-variant)] mt-0.5">
+                      <span>{formatNaira(c.amount)}</span>
+                      <span>{c.votes_cast}/{c.required_votes} votes</span>
+                      {c.high_value && <span className="text-[var(--md-secondary)] font-bold">⚠️ HIGH VALUE</span>}
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-[var(--md-on-surface)]/20 flex-shrink-0" />
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}

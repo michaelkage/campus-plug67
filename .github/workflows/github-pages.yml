@@ -1,0 +1,121 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+env:
+  VITE_BASE_PATH: /campus-plug67/
+  VITE_SUPABASE_URL: https://etwsfdovcgofhqseejjo.supabase.co
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+  VITE_PAYSTACK_PUBLIC_KEY: pk_test_d0adce3d7bf1083e76a765ee414999d68516bc96
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Detect backend changes
+        id: backend
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" =~ ^0+$ ]]; then
+            # Manual dispatches cannot diff a push; require the backend marker instead of bypassing the gate.
+            echo "needs_backend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA")"
+          if grep -Eq '^(supabase/|scripts/normalize-migrations\.mjs$|\.github/workflows/deploy-supabase\.yml$)' <<<"$changed"; then
+            echo "needs_backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_backend=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Wait for matching Supabase deployment
+        if: steps.backend.outputs.needs_backend == 'true'
+        shell: bash
+        env:
+          SUPABASE_URL: https://etwsfdovcgofhqseejjo.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SUPABASE_URL" && -n "$SUPABASE_ANON_KEY" ]] || { echo "Supabase deployment gate credentials are missing."; exit 1; }
+          for attempt in $(seq 1 120); do
+            response="$(curl --fail --silent --show-error --max-time 10 \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/functions/v1/process-dispute/ping" 2>/dev/null || true)"
+            if grep -q '"fn":"process-dispute-v6.8"' <<<"$response"; then
+              echo "The matching Supabase migration and Edge Function deployment is live."
+              exit 0
+            fi
+            echo "Waiting for Supabase deployment (attempt $attempt/120)..."
+            sleep 10
+          done
+          echo "Supabase deployment did not reach the expected version; refusing to publish the frontend."
+          exit 1
+      - name: Verify deployment bundle
+        run: |
+          test -f dist/index.html
+          test -f dist/404.html
+      - name: Validate built asset references
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '<title>' dist/index.html
+          test -f dist/404.html
+          find dist/assets -type f | grep -q .
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Publish site
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Post-deploy smoke check
+        shell: bash
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --silent --show-error --location --max-time 15 "$PAGE_URL" | grep -q 'Campus Plug'; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'GitHub Pages post-deploy smoke check failed.'
+          exit 1

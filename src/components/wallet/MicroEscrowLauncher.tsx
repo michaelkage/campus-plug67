@@ -1,0 +1,69 @@
+import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
+import { supabase, formatNaira } from '@/lib/supabase'
+import { WalletCards } from 'lucide-react'
+import toast from 'react-hot-toast'
+
+const LIMIT_KOBO = 1_000_000
+type MicroListing = { id: string; title: string; price: number; seller_id: string; status: string }
+type WalletRpcResult = { success?: boolean; idempotent?: boolean; code?: string; transaction_id?: string; message?: string }
+
+export default function MicroEscrowLauncher() {
+  const { user } = useAuth(); const location = useLocation(); const navigate = useNavigate(); const qc = useQueryClient()
+  const [listing, setListing] = useState<MicroListing | null>(null); const [balance, setBalance] = useState(0); const [busy, setBusy] = useState(false)
+  const listingId = location.pathname.match(/^\/marketplace\/([^/]+)$/)?.[1]
+
+  useEffect(() => {
+    if (!listingId || !user) { setListing(null); return }
+    let active = true
+    void (async () => {
+      const [{ data: item }, { data: profile }] = await Promise.all([
+        supabase.from('listings').select('id,title,price,seller_id,status').eq('id', listingId).maybeSingle(),
+        supabase.from('profiles').select('plug_credit_balance').eq('id', user.id).maybeSingle(),
+      ])
+      if (active) { setListing(item as MicroListing | null); setBalance(Number(profile?.plug_credit_balance || 0)) }
+    })()
+    return () => { active = false }
+  }, [listingId, user?.id])
+
+  if (!listing || listing.seller_id === user?.id || listing.status !== 'active' || Number(listing.price) > LIMIT_KOBO) return null
+
+  const buy = async () => {
+    if (!user) return
+    setBusy(true)
+    try {
+      const { data, error } = await (supabase.rpc as any)('create_wallet_micro_escrow', { p_listing_id: listing.id })
+      if (error) throw error
+      const result = data as WalletRpcResult | null
+      if (!result?.success) {
+        if (result?.code === 'active_transaction_exists') {
+          toast.error(result.message || 'This listing already has an active purchase.')
+          qc.invalidateQueries({ queryKey: ['listings'] })
+          qc.invalidateQueries({ queryKey: ['transaction', listing.id, user.id] })
+          navigate(`/marketplace/${listing.id}`)
+          return
+        }
+        if (result?.code === 'listing_unavailable') {
+          toast.error(result.message || 'This listing is no longer available.')
+          qc.invalidateQueries({ queryKey: ['listings'] })
+          navigate(`/marketplace/${listing.id}`)
+          return
+        }
+        throw new Error(result?.message || 'Campus Wallet purchase failed')
+      }
+      toast.success(result.idempotent ? 'Existing wallet escrow restored. No second debit was made.' : '🔐 Wallet escrow locked. No Paystack checkout needed.')
+      qc.invalidateQueries({ queryKey: ['listings'] })
+      qc.invalidateQueries({ queryKey: ['transaction', listing.id, user.id] })
+      navigate(`/marketplace/${listing.id}`)
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Campus Wallet purchase failed') }
+    finally { setBusy(false) }
+  }
+
+  return <div className="fixed bottom-20 sm:bottom-6 right-4 z-40 w-[min(360px,calc(100vw-2rem))] bg-surface-container border border-outline-variant rounded-md p-4 shadow-none">
+    <div className="flex items-start gap-3"><div className="w-9 h-9 rounded-md bg-primary-container border border-outline-variant flex items-center justify-center flex-shrink-0"><WalletCards size={16} className="text-on-primary-container" /></div><div className="flex-1 min-w-0"><div className="text-xs font-black text-on-primary-container uppercase tracking-wider">Campus Wallet micro-escrow</div><div className="text-[11px] text-on-surface-variant mt-1">{formatNaira(Number(listing.price))} · balance {formatNaira(balance)}</div></div></div>
+    <button onClick={() => void buy()} disabled={busy || balance < Number(listing.price)} className="w-full mt-3 py-2.5 rounded-md bg-primary text-on-primary font-black text-xs disabled:opacity-30 disabled:cursor-not-allowed">{busy ? 'LOCKING WALLET FUNDS…' : balance < Number(listing.price) ? 'TOP UP WALLET FIRST' : 'BUY WITH CAMPUS WALLET'}</button>
+    <p className="text-[9px] text-on-surface-variant mt-2 text-center">For items ≤ ₦10,000. Higher-value items use Paystack escrow.</p>
+  </div>
+}

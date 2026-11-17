@@ -1,0 +1,147 @@
+################################################################################
+# Campus Plug — Operations
+################################################################################
+name: Campus Plug Operations
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '0,15,30,45 * * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to run'
+        required: false
+        default: 'warm'
+        type: choice
+        options: [warm, auto-release, all]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  validate-secrets:
+    name: Validate Supabase credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check required secrets are configured
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "$SUPABASE_URL" ]] || missing+=(SUPABASE_URL)
+          [[ -n "$SUPABASE_ANON_KEY" ]] || missing+=(SUPABASE_ANON_KEY)
+          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || missing+=(SUPABASE_SERVICE_ROLE_KEY)
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing GitHub Actions secret(s): %s\n' "${missing[*]}"
+            exit 1
+          fi
+          echo 'Required Supabase secrets are configured.'
+
+  warm-functions:
+    name: Warm Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    needs: validate-secrets
+    if: (github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.action == 'warm' || github.event.inputs.action == 'all'))
+    steps:
+      - name: Health-check Edge Functions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          functions=(release-escrow join-pool paystack-webhook passkey-auth process-growth-events process-dispute calculate-trending)
+          failures=()
+          for fn in "${functions[@]}"; do
+            echo "→ Pinging ${fn}..."
+            ok=false
+            last_body=''
+            for attempt in 1 2 3; do
+              set +e
+              last_body=$(curl --silent --show-error --max-time 8 --retry 1 --retry-delay 1 --retry-all-errors -H "apikey: ${SUPABASE_ANON_KEY}" -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" -H "x-health-check: true" -w '\nHTTP_STATUS:%{http_code}' "${SUPABASE_URL}/functions/v1/${fn}/ping" 2>&1)
+              code=$?
+              set -e
+              status=$(printf '%s\n' "$last_body" | sed -n 's/^HTTP_STATUS://p' | tail -n 1)
+              body=$(printf '%s\n' "$last_body" | sed '/^HTTP_STATUS:/d')
+              if [[ $code -eq 0 && "$status" =~ ^2[0-9][0-9]$ ]]; then
+                echo "  ✓ ${fn} healthy (${status})"
+                ok=true
+                break
+              fi
+              echo "  attempt ${attempt}/3 failed: HTTP ${status:-curl-error} ${body:-no response body}"
+              sleep 2
+            done
+            [[ "$ok" == true ]] || failures+=("${fn}")
+          done
+          if (( ${#failures[@]} > 0 )); then
+            printf 'Health-check failures: %s\n' "${failures[*]}"
+            exit 1
+          fi
+          echo '✅ All Edge Function health checks passed.'
+
+  calculate-trending:
+    name: Calculate Trending Scores
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    needs: validate-secrets
+    if: github.event_name == 'schedule' && github.event.schedule == '0,15,30,45 * * * *'
+    steps:
+      - name: Run weighted gravity + anti-collusion + rookie boost
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          response=$(curl --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{}' -w '\nHTTP_STATUS:%{http_code}' "${SUPABASE_URL}/functions/v1/calculate-trending")
+          status=$(printf '%s\n' "$response" | sed -n 's/^HTTP_STATUS://p' | tail -n 1)
+          body=$(printf '%s\n' "$response" | sed '/^HTTP_STATUS:/d')
+          echo "calculate-trending HTTP ${status}"
+          echo "$body"
+          [[ "$status" =~ ^2[0-9][0-9]$ ]] || { echo 'calculate-trending failed.'; exit 1; }
+
+      - name: Rotate stale jury cases
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 20 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{"action":"rotate_stale"}' "${SUPABASE_URL}/functions/v1/process-dispute"
+
+  auto-release:
+    name: Process Auto-Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    needs: validate-secrets
+    if: github.event_name == 'workflow_dispatch' && (github.event.inputs.action == 'auto-release' || github.event.inputs.action == 'all')
+    steps:
+      - name: Trigger auto-release
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{"action":"auto_release"}' "${SUPABASE_URL}/functions/v1/release-escrow"
+
+  scheduled-auto-release:
+    name: Scheduled Auto-Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    needs: validate-secrets
+    if: github.event_name == 'schedule' && github.event.schedule == '0,15,30,45 * * * *'
+    steps:
+      - name: Auto-release timed-out escrow transactions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error -X POST --retry 2 --retry-delay 2 --retry-all-errors --max-time 30 -H "Content-Type: application/json" -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -d '{"action":"auto_release"}' "${SUPABASE_URL}/functions/v1/release-escrow"

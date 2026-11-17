@@ -1,0 +1,311 @@
+import { useState, useCallback } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useDropzone } from 'react-dropzone'
+import { motion, AnimatePresence } from 'framer-motion'
+import { supabase, formatNaira, toKobo, uploadImage } from '@/lib/supabase'
+import { analyzeAndStripExif, saveExifFlags, checkPriceFloor, consumeEmergencyToken } from '@/lib/security'
+import { useAuth } from '@/contexts/AuthContext'
+import { useRealtimeTable } from '@/hooks/useRealtime'
+import toast from 'react-hot-toast'
+import { Plus, X, Upload, TrendingUp, Search, AlertTriangle, Shield, Zap, Home } from 'lucide-react'
+
+const CATEGORY_GROUPS = [
+  { label: 'Study & Academics', items: ['Textbooks', 'Lab Equipment', 'Stationery & Supplies', 'Course Materials', 'Study Tools & Calculators', 'Past Questions & Exam Prep', 'Engineering Tools'] },
+  { label: 'Electronics & Tech', items: ['Electronics', 'Gadgets', 'Phone Accessories', 'Gaming & Consoles', 'Audio & Speakers', 'Charging & Power', 'Headphones & Earbuds', 'Computer Accessories', 'Phones & Wearables', 'Networking & Smart Home'] },
+  { label: 'Music & Instruments', items: ['Musical Instruments', 'Music Accessories'] },
+  { label: 'Sports & Outdoors', items: ['Sports & Fitness', 'Bicycles & Transport', 'Outdoor Gear'] },
+  { label: 'Fashion & Lifestyle', items: ['Clothing', 'Shoes & Sneakers', 'Bags & Accessories', 'Jewellery & Watches', 'Beauty & Personal Care'] },
+  { label: 'Room & Living', items: ['Hostels', 'Furniture', 'Kitchen & Appliances', 'Bedding', 'Cleaning Supplies'] },
+  { label: 'Art & Creative', items: ['Art & Craft Supplies', 'Photography & Video'] },
+  { label: 'Food & Groceries', items: ['Snacks & Drinks', 'Groceries'] },
+  { label: 'Services & Other', items: ['Tickets & Events', 'Other'] },
+]
+const CATEGORIES = CATEGORY_GROUPS.flatMap(g => g.items)
+const QUICK_CATEGORIES = ['Textbooks', 'Electronics', 'Clothing', 'Phones & Wearables', 'Furniture', 'Stationery & Supplies', 'Snacks & Drinks']
+const SUBCATEGORIES = {
+  Electronics: ['Audio & Speakers', 'Charging & Power', 'Headphones & Earbuds', 'Computer Accessories', 'Phones & Wearables', 'Networking & Smart Home'],
+  Gadgets: ['Audio & Speakers', 'Charging & Power', 'Headphones & Earbuds', 'Smart Home', 'Wearables'],
+  'Phone Accessories': ['Cases & Covers', 'Chargers & Cables', 'Screen Protectors', 'Power Banks'],
+  'Gaming & Consoles': ['Consoles', 'Controllers', 'Games', 'Gaming Accessories'],
+  Textbooks: ['Course Textbooks', 'Course Materials', 'Past Questions & Exam Prep'],
+  'Course Materials': ['Lecture Notes', 'Past Questions & Exam Prep', 'Project Materials'],
+  Clothing: ['Shirts & Tops', 'Trousers & Jeans', 'Traditional Wear'],
+  'Home & Decor': ['Furniture', 'Kitchen & Appliances', 'Bedding', 'Cleaning Supplies'],
+}
+const UNILAG_HOSTELS = ['Akoka', 'Jaja Hall', 'Mariere Hall', 'Moremi Hall', 'Kuti Hall', 'Fagunwa Hall', 'Madam Tinubu Hall', 'Honours Hall', 'Eni-Njoku Hall', 'New Hall']
+
+function PriceFloorWarning({ floorData, onUseToken, onAdjust, using }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="bg-error/5 border border-error/30 rounded-md p-4">
+      <div className="flex items-start gap-3"><AlertTriangle size={16} className="text-error flex-shrink-0 mt-0.5" /><div className="flex-1">
+        <div className="font-bold text-sm text-error mb-1">Price Below Market Floor</div>
+        <p className="text-xs text-on-surface/60 mb-3">Your price is <strong className="text-error">{floorData.below_pct}% below</strong> the campus median. Minimum allowed: <strong className="text-on-surface">{formatNaira(floorData.floor_price)}</strong></p>
+        <div className="flex gap-2 flex-wrap"><button onClick={onAdjust} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary">Use {formatNaira(floorData.floor_price)} instead</button>
+          {floorData.token_available && <button onClick={onUseToken} disabled={using} className="px-3 py-1.5 rounded-lg text-xs font-bold border border-tertiary/40 text-tertiary hover:bg-tertiary/10 transition-colors disabled:opacity-50">🎟️ Use Emergency Token ({floorData.tokens_remaining} left this month)</button>}
+          {!floorData.token_available && <span className="text-xs text-on-surface/30 flex items-center gap-1">No emergency tokens left this month</span>}
+        </div>
+      </div></div>
+    </motion.div>
+  )
+}
+
+function ExifStatus({ status }) {
+  if (status === 'analyzing') return <div className="flex items-center gap-2 text-xs text-on-surface/40 animate-pulse"><div className="w-2 h-2 rounded-sm bg-tertiary" />Analyzing image metadata...</div>
+  if (status === 'clean') return <div className="flex items-center gap-2 text-xs text-primary"><Shield size={11} />Metadata verification queued — server will validate the stored image</div>
+  if (status === 'flagged') return <div className="flex items-center gap-2 text-xs text-error"><AlertTriangle size={11} />Location/timestamp mismatch — listing will be marked "Unverified Source"</div>
+  return null
+}
+
+function CreateListingModal({ onClose, profile }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ title: '', description: '', category: '', subcategory: '', price: '', hostel: '', listing_mode: 'sale', rental_daily_rate: '', rental_security_deposit: '0', rental_min_days: '1', rental_max_days: '30' })
+  const [images, setImages] = useState([])
+  const [suggestion, setSuggestion] = useState(null)
+  const [floorData, setFloorData] = useState(null)
+  const [exifStatus, setExifStatus] = useState(null)
+  const [loadingPrice, setLoadingPrice] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [usingToken, setUsingToken] = useState(false)
+  const [tokenOverride, setTokenOverride] = useState(null)
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  const handlePriceChange = async (e) => {
+    const val = e.target.value
+    setForm(f => ({ ...f, price: val })); setFloorData(null); setTokenOverride(null)
+    if (!val || !form.category || !profile?.university || !profile?.id) return
+    const priceNum = parseFloat(val); if (isNaN(priceNum) || priceNum <= 0) return
+    const check = await checkPriceFloor(priceNum, form.category, profile.university, profile.id)
+    if (!check.allowed && check.floor_price) setFloorData(check)
+  }
+  const handleUseToken = async () => { if (!floorData?.available_token_id) return; setUsingToken(true); setTokenOverride(floorData.available_token_id); setFloorData(null); toast.success('🎟️ Emergency token applied!'); setUsingToken(false) }
+  const handleAdjustPrice = () => { if (!floorData?.floor_price) return; setForm(f => ({ ...f, price: (floorData.floor_price / 100).toFixed(0) })); setFloorData(null); setTokenOverride(null) }
+  const handleTitleChange = async (e) => {
+    const title = e.target.value
+    setForm(f => ({ ...f, title }))
+    if (title.trim().length < 3) return
+    try {
+      const { data, error } = await supabase.rpc('campus_plug_suggest_category', { p_title: title })
+      if (error) return
+      const match = Array.isArray(data) ? data[0] : data
+      if (match?.category && match.category !== 'Other') {
+        const category = match.category === 'Electronics & Tech' ? 'Electronics' : match.category
+        setForm(f => ({ ...f, title, category: CATEGORIES.includes(category) ? category : f.category, subcategory: match.subcategory || f.subcategory }))
+      }
+    } catch { /* Categorisation is a suggestion; never block listing creation. */ }
+  }
+  const handleCategoryChange = async (e) => {
+    const cat = e.target.value; setForm(f => ({ ...f, category: cat, subcategory: '' })); if (!cat || !profile?.university) return
+    setLoadingPrice(true); const { data } = await supabase.rpc('get_price_suggestion', { p_category: cat, p_university: profile.university }); setSuggestion(data); setLoadingPrice(false)
+  }
+  const onDrop = useCallback(async (files) => {
+    const newImgs = []
+    for (const file of files.slice(0, 4 - images.length)) {
+      setExifStatus('analyzing'); const exif = await analyzeAndStripExif(file, profile?.university)
+      newImgs.push({ file: exif.clean_blob || file, preview: URL.createObjectURL(exif.clean_blob || file), exif })
+    }
+    setImages(prev => [...prev, ...newImgs].slice(0, 4))
+    const allExif = [...images, ...newImgs].map(i => i.exif).filter(Boolean)
+    const anyFlagged = allExif.some(e => e.gps_mismatch || e.timestamp_flag)
+    setExifStatus(anyFlagged ? 'flagged' : allExif.length > 0 ? 'clean' : null)
+  }, [images, profile?.university])
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxSize: 5 * 1024 * 1024 })
+  const removeImage = (idx) => setImages(prev => { URL.revokeObjectURL(prev[idx].preview); const next = prev.filter((_, i) => i !== idx); if (!next.length) setExifStatus(null); return next })
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!profile?.id) { toast.error('Your account profile is still loading. Please try again in a moment.'); return }
+    if (!profile.university) { toast.error('Complete your university profile before listing an item.'); return }
+    if (!form.title.trim()) { toast.error('Enter a listing title'); return }
+    if (!form.category) { toast.error('Select a category'); return }
+    if (floorData && !tokenOverride) { toast.error('Price is below the floor. Adjust price or use an emergency token.'); return }
+    const rentalDailyRate = Number(form.rental_daily_rate)
+    const rentalDeposit = Number(form.rental_security_deposit || 0)
+    const rentalMinDays = Number(form.rental_min_days)
+    const rentalMaxDays = Number(form.rental_max_days)
+    if (form.listing_mode === 'both' && (!Number.isFinite(rentalDailyRate) || rentalDailyRate <= 0 || !Number.isFinite(rentalDeposit) || rentalDeposit < 0 || !Number.isInteger(rentalMinDays) || rentalMinDays < 1 || !Number.isInteger(rentalMaxDays) || rentalMaxDays < rentalMinDays || rentalMaxDays > 90)) {
+      toast.error('Enter a valid daily rental rate, deposit and rental duration (1–90 days).')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const uploadedUrls = await Promise.all(images.map(({ file }) => uploadImage(file, 'listings')))
+      const { data: listing, error } = await supabase.from('listings').insert({
+        seller_id: profile.id, title: form.title, description: form.description, category: form.category, subcategory: form.subcategory || null,
+        price: toKobo(form.price), images: uploadedUrls, university: profile.university, hostel: form.hostel || null,
+        listing_mode: form.listing_mode,
+        rental_daily_rate_kobo: form.listing_mode === 'both' ? toKobo(rentalDailyRate) : null,
+        rental_security_deposit_kobo: form.listing_mode === 'both' ? toKobo(rentalDeposit) : 0,
+        rental_min_days: form.listing_mode === 'both' ? rentalMinDays : 1,
+        rental_max_days: form.listing_mode === 'both' ? rentalMaxDays : 30,
+        floor_override: !!tokenOverride, emergency_token_id: tokenOverride || null,
+      }).select().single()
+      if (error) throw error
+
+      // The listing row is the publish transaction. Once it exists, close the
+      // form and show success; secondary trust/social work must never make a
+      // successful listing look like a failed publish.
+      // Close the composer immediately after the listing row is confirmed.
+      // Cache refresh and trust/social side-effects are secondary and must never
+      // keep the successful publish UI open or turn it into a false failure.
+      onClose()
+      toast.success('Listing published! 🎉')
+      void qc.invalidateQueries({ queryKey: ['listings'] }).catch(error =>
+        console.warn('Marketplace cache refresh failed after listing publish:', error)
+      )
+      void qc.invalidateQueries({ queryKey: ['recent-listings'] }).catch(error =>
+        console.warn('Recent listings cache refresh failed after listing publish:', error)
+      )
+
+      void (async () => {
+        const sideEffectFailures = []
+        if (tokenOverride) {
+          try {
+            const consumed = await consumeEmergencyToken(tokenOverride, listing.id)
+            if (!consumed) throw new Error('Emergency token was not consumed')
+          } catch (error) {
+            console.error('Emergency token consumption failed after listing publish:', { listingId: listing.id, error })
+            sideEffectFailures.push('emergency token')
+          }
+        }
+        for (let i = 0; i < images.length; i++) {
+          if (!images[i].exif || !uploadedUrls[i]) continue
+          try {
+            await saveExifFlags(listing.id, uploadedUrls[i], images[i].exif)
+          } catch (error) {
+            console.error('Server image verification failed after listing publish:', { listingId: listing.id, imageIndex: i, error })
+            sideEffectFailures.push('image verification')
+          }
+        }
+        try {
+          const { error: activityError } = await supabase.from('activity_feed').insert({
+            actor_name: profile.full_name,
+            actor_id: profile.id,
+            action: 'listed a new item',
+            subject: form.title,
+            amount: toKobo(form.price),
+            emoji: '🛍️',
+            university: profile.university,
+          })
+          if (activityError) throw activityError
+        } catch (error) {
+          console.error('Activity feed update failed after listing publish:', { listingId: listing.id, error })
+          sideEffectFailures.push('activity feed')
+        }
+        if (sideEffectFailures.length) {
+          toast.error(`Listing published, but ${sideEffectFailures.join(", ")} needs attention.`)
+        }
+      })().catch(error => {
+        // Keep unexpected failures from becoming unhandled promise rejections.
+        console.error('Unexpected post-publish side-effect failure:', { listingId: listing.id, error })
+        toast.error('Listing published, but some follow-up checks failed.')
+      })
+    } catch (err) { toast.error(err.message || 'Failed to publish listing') } finally { setSubmitting(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="absolute inset-0 bg-scrim/70" onClick={onClose} />
+      <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} className="relative z-10 w-full max-w-xl bg-surface-container-high border border-outline-variant rounded-md max-h-[92vh] overflow-y-auto">
+        <div className="sticky top-0 bg-surface-container-high border-b border-outline-variant px-6 py-4 flex items-center justify-between"><h2 className="font-bold text-lg">List an Item</h2><button type="button" onClick={onClose} aria-label="Close listing form" className="icon-button h-10 w-10" title="Close"><X size={18} /></button></div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <div><label className="label">Title</label><input aria-label="Title" className="input" placeholder="e.g. Stryer's Biochemistry 8th Edition" value={form.title} onChange={handleTitleChange} required maxLength={100} /></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="label">Category</label><select aria-label="Category" className="input" value={form.category} onChange={handleCategoryChange} required><option value="">Select category</option>{CATEGORY_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.items.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>)}</select></div>
+            <div><label className="label">Price (₦)</label><input aria-label="Price (₦)" className="input" type="number" placeholder="0.00" min="1" value={form.price} onChange={handlePriceChange} required /></div>
+          </div>
+          <div className="space-y-3 rounded-md border border-outline-variant bg-surface-container p-4">
+            <div><label className="label">How can students use this listing?</label><select aria-label="Listing mode" className="input" value={form.listing_mode} onChange={set('listing_mode')}><option value="sale">Sell only</option><option value="both">Sell and rent</option></select><p className="mt-1 text-[10px] text-on-surface-variant">Rental reservations use Campus Wallet escrow and are separate from a purchase.</p></div>
+            {form.listing_mode === 'both' && <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">Rental rate per day (₦)</label><input className="input" type="number" min="1" step="1" value={form.rental_daily_rate} onChange={set('rental_daily_rate')} placeholder="e.g. 1500" required /></div>
+                <div><label className="label">Refundable deposit (₦)</label><input className="input" type="number" min="0" step="1" value={form.rental_security_deposit} onChange={set('rental_security_deposit')} placeholder="e.g. 3000" required /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">Minimum days</label><input className="input" type="number" min="1" max="90" value={form.rental_min_days} onChange={set('rental_min_days')} required /></div>
+                <div><label className="label">Maximum days</label><input className="input" type="number" min={form.rental_min_days || 1} max="90" value={form.rental_max_days} onChange={set('rental_max_days')} required /></div>
+              </div>
+              <p className="text-[10px] leading-4 text-on-surface-variant">The borrower pays the rental fee plus refundable deposit upfront. Both stay held until you confirm the item is returned. Rental holds are limited to ₦10,000 per reservation.</p>
+            </div>}
+          </div>
+          <div><label className="label">Subcategory <span className="text-on-surface/30">(optional)</span></label><select aria-label="Subcategory" className="input" value={form.subcategory} onChange={set('subcategory')}><option value="">Select subcategory</option>{(SUBCATEGORIES[form.category] || []).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+          <div><label className="label">Hostel / Area</label><select aria-label="Hostel / Area" className="input" value={form.hostel} onChange={set('hostel')}><option value="">Select where the item is</option>{UNILAG_HOSTELS.map(h => <option key={h} value={h}>{h}</option>)}</select><p className="text-[10px] text-on-surface/30 mt-1">Helps nearby students choose low-effort swaps.</p></div>
+          <AnimatePresence>{floorData && !tokenOverride && <PriceFloorWarning floorData={floorData} onUseToken={handleUseToken} onAdjust={handleAdjustPrice} using={usingToken} />}</AnimatePresence>
+          {tokenOverride && <div className="flex items-center gap-2 text-xs text-tertiary"><Zap size={12} />Emergency token applied — below-floor price allowed</div>}
+          {(loadingPrice || suggestion) && !floorData && <div className="bg-primary/5 border border-primary/20 rounded-md p-4"><div className="flex items-center gap-2 mb-2"><TrendingUp size={13} className="text-primary" /><span className="text-xs font-bold text-primary uppercase tracking-wider">Smart Price (IQR-cleaned)</span></div>{loadingPrice ? <div className="text-sm text-on-surface/40 animate-pulse">Analyzing campus prices...</div> : suggestion?.sample_count > 0 ? <div className="space-y-2"><div className="flex items-center gap-4"><div><div className="text-xl font-black text-primary font-mono">{formatNaira(suggestion.median_price)}</div><div className="text-xs text-on-surface/40">Recommended median{suggestion.outliers_removed > 0 && ` (${suggestion.outliers_removed} outliers excluded)`}</div></div><button type="button" onClick={() => setForm(f => ({ ...f, price: (suggestion.median_price / 100).toFixed(0) }))} className="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/30 transition-colors font-semibold">Use This Price</button></div><div className="flex gap-3 text-xs text-on-surface/40"><span>Min: {formatNaira(suggestion.min_price)}</span><span>Max: {formatNaira(suggestion.max_price)}</span><span>{suggestion.sample_count} listings analyzed</span></div><div className="relative h-1.5 bg-surface-container-highest rounded-sm"><div className="absolute h-full rounded-sm bg-none from-primary to-tertiary" style={{ width: suggestion.max_price > 0 ? `${Math.min(suggestion.median_price / suggestion.max_price * 100, 100)}%` : '50%' }} /></div></div> : <p className="text-sm text-on-surface/40">No comparable listings yet. Set any price.</p>}</div>}
+          <div><label className="label">Description</label><textarea aria-label="Description" className="input resize-none" rows={3} placeholder="Condition, edition, accessories included..." value={form.description} onChange={set('description')} /></div>
+          <div><label className="label">Photos (up to 4) — EXIF auto-stripped</label><div {...getRootProps()} className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/5' : 'border-outline-variant hover:border-primary/40 hover:bg-surface-container-highest/30'}`}><input {...getInputProps()} /><Upload size={22} className="mx-auto text-on-surface/30 mb-2" /><p className="text-sm text-on-surface/40">{isDragActive ? 'Drop here' : 'Drag & drop or click'}</p><p className="text-xs text-white/25 mt-1">GPS data stripped automatically. Location verified server-side for trust.</p></div>{exifStatus && <div className="mt-2"><ExifStatus status={exifStatus} /></div>}{images.length > 0 && <div className="flex gap-2 mt-3 flex-wrap">{images.map((img, i) => <div key={i} className="relative"><img src={img.preview} alt="" className={`w-20 h-20 rounded-lg object-cover border-2 ${img.exif?.gps_mismatch || img.exif?.timestamp_flag ? 'border-error/50' : 'border-outline-variant'}`} />{img.exif && !img.exif.gps_mismatch && !img.exif.timestamp_flag && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-sm bg-primary flex items-center justify-center text-[8px] text-on-primary font-bold">✓</div>}{(img.exif?.gps_mismatch || img.exif?.timestamp_flag) && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-sm bg-error flex items-center justify-center text-[8px] text-white">!</div>}<button type="button" onClick={() => removeImage(i)} className="absolute -bottom-1 -left-1 w-4 h-4 rounded-sm bg-surface border border-outline-variant text-on-surface/60 flex items-center justify-center text-[10px]">×</button></div>)}</div>}</div>
+          <button type="submit" aria-label="Publish Listing" disabled={submitting || (!!floorData && !tokenOverride)} className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed">{submitting ? 'Publishing...' : 'Publish Listing'}</button>
+        </form>
+      </motion.div>
+    </div>
+  )
+}
+
+function ListingCard({ listing }) {
+  return <Link to={`/marketplace/${listing.id}`} className="surface surface-interactive rounded-md overflow-hidden transition-all duration-200 group">
+    <div className="aspect-video bg-surface-container-highest overflow-hidden relative">{listing.images?.[0] ? <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>}{listing.metadata_verified && <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary/90 text-on-primary text-[9px] font-bold px-1.5 py-0.5 rounded-sm"><Shield size={8} /> VERIFIED</div>}{listing.exif_flagged && <div className="absolute top-2 left-2 flex items-center gap-1 bg-error/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm"><AlertTriangle size={8} /> UNVERIFIED SOURCE</div>}{listing.floor_override && <div className="absolute top-2 right-2 flex items-center gap-1 bg-tertiary/90 text-on-primary text-[9px] font-bold px-1.5 py-0.5 rounded-sm">🎟️ SALE</div>}</div>
+    <div className="p-4"><div className="flex items-start justify-between gap-2 mb-2"><h3 className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors">{listing.title}</h3><div className="text-right flex-shrink-0"><span className="block font-mono font-black text-primary text-sm">{formatNaira(listing.price)}</span>{listing.listing_mode === 'both' && <span className="block text-[10px] font-semibold text-secondary">{formatNaira(listing.rental_daily_rate_kobo)} / day rent</span>}</div></div><div className="flex items-center justify-between"><div className="flex gap-1 flex-wrap"><span className="tag tag-cyan text-[10px]">{listing.category}</span>{listing.hostel && <span className="tag tag-purple text-[10px] flex items-center gap-1"><Home size={9} />{listing.hostel}</span>}</div><span className="flex items-center gap-1 text-xs text-on-surface/30">{listing.profiles?.is_verified && <Shield size={10} className="text-primary" />}{listing.profiles?.full_name?.split(' ')[0]}</span></div></div>
+  </Link>
+}
+
+export default function Marketplace() {
+  const { profile } = useAuth(); const [searchParams] = useSearchParams(); const qc = useQueryClient()
+  const [showCreate, setShowCreate] = useState(searchParams.get('action') === 'create')
+  const [search, setSearch] = useState(''); const [category, setCategory] = useState(searchParams.get('cat') || '')
+  const [hostel, setHostel] = useState(searchParams.get('hostel') || ''); const [myOnly, setMyOnly] = useState(searchParams.get('tab') === 'my-listings'); const [verifiedOnly, setVerifiedOnly] = useState(false); const [sort, setSort] = useState('newest'); const [showMoreCategories, setShowMoreCategories] = useState(false)
+  const { data: listings = [], isLoading } = useQuery({
+    queryKey: ['listings', category, hostel, myOnly, verifiedOnly, profile?.id, profile?.university],
+    // Wait for the profile to resolve, but do not require a university: a new
+    // account with no campus set should still be able to browse. RLS already
+    // allows reading active listings campus-wide, so the campus filter below is
+    // a scoping preference rather than an access boundary.
+    enabled: Boolean(profile?.id),
+    queryFn: async () => {
+      let q = supabase.from('listings').select('*, profiles!listings_seller_id_fkey(full_name, university, avatar_url, is_verified)').eq('status', 'active')
+      // Do not hard-filter by university: keep same-campus listings prominent,
+      // but allow other listings to appear (ranked below same-campus ones).
+      q = q.order('created_at', { ascending: false })
+      if (category) q = q.eq('category', category); if (hostel) q = q.eq('hostel', hostel); if (myOnly) q = q.eq('seller_id', profile?.id); if (verifiedOnly) q = q.eq('metadata_verified', true)
+      const { data, error } = await q; if (error) throw error; return data || []
+    },
+  })
+  useRealtimeTable({ table: 'listings', onInsert: (l) => { if (profile?.university && l.university !== profile.university) return; if (myOnly && l.seller_id !== profile?.id) return; if (category && l.category !== category) return; if (hostel && l.hostel !== hostel) return; qc.setQueryData(['listings', category, hostel, myOnly, verifiedOnly, profile?.id, profile?.university], old => [l, ...(old || [])]) }, onUpdate: (u) => qc.setQueryData(['listings', category, hostel, myOnly, verifiedOnly, profile?.id, profile?.university], old => (old || []).map(l => l.id === u.id ? { ...l, ...u } : l)) })
+  const filtered = listings
+    .filter(l => !search || l.title.toLowerCase().includes(search.toLowerCase()) || l.description?.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sort === 'price-low') return Number(a.price) - Number(b.price)
+      if (sort === 'price-high') return Number(b.price) - Number(a.price)
+      // Same university first, then newest/oldest within each group.
+      const aLocal = profile?.university && a.university === profile.university ? 1 : 0
+      const bLocal = profile?.university && b.university === profile.university ? 1 : 0
+      if (aLocal !== bLocal) return bLocal - aLocal
+      if (sort === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  return <div className="page-shell">
+    <div className="page-header"><div><p className="section-label">P2P Exchange</p><h1 className="page-title">Marketplace</h1><p className="page-subtitle">Buy and sell with students on your campus.</p></div><button onClick={() => setShowCreate(true)} disabled={!profile?.university} title={!profile?.university ? 'Complete your university profile first' : 'List an item'} className="btn-primary touch-target self-start disabled:opacity-50 disabled:cursor-not-allowed"><Plus size={16} /> List Item</button></div>
+    {!profile?.university && <div role="status" className="mb-5 flex flex-col gap-3 rounded-md border border-primary/30 bg-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold">Browsing every campus</p><p className="mt-0.5 text-xs text-on-surface-variant">Add your university to see only your campus and to start listing items.</p></div><Link to="/settings" className="btn-secondary touch-target shrink-0 self-start sm:self-auto">Add university</Link></div>}
+    <div className="flex flex-col sm:flex-row gap-3 mb-5"><div className="relative flex-1"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface/30" /><input aria-label="Search listings" className="input pl-9" placeholder="Search listings..." value={search} onChange={e => setSearch(e.target.value)} /></div><select aria-label="Category filter" className="input sm:w-44" value={category} onChange={e => setCategory(e.target.value)}><option value="">All Categories</option>{CATEGORY_GROUPS.map(g => <optgroup key={g.label} label={g.label}>{g.items.map(c => <option key={c} value={c}>{c}</option>)}</optgroup>)}</select><select aria-label="Hostel filter" className="input sm:w-48" value={hostel} onChange={e => setHostel(e.target.value)}><option value="">All Hostels / Areas</option>{UNILAG_HOSTELS.map(h => <option key={h} value={h}>{h}</option>)}</select><select aria-label="Sort listings" className="input sm:w-44" value={sort} onChange={e => setSort(e.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></div>
+    <div className="mb-6 space-y-3" aria-label="Marketplace filters">
+      <div className="flex flex-wrap gap-2">
+        {['', ...QUICK_CATEGORIES].map(c => <button key={c || 'all'} onClick={() => setCategory(c)} className={`rounded-sm border px-3 py-1.5 text-xs font-semibold transition-all ${category === c ? 'border-primary bg-primary text-on-primary' : 'border-outline-variant bg-surface-container-high text-on-surface/50 hover:border-primary/30'}`}>{c || 'All items'}</button>)}
+        <button type="button" onClick={() => setShowMoreCategories(value => !value)} aria-expanded={showMoreCategories} className="rounded-sm border border-primary/30 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10">{showMoreCategories ? 'Hide categories' : 'More categories'} {showMoreCategories ? '−' : '+'}</button>
+      </div>
+      {showMoreCategories && <div className="grid gap-4 rounded-md border border-outline-variant bg-surface-container-high p-4 sm:grid-cols-2 lg:grid-cols-3">
+        {CATEGORY_GROUPS.map(group => <section key={group.label} className="min-w-0">
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-on-surface/60">{group.label}</h2>
+          <div className="flex flex-wrap gap-1.5">{group.items.map(item => <button key={item} onClick={() => setCategory(item)} className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${category === item ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant text-on-surface/55 hover:border-primary/30 hover:text-on-surface'}`}>{item}</button>)}</div>
+        </section>)}
+      </div>}
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => setHostel('')} className={`rounded-sm border px-3 py-1.5 text-xs font-semibold transition-all ${!hostel ? 'border-tertiary bg-tertiary text-on-tertiary' : 'border-outline-variant bg-surface-container-high text-on-surface/50'}`}>Any Hostel</button>
+        {UNILAG_HOSTELS.slice(0, 5).map(h => <button key={h} onClick={() => setHostel(hostel === h ? '' : h)} className={`rounded-sm border px-3 py-1.5 text-xs font-semibold transition-all ${hostel === h ? 'border-tertiary bg-tertiary text-on-tertiary' : 'border-outline-variant bg-surface-container-high text-on-surface/50 hover:border-tertiary/30'}`}>{h}</button>)}
+        <button onClick={() => setMyOnly(v => !v)} className={`rounded-sm border px-3 py-1.5 text-xs font-semibold transition-all ${myOnly ? 'border-primary bg-primary text-on-primary' : 'border-outline-variant bg-surface-container-high text-on-surface/50 hover:border-primary/30'}`}>My Listings</button>
+        <button onClick={() => setVerifiedOnly(v => !v)} className={`flex items-center gap-1 rounded-sm border px-3 py-1.5 text-xs font-semibold transition-all ${verifiedOnly ? 'border-primary bg-primary text-on-primary' : 'border-outline-variant bg-surface-container-high text-on-surface/50 hover:border-primary/30'}`}><Shield size={10} /> Verified Only</button>
+      </div>
+    </div>
+    {isLoading ? <div aria-label="Loading listings" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="surface overflow-hidden animate-pulse"><div className="aspect-video bg-surface-container-highest" /><div className="p-4 space-y-2"><div className="h-4 bg-surface-container-highest rounded" /><div className="h-3 bg-surface-container-highest rounded w-2/3" /></div></div>)}</div> : filtered.length === 0 ? <div className="surface mx-auto max-w-xl px-6 py-16 text-center"><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-primary/10 text-2xl">🛍️</div><p className="font-bold text-on-surface">No listings found</p><p className="mt-1 text-sm text-on-surface/40">{hostel ? `Nothing listed in ${hostel} yet.` : myOnly ? "You haven't listed anything yet." : search ? `Nothing matches “${search}”.` : 'Try a different filter.'}</p>{(search || category || hostel || myOnly || verifiedOnly) && <button type="button" onClick={() => { setSearch(''); setCategory(''); setHostel(''); setMyOnly(false); setVerifiedOnly(false) }} className="btn-secondary mt-5">Clear filters</button>}</div> : <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">{filtered.map(l => <ListingCard key={l.id} listing={l} />)}</div>}
+    <AnimatePresence>{showCreate && <CreateListingModal onClose={() => setShowCreate(false)} profile={profile} />}</AnimatePresence>
+  </div>
+}

@@ -1,0 +1,319 @@
+/**
+ * Campus Plug — useEscrow Hook
+ *
+ * The single interface for all PlugPay v2 escrow interactions.
+ * Handles the complete state machine:
+ *
+ *   pending → locked → meetup_initiated → release_requested → released
+ *                                      ↘ released              ↘ disputed
+ *
+ * Features:
+ * - Real-time transaction status updates via Supabase Realtime
+ * - Live countdown timer for auto-release window (ticks every 10s)
+ * - All Edge Function calls abstracted into named action methods
+ * - Toast notifications on every state transition
+ * - Optimistic UI updates + server sync
+ * - Zero page-level knowledge of Edge Function URLs
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import toast from 'react-hot-toast'
+import { supabase, callEdgeFunction, formatNaira } from '@/lib/supabase'
+import { useTransactionStatus } from './useRealtime'
+
+// ── Status metadata ────────────────────────────────────────────────────────────
+import { TX_STATUS, TX_STATUS_META, TX_STEPS } from '@/lib/escrowState'
+import { deriveTransactionLifecycle } from '@/lib/transactionLifecycle'
+
+export { TX_STATUS, TX_STATUS_META, TX_STEPS }
+
+
+// Toast messages per transition
+const TRANSITION_TOASTS = {
+  locked:            { msg: '🔐 Payment confirmed! Funds locked in escrow.',    type: 'success' },
+  meetup_initiated:  { msg: '📍 Meetup initiated. QR code is now active.',      type: 'success' },
+
+  released:          { msg: 'Transaction resolved. Checking seller payout status.', type: 'blank' },
+  disputed:          { msg: '🚨 Dispute filed. Under review within 24 hours.',  type: 'blank'   },
+  cancelled:         { msg: '❌ Transaction cancelled.',                         type: 'error'   },
+}
+
+/**
+ * useEscrow — manages the full lifecycle of a single PlugPay transaction.
+ *
+ * @param {object} opts
+ * @param {string}   opts.transactionId  - UUID of the transaction row
+ * @param {object}   opts.session        - Supabase session object (from useAuth)
+ * @param {boolean}  opts.isSeller       - Whether the current user is the seller
+ * @param {Function} [opts.onRelease]    - Callback when status becomes 'released'
+ * @param {Function} [opts.onDispute]    - Callback when status becomes 'disputed'
+ * @param {Function} [opts.onStatusChange] - Generic status change callback
+ */
+export function useEscrow({
+  transactionId,
+  session,
+  isSeller = false,
+  onRelease,
+  onDispute,
+  onStatusChange,
+}) {
+  const [tx,         setTx]         = useState(null)
+  const [loading,    setLoading]    = useState(null)   // current action name | null
+  const [error,      setError]      = useState(null)   // last error string | null
+  const [countdown,  setCountdown]  = useState(null)   // ms until auto-release
+
+  const prevStatusRef = useRef(null)
+  const countdownRef  = useRef(null)
+
+  // ── Load initial transaction ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!transactionId) return
+    supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .single()
+      .then(({ data, error }) => {
+        if (error) console.warn('[useEscrow] Load error:', error.message)
+        else if (data) {
+          setTx(data)
+          prevStatusRef.current = data.status
+        }
+      })
+  }, [transactionId])
+
+  // ── Real-time subscription ─────────────────────────────────────────────────
+  useTransactionStatus(transactionId, (updated) => {
+    const prev = prevStatusRef.current
+    prevStatusRef.current = updated.status
+
+    setTx(updated)
+
+    // Toast on status change
+    if (prev !== updated.status && (TRANSITION_TOASTS[updated.status] || updated.status === 'release_requested')) {
+      const transition = updated.status === 'release_requested'
+        ? { msg: updated.handshake_receipt_buffer ? 'Handoff confirmed. Funds stay protected for a 2-hour inspection window.' : 'Release requested. Either participant has 48 hours to dispute.', type: 'blank' }
+        : TRANSITION_TOASTS[updated.status]
+      if (transition) {
+        const { msg, type } = transition
+        if (type === 'success') toast.success(msg)
+        else if (type === 'error') toast.error(msg)
+        else toast(msg)
+      }
+    }
+
+    onStatusChange?.(updated, prev)
+    if (updated.status === 'released') onRelease?.(updated)
+    if (updated.status === 'disputed') onDispute?.(updated)
+  })
+
+  // ── Countdown ticker for auto-release window ───────────────────────────────
+  useEffect(() => {
+    if (countdownRef.current) clearInterval(countdownRef.current)
+
+    if (!tx?.auto_release_at) {
+      setCountdown(null)
+      return
+    }
+
+    const tick = () => {
+      const ms = Math.max(0, new Date(tx.auto_release_at).getTime() - Date.now())
+      setCountdown(ms)
+      if (ms === 0) clearInterval(countdownRef.current)
+    }
+
+    tick()
+    countdownRef.current = setInterval(tick, 10_000)
+    return () => clearInterval(countdownRef.current)
+  }, [tx?.auto_release_at])
+
+  // ── Core Edge Function caller ──────────────────────────────────────────────
+  const edgeCall = useCallback(async (action, extra = {}) => {
+    if (!session?.access_token) {
+      setError('Not authenticated')
+      toast.error('Please sign in to continue')
+      return { success: false, error: 'Not authenticated' }
+    }
+
+    setLoading(action)
+    setError(null)
+
+    const { data, error: callError } = await callEdgeFunction(
+      'release-escrow',
+      { action, transaction_id: transactionId, ...extra },
+      session.access_token
+    )
+
+    setLoading(null)
+
+    if (callError) {
+      setError(callError)
+      toast.error(callError)
+      return { success: false, error: callError }
+    }
+
+    // Refresh tx state from DB (real-time may beat this, that's fine)
+    supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .single()
+      .then(({ data: fresh }) => fresh && setTx(fresh))
+
+    return { success: true, data }
+  }, [transactionId, session])
+
+  // ── State machine actions ──────────────────────────────────────────────────
+
+  /**
+   * BUYER: Release funds by providing the seller's QR secret.
+   * Triggers: meetup_initiated → release_requested (inspection buffer starts; no payout yet)
+   */
+  const release = useCallback((qrSecret) => {
+    if (!qrSecret?.trim()) {
+      toast.error('Please enter the QR code from the seller')
+      return Promise.resolve({ success: false })
+    }
+    return edgeCall('release', { qr_secret: qrSecret.trim() })
+  }, [edgeCall])
+
+  /**
+   * SELLER: Confirm the physical meetup has started.
+   * Triggers: locked → meetup_initiated
+   * Starts the separate 24-hour eligibility timer for seller-requested release. Buyer QR handoff can be confirmed earlier after both fresh Safe Swap check-ins.
+   */
+  const initiateMeetup = useCallback((meetupSpot = null) => {
+    return edgeCall('initiate_meetup', {
+      ...(meetupSpot ? { meetup_spot: meetupSpot } : {}),
+    })
+  }, [edgeCall])
+
+  /**
+   * SELLER: Request fund release after 24h timeout.
+   * Triggers: meetup_initiated → release_requested
+   * For Campus Wallet QR confirmation, starts a two-hour inspection countdown. External payment release requests retain their existing 48-hour window.
+   * Edge Function enforces the time gate — cannot be called too early.
+   */
+  const requestRelease = useCallback(() => {
+    if (!isSeller) {
+      toast.error('Only the seller can request release')
+      return Promise.resolve({ success: false })
+    }
+    return edgeCall('request_release')
+  }, [edgeCall, isSeller])
+
+  /**
+   * Either transaction participant: File a formal dispute during the applicable inspection/release window.
+   * Triggers: release_requested → disputed
+   * Cancels the pending auto-release job.
+   * Requires a reason string of at least 20 characters.
+   */
+  const dispute = useCallback((reason) => {
+    if (!deriveTransactionLifecycle(tx).canDispute) {
+      toast.error('This transaction is no longer within its dispute window')
+      return Promise.resolve({ success: false })
+    }
+    if (!reason || reason.trim().length < 20) {
+      toast.error('Please provide a detailed reason (minimum 20 characters)')
+      return Promise.resolve({ success: false })
+    }
+    setLoading('dispute')
+    setError(null)
+    return supabase.functions.invoke('process-dispute', {
+      body: { action: 'open_case', transaction_id: transactionId, reason: reason.trim() },
+    }).then(({ data, error: invokeError }) => {
+      setLoading(null)
+      if (invokeError) {
+        setError(invokeError.message)
+        toast.error(invokeError.message)
+        return { success: false, error: invokeError.message }
+      }
+      if (!data?.success) {
+        const message = data?.error || 'Could not open the dispute'
+        setError(message)
+        toast.error(message)
+        return { success: false, error: message }
+      }
+      toast.success('Dispute filed. Escrow funds remain held while the case is reviewed.')
+      void supabase.from('transactions').select('*').eq('id', transactionId).single()
+        .then(({ data: fresh }) => fresh && setTx(fresh))
+      return { success: true, data }
+    }).catch(invokeError => {
+      setLoading(null)
+      const message = invokeError instanceof Error ? invokeError.message : 'Could not open the dispute'
+      setError(message)
+      toast.error(message)
+      return { success: false, error: message }
+    })
+  }, [transactionId, tx])
+
+  // ── Derived state ──────────────────────────────────────────────────────────
+
+  const status    = tx?.status ?? 'pending'
+  const lifecycle = deriveTransactionLifecycle(tx)
+  const meta      = { label: lifecycle.title, icon: lifecycle.phase === 'dispute' ? '🚨' : lifecycle.handoffConfirmed ? '🛡️' : (TX_STATUS_META[status] ?? TX_STATUS_META.pending).icon, color: lifecycle.tone === 'danger' ? 'red' : lifecycle.tone === 'success' ? 'green' : lifecycle.tone === 'warning' ? 'amber' : 'cyan', step: (TX_STATUS_META[status] ?? TX_STATUS_META.pending).step }
+  const stepIndex = TX_STEPS.findIndex(s => s.key === status)
+
+  // Which actions are available for the current user + status
+  const canInitiateMeetup  = isSeller  && status === 'locked'
+  const canShowQR          = isSeller  && status === 'meetup_initiated'
+  const canRelease         = !isSeller && status === 'meetup_initiated'
+  const canRequestRelease  = isSeller  && status === 'meetup_initiated' && tx?.payment_method !== 'campus_wallet'
+  const canDispute         = lifecycle.canDispute
+  const isTerminal         = status === 'released' || status === 'cancelled'
+  const isDisputed         = status === 'disputed'
+
+  // Auto-release countdown
+  const autoReleaseMs      = countdown ?? null
+  const autoReleaseHours   = autoReleaseMs != null ? Math.floor(autoReleaseMs / 3_600_000) : null
+  const autoReleaseMins    = autoReleaseMs != null ? Math.floor((autoReleaseMs % 3_600_000) / 60_000) : null
+  const autoReleaseExpired = tx?.auto_release_at ? new Date(tx.auto_release_at) < new Date() : false
+
+  return {
+    // ── State ─────────────────────────────────────────────────────────────
+    tx,
+    status,
+    meta,
+    loading,
+    error,
+
+    // ── Progress bar data ──────────────────────────────────────────────────
+    steps:     TX_STEPS,
+    stepIndex,
+
+    // ── Countdown ─────────────────────────────────────────────────────────
+    countdown: {
+      ms:      autoReleaseMs,
+      hours:   autoReleaseHours,
+      mins:    autoReleaseMins,
+      expired: autoReleaseExpired,
+      label:   autoReleaseHours != null
+                 ? `${autoReleaseHours}h ${autoReleaseMins}m`
+                 : null,
+    },
+
+    // ── Availability flags ─────────────────────────────────────────────────
+    can: {
+      initiateMeetup: canInitiateMeetup,
+      showQR:         canShowQR,
+      release:        canRelease,
+      requestRelease: canRequestRelease,
+      dispute:        canDispute,
+    },
+    isTerminal,
+    isDisputed,
+    isSeller,
+
+    // ── Actions ────────────────────────────────────────────────────────────
+    actions: {
+      release,
+      initiateMeetup,
+      requestRelease,
+      dispute,
+    },
+
+    // ── Loading helpers ────────────────────────────────────────────────────
+    isLoading:       (action) => loading === action,
+    isAnyLoading:    loading !== null,
+  }
+}

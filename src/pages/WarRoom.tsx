@@ -1,0 +1,374 @@
+/* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
+/**
+ * Campus Plug — Admin War Room (/admin/war-room)
+ *
+ * Decoupled admin module. Architectically isolated:
+ *   - Distinct RLS: only profiles with 'Plug Dev' badge can read/write global_config
+ *   - Own route, own data fetching — zero coupling to user-facing pages
+ *   - Can be extracted as a standalone app by changing the Supabase project ref
+ *
+ * Features:
+ *   - Progress bars: current_value → threshold_value per feature
+ *   - Clear approval state when criteria_met = true
+ *   - Real-time: global_config changes broadcast to all clients via Supabase Realtime
+ *   - Mode display: AUTO / MANUAL / HYBRID
+ *   - Manual override: force-enable any feature regardless of threshold
+ */
+
+/* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
+
+
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  Shield, Zap, Eye, EyeOff, CheckCircle2,
+  Lock, Unlock, RefreshCw, ArrowLeft, Settings
+} from 'lucide-react'
+import toast from 'react-hot-toast'
+
+const MODE_COLORS = {
+  AUTO:   'text-primary  bg-primary/10  border-primary/25',
+  MANUAL: 'text-tertiary  bg-tertiary/10  border-tertiary/25',
+  HYBRID: 'text-primary        bg-primary/10        border-primary/25',
+}
+
+function FeatureRow({ feature, onToggle, onForceEnable }) {
+  const pct = feature.threshold_value > 0
+    ? Math.min(100, Math.round((feature.current_value / feature.threshold_value) * 100))
+    : 100
+
+  const canApprove = feature.criteria_met && !feature.is_enabled && feature.mode !== 'AUTO'
+  const isAuto     = feature.mode === 'AUTO'
+
+  return (
+    <motion.div
+      layout
+      className={`border rounded-md overflow-hidden transition-all ${
+        feature.is_enabled
+          ? 'border-primary/25 bg-primary/3'
+          : canApprove
+          ? 'border-tertiary/40 bg-tertiary/4'
+          : 'border-outline-variant bg-surface-container-high'
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-4 px-5 py-4">
+        <div className={`text-2xl w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 ${
+          feature.is_enabled ? 'bg-primary/15' : 'bg-surface-container-highest'
+        }`}>
+          {feature.icon || '⚡'}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className="font-bold text-sm">{feature.label || feature.key}</span>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm border ${MODE_COLORS[feature.mode] || MODE_COLORS.HYBRID}`}>
+              {feature.mode}
+            </span>
+            {feature.is_enabled && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm border border-primary/30 bg-primary/10 text-primary">
+                ✓ LIVE
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-on-surface/40 truncate">{feature.description}</p>
+        </div>
+
+        {/* Toggle */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {!isAuto && (
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={() => onToggle(feature.key, !feature.is_enabled)}
+              className={`w-11 h-6 rounded-sm relative transition-colors ${
+                feature.is_enabled ? 'bg-primary' : 'bg-surface-container-highest'
+              }`}
+            >
+              <motion.div
+                animate={{ x: feature.is_enabled ? 19 : 2 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 w-4 h-4 rounded-sm bg-[var(--md-on-primary)]"
+              />
+            </motion.button>
+          )}
+          {isAuto && (
+            <div className="flex items-center gap-1 text-[10px] text-primary font-semibold">
+              <Zap size={10} /> Auto
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      {feature.threshold_value > 0 && (
+        <div className="px-5 pb-4">
+          <div className="flex justify-between text-xs mb-1.5">
+            <span className="text-on-surface/40">
+              {feature.current_value.toLocaleString()} / {feature.threshold_value.toLocaleString()} {feature.key === 'trending_engine' ? 'transactions' : 'events'}
+            </span>
+            <span className={`font-mono font-bold ${
+              pct >= 100 ? 'text-primary' : pct >= 60 ? 'text-tertiary' : 'text-on-surface/40'
+            }`}>{pct}%</span>
+          </div>
+          <div className="h-2 bg-surface-container-highest rounded-sm overflow-hidden">
+            <motion.div
+              className={`h-full rounded-sm ${
+                pct >= 100 ? 'bg-primary' :
+                pct >= 60  ? 'bg-tertiary' : 'bg-primary'
+              }`}
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Approve button */}
+      <AnimatePresence>
+        {canApprove && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 pb-5 pt-1 border-t border-tertiary/20">
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-tertiary flex-1">
+                  ✅ Threshold reached — awaiting manual approval to go live.
+                </div>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onForceEnable(feature.key)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-md font-bold text-xs bg-tertiary text-on-primary flex-shrink-0"
+                >
+                  <Unlock size={12} />
+                  Approve Cloak Release
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+export default function WarRoom() {
+  const { profile, user } = useAuth()
+  const navigate          = useNavigate()
+  const qc                = useQueryClient()
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Guard: admin only
+  const isAdmin = profile?.badges?.includes('Plug Dev') || profile?.badges?.includes('Community Hero')
+
+  useEffect(() => {
+    if (profile && !isAdmin) navigate('/', { replace: true })
+  }, [profile, isAdmin, navigate])
+
+  // Load global_config
+  const { data: features = [], isLoading } = useQuery({
+    queryKey: ['global-config'],
+    queryFn:  async () => {
+      const { data, error } = await supabase
+        .from('global_config')
+        .select('*')
+        .order('key')
+      if (error) throw error
+      return data || []
+    },
+    staleTime: 30_000,
+  })
+
+  // Real-time updates — when admin on another device approves, this syncs instantly
+  useEffect(() => {
+    const ch = supabase.channel('war-room-config')
+      .on('postgres_changes', {
+        event:  '*',
+        schema: 'public',
+        table:  'global_config',
+      }, () => {
+        qc.invalidateQueries({ queryKey: ['global-config'] })
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(ch) }
+  }, [qc])
+
+  const handleToggle = async (key: string, newValue: boolean) => {
+    const { error } = await supabase
+      .from('global_config')
+      .update({ is_enabled: newValue, updated_by: user?.id })
+      .eq('key', key)
+
+    if (error) { toast.error(error.message); return }
+
+    qc.invalidateQueries({ queryKey: ['global-config'] })
+    toast.success(newValue ? `✅ ${key} is now LIVE` : `🔒 ${key} cloaked`)
+  }
+
+  const handleForceEnable = async (key: string) => {
+    await handleToggle(key, true)
+  }
+
+  const handleRefreshCounters = async () => {
+    setRefreshing(true)
+    // Recount transactions for trending threshold
+    const { count: txCount } = await supabase
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'released')
+
+    await supabase
+      .from('global_config')
+      .update({ current_value: txCount || 0 })
+      .eq('key', 'trending_engine')
+
+    // Recount chats for trust_signals
+    const { count: chatCount } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_system_msg', false)
+
+    await supabase
+      .from('global_config')
+      .update({ current_value: Math.floor((chatCount || 0) / 3) })
+      .eq('key', 'trust_signals')
+
+    qc.invalidateQueries({ queryKey: ['global-config'] })
+    setRefreshing(false)
+    toast.success('Counters refreshed')
+  }
+
+  const liveCount    = features.filter(f => f.is_enabled).length
+  const readyCount   = features.filter(f => f.criteria_met && !f.is_enabled).length
+  const pendingCount = features.filter(f => !f.criteria_met).length
+
+  if (!isAdmin) return null
+
+  return (
+    <div className="min-h-screen bg-surface">
+      {/* Header */}
+      <div className="border-b border-outline-variant bg-surface-container-high sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+          <button onClick={() => navigate('/')}
+            className="text-on-surface/40 hover:text-on-surface transition-colors">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="flex items-center gap-2">
+            <Shield size={16} className="text-primary" />
+            <h1 className="font-black text-sm tracking-tight">
+              Campus Plug <span className="text-tertiary">War Room</span>
+            </h1>
+          </div>
+          <div className="ml-auto flex items-center gap-3">
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={handleRefreshCounters}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 text-xs text-on-surface/40 hover:text-on-surface transition-colors disabled:opacity-30"
+            >
+              <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
+              Refresh counters
+            </motion.button>
+            <div className="text-[10px] text-on-surface/25 font-mono">
+              Admin · {profile?.full_name?.split(' ')[0]}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+
+        {/* Summary stats */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: 'Features Live',    val: liveCount,    color: 'text-primary', icon: '✅' },
+            { label: 'Ready to Approve', val: readyCount,   color: 'text-tertiary', icon: '🔓' },
+            { label: 'Still Building',   val: pendingCount, color: 'text-on-surface/40',   icon: '⏳' },
+          ].map(({ label, val, color, icon }) => (
+            <div key={label} className="bg-surface-container-high border border-outline-variant rounded-md p-4 text-center">
+              <div className="text-xl mb-1">{icon}</div>
+              <div className={`text-2xl font-black font-mono ${color}`}>{val}</div>
+              <div className="text-[10px] text-on-surface/40 mt-0.5">{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Mode legend */}
+        <div className="flex items-center gap-4 flex-wrap text-xs">
+          <span className="text-on-surface/30 font-bold uppercase tracking-wider text-[10px]">Mode:</span>
+          {Object.entries(MODE_COLORS).map(([mode, cls]) => (
+            <div key={mode} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-sm border font-bold ${cls}`}>
+              {mode === 'AUTO' && <Zap size={10} />}
+              {mode === 'MANUAL' && <Settings size={10} />}
+              {mode === 'HYBRID' && <Shield size={10} />}
+              {mode}
+              {mode === 'AUTO'   && ' — self-enables at threshold'}
+              {mode === 'MANUAL' && ' — admin must approve'}
+              {mode === 'HYBRID' && ' — criteria met → admin approves'}
+            </div>
+          ))}
+        </div>
+
+        {/* Feature list */}
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-24 bg-surface-container-high border border-outline-variant rounded-md animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Live features first */}
+            {features.filter(f => f.is_enabled).length > 0 && (
+              <div>
+                <div className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <div className="plug-dot scale-75" /> Live
+                </div>
+                {features.filter(f => f.is_enabled).map(f => (
+                  <FeatureRow key={f.key} feature={f} onToggle={handleToggle} onForceEnable={handleForceEnable} />
+                ))}
+              </div>
+            )}
+
+            {/* Ready to approve */}
+            {features.filter(f => f.criteria_met && !f.is_enabled).length > 0 && (
+              <div className="mt-4">
+                <div className="text-[10px] font-bold text-tertiary uppercase tracking-widest mb-2 flex items-center gap-2">
+                  🔓 Ready to Approve
+                </div>
+                {features.filter(f => f.criteria_met && !f.is_enabled).map(f => (
+                  <FeatureRow key={f.key} feature={f} onToggle={handleToggle} onForceEnable={handleForceEnable} />
+                ))}
+              </div>
+            )}
+
+            {/* Still building */}
+            {features.filter(f => !f.criteria_met && !f.is_enabled).length > 0 && (
+              <div className="mt-4">
+                <div className="text-[10px] font-bold text-on-surface/30 uppercase tracking-widest mb-2">
+                  ⏳ Building Toward Threshold
+                </div>
+                {features.filter(f => !f.criteria_met && !f.is_enabled).map(f => (
+                  <FeatureRow key={f.key} feature={f} onToggle={handleToggle} onForceEnable={handleForceEnable} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Footer note */}
+        <div className="text-center text-xs text-on-surface/20 pb-4">
+          <p>War Room changes broadcast to all clients in real-time via Supabase Realtime.</p>
+          <p className="mt-1">Server is truth — clients only read <code className="text-on-surface/30">is_enabled</code> from this table.</p>
+        </div>
+      </div>
+    </div>
+  )
+}

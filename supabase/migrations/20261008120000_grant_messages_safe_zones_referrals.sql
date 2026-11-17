@@ -1,0 +1,131 @@
+-- Campus Plug: grant authenticated access to messages, safe_zones, referral_events.
+-- Debug export (2026-10-08) shows 42501 permission denied on these tables:
+--   messages       SELECT (Chat.jsx, MarketplaceChat) -> "column messages.content does not exist"
+--   safe_zones     SELECT (SafeSwapZone)             -> permission denied for table safe_zones
+--   referral_events SELECT (referrals UI)             -> permission denied for table referral_events
+--   group_chat_members INSERT (CampusHub join)        -> RLS USING violation
+-- These tables had RLS enabled but were never granted privileges to `authenticated`,
+-- so RLS policies were unreachable. Also add messages.content / message_type
+-- columns that client code inserts/selects.
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.messages TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.safe_zones TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.referral_events TO authenticated;
+
+alter table public.messages
+  add column if not exists content      text,
+  add column if not exists message_type text default 'text';
+
+-- Replace the legacy immutability rule. Its `on update do instead`
+-- body recursively re-triggers itself (42P17), so the backfill below
+-- cannot run while it exists. Use a BEFORE UPDATE trigger that rejects
+-- edits to immutable columns instead.
+drop rule if exists messages_no_update on public.messages;
+
+-- Backfill content from legacy body column so historical rows remain readable.
+update public.messages set content = body where content is null and body is not null;
+
+-- Immutability guard: only read-receipt / flag / soft-delete transitions allowed.
+create or replace function public.messages_guard_immutable()
+returns trigger language plpgsql as $$
+begin
+  if old.sender_id is distinct from new.sender_id
+     or old.receiver_id is distinct from new.receiver_id
+     or old.listing_id is distinct from new.listing_id
+     or old.transaction_id is distinct from new.transaction_id then
+    raise exception 'messages: participants and listing linkage are immutable';
+  end if;
+
+  if old.body is distinct from new.body or old.content is distinct from new.content then
+    if new.body = '[Message deleted]' or new.content = '[Message deleted]' then
+      return new;
+    end if;
+    raise exception 'messages: content is immutable; only soft-delete placeholder allowed';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists messages_guard_immutable on public.messages;
+create trigger messages_guard_immutable
+  before update on public.messages
+  for each row execute function public.messages_guard_immutable();
+
+-- CampusHub join uses upsert; ensure the insert policy allows the acting user
+-- to join themselves (it already does), but the earlier
+-- 051 policy replaced the recursive select policy with a non-recursive one
+-- without granting the table privilege. The GRANTs above fix that.
+
+
+-- Edge Functions run with the elevated service_role/secret role. Table grants
+-- are still checked before RLS, so explicitly grant the tables used by the
+-- growth, wallet and security functions.
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.user_security TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.referral_events TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.safe_zones TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.group_chat_members TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.wallet_funding_intents TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.streaks TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.notifications TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.profiles TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.gigs TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.listing_views TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.transactions TO service_role;
+
+-- Keep legacy body and newer content columns synchronized for new messages.
+CREATE OR REPLACE FUNCTION public.sync_message_content_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.content IS NULL AND NEW.body IS NOT NULL THEN
+    NEW.content := NEW.body;
+  ELSIF NEW.body IS NULL AND NEW.content IS NOT NULL THEN
+    NEW.body := NEW.content;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS messages_sync_content_columns ON public.messages;
+CREATE TRIGGER messages_sync_content_columns
+BEFORE INSERT ON public.messages
+FOR EACH ROW EXECUTE FUNCTION public.sync_message_content_columns();
+
+GRANT EXECUTE ON FUNCTION public.sync_message_content_columns() TO service_role;
+
+
+-- Keep every Auth user represented in the application profile table.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, avatar_url)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    NULLIF(NEW.raw_user_meta_data ->> 'full_name', ''),
+    NULLIF(NEW.raw_user_meta_data ->> 'avatar_url', '')
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+INSERT INTO public.profiles (id, email)
+SELECT u.id, u.email
+FROM auth.users u
+LEFT JOIN public.profiles p ON p.id = u.id
+WHERE p.id IS NULL AND u.email IS NOT NULL
+ON CONFLICT (id) DO NOTHING;

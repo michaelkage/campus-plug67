@@ -67,9 +67,23 @@ describe('Campus Plug database transaction state machine', () => {
     expect(lifecycle.payout.settled).toBe(false)
   })
 
-  it('only reports a completed refund from an explicit refund status', () => {
-    expect(deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'processed' }).description)
-      .toContain('refund has been processed')
+  it('distinguishes every asynchronous Paystack refund outcome after cancellation', () => {
+    const processed = deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'processed' })
+    expect(processed.description).toContain('Paystack confirmed')
+    expect(processed.tone).toBe('success')
+
+    const pending = deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'pending' })
+    expect(pending.description).toContain('not complete yet')
+    expect(pending.description).toContain('listing stays unavailable')
+
+    const attention = deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'needs-attention' })
+    expect(attention.title).toBe('Refund needs attention')
+    expect(attention.tone).toBe('warning')
+
+    const failed = deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'failed' })
+    expect(failed.title).toBe('Refund failed · retry required')
+    expect(failed.tone).toBe('danger')
+
     expect(deriveTransactionLifecycle({ status: 'cancelled' }).description)
       .toContain('Check the refund record')
   })

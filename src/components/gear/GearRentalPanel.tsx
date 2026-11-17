@@ -153,7 +153,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
   })
   const confirmReturnMutation = useMutation({
     mutationFn: (rentalId: string) => rentalRpc('confirm_gear_rental_return', { p_rental_id: rentalId, p_return_code: returnInput.trim().toUpperCase() }),
-    onSuccess: async () => { setReturnInput(''); toast.success('Return confirmed. Rental fee released and deposit refunded.'); await invalidate() },
+    onSuccess: async () => { setReturnInput(''); toast.success('Return confirmed. Funds remain held for the 24-hour inspection window.'); await invalidate() },
     onError: error => toast.error(error instanceof Error ? error.message : 'Return verification failed'),
   })
   const disputeReturnCodeMutation = useMutation({

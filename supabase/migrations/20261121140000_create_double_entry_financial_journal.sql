@@ -449,6 +449,7 @@ DECLARE
   v_counter_account uuid;
   v_lines jsonb;
   v_release_exists boolean;
+  v_payout_exists boolean;
   v_idempotency_key text;
 BEGIN
   IF p_transaction.id IS NULL OR p_transaction.payment_verified IS DISTINCT FROM true
@@ -499,22 +500,25 @@ BEGIN
           'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
         ),'debit',0,'credit',p_transaction.amount)
       );
-    ELSIF p_transaction.payout_status = 'paid' THEN
-      v_counter_account := public.get_financial_account_id(
-        'asset.seller_recovery','asset','debit',p_transaction.seller_id,
-        'Seller recovery receivable for user ' || p_transaction.seller_id::text
-      );
-      v_lines := jsonb_build_array(
-        jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
-        jsonb_build_object('account_id',public.get_financial_account_id(
-          'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
-        ),'debit',0,'credit',p_transaction.amount)
-      );
     ELSE
-      v_counter_account := public.get_financial_account_id(
-        'liability.seller_payable','liability','credit',p_transaction.seller_id,
-        'Seller payout payable for user ' || p_transaction.seller_id::text
-      );
+      SELECT EXISTS (
+        SELECT 1 FROM public.financial_journal_transactions
+         WHERE source = 'seller_payout_transfers'
+           AND reference_id = p_transaction.id
+           AND event_type = 'paystack.payout.success'
+      ) INTO v_payout_exists;
+
+      IF p_transaction.payout_status = 'paid' AND v_payout_exists THEN
+        v_counter_account := public.get_financial_account_id(
+          'asset.seller_recovery','asset','debit',p_transaction.seller_id,
+          'Seller recovery receivable for user ' || p_transaction.seller_id::text
+        );
+      ELSE
+        v_counter_account := public.get_financial_account_id(
+          'liability.seller_payable','liability','credit',p_transaction.seller_id,
+          'Seller payout payable for user ' || p_transaction.seller_id::text
+        );
+      END IF;
       v_lines := jsonb_build_array(
         jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
         jsonb_build_object('account_id',public.get_financial_account_id(
@@ -522,6 +526,7 @@ BEGIN
         ),'debit',0,'credit',p_transaction.amount)
       );
     END IF;
+
     v_idempotency_key := 'paystack-escrow-refunded:' || p_transaction.id::text;
   ELSE
     RAISE EXCEPTION 'Unsupported Paystack transaction journal event: %',p_event;
@@ -608,6 +613,7 @@ DECLARE
   v_lines jsonb;
   v_event text := lower(COALESCE(p_status,''));
   v_key text;
+  v_refund_exists boolean;
 BEGIN
   IF p_transaction_id IS NULL OR p_payout_reference IS NULL
      OR length(trim(p_payout_reference)) = 0 OR p_amount IS NULL OR p_amount <= 0
@@ -630,9 +636,13 @@ BEGIN
   v_clearing_account := public.get_financial_account_id(
     'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
   );
+  SELECT EXISTS (
+    SELECT 1 FROM public.financial_journal_transactions
+     WHERE idempotency_key = 'paystack-escrow-refunded:' || p_transaction_id::text
+  ) INTO v_refund_exists;
 
   IF v_event = 'success' THEN
-    IF v_tx.refund_status = 'processed' THEN
+    IF v_refund_exists THEN
       -- A transfer that succeeds after a refund is a seller receivable, not
       -- another payable reduction. Record the actual cash movement regardless.
       v_payable_account := public.get_financial_account_id(
@@ -651,7 +661,7 @@ BEGIN
     ) THEN
       RAISE EXCEPTION 'Payout reversal has no original successful payout journal';
     END IF;
-    IF v_tx.refund_status = 'processed' THEN
+    IF v_refund_exists THEN
       v_payable_account := public.get_financial_account_id(
         'asset.seller_recovery','asset','debit',v_tx.seller_id,
         'Seller recovery receivable for user ' || v_tx.seller_id::text
@@ -701,6 +711,7 @@ BEGIN
     PERFORM public.post_wallet_financial_journal_entry(v_entry);
   END LOOP;
 
+  -- First recognize all verified Paystack funding and escrow releases.
   FOR v_tx IN
     SELECT * FROM public.transactions
      WHERE payment_verified IS TRUE
@@ -711,15 +722,11 @@ BEGIN
     IF v_tx.status IN ('released','completed') THEN
       PERFORM public.post_paystack_transaction_journal_event(v_tx,'released');
     END IF;
-    IF v_tx.refund_status = 'processed' THEN
-      PERFORM public.post_paystack_transaction_journal_event(v_tx,'refunded');
-    END IF;
   END LOOP;
 
-  -- PR #103 is intentionally still a separate, unmerged dependency. If its
-  -- payout table is present when this migration runs, recover conclusive
-  -- provider outcomes. A later payout integration migration also installs
-  -- the trigger for future status changes.
+  -- Then recognize every conclusive provider payout and reversal. This must
+  -- precede refund backfill so refunds can distinguish paid sellers from
+  -- sellers who still only have an outstanding payable.
   IF to_regclass('public.seller_payout_transfers') IS NOT NULL THEN
     FOR v_payout IN
       SELECT p.transaction_id,p.reference,p.amount_kobo,p.status
@@ -737,6 +744,18 @@ BEGIN
       END IF;
     END LOOP;
   END IF;
+
+  -- Refunds are last so the posting classification can see whether a
+  -- successful bank payout exists and whether it was subsequently reversed.
+  FOR v_tx IN
+    SELECT * FROM public.transactions
+     WHERE payment_verified IS TRUE
+       AND COALESCE(payment_method,'paystack') <> 'campus_wallet'
+       AND refund_status = 'processed'
+     ORDER BY created_at, id
+  LOOP
+    PERFORM public.post_paystack_transaction_journal_event(v_tx,'refunded');
+  END LOOP;
 END;
 $backfill$;
 

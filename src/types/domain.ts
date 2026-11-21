@@ -33,3 +33,7 @@ export type WalletTransferResult = {
   new_balance?: number
   [key: string]: unknown
 }
+
+// Shared application-wide domain contracts. Existing database row aliases stay
+// available here for backwards compatibility while new code uses the domain API.
+export * from '../domain'

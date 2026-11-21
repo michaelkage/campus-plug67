@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(27);
+SELECT plan(29);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -78,7 +78,7 @@ INSERT INTO public.transactions (
   30000,'released','paystack','refund-fixture-reference-3',true,'processing'
 );
 SELECT throws_ok(
-  $ SELECT public.claim_paystack_refund('f4300000-0000-4000-8000-000000000003') $,
+  $sql$ SELECT public.claim_paystack_refund('f4300000-0000-4000-8000-000000000003') $sql$,
   'P0001',
   'Seller payout is still in flight or needs manual reconciliation; reconcile the Paystack transfer before refunding',
   'A new refund claim is blocked while the seller bank payout is in flight'
@@ -86,6 +86,33 @@ SELECT throws_ok(
 SELECT ok(
   (SELECT refund_status IS NULL FROM public.transactions WHERE id='f4300000-0000-4000-8000-000000000003'),
   'A blocked refund claim does not mutate refund state'
+);
+
+INSERT INTO public.listings (id,seller_id,title,category,price,status,university)
+VALUES (
+  'f4200000-0000-4000-8000-000000000004',
+  'f4100000-0000-4000-8000-000000000002',
+  'Post-release refund fixture','Other',40000,'sold','University of Lagos'
+);
+INSERT INTO public.transactions (
+  id,listing_id,buyer_id,seller_id,amount,status,payment_method,
+  paystack_ref,payment_verified,payout_status
+) VALUES (
+  'f4300000-0000-4000-8000-000000000004',
+  'f4200000-0000-4000-8000-000000000004',
+  'f4100000-0000-4000-8000-000000000001',
+  'f4100000-0000-4000-8000-000000000002',
+  40000,'released','paystack','refund-fixture-reference-4',true,'paid'
+);
+SELECT is(
+  (public.claim_paystack_refund('f4300000-0000-4000-8000-000000000004')->>'claimed')::boolean,
+  true,
+  'A refund can be initiated after escrow release and seller payout'
+);
+SELECT ok(
+  (SELECT refund_status='processing' AND refund_request_reference IS NOT NULL
+     FROM public.transactions WHERE id='f4300000-0000-4000-8000-000000000004'),
+  'Post-payout refund claim persists its idempotent provider reference'
 );
 
 SELECT * FROM finish();

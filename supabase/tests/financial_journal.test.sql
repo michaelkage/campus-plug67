@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(21);
+SELECT plan(24);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -95,6 +95,56 @@ SELECT is(
   (SELECT count(*)::integer FROM public.financial_journal_transactions
     WHERE idempotency_key='paystack-payout:cp_tr_journalfixture0001:reversed'),
   1,'Provider reversal creates a separate compensating journal'
+);
+
+-- A refund accepted before the seller transfer is submitted must reduce
+-- seller payable. If a transfer nevertheless succeeds afterward, it becomes
+-- a recovery receivable; a provider reversal compensates that receivable.
+INSERT INTO public.listings (id,seller_id,title,category,price,status,university)
+VALUES ('f6200000-0000-4000-8000-000000000004','f6100000-0000-4000-8000-000000000002',
+        'Refund-before-payout fixture','Other',7000,'sold','University of Lagos');
+INSERT INTO public.transactions (
+  id,listing_id,buyer_id,seller_id,amount,status,payment_method,
+  paystack_ref,payment_verified,payout_status,escrow_status
+) VALUES (
+  'f6300000-0000-4000-8000-000000000004',
+  'f6200000-0000-4000-8000-000000000004',
+  'f6100000-0000-4000-8000-000000000001',
+  'f6100000-0000-4000-8000-000000000002',
+  7000,'released','paystack','journal-fixture-payment-4',true,
+  'approved_for_settlement','released'
+);
+UPDATE public.transactions SET refund_status='processed'
+ WHERE id='f6300000-0000-4000-8000-000000000004';
+SELECT public.post_seller_payout_journal_event(
+  'f6300000-0000-4000-8000-000000000004','cp_tr_journalfixture0004',7000,'success'
+);
+SELECT public.post_seller_payout_journal_event(
+  'f6300000-0000-4000-8000-000000000004','cp_tr_journalfixture0004',7000,'reversed'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_entries e
+    JOIN public.financial_journal_transactions t ON t.id=e.journal_transaction_id
+    JOIN public.financial_accounts a ON a.id=e.account_id
+    WHERE t.idempotency_key='paystack-escrow-refunded:f6300000-0000-4000-8000-000000000004'
+      AND a.account_code='liability.seller_payable' AND e.debit=7000),
+  1,'Refund before payout consumes the seller payable'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_entries e
+    JOIN public.financial_journal_transactions t ON t.id=e.journal_transaction_id
+    JOIN public.financial_accounts a ON a.id=e.account_id
+    WHERE t.idempotency_key='paystack-payout:cp_tr_journalfixture0004:success'
+      AND a.account_code='asset.seller_recovery' AND e.debit=7000),
+  1,'Late payout success after refund is recognized as a seller recovery receivable'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_entries e
+    JOIN public.financial_journal_transactions t ON t.id=e.journal_transaction_id
+    JOIN public.financial_accounts a ON a.id=e.account_id
+    WHERE t.idempotency_key='paystack-payout:cp_tr_journalfixture0004:reversed'
+      AND a.account_code='asset.seller_recovery' AND e.credit=7000),
+  1,'Late payout reversal clears the recovery receivable'
 );
 
 -- Compatibility wallet funding rows are projected into double-entry accounts.

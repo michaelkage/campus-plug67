@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(26);
+SELECT plan(27);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -296,6 +296,10 @@ SELECT is(
 SELECT is(
   has_function_privilege('service_role','public.post_financial_journal_transaction(text,text,text,uuid,text,jsonb,jsonb)','EXECUTE'),
   false,'Service role cannot post arbitrary double-entry journal transactions'
+);
+SELECT is(
+  has_table_privilege('service_role','public.financial_ledger','INSERT'),
+  false,'Service role cannot bypass the trusted PlugCredit-to-ledger writer'
 );
 SELECT * FROM finish();
 ROLLBACK;

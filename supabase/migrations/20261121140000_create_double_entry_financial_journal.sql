@@ -549,20 +549,36 @@ SECURITY DEFINER
 SET search_path = ''
 AS $function$
 BEGIN
-  IF NEW.payment_verified IS TRUE
-     AND (TG_OP = 'INSERT' OR OLD.payment_verified IS DISTINCT FROM true) THEN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.payment_verified IS TRUE THEN
+      PERFORM public.post_paystack_transaction_journal_event(NEW,'funded');
+    END IF;
+    IF NEW.status IN ('released','completed')
+       AND NEW.payment_verified IS TRUE
+       AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
+      PERFORM public.post_paystack_transaction_journal_event(NEW,'released');
+    END IF;
+    IF NEW.refund_status = 'processed'
+       AND NEW.payment_verified IS TRUE
+       AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
+      PERFORM public.post_paystack_transaction_journal_event(NEW,'refunded');
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF NEW.payment_verified IS TRUE AND OLD.payment_verified IS DISTINCT FROM true THEN
     PERFORM public.post_paystack_transaction_journal_event(NEW,'funded');
   END IF;
 
   IF NEW.status IN ('released','completed')
-     AND (TG_OP = 'INSERT' OR OLD.status NOT IN ('released','completed'))
+     AND OLD.status NOT IN ('released','completed')
      AND NEW.payment_verified IS TRUE
      AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
     PERFORM public.post_paystack_transaction_journal_event(NEW,'released');
   END IF;
 
   IF NEW.refund_status = 'processed'
-     AND (TG_OP = 'INSERT' OR OLD.refund_status IS DISTINCT FROM 'processed')
+     AND OLD.refund_status IS DISTINCT FROM 'processed'
      AND NEW.payment_verified IS TRUE
      AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
     PERFORM public.post_paystack_transaction_journal_event(NEW,'refunded');
@@ -578,9 +594,15 @@ REVOKE ALL ON FUNCTION public.sync_paystack_transaction_to_financial_journal()
   FROM PUBLIC, anon, authenticated, service_role;
 
 DROP TRIGGER IF EXISTS transactions_financial_journal_sync ON public.transactions;
-CREATE TRIGGER transactions_financial_journal_sync
-AFTER INSERT OR UPDATE OF payment_verified, status, refund_status
-ON public.transactions
+DROP TRIGGER IF EXISTS transactions_financial_journal_insert ON public.transactions;
+DROP TRIGGER IF EXISTS transactions_financial_journal_update ON public.transactions;
+
+CREATE TRIGGER transactions_financial_journal_insert
+AFTER INSERT ON public.transactions
+FOR EACH ROW EXECUTE FUNCTION public.sync_paystack_transaction_to_financial_journal();
+
+CREATE TRIGGER transactions_financial_journal_update
+AFTER UPDATE OF payment_verified, status, refund_status ON public.transactions
 FOR EACH ROW EXECUTE FUNCTION public.sync_paystack_transaction_to_financial_journal();
 
 CREATE OR REPLACE FUNCTION public.post_seller_payout_journal_event(

@@ -33,6 +33,9 @@ for (const required of [
   'paystack-escrow-refunded:',
   'post_seller_payout_journal_event',
   'paystack-payout:',
+  'Campus Wallet escrow hold',
+  'Campus Wallet micro-escrow release',
+  'Campus Wallet micro-escrow refund',
   'financial_journal_trial_balance',
   'financial_account_balances',
   'REVOKE ALL ON public.financial_accounts',
@@ -55,7 +58,7 @@ for (const required of [
 
 const databaseTest = read('supabase/tests/financial_journal.test.sql');
 for (const required of [
-  'SELECT plan(18)',
+  'SELECT plan(21)',
   'paystack-escrow-funded:',
   'paystack-escrow-released:',
   'paystack-escrow-refunded:',

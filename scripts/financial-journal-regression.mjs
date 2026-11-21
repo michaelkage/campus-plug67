@@ -5,7 +5,7 @@ const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const fail = (message) => { throw new Error(message); };
 
-const migration = read('supabase/migrations/20261121110000_create_double_entry_financial_journal.sql');
+const migration = read('supabase/migrations/20261121140000_create_double_entry_financial_journal.sql');
 for (const required of [
   'CREATE TABLE IF NOT EXISTS public.financial_accounts',
   'CREATE TABLE IF NOT EXISTS public.financial_journal_transactions',

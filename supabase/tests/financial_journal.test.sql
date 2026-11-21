@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(27);
+SELECT plan(33);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -215,17 +215,96 @@ SELECT is(
   1,'Campus Wallet escrow refund restores the buyer wallet liability'
 );
 
-SELECT ok(
-  (SELECT total_debits=total_credits AND imbalance=0
-     FROM public.financial_journal_trial_balance WHERE currency='NGN'),
-  'Journal trial balance remains balanced'
-);
 SELECT is(
   (SELECT balance FROM public.financial_account_balances
     WHERE account_code='liability.user_wallet'
       AND owner_id='f6100000-0000-4000-8000-000000000001'),
   5000::bigint,
   'Per-account balance view reflects the Campus Wallet liability'
+);
+-- Gear rental escrow uses a separate subledger liability per rental.
+INSERT INTO public.listings (id,seller_id,title,category,price,status,university)
+VALUES
+  ('f6200000-0000-4000-8000-000000000005','f6100000-0000-4000-8000-000000000002','Gear rental standard fixture','Other',6000,'sold','University of Lagos'),
+  ('f6200000-0000-4000-8000-000000000006','f6100000-0000-4000-8000-000000000002','Gear rental cancellation fixture','Other',3000,'sold','University of Lagos'),
+  ('f6200000-0000-4000-8000-000000000007','f6100000-0000-4000-8000-000000000002','Gear rental dispute fixture','Other',10000,'sold','University of Lagos');
+
+INSERT INTO public.gear_rentals (
+  id,listing_id,borrower_id,lender_id,current_state,start_date,end_date,
+  rental_fee_kobo,security_deposit_kobo,total_held_kobo,rental_status,settlement_lender_share_bps
+) VALUES
+  ('f6500000-0000-4000-8000-000000000001','f6200000-0000-4000-8000-000000000005',
+   'f6100000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002','funds_escrowed',
+   current_date,current_date+1,4000,2000,6000,'active',NULL),
+  ('f6500000-0000-4000-8000-000000000002','f6200000-0000-4000-8000-000000000006',
+   'f6100000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002','funds_escrowed',
+   current_date,current_date+1,2000,1000,3000,'active',NULL),
+  ('f6500000-0000-4000-8000-000000000003','f6200000-0000-4000-8000-000000000007',
+   'f6100000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002','funds_escrowed',
+   current_date,current_date+1,7000,3000,10000,'active',6000);
+
+INSERT INTO public.gear_rental_holds (
+  rental_id,borrower_id,lender_id,rental_fee_kobo,security_deposit_kobo,total_held_kobo,status
+) VALUES
+  ('f6500000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002',4000,2000,6000,'held'),
+  ('f6500000-0000-4000-8000-000000000002','f6100000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002',2000,1000,3000,'held'),
+  ('f6500000-0000-4000-8000-000000000003','f6100000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002',7000,3000,10000,'held');
+
+INSERT INTO public.financial_ledger (
+  user_id,amount,currency,direction,source,reference_type,reference_id,idempotency_key,metadata
+) VALUES
+  ('f6100000-0000-4000-8000-000000000001',6000,'NGN','debit','plug_credit_ledger','plug_credit_ledger','f6400000-0000-4000-8000-000000000006','journal-fixture-gear-hold-1',
+   '{"legacy_reason":"Campus Plug gear rental escrow hold","legacy_reference_id":"f6500000-0000-4000-8000-000000000001"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000002',4000,'NGN','credit','plug_credit_ledger','plug_credit_ledger','f6400000-0000-4000-8000-000000000007','journal-fixture-gear-fee-release',
+   '{"legacy_reason":"Gear rental fee released after return inspection","legacy_reference_id":"f6500000-0000-4000-8000-000000000001"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000001',2000,'NGN','credit','plug_credit_ledger','plug_credit_ledger','f6400000-0000-4000-8000-000000000008','journal-fixture-gear-deposit-return',
+   '{"legacy_reason":"Gear rental security deposit returned","legacy_reference_id":"f6500000-0000-4000-8000-000000000001"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000001',3000,'NGN','debit','plug_credit_ledger','plug_credit_ledger','f6400000-0000-4000-8000-000000000009','journal-fixture-gear-hold-2',
+   '{"legacy_reason":"Campus Plug gear rental escrow hold","legacy_reference_id":"f6500000-0000-4000-8000-000000000002"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000001',3000,'NGN','credit','plug_credit_ledger','plug_credit_ledger','f6400000-0000-4000-8000-000000000010','journal-fixture-gear-cancel-refund',
+   '{"legacy_reason":"Gear rental cancellation refund","legacy_reference_id":"f6500000-0000-4000-8000-000000000002"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000001',10000,'NGN','debit','plug_credit_ledger','plug_credit_ledger','f6400000-0000-4000-8000-000000000011','journal-fixture-gear-hold-3',
+   '{"legacy_reason":"Campus Plug gear rental escrow hold","legacy_reference_id":"f6500000-0000-4000-8000-000000000003"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000002',6000,'NGN','credit','plug_credit_ledger','plug_credit_ledger','f6400000-0000-4000-8000-000000000012','journal-fixture-gear-dispute-lender',
+   '{"legacy_reason":"Gear rental dispute settlement","legacy_reference_id":"f6500000-0000-4000-8000-000000000003"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000001',4000,'NGN','credit','plug_credit_ledger','plug_credit_ledger','f6400000-0000-4000-8000-000000000013','journal-fixture-gear-dispute-borrower',
+   '{"legacy_reason":"Gear rental dispute settlement refund","legacy_reference_id":"f6500000-0000-4000-8000-000000000003"}'::jsonb);
+
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE metadata->>'legacy_reason'='Campus Plug gear rental escrow hold'),
+  3,'Gear rental holds create per-rental escrow liabilities'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE metadata->>'legacy_reason'='Gear rental fee released after return inspection'),
+  1,'Gear rental fee release credits the lender wallet'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE metadata->>'legacy_reason'='Gear rental security deposit returned'),
+  1,'Gear rental deposit return credits the borrower wallet'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE metadata->>'legacy_reason'='Gear rental cancellation refund'),
+  1,'Gear rental cancellation refunds the full held amount'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE metadata->>'legacy_reason'='Gear rental dispute settlement'),
+  1,'Gear rental dispute settlement credits the lender share'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE metadata->>'legacy_reason'='Gear rental dispute settlement refund'),
+  1,'Gear rental dispute refund credits the borrower share'
+);
+
+SELECT ok(
+  (SELECT total_debits=total_credits AND imbalance=0
+     FROM public.financial_journal_trial_balance WHERE currency='NGN'),
+  'Journal trial balance remains balanced'
 );
 SELECT ok(
   NOT EXISTS (

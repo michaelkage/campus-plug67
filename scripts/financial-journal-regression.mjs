@@ -71,13 +71,15 @@ for (const required of [
   "p.status IN ('success','reversed')",
   'missing_reversal_posting',
   'unposted_rows',
+  'required_journal_key',
+  'Escrow payout for transaction #%',
   'difference_kobo',
   'financial_journal_trial_balance',
 ]) if (!audit.includes(required)) fail(`Financial journal audit missing check: ${required}`);
 
 const databaseTest = read('supabase/tests/financial_journal.test.sql');
 for (const required of [
-  'SELECT plan(33)',
+  'SELECT plan(34)',
   'paystack-escrow-funded:',
   'paystack-escrow-released:',
   'paystack-escrow-refunded:',
@@ -92,6 +94,7 @@ for (const required of [
   'Service role cannot bypass the PlugCredit ledger trigger',
   'Service role cannot post arbitrary double-entry journal transactions',
   'Service role cannot bypass the trusted PlugCredit-to-ledger writer',
+  'Legacy Paystack auto-release marker does not double-post the seller payable',
 ]) if (!databaseTest.includes(required)) fail(`Financial journal database test missing coverage: ${required}`);
 
 console.log('Double-entry financial journal regression checks passed.');

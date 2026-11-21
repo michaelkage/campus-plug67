@@ -5,7 +5,7 @@ const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const fail = (message) => { throw new Error(message); };
 
-const migration = read('supabase/migrations/20261121100000_mirror_plug_credit_to_financial_ledger.sql');
+const migration = read('supabase/migrations/20261121135000_mirror_plug_credit_to_financial_ledger.sql');
 for (const required of [
   'CREATE OR REPLACE FUNCTION public.record_financial_ledger_entry',
   'ON CONFLICT (user_id, idempotency_key) DO NOTHING',

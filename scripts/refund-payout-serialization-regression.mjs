@@ -5,6 +5,9 @@ for (const invariant of [
   'reconcile the Paystack transfer before refunding',
   "v_tx.refund_status IN ('pending','processing','needs-attention','processed')",
   'FOR UPDATE',
+  'refund_request_reference',
+  "v_tx.status = 'cancelled'",
+  "v_tx.refund_status IN ('failed','pending','processing','needs-attention','processed')",
   'GRANT EXECUTE ON FUNCTION public.claim_paystack_refund(uuid) TO service_role',
 ]) {
   if (!migration.includes(invariant)) throw new Error(`Refund/payout serialization missing invariant: ${invariant}`);

@@ -653,9 +653,7 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.post_seller_payout_journal_event(uuid,text,bigint,text)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.post_seller_payout_journal_event(uuid,text,bigint,text)
-  TO service_role;
+  FROM PUBLIC, anon, authenticated, service_role;
 
 -- Backfill the compatibility wallet journal, verified Paystack escrow funding,
 -- and any already-released/refunded transactions. Deterministic event keys make

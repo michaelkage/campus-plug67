@@ -41,13 +41,15 @@ for (const required of [
 
 const audit = read('supabase/audits/financial-journal-reconciliation-readonly.sql');
 for (const required of [
-  'unbalanced_journal_transactions',
-  'unposted_wallet_projection_rows',
-  'missing_paystack_funding_entries',
-  'missing_paystack_release_entries',
-  'missing_paystack_refund_entries',
-  'missing_successful_payout_entries',
-  'wallet_projection_vs_journal',
+  'FROM public.financial_journal_transactions',
+  'COALESCE(sum(e.debit),0)',
+  "j.idempotency_key='financial-ledger:' || f.id::text",
+  "'paystack-escrow-funded:' || t.id::text",
+  "'paystack-escrow-released:' || t.id::text",
+  "'paystack-escrow-refunded:' || t.id::text",
+  "p.status IN ('success','reversed')",
+  'difference_kobo',
+  'financial_journal_trial_balance',
 ]) if (!audit.includes(required)) fail(`Financial journal audit missing check: ${required}`);
 
 console.log('Double-entry financial journal regression checks passed.');

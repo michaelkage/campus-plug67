@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(25);
+SELECT plan(27);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -60,6 +60,33 @@ SELECT is((public.record_paystack_refund('refund-fixture-reference-2', NULL, 'pe
 SELECT is((SELECT count(*)::integer FROM public.paystack_refund_records WHERE transaction_id = 'f4300000-0000-4000-8000-000000000002'), 2, 'Retry creates a new attempt instead of mutating the previous failed attempt');
 SELECT is((SELECT paystack_refund_id FROM public.transactions WHERE id = 'f4300000-0000-4000-8000-000000000002'), NULL, 'Starting a new attempt clears the previous provider id from the transaction summary');
 SELECT is((SELECT status FROM public.listings WHERE id = 'f4200000-0000-4000-8000-000000000002'), 'sold', 'A retried pending refund keeps the listing unavailable');
+
+INSERT INTO public.listings (id,seller_id,title,category,price,status,university)
+VALUES (
+  'f4200000-0000-4000-8000-000000000003',
+  'f4100000-0000-4000-8000-000000000002',
+  'Payout-in-flight refund fixture','Other',30000,'reserved','University of Lagos'
+);
+INSERT INTO public.transactions (
+  id,listing_id,buyer_id,seller_id,amount,status,payment_method,
+  paystack_ref,payout_status
+) VALUES (
+  'f4300000-0000-4000-8000-000000000003',
+  'f4200000-0000-4000-8000-000000000003',
+  'f4100000-0000-4000-8000-000000000001',
+  'f4100000-0000-4000-8000-000000000002',
+  30000,'released','paystack','refund-fixture-reference-3','processing'
+);
+SELECT throws_ok(
+  $ SELECT public.claim_paystack_refund('f4300000-0000-4000-8000-000000000003') $,
+  'P0001',
+  'Seller payout is still in flight or needs manual reconciliation; reconcile the Paystack transfer before refunding',
+  'A new refund claim is blocked while the seller bank payout is in flight'
+);
+SELECT ok(
+  (SELECT refund_status IS NULL FROM public.transactions WHERE id='f4300000-0000-4000-8000-000000000003'),
+  'A blocked refund claim does not mutate refund state'
+);
 
 SELECT * FROM finish();
 ROLLBACK;

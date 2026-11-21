@@ -129,11 +129,13 @@ SELECT ok(
   'Every posted journal transaction has at least two balanced lines'
 );
 SELECT throws_ok(
-  $$ UPDATE public.financial_journal_entries SET debit=debit+1
-      WHERE journal_transaction_id=(
-        SELECT id FROM public.financial_journal_transactions
-         WHERE idempotency_key='paystack-escrow-funded:f6300000-0000-4000-8000-000000000001'
-      ) LIMIT 1 $$,
+  $ UPDATE public.financial_journal_entries SET debit=debit+1
+      WHERE id=(
+        SELECT e.id FROM public.financial_journal_entries e
+        JOIN public.financial_journal_transactions t ON t.id=e.journal_transaction_id
+        WHERE t.idempotency_key='paystack-escrow-funded:f6300000-0000-4000-8000-000000000001'
+        ORDER BY e.id LIMIT 1
+      ) $,
   'P0001',
   'Financial journal records are immutable; post a compensating journal transaction',
   'Journal entry history cannot be edited'
@@ -159,5 +161,26 @@ SELECT is(
   false,'Authenticated clients cannot read raw journal entries'
 );
 
+SELECT ok(
+  (SELECT relrowsecurity FROM pg_catalog.pg_class WHERE oid='public.financial_journal_entries'::regclass),
+  'Journal entry table has row-level security enabled'
+);
+SELECT throws_ok(
+  $ SELECT public.post_financial_journal_transaction(
+    'paystack.payout.success','test','transaction','f6300000-0000-4000-8000-000000000001',
+    'paystack-payout:cp_tr_journalfixture0001:success',
+    jsonb_build_array(
+      jsonb_build_object('account_id',(
+        SELECT id FROM public.financial_accounts WHERE account_code='liability.seller_payable' AND owner_id='f6100000-0000-4000-8000-000000000002' LIMIT 1
+      ),'debit',9999,'credit',0),
+      jsonb_build_object('account_id',(
+        SELECT id FROM public.financial_accounts WHERE account_code='asset.paystack_clearing' AND owner_id IS NULL LIMIT 1
+      ),'debit',0,'credit',9999)
+    ),'{}'::jsonb
+  ) $,
+  'P0001',
+  'Journal idempotency key reused with a different financial payload',
+  'A repeated idempotency key cannot post a different journal payload'
+);
 SELECT * FROM finish();
 ROLLBACK;

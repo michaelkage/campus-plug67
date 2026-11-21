@@ -50,7 +50,7 @@ A refund arriving after payout creates a per-seller receivable. If the transfer 
 3. Amounts are positive integer kobo and currency is NGN.
 4. An idempotency key is global and immutable. Reusing it with a different header, line payload or metadata is rejected.
 5. Journal headers and lines are append-only. Corrections use compensating entries.
-6. App roles have no direct table access. Security-definer functions and database triggers own posting.
+6. App roles have no direct write access to the financial journals or legacy financial ledger. Existing per-user `financial_ledger` reads continue under their current RLS policy; security-definer functions and database triggers own posting.
 7. Existing wallet balances are not recalculated or overwritten by the journal migration.
 8. The legacy wallet ledger and the double-entry journal are reconciled with read-only audit queries.
 

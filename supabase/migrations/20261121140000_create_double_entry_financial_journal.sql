@@ -205,11 +205,1031 @@ BEGIN
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM jsonb_array_elements(p_lines) AS line
-     WHERE NOT (line ? 'account_id')
-        OR COALESCE(line->>'account_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        OR COALESCE(line->>'debit','') !~ '^[0-9]+$'
-        OR COALESCE(line->>'credit','') !~ '^[0-9]+$'
+    SELECT 1 FROM jsonb_array_elements(p_lines) AS lines(value)
+     WHERE NOT (value ? 'account_id')
+        OR COALESCE(value->>'account_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        OR COALESCE(value->>'debit','') !~ '^[0-9]+
+  ) THEN
+    RAISE EXCEPTION 'Journal lines must contain valid account IDs and non-negative integer debit/credit values';
+  END IF;
+
+  SELECT sum((value->>'debit')::bigint), sum((value->>'credit')::bigint)
+    INTO v_total_debit, v_total_credit
+    FROM jsonb_array_elements(p_lines) AS lines(value);
+
+  IF (SELECT count(DISTINCT (value->>'account_id')::uuid)
+        FROM jsonb_array_elements(p_lines) AS lines(value)) < 2 THEN
+    RAISE EXCEPTION 'A balanced journal must affect at least two distinct accounts';
+  END IF;
+
+  IF v_total_debit IS NULL OR v_total_debit <= 0
+     OR v_total_debit IS DISTINCT FROM v_total_credit THEN
+    RAISE EXCEPTION 'Unbalanced financial journal: debits %, credits %', v_total_debit, v_total_credit;
+  END IF;
+
+  FOR v_line IN SELECT value FROM jsonb_array_elements(p_lines) AS lines(value)
+  LOOP
+    v_debit := (v_line->>'debit')::bigint;
+    v_credit := (v_line->>'credit')::bigint;
+    IF (v_debit > 0 AND v_credit > 0) OR (v_debit = 0 AND v_credit = 0) THEN
+      RAISE EXCEPTION 'Each journal line must have exactly one positive side';
+    END IF;
+
+    SELECT * INTO v_account
+      FROM public.financial_accounts
+     WHERE id = (v_line->>'account_id')::uuid
+     FOR SHARE;
+    IF NOT FOUND OR v_account.currency <> 'NGN' THEN
+      RAISE EXCEPTION 'Journal line references a missing or unsupported account';
+    END IF;
+  END LOOP;
+
+  INSERT INTO public.financial_journal_transactions(
+    event_type, source, reference_type, reference_id, idempotency_key,
+    currency, amount, line_payload, metadata
+  ) VALUES (
+    trim(p_event_type), trim(p_source), p_reference_type, p_reference_id,
+    trim(p_idempotency_key), 'NGN', v_total_debit, p_lines, COALESCE(p_metadata, '{}'::jsonb)
+  )
+  ON CONFLICT (idempotency_key) DO NOTHING
+  RETURNING id INTO v_journal_id;
+
+  IF v_journal_id IS NULL THEN
+    SELECT * INTO v_existing
+      FROM public.financial_journal_transactions
+     WHERE idempotency_key = trim(p_idempotency_key)
+     FOR UPDATE;
+
+    IF NOT FOUND
+       OR v_existing.event_type IS DISTINCT FROM trim(p_event_type)
+       OR v_existing.source IS DISTINCT FROM trim(p_source)
+       OR v_existing.reference_type IS DISTINCT FROM p_reference_type
+       OR v_existing.reference_id IS DISTINCT FROM p_reference_id
+       OR v_existing.amount IS DISTINCT FROM v_total_debit
+       OR v_existing.line_payload IS DISTINCT FROM p_lines
+       OR v_existing.metadata IS DISTINCT FROM COALESCE(p_metadata, '{}'::jsonb) THEN
+      RAISE EXCEPTION 'Journal idempotency key reused with a different financial payload';
+    END IF;
+    RETURN v_existing.id;
+  END IF;
+
+  INSERT INTO public.financial_journal_entries(
+    journal_transaction_id, account_id, debit, credit
+  )
+  SELECT
+    v_journal_id,
+    (value->>'account_id')::uuid,
+    (value->>'debit')::bigint,
+    (value->>'credit')::bigint
+  FROM jsonb_array_elements(p_lines) AS lines(value);
+
+  RETURN v_journal_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.get_financial_account_id(text,text,text,uuid,text)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.post_financial_journal_transaction(text,text,text,uuid,text,jsonb,jsonb)
+  FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.post_wallet_financial_journal_entry(
+  p_entry public.financial_ledger
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_reason text := p_entry.metadata->>'legacy_reason';
+  v_reference_id uuid := NULLIF(p_entry.metadata->>'legacy_reference_id','')::uuid;
+  v_wallet_account uuid;
+  v_counter_account uuid;
+  v_lines jsonb;
+  v_tx public.transactions%ROWTYPE;
+BEGIN
+  IF p_entry.source <> 'plug_credit_ledger' THEN RETURN; END IF;
+
+  v_wallet_account := public.get_financial_account_id(
+    'liability.user_wallet','liability','credit',p_entry.user_id,
+    'Campus Wallet liability for user ' || p_entry.user_id::text
+  );
+
+  CASE v_reason
+    WHEN 'Campus Wallet funding' THEN
+      v_counter_account := public.get_financial_account_id(
+        'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Campus Wallet escrow hold' THEN
+      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow hold is missing its transaction reference'; END IF;
+      v_counter_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_wallet_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_counter_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Campus Wallet micro-escrow release' THEN
+      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow release is missing its transaction reference'; END IF;
+      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_tx.seller_id <> p_entry.user_id THEN
+        RAISE EXCEPTION 'Wallet escrow release does not match the transaction seller';
+      END IF;
+      v_counter_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Campus Wallet micro-escrow refund' THEN
+      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow refund is missing its transaction reference'; END IF;
+      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id THEN
+        RAISE EXCEPTION 'Wallet escrow refund does not match the transaction buyer';
+      END IF;
+      v_counter_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    ELSE
+      -- Unknown historical wallet reasons remain visible in financial_ledger
+      -- and are intentionally not assigned a fictional accounting counterpart.
+      RETURN;
+  END CASE;
+
+  PERFORM public.post_financial_journal_transaction(
+    'wallet.' || lower(replace(v_reason,' ','_')),
+    'financial_ledger',
+    'financial_ledger',
+    p_entry.id,
+    'financial-ledger:' || p_entry.id::text,
+    v_lines,
+    jsonb_build_object(
+      'legacy_reason',v_reason,
+      'legacy_reference_id',v_reference_id,
+      'user_id',p_entry.user_id,
+      'legacy_source',p_entry.source
+    )
+  );
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.post_financial_ledger_to_journal_trigger()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+BEGIN
+  PERFORM public.post_wallet_financial_journal_entry(NEW);
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.post_wallet_financial_journal_entry(public.financial_ledger)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.post_financial_ledger_to_journal_trigger()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS financial_ledger_double_entry_posting ON public.financial_ledger;
+CREATE TRIGGER financial_ledger_double_entry_posting
+AFTER INSERT ON public.financial_ledger
+FOR EACH ROW EXECUTE FUNCTION public.post_financial_ledger_to_journal_trigger();
+
+CREATE OR REPLACE FUNCTION public.post_paystack_transaction_journal_event(
+  p_transaction public.transactions,
+  p_event text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_escrow_account uuid;
+  v_counter_account uuid;
+  v_lines jsonb;
+  v_release_exists boolean;
+  v_idempotency_key text;
+BEGIN
+  IF p_transaction.id IS NULL OR p_transaction.payment_verified IS DISTINCT FROM true
+     OR COALESCE(p_transaction.payment_method,'paystack') = 'campus_wallet'
+     OR p_transaction.amount IS NULL OR p_transaction.amount <= 0 THEN
+    RETURN;
+  END IF;
+
+  v_escrow_account := public.get_financial_account_id(
+    'liability.escrow','liability','credit',p_transaction.id,
+    'Escrow liability for transaction ' || p_transaction.id::text
+  );
+  v_counter_account := public.get_financial_account_id(
+    'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+  );
+
+  IF p_event = 'funded' THEN
+    v_lines := jsonb_build_array(
+      jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
+      jsonb_build_object('account_id',v_escrow_account,'debit',0,'credit',p_transaction.amount)
+    );
+    v_idempotency_key := 'paystack-escrow-funded:' || p_transaction.id::text;
+
+  ELSIF p_event = 'released' THEN
+    IF p_transaction.status NOT IN ('released','completed') THEN RETURN; END IF;
+    v_counter_account := public.get_financial_account_id(
+      'liability.seller_payable','liability','credit',p_transaction.seller_id,
+      'Seller payout payable for user ' || p_transaction.seller_id::text
+    );
+    v_lines := jsonb_build_array(
+      jsonb_build_object('account_id',v_escrow_account,'debit',p_transaction.amount,'credit',0),
+      jsonb_build_object('account_id',v_counter_account,'debit',0,'credit',p_transaction.amount)
+    );
+    v_idempotency_key := 'paystack-escrow-released:' || p_transaction.id::text;
+
+  ELSIF p_event = 'refunded' THEN
+    IF p_transaction.refund_status IS DISTINCT FROM 'processed' THEN RETURN; END IF;
+    SELECT EXISTS (
+      SELECT 1 FROM public.financial_journal_transactions
+       WHERE idempotency_key = 'paystack-escrow-released:' || p_transaction.id::text
+    ) INTO v_release_exists;
+
+    IF NOT v_release_exists THEN
+      v_counter_account := v_escrow_account;
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
+        jsonb_build_object('account_id',public.get_financial_account_id(
+          'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+        ),'debit',0,'credit',p_transaction.amount)
+      );
+    ELSIF p_transaction.payout_status = 'paid' THEN
+      v_counter_account := public.get_financial_account_id(
+        'asset.seller_recovery','asset','debit',p_transaction.seller_id,
+        'Seller recovery receivable for user ' || p_transaction.seller_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
+        jsonb_build_object('account_id',public.get_financial_account_id(
+          'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+        ),'debit',0,'credit',p_transaction.amount)
+      );
+    ELSE
+      v_counter_account := public.get_financial_account_id(
+        'liability.seller_payable','liability','credit',p_transaction.seller_id,
+        'Seller payout payable for user ' || p_transaction.seller_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
+        jsonb_build_object('account_id',public.get_financial_account_id(
+          'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+        ),'debit',0,'credit',p_transaction.amount)
+      );
+    END IF;
+    v_idempotency_key := 'paystack-escrow-refunded:' || p_transaction.id::text;
+  ELSE
+    RAISE EXCEPTION 'Unsupported Paystack transaction journal event: %',p_event;
+  END IF;
+
+  PERFORM public.post_financial_journal_transaction(
+    'paystack.escrow.' || p_event,
+    'transactions',
+    'transaction',
+    p_transaction.id,
+    v_idempotency_key,
+    v_lines,
+    jsonb_build_object(
+      'transaction_id',p_transaction.id,
+      'seller_id',p_transaction.seller_id,
+      'buyer_id',p_transaction.buyer_id,
+      'payment_method',p_transaction.payment_method,
+      'payout_status',p_transaction.payout_status,
+      'refund_status',p_transaction.refund_status
+    )
+  );
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.sync_paystack_transaction_to_financial_journal()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+BEGIN
+  IF NEW.payment_verified IS TRUE
+     AND (TG_OP = 'INSERT' OR OLD.payment_verified IS DISTINCT FROM true) THEN
+    PERFORM public.post_paystack_transaction_journal_event(NEW,'funded');
+  END IF;
+
+  IF NEW.status IN ('released','completed')
+     AND (TG_OP = 'INSERT' OR OLD.status NOT IN ('released','completed'))
+     AND NEW.payment_verified IS TRUE
+     AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
+    PERFORM public.post_paystack_transaction_journal_event(NEW,'released');
+  END IF;
+
+  IF NEW.refund_status = 'processed'
+     AND (TG_OP = 'INSERT' OR OLD.refund_status IS DISTINCT FROM 'processed')
+     AND NEW.payment_verified IS TRUE
+     AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
+    PERFORM public.post_paystack_transaction_journal_event(NEW,'refunded');
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.post_paystack_transaction_journal_event(public.transactions,text)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.sync_paystack_transaction_to_financial_journal()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS transactions_financial_journal_sync ON public.transactions;
+CREATE TRIGGER transactions_financial_journal_sync
+AFTER INSERT OR UPDATE OF payment_verified, status, refund_status
+ON public.transactions
+FOR EACH ROW EXECUTE FUNCTION public.sync_paystack_transaction_to_financial_journal();
+
+CREATE OR REPLACE FUNCTION public.post_seller_payout_journal_event(
+  p_transaction_id uuid,
+  p_payout_reference text,
+  p_amount bigint,
+  p_status text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_tx public.transactions%ROWTYPE;
+  v_payable_account uuid;
+  v_clearing_account uuid;
+  v_lines jsonb;
+  v_event text := lower(COALESCE(p_status,''));
+  v_key text;
+BEGIN
+  IF p_transaction_id IS NULL OR p_payout_reference IS NULL
+     OR length(trim(p_payout_reference)) = 0 OR p_amount IS NULL OR p_amount <= 0
+     OR v_event NOT IN ('success','reversed') THEN
+    RAISE EXCEPTION 'Invalid seller payout journal event';
+  END IF;
+
+  SELECT * INTO v_tx FROM public.transactions
+   WHERE id = p_transaction_id FOR SHARE;
+  IF NOT FOUND OR v_tx.payment_verified IS DISTINCT FROM true
+     OR v_tx.status NOT IN ('released','completed')
+     OR COALESCE(v_tx.payment_method,'paystack') = 'campus_wallet'
+     OR v_tx.amount IS DISTINCT FROM p_amount THEN
+    RAISE EXCEPTION 'Seller payout journal event does not match a released Paystack transaction';
+  END IF;
+  v_payable_account := public.get_financial_account_id(
+    'liability.seller_payable','liability','credit',v_tx.seller_id,
+    'Seller payout payable for user ' || v_tx.seller_id::text
+  );
+  v_clearing_account := public.get_financial_account_id(
+    'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+  );
+
+  IF v_event = 'success' THEN
+    IF v_tx.refund_status = 'processed' THEN
+      -- A transfer that succeeds after a refund is a seller receivable, not
+      -- another payable reduction. Record the actual cash movement regardless.
+      v_payable_account := public.get_financial_account_id(
+        'asset.seller_recovery','asset','debit',v_tx.seller_id,
+        'Seller recovery receivable for user ' || v_tx.seller_id::text
+      );
+    END IF;
+    v_lines := jsonb_build_array(
+      jsonb_build_object('account_id',v_payable_account,'debit',p_amount,'credit',0),
+      jsonb_build_object('account_id',v_clearing_account,'debit',0,'credit',p_amount)
+    );
+  ELSE
+    v_key := 'paystack-payout:' || trim(p_payout_reference) || ':success';
+    IF NOT EXISTS (
+      SELECT 1 FROM public.financial_journal_transactions WHERE idempotency_key = v_key
+    ) THEN
+      RAISE EXCEPTION 'Payout reversal has no original successful payout journal';
+    END IF;
+    IF v_tx.refund_status = 'processed' THEN
+      v_payable_account := public.get_financial_account_id(
+        'asset.seller_recovery','asset','debit',v_tx.seller_id,
+        'Seller recovery receivable for user ' || v_tx.seller_id::text
+      );
+    END IF;
+    v_lines := jsonb_build_array(
+      jsonb_build_object('account_id',v_clearing_account,'debit',p_amount,'credit',0),
+      jsonb_build_object('account_id',v_payable_account,'debit',0,'credit',p_amount)
+    );
+  END IF;
+
+  v_key := 'paystack-payout:' || trim(p_payout_reference) || ':' || v_event;
+  RETURN public.post_financial_journal_transaction(
+    'paystack.payout.' || v_event,
+    'seller_payout_transfers',
+    'payout_reference',
+    p_transaction_id,
+    v_key,
+    v_lines,
+    jsonb_build_object(
+      'transaction_id',p_transaction_id,
+      'seller_id',v_tx.seller_id,
+      'payout_reference',trim(p_payout_reference),
+      'provider_status',v_event
+    )
+  );
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.post_seller_payout_journal_event(uuid,text,bigint,text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.post_seller_payout_journal_event(uuid,text,bigint,text)
+  TO service_role;
+
+-- Backfill the compatibility wallet journal, verified Paystack escrow funding,
+-- and any already-released/refunded transactions. Deterministic event keys make
+-- this migration safe to re-run after a partial deployment.
+DO $backfill$
+DECLARE
+  v_entry public.financial_ledger%ROWTYPE;
+  v_tx public.transactions%ROWTYPE;
+  v_payout record;
+BEGIN
+  FOR v_entry IN
+    SELECT * FROM public.financial_ledger
+     WHERE source = 'plug_credit_ledger'
+     ORDER BY created_at, id
+  LOOP
+    PERFORM public.post_wallet_financial_journal_entry(v_entry);
+  END LOOP;
+
+  FOR v_tx IN
+    SELECT * FROM public.transactions
+     WHERE payment_verified IS TRUE
+       AND COALESCE(payment_method,'paystack') <> 'campus_wallet'
+     ORDER BY created_at, id
+  LOOP
+    PERFORM public.post_paystack_transaction_journal_event(v_tx,'funded');
+    IF v_tx.status IN ('released','completed') THEN
+      PERFORM public.post_paystack_transaction_journal_event(v_tx,'released');
+    END IF;
+    IF v_tx.refund_status = 'processed' THEN
+      PERFORM public.post_paystack_transaction_journal_event(v_tx,'refunded');
+    END IF;
+  END LOOP;
+
+  -- PR #103 is intentionally still a separate, unmerged dependency. If its
+  -- payout table is present when this migration runs, recover conclusive
+  -- provider outcomes. A later payout integration migration also installs
+  -- the trigger for future status changes.
+  IF to_regclass('public.seller_payout_transfers') IS NOT NULL THEN
+    FOR v_payout IN
+      SELECT p.transaction_id,p.reference,p.amount_kobo,p.status
+        FROM public.seller_payout_transfers p
+       WHERE p.status IN ('success','reversed')
+       ORDER BY p.created_at,p.id
+    LOOP
+      PERFORM public.post_seller_payout_journal_event(
+        v_payout.transaction_id,v_payout.reference,v_payout.amount_kobo,'success'
+      );
+      IF v_payout.status = 'reversed' THEN
+        PERFORM public.post_seller_payout_journal_event(
+          v_payout.transaction_id,v_payout.reference,v_payout.amount_kobo,'reversed'
+        );
+      END IF;
+    END LOOP;
+  END IF;
+END;
+$backfill$;
+
+COMMENT ON TABLE public.financial_accounts IS
+  'Chart of accounts for Campus Plug double-entry accounting. NGN balances are derived from immutable journal entries.';
+COMMENT ON TABLE public.financial_journal_transactions IS
+  'Immutable, idempotent, balanced accounting events. Amounts are integer kobo.';
+COMMENT ON TABLE public.financial_journal_entries IS
+  'Immutable debit/credit lines. Each journal transaction is balanced before posting.';
+
+        OR COALESCE(value->>'credit','') !~ '^[0-9]+
+  ) THEN
+    RAISE EXCEPTION 'Journal lines must contain valid account IDs and non-negative integer debit/credit values';
+  END IF;
+
+  SELECT sum((line->>'debit')::bigint), sum((line->>'credit')::bigint)
+    INTO v_total_debit, v_total_credit
+    FROM jsonb_array_elements(p_lines) AS line;
+
+  IF (SELECT count(DISTINCT (line->>'account_id')::uuid)
+        FROM jsonb_array_elements(p_lines) AS line) < 2 THEN
+    RAISE EXCEPTION 'A balanced journal must affect at least two distinct accounts';
+  END IF;
+
+  IF v_total_debit IS NULL OR v_total_debit <= 0
+     OR v_total_debit IS DISTINCT FROM v_total_credit THEN
+    RAISE EXCEPTION 'Unbalanced financial journal: debits %, credits %', v_total_debit, v_total_credit;
+  END IF;
+
+  FOR v_line IN SELECT value FROM jsonb_array_elements(p_lines)
+  LOOP
+    v_debit := (v_line->>'debit')::bigint;
+    v_credit := (v_line->>'credit')::bigint;
+    IF (v_debit > 0 AND v_credit > 0) OR (v_debit = 0 AND v_credit = 0) THEN
+      RAISE EXCEPTION 'Each journal line must have exactly one positive side';
+    END IF;
+
+    SELECT * INTO v_account
+      FROM public.financial_accounts
+     WHERE id = (v_line->>'account_id')::uuid
+     FOR SHARE;
+    IF NOT FOUND OR v_account.currency <> 'NGN' THEN
+      RAISE EXCEPTION 'Journal line references a missing or unsupported account';
+    END IF;
+  END LOOP;
+
+  INSERT INTO public.financial_journal_transactions(
+    event_type, source, reference_type, reference_id, idempotency_key,
+    currency, amount, line_payload, metadata
+  ) VALUES (
+    trim(p_event_type), trim(p_source), p_reference_type, p_reference_id,
+    trim(p_idempotency_key), 'NGN', v_total_debit, p_lines, COALESCE(p_metadata, '{}'::jsonb)
+  )
+  ON CONFLICT (idempotency_key) DO NOTHING
+  RETURNING id INTO v_journal_id;
+
+  IF v_journal_id IS NULL THEN
+    SELECT * INTO v_existing
+      FROM public.financial_journal_transactions
+     WHERE idempotency_key = trim(p_idempotency_key)
+     FOR UPDATE;
+
+    IF NOT FOUND
+       OR v_existing.event_type IS DISTINCT FROM trim(p_event_type)
+       OR v_existing.source IS DISTINCT FROM trim(p_source)
+       OR v_existing.reference_type IS DISTINCT FROM p_reference_type
+       OR v_existing.reference_id IS DISTINCT FROM p_reference_id
+       OR v_existing.amount IS DISTINCT FROM v_total_debit
+       OR v_existing.line_payload IS DISTINCT FROM p_lines
+       OR v_existing.metadata IS DISTINCT FROM COALESCE(p_metadata, '{}'::jsonb) THEN
+      RAISE EXCEPTION 'Journal idempotency key reused with a different financial payload';
+    END IF;
+    RETURN v_existing.id;
+  END IF;
+
+  INSERT INTO public.financial_journal_entries(
+    journal_transaction_id, account_id, debit, credit
+  )
+  SELECT
+    v_journal_id,
+    (line->>'account_id')::uuid,
+    (line->>'debit')::bigint,
+    (line->>'credit')::bigint
+  FROM jsonb_array_elements(p_lines) AS line;
+
+  RETURN v_journal_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.get_financial_account_id(text,text,text,uuid,text)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.post_financial_journal_transaction(text,text,text,uuid,text,jsonb,jsonb)
+  FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.post_wallet_financial_journal_entry(
+  p_entry public.financial_ledger
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_reason text := p_entry.metadata->>'legacy_reason';
+  v_reference_id uuid := NULLIF(p_entry.metadata->>'legacy_reference_id','')::uuid;
+  v_wallet_account uuid;
+  v_counter_account uuid;
+  v_lines jsonb;
+  v_tx public.transactions%ROWTYPE;
+BEGIN
+  IF p_entry.source <> 'plug_credit_ledger' THEN RETURN; END IF;
+
+  v_wallet_account := public.get_financial_account_id(
+    'liability.user_wallet','liability','credit',p_entry.user_id,
+    'Campus Wallet liability for user ' || p_entry.user_id::text
+  );
+
+  CASE v_reason
+    WHEN 'Campus Wallet funding' THEN
+      v_counter_account := public.get_financial_account_id(
+        'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Campus Wallet escrow hold' THEN
+      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow hold is missing its transaction reference'; END IF;
+      v_counter_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_wallet_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_counter_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Campus Wallet micro-escrow release' THEN
+      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow release is missing its transaction reference'; END IF;
+      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_tx.seller_id <> p_entry.user_id THEN
+        RAISE EXCEPTION 'Wallet escrow release does not match the transaction seller';
+      END IF;
+      v_counter_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Campus Wallet micro-escrow refund' THEN
+      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow refund is missing its transaction reference'; END IF;
+      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id THEN
+        RAISE EXCEPTION 'Wallet escrow refund does not match the transaction buyer';
+      END IF;
+      v_counter_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    ELSE
+      -- Unknown historical wallet reasons remain visible in financial_ledger
+      -- and are intentionally not assigned a fictional accounting counterpart.
+      RETURN;
+  END CASE;
+
+  PERFORM public.post_financial_journal_transaction(
+    'wallet.' || lower(replace(v_reason,' ','_')),
+    'financial_ledger',
+    'financial_ledger',
+    p_entry.id,
+    'financial-ledger:' || p_entry.id::text,
+    v_lines,
+    jsonb_build_object(
+      'legacy_reason',v_reason,
+      'legacy_reference_id',v_reference_id,
+      'user_id',p_entry.user_id,
+      'legacy_source',p_entry.source
+    )
+  );
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.post_financial_ledger_to_journal_trigger()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+BEGIN
+  PERFORM public.post_wallet_financial_journal_entry(NEW);
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.post_wallet_financial_journal_entry(public.financial_ledger)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.post_financial_ledger_to_journal_trigger()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS financial_ledger_double_entry_posting ON public.financial_ledger;
+CREATE TRIGGER financial_ledger_double_entry_posting
+AFTER INSERT ON public.financial_ledger
+FOR EACH ROW EXECUTE FUNCTION public.post_financial_ledger_to_journal_trigger();
+
+CREATE OR REPLACE FUNCTION public.post_paystack_transaction_journal_event(
+  p_transaction public.transactions,
+  p_event text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_escrow_account uuid;
+  v_counter_account uuid;
+  v_lines jsonb;
+  v_release_exists boolean;
+  v_idempotency_key text;
+BEGIN
+  IF p_transaction.id IS NULL OR p_transaction.payment_verified IS DISTINCT FROM true
+     OR COALESCE(p_transaction.payment_method,'paystack') = 'campus_wallet'
+     OR p_transaction.amount IS NULL OR p_transaction.amount <= 0 THEN
+    RETURN;
+  END IF;
+
+  v_escrow_account := public.get_financial_account_id(
+    'liability.escrow','liability','credit',p_transaction.id,
+    'Escrow liability for transaction ' || p_transaction.id::text
+  );
+  v_counter_account := public.get_financial_account_id(
+    'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+  );
+
+  IF p_event = 'funded' THEN
+    v_lines := jsonb_build_array(
+      jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
+      jsonb_build_object('account_id',v_escrow_account,'debit',0,'credit',p_transaction.amount)
+    );
+    v_idempotency_key := 'paystack-escrow-funded:' || p_transaction.id::text;
+
+  ELSIF p_event = 'released' THEN
+    IF p_transaction.status NOT IN ('released','completed') THEN RETURN; END IF;
+    v_counter_account := public.get_financial_account_id(
+      'liability.seller_payable','liability','credit',p_transaction.seller_id,
+      'Seller payout payable for user ' || p_transaction.seller_id::text
+    );
+    v_lines := jsonb_build_array(
+      jsonb_build_object('account_id',v_escrow_account,'debit',p_transaction.amount,'credit',0),
+      jsonb_build_object('account_id',v_counter_account,'debit',0,'credit',p_transaction.amount)
+    );
+    v_idempotency_key := 'paystack-escrow-released:' || p_transaction.id::text;
+
+  ELSIF p_event = 'refunded' THEN
+    IF p_transaction.refund_status IS DISTINCT FROM 'processed' THEN RETURN; END IF;
+    SELECT EXISTS (
+      SELECT 1 FROM public.financial_journal_transactions
+       WHERE idempotency_key = 'paystack-escrow-released:' || p_transaction.id::text
+    ) INTO v_release_exists;
+
+    IF NOT v_release_exists THEN
+      v_counter_account := v_escrow_account;
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
+        jsonb_build_object('account_id',public.get_financial_account_id(
+          'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+        ),'debit',0,'credit',p_transaction.amount)
+      );
+    ELSIF p_transaction.payout_status = 'paid' THEN
+      v_counter_account := public.get_financial_account_id(
+        'asset.seller_recovery','asset','debit',p_transaction.seller_id,
+        'Seller recovery receivable for user ' || p_transaction.seller_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
+        jsonb_build_object('account_id',public.get_financial_account_id(
+          'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+        ),'debit',0,'credit',p_transaction.amount)
+      );
+    ELSE
+      v_counter_account := public.get_financial_account_id(
+        'liability.seller_payable','liability','credit',p_transaction.seller_id,
+        'Seller payout payable for user ' || p_transaction.seller_id::text
+      );
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
+        jsonb_build_object('account_id',public.get_financial_account_id(
+          'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+        ),'debit',0,'credit',p_transaction.amount)
+      );
+    END IF;
+    v_idempotency_key := 'paystack-escrow-refunded:' || p_transaction.id::text;
+  ELSE
+    RAISE EXCEPTION 'Unsupported Paystack transaction journal event: %',p_event;
+  END IF;
+
+  PERFORM public.post_financial_journal_transaction(
+    'paystack.escrow.' || p_event,
+    'transactions',
+    'transaction',
+    p_transaction.id,
+    v_idempotency_key,
+    v_lines,
+    jsonb_build_object(
+      'transaction_id',p_transaction.id,
+      'seller_id',p_transaction.seller_id,
+      'buyer_id',p_transaction.buyer_id,
+      'payment_method',p_transaction.payment_method,
+      'payout_status',p_transaction.payout_status,
+      'refund_status',p_transaction.refund_status
+    )
+  );
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.sync_paystack_transaction_to_financial_journal()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+BEGIN
+  IF NEW.payment_verified IS TRUE
+     AND (TG_OP = 'INSERT' OR OLD.payment_verified IS DISTINCT FROM true) THEN
+    PERFORM public.post_paystack_transaction_journal_event(NEW,'funded');
+  END IF;
+
+  IF NEW.status IN ('released','completed')
+     AND (TG_OP = 'INSERT' OR OLD.status NOT IN ('released','completed'))
+     AND NEW.payment_verified IS TRUE
+     AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
+    PERFORM public.post_paystack_transaction_journal_event(NEW,'released');
+  END IF;
+
+  IF NEW.refund_status = 'processed'
+     AND (TG_OP = 'INSERT' OR OLD.refund_status IS DISTINCT FROM 'processed')
+     AND NEW.payment_verified IS TRUE
+     AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
+    PERFORM public.post_paystack_transaction_journal_event(NEW,'refunded');
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.post_paystack_transaction_journal_event(public.transactions,text)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.sync_paystack_transaction_to_financial_journal()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS transactions_financial_journal_sync ON public.transactions;
+CREATE TRIGGER transactions_financial_journal_sync
+AFTER INSERT OR UPDATE OF payment_verified, status, refund_status
+ON public.transactions
+FOR EACH ROW EXECUTE FUNCTION public.sync_paystack_transaction_to_financial_journal();
+
+CREATE OR REPLACE FUNCTION public.post_seller_payout_journal_event(
+  p_transaction_id uuid,
+  p_payout_reference text,
+  p_amount bigint,
+  p_status text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_tx public.transactions%ROWTYPE;
+  v_payable_account uuid;
+  v_clearing_account uuid;
+  v_lines jsonb;
+  v_event text := lower(COALESCE(p_status,''));
+  v_key text;
+BEGIN
+  IF p_transaction_id IS NULL OR p_payout_reference IS NULL
+     OR length(trim(p_payout_reference)) = 0 OR p_amount IS NULL OR p_amount <= 0
+     OR v_event NOT IN ('success','reversed') THEN
+    RAISE EXCEPTION 'Invalid seller payout journal event';
+  END IF;
+
+  SELECT * INTO v_tx FROM public.transactions
+   WHERE id = p_transaction_id FOR SHARE;
+  IF NOT FOUND OR v_tx.payment_verified IS DISTINCT FROM true
+     OR v_tx.status NOT IN ('released','completed')
+     OR COALESCE(v_tx.payment_method,'paystack') = 'campus_wallet'
+     OR v_tx.amount IS DISTINCT FROM p_amount THEN
+    RAISE EXCEPTION 'Seller payout journal event does not match a released Paystack transaction';
+  END IF;
+  v_payable_account := public.get_financial_account_id(
+    'liability.seller_payable','liability','credit',v_tx.seller_id,
+    'Seller payout payable for user ' || v_tx.seller_id::text
+  );
+  v_clearing_account := public.get_financial_account_id(
+    'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
+  );
+
+  IF v_event = 'success' THEN
+    IF v_tx.refund_status = 'processed' THEN
+      -- A transfer that succeeds after a refund is a seller receivable, not
+      -- another payable reduction. Record the actual cash movement regardless.
+      v_payable_account := public.get_financial_account_id(
+        'asset.seller_recovery','asset','debit',v_tx.seller_id,
+        'Seller recovery receivable for user ' || v_tx.seller_id::text
+      );
+    END IF;
+    v_lines := jsonb_build_array(
+      jsonb_build_object('account_id',v_payable_account,'debit',p_amount,'credit',0),
+      jsonb_build_object('account_id',v_clearing_account,'debit',0,'credit',p_amount)
+    );
+  ELSE
+    v_key := 'paystack-payout:' || trim(p_payout_reference) || ':success';
+    IF NOT EXISTS (
+      SELECT 1 FROM public.financial_journal_transactions WHERE idempotency_key = v_key
+    ) THEN
+      RAISE EXCEPTION 'Payout reversal has no original successful payout journal';
+    END IF;
+    IF v_tx.refund_status = 'processed' THEN
+      v_payable_account := public.get_financial_account_id(
+        'asset.seller_recovery','asset','debit',v_tx.seller_id,
+        'Seller recovery receivable for user ' || v_tx.seller_id::text
+      );
+    END IF;
+    v_lines := jsonb_build_array(
+      jsonb_build_object('account_id',v_clearing_account,'debit',p_amount,'credit',0),
+      jsonb_build_object('account_id',v_payable_account,'debit',0,'credit',p_amount)
+    );
+  END IF;
+
+  v_key := 'paystack-payout:' || trim(p_payout_reference) || ':' || v_event;
+  RETURN public.post_financial_journal_transaction(
+    'paystack.payout.' || v_event,
+    'seller_payout_transfers',
+    'payout_reference',
+    p_transaction_id,
+    v_key,
+    v_lines,
+    jsonb_build_object(
+      'transaction_id',p_transaction_id,
+      'seller_id',v_tx.seller_id,
+      'payout_reference',trim(p_payout_reference),
+      'provider_status',v_event
+    )
+  );
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.post_seller_payout_journal_event(uuid,text,bigint,text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.post_seller_payout_journal_event(uuid,text,bigint,text)
+  TO service_role;
+
+-- Backfill the compatibility wallet journal, verified Paystack escrow funding,
+-- and any already-released/refunded transactions. Deterministic event keys make
+-- this migration safe to re-run after a partial deployment.
+DO $backfill$
+DECLARE
+  v_entry public.financial_ledger%ROWTYPE;
+  v_tx public.transactions%ROWTYPE;
+  v_payout record;
+BEGIN
+  FOR v_entry IN
+    SELECT * FROM public.financial_ledger
+     WHERE source = 'plug_credit_ledger'
+     ORDER BY created_at, id
+  LOOP
+    PERFORM public.post_wallet_financial_journal_entry(v_entry);
+  END LOOP;
+
+  FOR v_tx IN
+    SELECT * FROM public.transactions
+     WHERE payment_verified IS TRUE
+       AND COALESCE(payment_method,'paystack') <> 'campus_wallet'
+     ORDER BY created_at, id
+  LOOP
+    PERFORM public.post_paystack_transaction_journal_event(v_tx,'funded');
+    IF v_tx.status IN ('released','completed') THEN
+      PERFORM public.post_paystack_transaction_journal_event(v_tx,'released');
+    END IF;
+    IF v_tx.refund_status = 'processed' THEN
+      PERFORM public.post_paystack_transaction_journal_event(v_tx,'refunded');
+    END IF;
+  END LOOP;
+
+  -- PR #103 is intentionally still a separate, unmerged dependency. If its
+  -- payout table is present when this migration runs, recover conclusive
+  -- provider outcomes. A later payout integration migration also installs
+  -- the trigger for future status changes.
+  IF to_regclass('public.seller_payout_transfers') IS NOT NULL THEN
+    FOR v_payout IN
+      SELECT p.transaction_id,p.reference,p.amount_kobo,p.status
+        FROM public.seller_payout_transfers p
+       WHERE p.status IN ('success','reversed')
+       ORDER BY p.created_at,p.id
+    LOOP
+      PERFORM public.post_seller_payout_journal_event(
+        v_payout.transaction_id,v_payout.reference,v_payout.amount_kobo,'success'
+      );
+      IF v_payout.status = 'reversed' THEN
+        PERFORM public.post_seller_payout_journal_event(
+          v_payout.transaction_id,v_payout.reference,v_payout.amount_kobo,'reversed'
+        );
+      END IF;
+    END LOOP;
+  END IF;
+END;
+$backfill$;
+
+COMMENT ON TABLE public.financial_accounts IS
+  'Chart of accounts for Campus Plug double-entry accounting. NGN balances are derived from immutable journal entries.';
+COMMENT ON TABLE public.financial_journal_transactions IS
+  'Immutable, idempotent, balanced accounting events. Amounts are integer kobo.';
+COMMENT ON TABLE public.financial_journal_entries IS
+  'Immutable debit/credit lines. Each journal transaction is balanced before posting.';
+
   ) THEN
     RAISE EXCEPTION 'Journal lines must contain valid account IDs and non-negative integer debit/credit values';
   END IF;

@@ -475,7 +475,8 @@ BEGIN
       );
     ELSIF p_transaction.payout_status = 'paid' THEN
       v_counter_account := public.get_financial_account_id(
-        'asset.seller_recovery','asset','debit',NULL,'Seller recovery receivable after a post-payout refund'
+        'asset.seller_recovery','asset','debit',p_transaction.seller_id,
+        'Seller recovery receivable for user ' || p_transaction.seller_id::text
       );
       v_lines := jsonb_build_array(
         jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
@@ -593,10 +594,6 @@ BEGIN
      OR v_tx.amount IS DISTINCT FROM p_amount THEN
     RAISE EXCEPTION 'Seller payout journal event does not match a released Paystack transaction';
   END IF;
-  IF v_tx.refund_status = 'processed' THEN
-    RAISE EXCEPTION 'A refunded transaction cannot be paid out';
-  END IF;
-
   v_payable_account := public.get_financial_account_id(
     'liability.seller_payable','liability','credit',v_tx.seller_id,
     'Seller payout payable for user ' || v_tx.seller_id::text
@@ -606,6 +603,14 @@ BEGIN
   );
 
   IF v_event = 'success' THEN
+    IF v_tx.refund_status = 'processed' THEN
+      -- A transfer that succeeds after a refund is a seller receivable, not
+      -- another payable reduction. Record the actual cash movement regardless.
+      v_payable_account := public.get_financial_account_id(
+        'asset.seller_recovery','asset','debit',v_tx.seller_id,
+        'Seller recovery receivable for user ' || v_tx.seller_id::text
+      );
+    END IF;
     v_lines := jsonb_build_array(
       jsonb_build_object('account_id',v_payable_account,'debit',p_amount,'credit',0),
       jsonb_build_object('account_id',v_clearing_account,'debit',0,'credit',p_amount)
@@ -616,6 +621,12 @@ BEGIN
       SELECT 1 FROM public.financial_journal_transactions WHERE idempotency_key = v_key
     ) THEN
       RAISE EXCEPTION 'Payout reversal has no original successful payout journal';
+    END IF;
+    IF v_tx.refund_status = 'processed' THEN
+      v_payable_account := public.get_financial_account_id(
+        'asset.seller_recovery','asset','debit',v_tx.seller_id,
+        'Seller recovery receivable for user ' || v_tx.seller_id::text
+      );
     END IF;
     v_lines := jsonb_build_array(
       jsonb_build_object('account_id',v_clearing_account,'debit',p_amount,'credit',0),

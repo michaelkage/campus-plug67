@@ -18,7 +18,10 @@ BEGIN
   END IF;
 
   IF NEW.status = 'success' THEN
-    IF TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'success' THEN
+    IF TG_OP = 'INSERT' THEN
+      EXECUTE 'SELECT public.post_seller_payout_journal_event($1,$2,$3,$4)'
+        USING NEW.transaction_id,NEW.reference,NEW.amount_kobo,'success';
+    ELSIF OLD.status IS DISTINCT FROM 'success' THEN
       EXECUTE 'SELECT public.post_seller_payout_journal_event($1,$2,$3,$4)'
         USING NEW.transaction_id,NEW.reference,NEW.amount_kobo,'success';
     END IF;

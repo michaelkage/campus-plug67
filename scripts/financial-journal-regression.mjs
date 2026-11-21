@@ -30,6 +30,12 @@ for (const required of [
   'Campus Wallet escrow hold',
   'Campus Wallet micro-escrow release',
   'Campus Wallet micro-escrow refund',
+  'Campus Plug gear rental escrow hold',
+  'Gear rental fee released after return inspection',
+  'Gear rental security deposit returned',
+  'Gear rental cancellation refund',
+  'Gear rental dispute settlement',
+  'Gear rental dispute settlement refund',
   'post_paystack_transaction_journal_event',
   'paystack-escrow-funded:',
   'paystack-escrow-released:',
@@ -63,7 +69,7 @@ for (const required of [
 
 const databaseTest = read('supabase/tests/financial_journal.test.sql');
 for (const required of [
-  'SELECT plan(27)',
+  'SELECT plan(33)',
   'paystack-escrow-funded:',
   'paystack-escrow-released:',
   'paystack-escrow-refunded:',

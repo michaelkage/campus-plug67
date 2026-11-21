@@ -58,7 +58,7 @@ for (const required of [
 
 const databaseTest = read('supabase/tests/financial_journal.test.sql');
 for (const required of [
-  'SELECT plan(21)',
+  'SELECT plan(24)',
   'paystack-escrow-funded:',
   'paystack-escrow-released:',
   'paystack-escrow-refunded:',
@@ -67,6 +67,9 @@ for (const required of [
   'Journal entry history cannot be edited',
   'Unbalanced journal postings are rejected before commit',
   'A repeated idempotency key cannot post a different journal payload',
+  'Refund before payout consumes the seller payable',
+  'Late payout success after refund is recognized as a seller recovery receivable',
+  'Late payout reversal clears the recovery receivable',
 ]) if (!databaseTest.includes(required)) fail(`Financial journal database test missing coverage: ${required}`);
 
 console.log('Double-entry financial journal regression checks passed.');

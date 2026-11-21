@@ -5,8 +5,6 @@ for (const invariant of [
   'reconcile the Paystack transfer before refunding',
   "v_tx.refund_status IN ('pending','processing','needs-attention','processed')",
   'FOR UPDATE',
-  'A refund can be initiated after escrow release and seller payout',
-  'A new refund claim is blocked while the seller bank payout is in flight',
   'refund_request_reference',
   "v_tx.status NOT IN ('locked','meetup_initiated','release_requested','disputed','released','completed')",
   "v_tx.status = 'cancelled'",
@@ -14,5 +12,13 @@ for (const invariant of [
   'GRANT EXECUTE ON FUNCTION public.claim_paystack_refund(uuid) TO service_role',
 ]) {
   if (!migration.includes(invariant)) throw new Error(`Refund/payout serialization missing invariant: ${invariant}`);
+}
+const databaseTest = fs.readFileSync('supabase/tests/paystack_refund_lifecycle.test.sql','utf8');
+for (const invariant of [
+  'A refund can be initiated after escrow release and seller payout',
+  'A new refund claim is blocked while the seller bank payout is in flight',
+  'SELECT plan(29)',
+]) {
+  if (!databaseTest.includes(invariant)) throw new Error(`Refund/payout SQL coverage missing invariant: ${invariant}`);
 }
 console.log('Refund/payout serialization regression checks passed.');

@@ -527,19 +527,6 @@ BEGIN
       );
     END IF;
 
-    /* existing branch body replaced */
-    IF false THEN
-      v_counter_account := public.get_financial_account_id(
-        'liability.seller_payable','liability','credit',p_transaction.seller_id,
-        'Seller payout payable for user ' || p_transaction.seller_id::text
-      );
-      v_lines := jsonb_build_array(
-        jsonb_build_object('account_id',v_counter_account,'debit',p_transaction.amount,'credit',0),
-        jsonb_build_object('account_id',public.get_financial_account_id(
-          'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
-        ),'debit',0,'credit',p_transaction.amount)
-      );
-    END IF;
     v_idempotency_key := 'paystack-escrow-refunded:' || p_transaction.id::text;
   ELSE
     RAISE EXCEPTION 'Unsupported Paystack transaction journal event: %',p_event;

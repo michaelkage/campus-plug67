@@ -12,6 +12,8 @@ for (const required of [
   'ledger idempotency key reused with a different financial payload',
   'CREATE TRIGGER financial_ledger_append_only_guard',
   'BEFORE UPDATE OR DELETE ON public.financial_ledger',
+  'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.financial_ledger FROM service_role',
+  'GRANT SELECT ON public.financial_ledger TO service_role',
   'CREATE OR REPLACE FUNCTION public.mirror_plug_credit_ledger_to_financial_ledger',
   'AFTER INSERT ON public.plug_credit_ledger',
   "'plug-credit-ledger:' || NEW.id::text",

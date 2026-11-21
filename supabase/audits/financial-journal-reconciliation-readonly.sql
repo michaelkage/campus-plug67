@@ -86,18 +86,66 @@ WHERE p.status IN ('success','reversed')
   AND (success_journal.id IS NULL OR (p.status='reversed' AND reversal_journal.id IS NULL))
 ORDER BY p.created_at,p.id;
 
--- 8) Wallet reasons not yet mapped to a double-entry counterpart require
--- explicit accounting design; they are never silently posted to suspense.
+-- 8) Legacy generic Paystack wallet-ledger markers are intentionally not
+-- posted a second time. Their transaction-level Paystack event must exist.
+SELECT f.id AS legacy_ledger_id,
+       f.metadata->>'legacy_reason' AS legacy_reason,
+       t.id AS transaction_id,
+       t.payment_method,
+       CASE
+         WHEN f.metadata->>'legacy_reason' IN ('Escrow release','Escrow auto-release')
+           OR f.metadata->>'legacy_reason' LIKE 'Escrow payout for transaction #%'
+           THEN 'paystack-escrow-released:' || t.id::text
+         ELSE 'paystack-escrow-refunded:' || t.id::text
+       END AS required_journal_key
+FROM public.financial_ledger f
+JOIN public.transactions t
+  ON t.id = nullif(f.metadata->>'legacy_reference_id','')::uuid
+WHERE f.source='plug_credit_ledger'
+  AND (
+    f.metadata->>'legacy_reason' IN ('Escrow release','Escrow auto-release','Escrow refund')
+    OR f.metadata->>'legacy_reason' LIKE 'Escrow payout for transaction #%'
+    OR f.metadata->>'legacy_reason' LIKE 'Refund for cancelled transaction #%'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM public.financial_journal_transactions j
+    WHERE j.idempotency_key = CASE
+      WHEN f.metadata->>'legacy_reason' IN ('Escrow release','Escrow auto-release')
+        OR f.metadata->>'legacy_reason' LIKE 'Escrow payout for transaction #%'
+        THEN 'paystack-escrow-released:' || t.id::text
+      ELSE 'paystack-escrow-refunded:' || t.id::text
+    END
+  )
+ORDER BY f.created_at,f.id;
+
+-- 9) Wallet reasons without a defined journal mapping require explicit
+-- accounting design; known legacy Paystack markers are audited separately above.
 SELECT metadata->>'legacy_reason' AS legacy_reason,count(*) AS unposted_rows,
        sum(amount)::bigint AS amount_total
 FROM public.financial_ledger f
 WHERE f.source='plug_credit_ledger'
-  AND (metadata->>'legacy_reason' IS NULL OR metadata->>'legacy_reason' NOT IN (
-    'Campus Wallet funding',
-    'Campus Wallet escrow hold',
-    'Campus Wallet micro-escrow release',
-    'Campus Wallet micro-escrow refund'
-  ))
+  AND (
+    metadata->>'legacy_reason' IS NULL
+    OR (
+      metadata->>'legacy_reason' NOT IN (
+        'Campus Wallet funding',
+        'Campus Wallet escrow hold',
+        'Campus Wallet micro-escrow release',
+        'Campus Wallet micro-escrow refund',
+        'Campus Plug gear rental escrow hold',
+        'Gear rental fee released after return inspection',
+        'Gear rental security deposit returned',
+        'Gear rental cancellation refund',
+        'Gear rental dispute settlement',
+        'Gear rental dispute settlement refund',
+        'Escrow release',
+        'Escrow auto-release',
+        'Escrow refund'
+      )
+      AND metadata->>'legacy_reason' NOT LIKE 'Escrow payout for transaction #%'
+      AND metadata->>'legacy_reason' NOT LIKE 'Refund for cancelled transaction #%'
+    )
+  )
   AND NOT EXISTS (
     SELECT 1 FROM public.financial_journal_transactions j
     WHERE j.idempotency_key='financial-ledger:' || f.id::text
@@ -105,7 +153,7 @@ WHERE f.source='plug_credit_ledger'
 GROUP BY metadata->>'legacy_reason'
 ORDER BY legacy_reason;
 
--- 9) User-wallet journal balance vs the compatibility balance projection.
+-- 10) User-wallet journal balance vs the compatibility balance projection.
 -- Positive liability balance means Campus Plug owes the user that amount.
 WITH wallet_accounts AS (
   SELECT a.id,a.owner_id
@@ -127,5 +175,5 @@ LEFT JOIN journal_wallets j ON j.owner_id=p.id
 WHERE COALESCE(p.plug_credit_balance,0) <> COALESCE(j.journal_balance_kobo,0)
 ORDER BY p.id;
 
--- 10) Trial balance must be zero.
+-- 11) Trial balance must be zero.
 SELECT * FROM public.financial_journal_trial_balance WHERE imbalance <> 0;

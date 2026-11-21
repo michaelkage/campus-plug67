@@ -34,6 +34,7 @@ for (const required of [
   'post_seller_payout_journal_event',
   'paystack-payout:',
   'financial_journal_trial_balance',
+  'financial_account_balances',
   'REVOKE ALL ON public.financial_accounts',
   'REVOKE ALL ON FUNCTION public.post_seller_payout_journal_event(uuid,text,bigint,text)\n  FROM PUBLIC, anon, authenticated, service_role',
   'DO $backfill$',
@@ -54,7 +55,7 @@ for (const required of [
 
 const databaseTest = read('supabase/tests/financial_journal.test.sql');
 for (const required of [
-  'SELECT plan(17)',
+  'SELECT plan(18)',
   'paystack-escrow-funded:',
   'paystack-escrow-released:',
   'paystack-escrow-refunded:',

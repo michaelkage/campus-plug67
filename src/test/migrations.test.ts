@@ -80,7 +80,7 @@ describe('escrow status vocabulary', () => {
 
   it('accepts exactly the seven escrow states the client engine models', () => {
     expect(transactionStatuses()).toEqual([
-      'cancelled', 'disputed', 'locked', 'meetup_initiated',
+      'cancelled', 'completed', 'disputed', 'locked', 'meetup_initiated',
       'pending', 'release_requested', 'released',
     ])
   })

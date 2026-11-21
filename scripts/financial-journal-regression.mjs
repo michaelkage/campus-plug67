@@ -1,0 +1,53 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+const root = process.cwd();
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const fail = (message) => { throw new Error(message); };
+
+const migration = read('supabase/migrations/20261121110000_create_double_entry_financial_journal.sql');
+for (const required of [
+  'CREATE TABLE IF NOT EXISTS public.financial_accounts',
+  'CREATE TABLE IF NOT EXISTS public.financial_journal_transactions',
+  'CREATE TABLE IF NOT EXISTS public.financial_journal_entries',
+  'CHECK ((debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0))',
+  'financial_journal_transactions_append_only',
+  'financial_journal_entries_append_only',
+  'financial_accounts_identity_guard',
+  'jsonb_array_length(p_lines) < 2',
+  'v_total_debit IS DISTINCT FROM v_total_credit',
+  'A balanced journal must affect at least two distinct accounts',
+  'Journal idempotency key reused with a different financial payload',
+  'liability.user_wallet',
+  'liability.escrow',
+  'liability.seller_payable',
+  'asset.paystack_clearing',
+  'asset.seller_recovery',
+  'Campus Wallet funding',
+  'Campus Wallet escrow hold',
+  'Campus Wallet micro-escrow release',
+  'Campus Wallet micro-escrow refund',
+  'post_paystack_transaction_journal_event',
+  'paystack-escrow-funded:',
+  'paystack-escrow-released:',
+  'paystack-escrow-refunded:',
+  'post_seller_payout_journal_event',
+  'paystack-payout:',
+  'financial_journal_trial_balance',
+  'REVOKE ALL ON public.financial_accounts',
+  'GRANT EXECUTE ON FUNCTION public.post_seller_payout_journal_event',
+  'DO $backfill$',
+]) if (!migration.includes(required)) fail(`Double-entry journal migration missing invariant: ${required}`);
+
+const audit = read('supabase/audits/financial-journal-reconciliation-readonly.sql');
+for (const required of [
+  'unbalanced_journal_transactions',
+  'unposted_wallet_projection_rows',
+  'missing_paystack_funding_entries',
+  'missing_paystack_release_entries',
+  'missing_paystack_refund_entries',
+  'missing_successful_payout_entries',
+  'wallet_projection_vs_journal',
+]) if (!audit.includes(required)) fail(`Financial journal audit missing check: ${required}`);
+
+console.log('Double-entry financial journal regression checks passed.');

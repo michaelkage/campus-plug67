@@ -17,6 +17,7 @@ describe('transaction command policy', () => {
   it('allows only the seller to start a funded meetup', () => {
     expect(evaluateTransactionCommand(tx(), seller, { type: 'START_MEETUP' }).allowed).toBe(true)
     expect(evaluateTransactionCommand(tx(), buyer, { type: 'START_MEETUP' }).allowed).toBe(false)
+    expect(evaluateTransactionCommand(tx(), { id: 'seller-1', role: 'buyer' }, { type: 'OPEN_DISPUTE', reason: 'role mismatch' }).allowed).toBe(false)
     expect(evaluateTransactionCommand(tx({ status: 'pending' }), seller, { type: 'START_MEETUP' }).allowed).toBe(false)
   })
 
@@ -46,6 +47,11 @@ describe('transaction command policy', () => {
     expect(evaluateTransactionCommand(disputed, buyer, { type: 'RESOLVE_DISPUTE', outcome: 'release', resolutionReference: 'case-12345678' }).allowed).toBe(false)
     expect(evaluateTransactionCommand(disputed, admin, { type: 'RESOLVE_DISPUTE', outcome: 'release', resolutionReference: 'case-12345678' }).expectedNextStatus).toBe('released')
     expect(evaluateTransactionCommand(tx(), buyer, { type: 'CANCEL', reason: 'Changed mind' }).allowed).toBe(false)
+  })
+
+  it('treats legacy completed rows as terminal without inferring seller payout', () => {
+    const decision = evaluateTransactionCommand(tx({ status: 'completed' }), admin, { type: 'CANCEL', reason: 'legacy row' })
+    expect(decision.allowed).toBe(false)
   })
 
   it('rejects terminal-state resurrection', () => {

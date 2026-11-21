@@ -52,6 +52,8 @@ for (const required of [
   "'paystack-escrow-released:' || t.id::text",
   "'paystack-escrow-refunded:' || t.id::text",
   "p.status IN ('success','reversed')",
+  'missing_reversal_posting',
+  'unposted_rows',
   'difference_kobo',
   'financial_journal_trial_balance',
 ]) if (!audit.includes(required)) fail(`Financial journal audit missing check: ${required}`);

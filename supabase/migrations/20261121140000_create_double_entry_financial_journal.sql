@@ -549,36 +549,17 @@ SECURITY DEFINER
 SET search_path = ''
 AS $function$
 BEGIN
-  IF TG_OP = 'INSERT' THEN
-    IF NEW.payment_verified IS TRUE THEN
-      PERFORM public.post_paystack_transaction_journal_event(NEW,'funded');
-    END IF;
-    IF NEW.status IN ('released','completed')
-       AND NEW.payment_verified IS TRUE
-       AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
-      PERFORM public.post_paystack_transaction_journal_event(NEW,'released');
-    END IF;
-    IF NEW.refund_status = 'processed'
-       AND NEW.payment_verified IS TRUE
-       AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
-      PERFORM public.post_paystack_transaction_journal_event(NEW,'refunded');
-    END IF;
-    RETURN NEW;
-  END IF;
-
-  IF NEW.payment_verified IS TRUE AND OLD.payment_verified IS DISTINCT FROM true THEN
+  IF NEW.payment_verified IS TRUE THEN
     PERFORM public.post_paystack_transaction_journal_event(NEW,'funded');
   END IF;
 
   IF NEW.status IN ('released','completed')
-     AND OLD.status NOT IN ('released','completed')
      AND NEW.payment_verified IS TRUE
      AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
     PERFORM public.post_paystack_transaction_journal_event(NEW,'released');
   END IF;
 
   IF NEW.refund_status = 'processed'
-     AND OLD.refund_status IS DISTINCT FROM 'processed'
      AND NEW.payment_verified IS TRUE
      AND COALESCE(NEW.payment_method,'paystack') <> 'campus_wallet' THEN
     PERFORM public.post_paystack_transaction_journal_event(NEW,'refunded');

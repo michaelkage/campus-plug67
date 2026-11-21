@@ -17,18 +17,15 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF NEW.status = 'success'
-     AND (TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'success') THEN
-    EXECUTE 'SELECT public.post_seller_payout_journal_event($1,$2,$3,$4)'
-      USING NEW.transaction_id,NEW.reference,NEW.amount_kobo,'success';
-
-  ELSIF NEW.status = 'reversed'
-        AND TG_OP = 'UPDATE'
-        AND OLD.status = 'success' THEN
+  IF NEW.status = 'success' THEN
+    IF TG_OP = 'INSERT' OR OLD.status IS DISTINCT FROM 'success' THEN
+      EXECUTE 'SELECT public.post_seller_payout_journal_event($1,$2,$3,$4)'
+        USING NEW.transaction_id,NEW.reference,NEW.amount_kobo,'success';
+    END IF;
+  ELSIF NEW.status = 'reversed' AND TG_OP = 'UPDATE' AND OLD.status = 'success' THEN
     EXECUTE 'SELECT public.post_seller_payout_journal_event($1,$2,$3,$4)'
       USING NEW.transaction_id,NEW.reference,NEW.amount_kobo,'reversed';
   END IF;
-
   RETURN NEW;
 END;
 $function$;
@@ -37,9 +34,16 @@ REVOKE ALL ON FUNCTION public.sync_seller_payout_to_financial_journal()
   FROM PUBLIC, anon, authenticated, service_role;
 
 DROP TRIGGER IF EXISTS seller_payout_financial_journal_sync ON public.seller_payout_transfers;
-CREATE TRIGGER seller_payout_financial_journal_sync
-AFTER INSERT OR UPDATE OF status
-ON public.seller_payout_transfers
+DROP TRIGGER IF EXISTS seller_payout_financial_journal_insert ON public.seller_payout_transfers;
+DROP TRIGGER IF EXISTS seller_payout_financial_journal_update ON public.seller_payout_transfers;
+
+CREATE TRIGGER seller_payout_financial_journal_insert
+AFTER INSERT ON public.seller_payout_transfers
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_seller_payout_to_financial_journal();
+
+CREATE TRIGGER seller_payout_financial_journal_update
+AFTER UPDATE OF status ON public.seller_payout_transfers
 FOR EACH ROW
 EXECUTE FUNCTION public.sync_seller_payout_to_financial_journal();
 

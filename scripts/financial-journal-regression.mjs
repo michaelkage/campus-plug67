@@ -52,6 +52,14 @@ for (const required of [
   'DO $backfill$',
 ]) if (!migration.includes(required)) fail(`Double-entry journal migration missing invariant: ${required}`);
 
+if (migration.includes("'payout_status',p_transaction.payout_status") || migration.includes("'refund_status',p_transaction.refund_status")) {
+  fail('Transaction journal idempotency metadata must not contain mutable lifecycle fields');
+}
+for (const required of [
+  "WHERE idempotency_key = 'paystack-escrow-refunded:' || p_transaction.id::text",
+  'Refund classification is a point-in-time decision',
+]) if (!migration.includes(required)) fail(`Refund journal idempotency invariant missing: ${required}`);
+
 const audit = read('supabase/audits/financial-journal-reconciliation-readonly.sql');
 for (const required of [
   'FROM public.financial_journal_transactions',

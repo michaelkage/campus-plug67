@@ -18,7 +18,7 @@ for (const required of [
   'abs(NEW.amount)',
   'CASE WHEN NEW.amount > 0 THEN \'credit\' ELSE \'debit\' END',
   'DO $backfill$',
-  'GRANT EXECUTE ON FUNCTION public.record_financial_ledger_entry',
+  'REVOKE ALL ON FUNCTION public.record_financial_ledger_entry(uuid,bigint,text,text,text,text,uuid,text,jsonb)\n  FROM PUBLIC, anon, authenticated, service_role',
 ]) if (!migration.includes(required)) fail(`Financial ledger migration missing invariant: ${required}`);
 
 const audit = read('supabase/audits/financial-ledger-mirror-readonly.sql');

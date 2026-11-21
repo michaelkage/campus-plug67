@@ -34,12 +34,6 @@ BEGIN
     RAISE EXCEPTION 'Paystack reference is missing; refund cannot be initiated safely';
   END IF;
 
-  -- An existing refund claim remains safely replayable. Only a new claim
-  -- is blocked while an external payout is ambiguous or awaiting review.
-  IF v_tx.payout_status IN ('processing','needs_attention') THEN
-    RAISE EXCEPTION 'Seller payout is still in flight or needs manual reconciliation; reconcile the Paystack transfer before refunding';
-  END IF;
-
   IF v_tx.refund_status IN ('pending','processing','needs-attention','processed') THEN
     RETURN jsonb_build_object(
       'claimed', false,
@@ -47,6 +41,12 @@ BEGIN
       'refund_id', v_tx.paystack_refund_id,
       'request_reference', v_tx.refund_request_reference
     );
+  END IF;
+
+  -- An existing refund claim remains safely replayable. Only a new claim
+  -- is blocked while an external payout is ambiguous or awaiting review.
+  IF v_tx.payout_status IN ('processing','needs_attention') THEN
+    RAISE EXCEPTION 'Seller payout is still in flight or needs manual reconciliation; reconcile the Paystack transfer before refunding';
   END IF;
 
   -- 38 characters, within Paystack's 8-64 character reference contract.

@@ -1,24 +1,25 @@
 /**
  * Canonical React Query keys.
  *
- * Keep keys hierarchical so domain mutations can invalidate a whole collection
- * or a precise entity without relying on ad-hoc string arrays in components.
+ * Existing key shapes are preserved for cache compatibility. New domains use
+ * hierarchical keys; components should not invent inline arrays.
  */
 export const queryKeys = {
   profiles: {
     all: ['profiles'] as const,
-    detail: (id: string) => ['profiles', 'detail', id] as const,
+    detail: (id: string) => ['profiles', id] as const,
   },
   listings: {
     all: ['listings'] as const,
-    detail: (id: string) => ['listings', 'detail', id] as const,
-    marketplace: (filters: { institutionId?: string; category?: string; search?: string; sort?: string } = {}) =>
-      ['listings', 'marketplace', filters] as const,
+    detail: (id: string) => ['listings', id] as const,
+    marketplace: (university?: string) => ['listings', 'marketplace', university ?? 'all'] as const,
+    marketplaceFiltered: (filters: { institutionId?: string; category?: string; search?: string; sort?: string } = {}) =>
+      ['listings', 'marketplace-filtered', filters] as const,
     bySeller: (sellerId: string) => ['listings', 'seller', sellerId] as const,
   },
   transactions: {
     all: ['transactions'] as const,
-    detail: (id: string) => ['transactions', 'detail', id] as const,
+    detail: (id: string) => ['transactions', id] as const,
     history: (userId: string) => ['transactions', 'history', userId] as const,
   },
   wallet: {
@@ -28,13 +29,13 @@ export const queryKeys = {
   },
   notifications: {
     all: ['notifications'] as const,
-    user: (userId: string) => ['notifications', 'user', userId] as const,
+    user: (userId: string) => ['notifications', userId] as const,
     unreadCount: (userId: string) => ['notifications', 'unread-count', userId] as const,
   },
   messages: {
     all: ['messages'] as const,
-    conversation: (conversationId: string) => ['messages', 'conversation', conversationId] as const,
     transaction: (transactionId: string) => ['messages', 'transaction', transactionId] as const,
+    conversation: (conversationId: string) => ['messages', 'conversation', conversationId] as const,
   },
   conversations: {
     all: ['conversations'] as const,

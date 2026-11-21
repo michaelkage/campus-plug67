@@ -75,9 +75,7 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.record_financial_ledger_entry(uuid,bigint,text,text,text,text,uuid,text,jsonb)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.record_financial_ledger_entry(uuid,bigint,text,text,text,text,uuid,text,jsonb)
-  TO service_role;
+  FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.guard_financial_ledger_append_only()
 RETURNS trigger
@@ -129,7 +127,7 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.mirror_plug_credit_ledger_to_financial_ledger()
-  FROM PUBLIC, anon, authenticated;
+  FROM PUBLIC, anon, authenticated, service_role;
 
 DROP TRIGGER IF EXISTS plug_credit_ledger_financial_mirror ON public.plug_credit_ledger;
 CREATE TRIGGER plug_credit_ledger_financial_mirror

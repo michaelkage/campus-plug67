@@ -208,7 +208,8 @@ BEGIN
     SELECT 1 FROM jsonb_array_elements(p_lines) AS lines(value)
      WHERE NOT (value ? 'account_id')
         OR COALESCE(value->>'account_id','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-        OR COALESCE(value->>'debit','') !~ '^[0-9]+
+        OR COALESCE(value->>'debit','') !~ '^[0-9]+$'
+        OR COALESCE(value->>'credit','') !~ '^[0-9]+$'
   ) THEN
     RAISE EXCEPTION 'Journal lines must contain valid account IDs and non-negative integer debit/credit values';
   END IF;

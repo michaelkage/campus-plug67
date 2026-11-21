@@ -537,9 +537,6 @@ DECLARE
   v_event text := lower(COALESCE(p_status,''));
   v_key text;
 BEGIN
-  IF COALESCE(auth.jwt()->>'role','') <> 'service_role' THEN
-    RAISE EXCEPTION 'Service role required';
-  END IF;
   IF p_transaction_id IS NULL OR p_payout_reference IS NULL
      OR length(trim(p_payout_reference)) = 0 OR p_amount IS NULL OR p_amount <= 0
      OR v_event NOT IN ('success','reversed') THEN
@@ -614,6 +611,7 @@ DO $backfill$
 DECLARE
   v_entry public.financial_ledger%ROWTYPE;
   v_tx public.transactions%ROWTYPE;
+  v_payout record;
 BEGIN
   FOR v_entry IN
     SELECT * FROM public.financial_ledger
@@ -643,28 +641,21 @@ BEGIN
   -- provider outcomes. A later payout integration migration also installs
   -- the trigger for future status changes.
   IF to_regclass('public.seller_payout_transfers') IS NOT NULL THEN
-    FOR v_tx IN
-      SELECT t.* FROM public.transactions t
-      JOIN public.seller_payout_transfers p ON p.transaction_id = t.id
-      WHERE p.status IN ('success','reversed')
-      ORDER BY p.created_at, p.id
+    FOR v_payout IN
+      SELECT p.transaction_id,p.reference,p.amount_kobo,p.status
+        FROM public.seller_payout_transfers p
+       WHERE p.status IN ('success','reversed')
+       ORDER BY p.created_at,p.id
     LOOP
       PERFORM public.post_seller_payout_journal_event(
-        v_tx.id,
-        (SELECT p.reference FROM public.seller_payout_transfers p
-          WHERE p.transaction_id = v_tx.id AND p.status IN ('success','reversed')
-          ORDER BY p.created_at DESC LIMIT 1),
-        v_tx.amount,
-        'success'
+        v_payout.transaction_id,v_payout.reference,v_payout.amount_kobo,'success'
       );
+      IF v_payout.status = 'reversed' THEN
+        PERFORM public.post_seller_payout_journal_event(
+          v_payout.transaction_id,v_payout.reference,v_payout.amount_kobo,'reversed'
+        );
+      END IF;
     END LOOP;
-    -- The loop above establishes successful payout records; post reversal
-    -- records separately below so each reversal is tied to its own reference.
-    EXECUTE $sql$
-      SELECT public.post_seller_payout_journal_event(p.transaction_id,p.reference,p.amount_kobo,'reversed')
-        FROM public.seller_payout_transfers p
-       WHERE p.status = 'reversed'
-    $sql$;
   END IF;
 END;
 $backfill$;

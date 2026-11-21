@@ -129,13 +129,13 @@ SELECT ok(
   'Every posted journal transaction has at least two balanced lines'
 );
 SELECT throws_ok(
-  $ UPDATE public.financial_journal_entries SET debit=debit+1
+  $sql$ UPDATE public.financial_journal_entries SET debit=debit+1
       WHERE id=(
         SELECT e.id FROM public.financial_journal_entries e
         JOIN public.financial_journal_transactions t ON t.id=e.journal_transaction_id
         WHERE t.idempotency_key='paystack-escrow-funded:f6300000-0000-4000-8000-000000000001'
         ORDER BY e.id LIMIT 1
-      ) $,
+      ) $sql$,
   'P0001',
   'Financial journal records are immutable; post a compensating journal transaction',
   'Journal entry history cannot be edited'
@@ -166,7 +166,7 @@ SELECT ok(
   'Journal entry table has row-level security enabled'
 );
 SELECT throws_ok(
-  $ SELECT public.post_financial_journal_transaction(
+  $sql$ SELECT public.post_financial_journal_transaction(
     'paystack.payout.success','seller_payout_transfers','payout_reference','f6300000-0000-4000-8000-000000000001',
     'paystack-payout:cp_tr_journalfixture0001:success',
     jsonb_build_array(
@@ -177,7 +177,7 @@ SELECT throws_ok(
         SELECT id FROM public.financial_accounts WHERE account_code='asset.paystack_clearing' AND owner_id IS NULL LIMIT 1
       ),'debit',0,'credit',9999)
     ),'{}'::jsonb
-  ) $,
+  ) $sql$,
   'P0001',
   'Journal idempotency key reused with a different financial payload',
   'A repeated idempotency key cannot post a different journal payload'

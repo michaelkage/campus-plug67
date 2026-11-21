@@ -86,12 +86,12 @@ SELECT metadata->>'legacy_reason' AS legacy_reason,count(*) AS unposted_rows,
        sum(amount)::bigint AS amount_total
 FROM public.financial_ledger f
 WHERE f.source='plug_credit_ledger'
-  AND metadata->>'legacy_reason' NOT IN (
+  AND (metadata->>'legacy_reason' IS NULL OR metadata->>'legacy_reason' NOT IN (
     'Campus Wallet funding',
     'Campus Wallet escrow hold',
     'Campus Wallet micro-escrow release',
     'Campus Wallet micro-escrow refund'
-  )
+  ))
   AND NOT EXISTS (
     SELECT 1 FROM public.financial_journal_transactions j
     WHERE j.idempotency_key='financial-ledger:' || f.id::text

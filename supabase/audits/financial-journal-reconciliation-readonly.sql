@@ -64,26 +64,42 @@ WHERE t.payment_verified IS TRUE
   AND t.refund_status='processed'
   AND j.id IS NULL;
 
--- 7) Successful or reversed seller transfers missing their corresponding entry.
--- This query is safe before PR #103 is merged.
-DO $check$
-BEGIN
-  IF to_regclass('public.seller_payout_transfers') IS NOT NULL THEN
-    RAISE NOTICE 'seller_payout_transfers exists; run the payout-specific query below';
-  ELSE
-    RAISE NOTICE 'seller_payout_transfers is not installed (PR #103 dependency remains unmerged)';
-  END IF;
-END;
-$check$;
+-- 7) Successful and reversed seller transfers must each have both their
+-- original success posting and, when reversed, the compensating posting.
+SELECT p.id,p.transaction_id,p.reference,p.status,p.amount_kobo,
+       CASE
+         WHEN success_journal.id IS NULL THEN 'missing_success_posting'
+         WHEN p.status='reversed' AND reversal_journal.id IS NULL THEN 'missing_reversal_posting'
+       END AS anomaly
+FROM public.seller_payout_transfers p
+LEFT JOIN public.financial_journal_transactions success_journal
+  ON success_journal.idempotency_key='paystack-payout:' || p.reference || ':success'
+LEFT JOIN public.financial_journal_transactions reversal_journal
+  ON reversal_journal.idempotency_key='paystack-payout:' || p.reference || ':reversed'
+WHERE p.status IN ('success','reversed')
+  AND (success_journal.id IS NULL OR (p.status='reversed' AND reversal_journal.id IS NULL))
+ORDER BY p.created_at,p.id;
 
--- Run only after PR #103 creates seller_payout_transfers:
--- SELECT p.id,p.transaction_id,p.reference,p.status,p.amount_kobo
--- FROM public.seller_payout_transfers p
--- LEFT JOIN public.financial_journal_transactions j
---   ON j.idempotency_key='paystack-payout:' || p.reference || ':success'
--- WHERE p.status IN ('success','reversed') AND j.id IS NULL;
+-- 8) Wallet reasons not yet mapped to a double-entry counterpart require
+-- explicit accounting design; they are never silently posted to suspense.
+SELECT metadata->>'legacy_reason' AS legacy_reason,count(*) AS unposted_rows,
+       sum(amount)::bigint AS amount_total
+FROM public.financial_ledger f
+WHERE f.source='plug_credit_ledger'
+  AND (metadata->>'legacy_reason' IS NULL OR metadata->>'legacy_reason' NOT IN (
+    'Campus Wallet funding',
+    'Campus Wallet escrow hold',
+    'Campus Wallet micro-escrow release',
+    'Campus Wallet micro-escrow refund'
+  ))
+  AND NOT EXISTS (
+    SELECT 1 FROM public.financial_journal_transactions j
+    WHERE j.idempotency_key='financial-ledger:' || f.id::text
+  )
+GROUP BY metadata->>'legacy_reason'
+ORDER BY legacy_reason;
 
--- 8) User-wallet journal balance vs the compatibility balance projection.
+-- 9) User-wallet journal balance vs the compatibility balance projection.
 -- Positive liability balance means Campus Plug owes the user that amount.
 WITH wallet_accounts AS (
   SELECT a.id,a.owner_id
@@ -105,5 +121,5 @@ LEFT JOIN journal_wallets j ON j.owner_id=p.id
 WHERE COALESCE(p.plug_credit_balance,0) <> COALESCE(j.journal_balance_kobo,0)
 ORDER BY p.id;
 
--- 9) Trial balance must be zero.
+-- 10) Trial balance must be zero.
 SELECT * FROM public.financial_journal_trial_balance WHERE imbalance <> 0;

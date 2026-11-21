@@ -25,7 +25,9 @@ export const queryKeys = {
   wallet: {
     all: ['wallet'] as const,
     balance: (userId: string) => ['wallet', 'balance', userId] as const,
-    ledger: (userId: string, cursor?: string | null) => ['wallet', 'ledger', userId, cursor ?? null] as const,
+    ledger: (userId: string, cursor?: string | null) => cursor
+      ? ['wallet', 'ledger', userId, cursor] as const
+      : ['wallet', 'ledger', userId] as const,
   },
   notifications: {
     all: ['notifications'] as const,

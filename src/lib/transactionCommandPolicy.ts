@@ -53,7 +53,8 @@ const allow = (
 })
 
 function isParticipant(actor: TransactionActor, tx: TransactionPolicyContext) {
-  return actor.id === tx.buyerId || actor.id === tx.sellerId
+  return (actor.role === 'buyer' && actor.id === tx.buyerId)
+    || (actor.role === 'seller' && actor.id === tx.sellerId)
 }
 
 function hasValidReference(value: string | undefined) {
@@ -124,6 +125,9 @@ export function evaluateTransactionCommand(
       if (!command.reason.trim()) return deny(command.type, 'A cancellation reason is required.')
       if (tx.status === 'released' || tx.status === 'cancelled' || tx.status === 'completed') {
         return deny(command.type, 'A terminal transaction cannot be cancelled or reopened.')
+      }
+      if (!['pending', 'locked', 'meetup_initiated', 'release_requested', 'disputed'].includes(tx.status)) {
+        return deny(command.type, 'The transaction state is not eligible for cancellation.')
       }
       return allow(command.type, 'Cancellation can be submitted for server-side refund and inventory reconciliation.', 'cancelled')
   }

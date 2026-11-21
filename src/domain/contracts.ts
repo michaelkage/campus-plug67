@@ -78,7 +78,7 @@ export type TransactionCommand =
   | Readonly<{ type: 'CONFIRM_HANDOFF'; proofReference: string }>
   | Readonly<{ type: 'OPEN_DISPUTE'; reason: string }>
   | Readonly<{ type: 'REQUEST_SELLER_RELEASE' }>
-  | Readonly<{ type: 'RESOLVE_DISPUTE'; outcome: 'release' | 'refund' | 'split'; resolutionReference: string }>
+  | Readonly<{ type: 'RESOLVE_DISPUTE'; outcome: 'release' | 'refund'; resolutionReference: string }>
   | Readonly<{ type: 'CANCEL'; reason: string }>
 
 export type LedgerAccountKind = 'buyer_wallet' | 'seller_wallet' | 'escrow' | 'platform_revenue' | 'provider_clearing' | 'refund_clearing'

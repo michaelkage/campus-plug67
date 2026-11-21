@@ -6,6 +6,8 @@ export const TRANSACTION_STATUSES = [
   'disputed',
   'released',
   'cancelled',
+  // Legacy persisted value. Terminal for transitions, but not proof of payout.
+  'completed',
 ] as const
 
 export type TransactionStatus = typeof TRANSACTION_STATUSES[number]
@@ -39,7 +41,7 @@ export type TransactionLifecycle = {
   terminal: boolean
 }
 
-const TERMINAL_STATUSES = new Set(['released', 'cancelled'])
+const TERMINAL_STATUSES = new Set(['released', 'cancelled', 'completed'])
 const DISPUTABLE_STATUSES = new Set(['locked', 'meetup_initiated', 'release_requested'])
 
 export function canOpenTransactionDispute(
@@ -110,6 +112,7 @@ export function deriveTransactionLifecycle(
     case 'disputed':
       return { ...base, phase: 'dispute', title: 'Dispute under review', description: 'Automatic settlement is paused while the dispute is resolved. Funds remain protected pending the authoritative verdict.', tone: 'danger', canDispute: false }
     case 'released':
+    case 'completed':
       return { ...base, phase: 'resolution', title: payout.settled ? 'Transaction settled' : 'Transaction resolved · payout pending', description: payout.settled ? 'The transaction has been resolved and seller settlement is recorded.' : 'The transaction resolution is recorded, but seller payout is not yet confirmed. Do not treat this as paid.', tone: payout.status === 'failed' ? 'warning' : payout.settled ? 'success' : 'warning' }
     case 'cancelled':
       return { ...base, phase: 'cancelled', title: 'Transaction cancelled', description: tx?.refund_status === 'processed' ? 'The buyer refund has been processed.' : 'The transaction is cancelled. Check the refund record for confirmation that money has returned to the buyer.', tone: 'neutral' }

@@ -69,13 +69,13 @@ VALUES (
 );
 INSERT INTO public.transactions (
   id,listing_id,buyer_id,seller_id,amount,status,payment_method,
-  paystack_ref,payout_status
+  paystack_ref,payment_verified,payout_status
 ) VALUES (
   'f4300000-0000-4000-8000-000000000003',
   'f4200000-0000-4000-8000-000000000003',
   'f4100000-0000-4000-8000-000000000001',
   'f4100000-0000-4000-8000-000000000002',
-  30000,'released','paystack','refund-fixture-reference-3','processing'
+  30000,'released','paystack','refund-fixture-reference-3',true,'processing'
 );
 SELECT throws_ok(
   $ SELECT public.claim_paystack_refund('f4300000-0000-4000-8000-000000000003') $,

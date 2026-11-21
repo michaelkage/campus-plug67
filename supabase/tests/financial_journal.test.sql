@@ -38,6 +38,8 @@ SELECT is(
 
 -- Escrow resolution creates seller payable, but does not mark bank payout paid.
 SELECT set_config('app.escrow_transition','true',true);
+SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
+SELECT set_config('request.jwt.claim.role','service_role',true);
 UPDATE public.transactions SET status='released',released_at=now(),completed_at=now()
  WHERE id='f6300000-0000-4000-8000-000000000001';
 SELECT is(

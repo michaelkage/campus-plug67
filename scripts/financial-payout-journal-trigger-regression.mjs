@@ -6,8 +6,10 @@ for (const invariant of [
   "NEW.status = 'success'",
   "NEW.status = 'reversed'",
   "OLD.status = 'success'",
-  'AFTER INSERT OR UPDATE OF status',
-  'seller_payout_financial_journal_sync',
+  'AFTER INSERT ON public.seller_payout_transfers',
+  'AFTER UPDATE OF status ON public.seller_payout_transfers',
+  'seller_payout_financial_journal_insert',
+  'seller_payout_financial_journal_update',
   'NEW.transaction_id,NEW.reference,NEW.amount_kobo',
 ]) {
   if (!migration.includes(invariant)) throw new Error(`Seller payout journal integration missing invariant: ${invariant}`);

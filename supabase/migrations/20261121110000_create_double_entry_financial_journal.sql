@@ -65,12 +65,49 @@ CREATE INDEX IF NOT EXISTS financial_journal_entries_account_idx
 CREATE INDEX IF NOT EXISTS financial_journal_entries_transaction_idx
   ON public.financial_journal_entries(journal_transaction_id);
 
+CREATE OR REPLACE VIEW public.financial_journal_trial_balance
+WITH (security_invoker = true)
+AS
+SELECT
+  t.currency,
+  COALESCE(sum(e.debit),0)::bigint AS total_debits,
+  COALESCE(sum(e.credit),0)::bigint AS total_credits,
+  (COALESCE(sum(e.debit),0) - COALESCE(sum(e.credit),0))::bigint AS imbalance
+FROM public.financial_journal_transactions t
+JOIN public.financial_journal_entries e ON e.journal_transaction_id = t.id
+GROUP BY t.currency;
+
+REVOKE ALL ON public.financial_journal_trial_balance FROM PUBLIC, anon, authenticated, service_role;
+
 ALTER TABLE public.financial_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financial_journal_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financial_journal_entries ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON public.financial_accounts, public.financial_journal_transactions,
   public.financial_journal_entries FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.guard_financial_account_identity()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $function$
+BEGIN
+  IF NEW.account_code IS DISTINCT FROM OLD.account_code
+     OR NEW.account_type IS DISTINCT FROM OLD.account_type
+     OR NEW.normal_balance IS DISTINCT FROM OLD.normal_balance
+     OR NEW.currency IS DISTINCT FROM OLD.currency
+     OR NEW.owner_id IS DISTINCT FROM OLD.owner_id
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+    RAISE EXCEPTION 'Financial account identity is immutable';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS financial_accounts_identity_guard ON public.financial_accounts;
+CREATE TRIGGER financial_accounts_identity_guard
+BEFORE UPDATE ON public.financial_accounts
+FOR EACH ROW EXECUTE FUNCTION public.guard_financial_account_identity();
 
 CREATE OR REPLACE FUNCTION public.guard_financial_journal_append_only()
 RETURNS trigger
@@ -180,6 +217,11 @@ BEGIN
   SELECT sum((line->>'debit')::bigint), sum((line->>'credit')::bigint)
     INTO v_total_debit, v_total_credit
     FROM jsonb_array_elements(p_lines) AS line;
+
+  IF (SELECT count(DISTINCT (line->>'account_id')::uuid)
+        FROM jsonb_array_elements(p_lines) AS line) < 2 THEN
+    RAISE EXCEPTION 'A balanced journal must affect at least two distinct accounts';
+  END IF;
 
   IF v_total_debit IS NULL OR v_total_debit <= 0
      OR v_total_debit IS DISTINCT FROM v_total_credit THEN

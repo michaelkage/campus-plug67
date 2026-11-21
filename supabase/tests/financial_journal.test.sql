@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(17);
+SELECT plan(18);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -119,6 +119,13 @@ SELECT ok(
   (SELECT total_debits=total_credits AND imbalance=0
      FROM public.financial_journal_trial_balance WHERE currency='NGN'),
   'Journal trial balance remains balanced'
+);
+SELECT is(
+  (SELECT balance FROM public.financial_account_balances
+    WHERE account_code='liability.user_wallet'
+      AND owner_id='f6100000-0000-4000-8000-000000000001'),
+  2500::bigint,
+  'Per-account balance view reflects the Campus Wallet liability'
 );
 SELECT ok(
   NOT EXISTS (

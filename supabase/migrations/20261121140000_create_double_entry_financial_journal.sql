@@ -711,6 +711,7 @@ BEGIN
     PERFORM public.post_wallet_financial_journal_entry(v_entry);
   END LOOP;
 
+  -- First recognize all verified Paystack funding and escrow releases.
   FOR v_tx IN
     SELECT * FROM public.transactions
      WHERE payment_verified IS TRUE
@@ -723,10 +724,9 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- PR #103 is intentionally still a separate, unmerged dependency. If its
-  -- payout table is present when this migration runs, recover conclusive
-  -- provider outcomes. A later payout integration migration also installs
-  -- the trigger for future status changes.
+  -- Then recognize every conclusive provider payout and reversal. This must
+  -- precede refund backfill so refunds can distinguish paid sellers from
+  -- sellers who still only have an outstanding payable.
   IF to_regclass('public.seller_payout_transfers') IS NOT NULL THEN
     FOR v_payout IN
       SELECT p.transaction_id,p.reference,p.amount_kobo,p.status
@@ -745,8 +745,8 @@ BEGIN
     END LOOP;
   END IF;
 
-  -- Refunds are backfilled last so a previously paid seller transfer is
-  -- represented before the refund is classified as a seller recovery.
+  -- Refunds are last so the posting classification can see whether a
+  -- successful bank payout exists and whether it was subsequently reversed.
   FOR v_tx IN
     SELECT * FROM public.transactions
      WHERE payment_verified IS TRUE

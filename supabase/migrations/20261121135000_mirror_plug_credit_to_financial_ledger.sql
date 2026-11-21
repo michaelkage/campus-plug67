@@ -77,6 +77,11 @@ $function$;
 REVOKE ALL ON FUNCTION public.record_financial_ledger_entry(uuid,bigint,text,text,text,text,uuid,text,jsonb)
   FROM PUBLIC, anon, authenticated, service_role;
 
+-- Keep the legacy ledger readable for reconciliation but force every
+-- new write through the trusted PlugCredit mirror/definer writer.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.financial_ledger FROM service_role;
+GRANT SELECT ON public.financial_ledger TO service_role;
+
 CREATE OR REPLACE FUNCTION public.guard_financial_ledger_append_only()
 RETURNS trigger
 LANGUAGE plpgsql

@@ -167,7 +167,7 @@ SELECT ok(
 );
 SELECT throws_ok(
   $ SELECT public.post_financial_journal_transaction(
-    'paystack.payout.success','test','transaction','f6300000-0000-4000-8000-000000000001',
+    'paystack.payout.success','seller_payout_transfers','payout_reference','f6300000-0000-4000-8000-000000000001',
     'paystack-payout:cp_tr_journalfixture0001:success',
     jsonb_build_array(
       jsonb_build_object('account_id',(

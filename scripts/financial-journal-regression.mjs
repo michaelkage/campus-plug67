@@ -35,7 +35,7 @@ for (const required of [
   'paystack-payout:',
   'financial_journal_trial_balance',
   'REVOKE ALL ON public.financial_accounts',
-  'GRANT EXECUTE ON FUNCTION public.post_seller_payout_journal_event',
+  'REVOKE ALL ON FUNCTION public.post_seller_payout_journal_event(uuid,text,bigint,text)\n  FROM PUBLIC, anon, authenticated, service_role',
   'DO $backfill$',
 ]) if (!migration.includes(required)) fail(`Double-entry journal migration missing invariant: ${required}`);
 

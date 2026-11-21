@@ -323,103 +323,258 @@ REVOKE ALL ON FUNCTION public.get_financial_account_id(text,text,text,uuid,text)
 REVOKE ALL ON FUNCTION public.post_financial_journal_transaction(text,text,text,uuid,text,jsonb,jsonb)
   FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE OR REPLACE FUNCTION public.post_wallet_financial_journal_entry(
-  p_entry public.financial_ledger
-)
-RETURNS void
+CREATE OR REPLACE FUNCTION public.post_wallet_financial_journal_entry(p_entry public.financial_ledger)
+RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $function$
 DECLARE
   v_reason text := p_entry.metadata->>'legacy_reason';
-  v_reference_id uuid := NULLIF(p_entry.metadata->>'legacy_reference_id','')::uuid;
+  v_reference_id uuid := nullif(p_entry.metadata->>'legacy_reference_id','')::uuid;
+  v_tx public.transactions%ROWTYPE;
+  v_gear_hold public.gear_rental_holds%ROWTYPE;
   v_wallet_account uuid;
+  v_escrow_account uuid;
   v_counter_account uuid;
   v_lines jsonb;
-  v_tx public.transactions%ROWTYPE;
+  v_event text;
 BEGIN
-  IF p_entry.source <> 'plug_credit_ledger' THEN RETURN; END IF;
+  IF p_entry.amount IS NULL OR p_entry.amount <= 0 OR p_entry.currency <> 'NGN' THEN
+    RAISE EXCEPTION 'Unsupported wallet journal entry amount or currency';
+  END IF;
+
+  IF p_entry.source <> 'plug_credit_ledger' THEN
+    RETURN NULL;
+  END IF;
 
   v_wallet_account := public.get_financial_account_id(
     'liability.user_wallet','liability','credit',p_entry.user_id,
-    'Campus Wallet liability for user ' || p_entry.user_id::text
+    'Campus Plug wallet liability for user ' || p_entry.user_id::text
   );
 
   CASE v_reason
     WHEN 'Campus Wallet funding' THEN
+      IF p_entry.direction <> 'credit' THEN
+        RAISE EXCEPTION 'Campus Wallet funding must credit the user wallet';
+      END IF;
       v_counter_account := public.get_financial_account_id(
         'asset.paystack_clearing','asset','debit',NULL,'Paystack merchant clearing control'
       );
+      v_event := 'wallet.funding';
       v_lines := jsonb_build_array(
         jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
         jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
       );
 
     WHEN 'Campus Wallet escrow hold' THEN
-      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow hold is missing its transaction reference'; END IF;
-      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
-      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id OR v_tx.amount IS DISTINCT FROM p_entry.amount THEN
-        RAISE EXCEPTION 'Wallet escrow hold does not match the transaction buyer and amount';
+      IF p_entry.direction <> 'debit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Campus Wallet escrow hold requires a debit and transaction reference';
       END IF;
-      v_counter_account := public.get_financial_account_id(
-        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id
+         OR v_tx.amount IS DISTINCT FROM p_entry.amount
+         OR v_tx.payment_method <> 'campus_wallet' THEN
+        RAISE EXCEPTION 'Wallet escrow hold does not match the transaction buyer, amount and payment rail';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,
+        'Marketplace escrow liability for transaction ' || v_reference_id::text
       );
+      v_event := 'wallet.escrow_hold';
       v_lines := jsonb_build_array(
         jsonb_build_object('account_id',v_wallet_account,'debit',p_entry.amount,'credit',0),
-        jsonb_build_object('account_id',v_counter_account,'debit',0,'credit',p_entry.amount)
+        jsonb_build_object('account_id',v_escrow_account,'debit',0,'credit',p_entry.amount)
       );
 
     WHEN 'Campus Wallet micro-escrow release' THEN
-      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow release is missing its transaction reference'; END IF;
-      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
-      IF NOT FOUND OR v_tx.seller_id <> p_entry.user_id OR v_tx.amount IS DISTINCT FROM p_entry.amount THEN
-        RAISE EXCEPTION 'Wallet escrow release does not match the transaction seller and amount';
+      IF p_entry.direction <> 'credit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Campus Wallet escrow release requires a credit and transaction reference';
       END IF;
-      v_counter_account := public.get_financial_account_id(
-        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_tx.seller_id <> p_entry.user_id
+         OR v_tx.amount IS DISTINCT FROM p_entry.amount
+         OR v_tx.payment_method <> 'campus_wallet' THEN
+        RAISE EXCEPTION 'Wallet escrow release does not match the transaction seller, amount and payment rail';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,
+        'Marketplace escrow liability for transaction ' || v_reference_id::text
       );
+      v_event := 'wallet.escrow_release';
       v_lines := jsonb_build_array(
-        jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_escrow_account,'debit',p_entry.amount,'credit',0),
         jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
       );
 
     WHEN 'Campus Wallet micro-escrow refund' THEN
-      IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow refund is missing its transaction reference'; END IF;
-      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
-      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id OR v_tx.amount IS DISTINCT FROM p_entry.amount THEN
-        RAISE EXCEPTION 'Wallet escrow refund does not match the transaction buyer and amount';
+      IF p_entry.direction <> 'credit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Campus Wallet escrow refund requires a credit and transaction reference';
       END IF;
-      v_counter_account := public.get_financial_account_id(
-        'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
+      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id
+         OR v_tx.amount IS DISTINCT FROM p_entry.amount
+         OR v_tx.payment_method <> 'campus_wallet' THEN
+        RAISE EXCEPTION 'Wallet escrow refund does not match the transaction buyer, amount and payment rail';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.escrow','liability','credit',v_reference_id,
+        'Marketplace escrow liability for transaction ' || v_reference_id::text
       );
+      v_event := 'wallet.escrow_refund';
       v_lines := jsonb_build_array(
-        jsonb_build_object('account_id',v_counter_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_escrow_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Campus Plug gear rental escrow hold' THEN
+      IF p_entry.direction <> 'debit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Gear rental escrow hold requires a debit and rental reference';
+      END IF;
+      SELECT * INTO v_gear_hold FROM public.gear_rental_holds
+       WHERE rental_id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_gear_hold.borrower_id <> p_entry.user_id
+         OR v_gear_hold.total_held_kobo IS DISTINCT FROM p_entry.amount
+         OR v_gear_hold.status <> 'held' THEN
+        RAISE EXCEPTION 'Gear rental escrow hold does not match the active rental hold';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.gear_rental_escrow','liability','credit',v_reference_id,
+        'Gear rental escrow liability for rental ' || v_reference_id::text
+      );
+      v_event := 'wallet.gear_rental_escrow_hold';
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_wallet_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_escrow_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Gear rental fee released after return inspection' THEN
+      IF p_entry.direction <> 'credit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Gear rental fee release requires a credit and rental reference';
+      END IF;
+      SELECT * INTO v_gear_hold FROM public.gear_rental_holds
+       WHERE rental_id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_gear_hold.lender_id <> p_entry.user_id
+         OR v_gear_hold.rental_fee_kobo IS DISTINCT FROM p_entry.amount
+         OR v_gear_hold.status <> 'held' THEN
+        RAISE EXCEPTION 'Gear rental fee release does not match the active rental hold';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.gear_rental_escrow','liability','credit',v_reference_id,
+        'Gear rental escrow liability for rental ' || v_reference_id::text
+      );
+      v_event := 'wallet.gear_rental_fee_release';
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_escrow_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Gear rental security deposit returned' THEN
+      IF p_entry.direction <> 'credit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Gear rental deposit return requires a credit and rental reference';
+      END IF;
+      SELECT * INTO v_gear_hold FROM public.gear_rental_holds
+       WHERE rental_id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_gear_hold.borrower_id <> p_entry.user_id
+         OR v_gear_hold.security_deposit_kobo IS DISTINCT FROM p_entry.amount
+         OR v_gear_hold.status <> 'held' THEN
+        RAISE EXCEPTION 'Gear rental deposit return does not match the active rental hold';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.gear_rental_escrow','liability','credit',v_reference_id,
+        'Gear rental escrow liability for rental ' || v_reference_id::text
+      );
+      v_event := 'wallet.gear_rental_deposit_return';
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_escrow_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Gear rental cancellation refund' THEN
+      IF p_entry.direction <> 'credit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Gear rental cancellation refund requires a credit and rental reference';
+      END IF;
+      SELECT * INTO v_gear_hold FROM public.gear_rental_holds
+       WHERE rental_id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_gear_hold.borrower_id <> p_entry.user_id
+         OR v_gear_hold.total_held_kobo IS DISTINCT FROM p_entry.amount
+         OR v_gear_hold.status <> 'held' THEN
+        RAISE EXCEPTION 'Gear rental cancellation refund does not match the active rental hold';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.gear_rental_escrow','liability','credit',v_reference_id,
+        'Gear rental escrow liability for rental ' || v_reference_id::text
+      );
+      v_event := 'wallet.gear_rental_cancellation_refund';
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_escrow_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Gear rental dispute settlement' THEN
+      IF p_entry.direction <> 'credit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Gear rental dispute settlement requires a credit and rental reference';
+      END IF;
+      SELECT * INTO v_gear_hold FROM public.gear_rental_holds
+       WHERE rental_id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_gear_hold.lender_id <> p_entry.user_id
+         OR p_entry.amount > v_gear_hold.total_held_kobo
+         OR v_gear_hold.status <> 'held' THEN
+        RAISE EXCEPTION 'Gear rental dispute settlement does not match the active rental hold';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.gear_rental_escrow','liability','credit',v_reference_id,
+        'Gear rental escrow liability for rental ' || v_reference_id::text
+      );
+      v_event := 'wallet.gear_rental_dispute_settlement';
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_escrow_account,'debit',p_entry.amount,'credit',0),
+        jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
+      );
+
+    WHEN 'Gear rental dispute settlement refund' THEN
+      IF p_entry.direction <> 'credit' OR v_reference_id IS NULL THEN
+        RAISE EXCEPTION 'Gear rental dispute refund requires a credit and rental reference';
+      END IF;
+      SELECT * INTO v_gear_hold FROM public.gear_rental_holds
+       WHERE rental_id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_gear_hold.borrower_id <> p_entry.user_id
+         OR p_entry.amount > v_gear_hold.total_held_kobo
+         OR v_gear_hold.status <> 'held' THEN
+        RAISE EXCEPTION 'Gear rental dispute refund does not match the active rental hold';
+      END IF;
+      v_escrow_account := public.get_financial_account_id(
+        'liability.gear_rental_escrow','liability','credit',v_reference_id,
+        'Gear rental escrow liability for rental ' || v_reference_id::text
+      );
+      v_event := 'wallet.gear_rental_dispute_refund';
+      v_lines := jsonb_build_array(
+        jsonb_build_object('account_id',v_escrow_account,'debit',p_entry.amount,'credit',0),
         jsonb_build_object('account_id',v_wallet_account,'debit',0,'credit',p_entry.amount)
       );
 
     ELSE
-      -- Unknown historical wallet reasons remain visible in financial_ledger
-      -- and are intentionally not assigned a fictional accounting counterpart.
-      RETURN;
+      RETURN NULL;
   END CASE;
 
-  PERFORM public.post_financial_journal_transaction(
-    'wallet.' || lower(replace(v_reason,' ','_')),
-    'financial_ledger',
-    'financial_ledger',
+  RETURN public.post_financial_journal_transaction(
+    v_event,
+    'plug_credit_ledger',
+    'plug_credit_ledger',
     p_entry.id,
     'financial-ledger:' || p_entry.id::text,
     v_lines,
     jsonb_build_object(
       'legacy_reason',v_reason,
       'legacy_reference_id',v_reference_id,
-      'user_id',p_entry.user_id,
-      'legacy_source',p_entry.source
+      'legacy_user_id',p_entry.user_id
     )
   );
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.post_wallet_financial_journal_entry(public.financial_ledger)
+  FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.post_financial_ledger_to_journal_trigger()
 RETURNS trigger

@@ -613,12 +613,22 @@ DECLARE
   v_lines jsonb;
   v_release_exists boolean;
   v_payout_exists boolean;
+  v_existing_id uuid;
   v_idempotency_key text;
 BEGIN
   IF p_transaction.id IS NULL OR p_transaction.payment_verified IS DISTINCT FROM true
      OR COALESCE(p_transaction.payment_method,'paystack') = 'campus_wallet'
      OR p_transaction.amount IS NULL OR p_transaction.amount <= 0 THEN
     RETURN;
+  END IF;
+
+  -- Refund classification is a point-in-time decision. Once posted, later
+  -- payout status changes must not rewrite its account allocation.
+  IF p_event = 'refunded' THEN
+    SELECT id INTO v_existing_id
+      FROM public.financial_journal_transactions
+     WHERE idempotency_key = 'paystack-escrow-refunded:' || p_transaction.id::text;
+    IF FOUND THEN RETURN; END IF;
   END IF;
 
   v_escrow_account := public.get_financial_account_id(
@@ -706,9 +716,7 @@ BEGIN
       'transaction_id',p_transaction.id,
       'seller_id',p_transaction.seller_id,
       'buyer_id',p_transaction.buyer_id,
-      'payment_method',p_transaction.payment_method,
-      'payout_status',p_transaction.payout_status,
-      'refund_status',p_transaction.refund_status
+      'payment_method',p_transaction.payment_method
     )
   );
 END;

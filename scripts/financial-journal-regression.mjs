@@ -52,4 +52,17 @@ for (const required of [
   'financial_journal_trial_balance',
 ]) if (!audit.includes(required)) fail(`Financial journal audit missing check: ${required}`);
 
+const databaseTest = read('supabase/tests/financial_journal.test.sql');
+for (const required of [
+  'SELECT plan(17)',
+  'paystack-escrow-funded:',
+  'paystack-escrow-released:',
+  'paystack-escrow-refunded:',
+  'paystack-payout:',
+  'financial_journal_trial_balance',
+  'Journal entry history cannot be edited',
+  'Unbalanced journal postings are rejected before commit',
+  'A repeated idempotency key cannot post a different journal payload',
+]) if (!databaseTest.includes(required)) fail(`Financial journal database test missing coverage: ${required}`);
+
 console.log('Double-entry financial journal regression checks passed.');

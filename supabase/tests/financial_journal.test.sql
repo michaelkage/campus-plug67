@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(33);
+SELECT plan(34);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -42,6 +42,22 @@ SELECT set_config('request.jwt.claims','{"role":"service_role"}',true);
 SELECT set_config('request.jwt.claim.role','service_role',true);
 UPDATE public.transactions SET status='released',released_at=now(),completed_at=now()
  WHERE id='f6300000-0000-4000-8000-000000000001';
+-- Legacy generic Paystack release markers must not create a second wallet
+-- posting; the transaction-level Paystack release is the accounting event.
+INSERT INTO public.financial_ledger (
+  user_id,amount,currency,direction,source,reference_type,reference_id,idempotency_key,metadata
+) VALUES (
+  'f6100000-0000-4000-8000-000000000002',10000,'NGN','credit','plug_credit_ledger',
+  'plug_credit_ledger','f6400000-0000-4000-8000-000000000014',
+  'journal-fixture-legacy-paystack-auto-release',
+  '{"legacy_reason":"Escrow auto-release","legacy_reference_id":"f6300000-0000-4000-8000-000000000001"}'::jsonb
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE idempotency_key='paystack-escrow-released:f6300000-0000-4000-8000-000000000001'),
+  1,'Legacy Paystack auto-release marker does not double-post the seller payable'
+);
+
 SELECT is(
   (SELECT count(*)::integer FROM public.financial_journal_transactions
     WHERE idempotency_key='paystack-escrow-released:f6300000-0000-4000-8000-000000000001'),

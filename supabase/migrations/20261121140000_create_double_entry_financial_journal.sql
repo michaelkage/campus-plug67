@@ -79,6 +79,28 @@ GROUP BY t.currency;
 
 REVOKE ALL ON public.financial_journal_trial_balance FROM PUBLIC, anon, authenticated, service_role;
 
+CREATE OR REPLACE VIEW public.financial_account_balances
+WITH (security_invoker = true)
+AS
+SELECT
+  a.id AS account_id,
+  a.account_code,
+  a.account_type,
+  a.normal_balance,
+  a.currency,
+  a.owner_id,
+  COALESCE(sum(e.debit),0)::bigint AS total_debits,
+  COALESCE(sum(e.credit),0)::bigint AS total_credits,
+  CASE WHEN a.normal_balance = 'debit'
+       THEN (COALESCE(sum(e.debit),0)-COALESCE(sum(e.credit),0))::bigint
+       ELSE (COALESCE(sum(e.credit),0)-COALESCE(sum(e.debit),0))::bigint
+  END AS balance
+FROM public.financial_accounts a
+LEFT JOIN public.financial_journal_entries e ON e.account_id=a.id
+GROUP BY a.id,a.account_code,a.account_type,a.normal_balance,a.currency,a.owner_id;
+
+REVOKE ALL ON public.financial_account_balances FROM PUBLIC, anon, authenticated, service_role;
+
 ALTER TABLE public.financial_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financial_journal_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.financial_journal_entries ENABLE ROW LEVEL SECURITY;

@@ -22,7 +22,11 @@ CREATE TABLE IF NOT EXISTS public.financial_accounts (
   owner_id uuid,
   description text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (length(trim(account_code)) BETWEEN 3 AND 100)
+  CHECK (length(trim(account_code)) BETWEEN 3 AND 100),
+  CHECK (
+    (account_type IN ('asset','expense') AND normal_balance='debit')
+    OR (account_type IN ('liability','equity','revenue') AND normal_balance='credit')
+  )
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS financial_accounts_system_code_uidx
@@ -164,7 +168,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $function$
 DECLARE
-  v_id uuid;
+  v_account public.financial_accounts%ROWTYPE;
   v_currency text := 'NGN';
 BEGIN
   IF p_account_code IS NULL OR p_account_type NOT IN ('asset','liability','equity','revenue','expense')
@@ -176,20 +180,24 @@ BEGIN
     INSERT INTO public.financial_accounts(account_code, account_type, normal_balance, currency, owner_id, description)
     VALUES (p_account_code, p_account_type, p_normal_balance, v_currency, NULL, COALESCE(p_description, p_account_code))
     ON CONFLICT (account_code, currency) WHERE owner_id IS NULL DO NOTHING;
-    SELECT id INTO v_id FROM public.financial_accounts
+    SELECT * INTO v_account FROM public.financial_accounts
      WHERE account_code = p_account_code AND currency = v_currency AND owner_id IS NULL;
   ELSE
     INSERT INTO public.financial_accounts(account_code, account_type, normal_balance, currency, owner_id, description)
     VALUES (p_account_code, p_account_type, p_normal_balance, v_currency, p_owner_id, COALESCE(p_description, p_account_code))
     ON CONFLICT (account_code, owner_id, currency) WHERE owner_id IS NOT NULL DO NOTHING;
-    SELECT id INTO v_id FROM public.financial_accounts
+    SELECT * INTO v_account FROM public.financial_accounts
      WHERE account_code = p_account_code AND currency = v_currency AND owner_id = p_owner_id;
   END IF;
 
-  IF NOT FOUND OR v_id IS NULL THEN
+  IF NOT FOUND OR v_account.id IS NULL THEN
     RAISE EXCEPTION 'Could not resolve financial account %', p_account_code;
   END IF;
-  RETURN v_id;
+  IF v_account.account_type IS DISTINCT FROM p_account_type
+     OR v_account.normal_balance IS DISTINCT FROM p_normal_balance THEN
+    RAISE EXCEPTION 'Financial account % exists with an incompatible type or normal balance', p_account_code;
+  END IF;
+  RETURN v_account.id;
 END;
 $function$;
 

@@ -23,7 +23,7 @@ BEGIN
   IF COALESCE(v_tx.payment_method, 'paystack') = 'campus_wallet' THEN
     RAISE EXCEPTION 'Campus Wallet transactions do not use Paystack refunds';
   END IF;
-  IF v_tx.status NOT IN ('locked','meetup_initiated','release_requested','disputed')
+  IF v_tx.status NOT IN ('locked','meetup_initiated','release_requested','disputed','released','completed')
      AND NOT (
        v_tx.status = 'cancelled'
        AND v_tx.refund_status IN ('failed','pending','processing','needs-attention','processed')

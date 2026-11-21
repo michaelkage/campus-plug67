@@ -30,7 +30,13 @@ WHERE f.source='plug_credit_ledger'
     'Campus Wallet funding',
     'Campus Wallet escrow hold',
     'Campus Wallet micro-escrow release',
-    'Campus Wallet micro-escrow refund'
+    'Campus Wallet micro-escrow refund',
+    'Campus Plug gear rental escrow hold',
+    'Gear rental fee released after return inspection',
+    'Gear rental security deposit returned',
+    'Gear rental cancellation refund',
+    'Gear rental dispute settlement',
+    'Gear rental dispute settlement refund'
   )
   AND j.id IS NULL
 ORDER BY f.created_at,f.id;

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(18);
+SELECT plan(21);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -102,7 +102,7 @@ INSERT INTO public.financial_ledger (
   user_id,amount,currency,direction,source,reference_type,reference_id,
   idempotency_key,metadata
 ) VALUES (
-  'f6100000-0000-4000-8000-000000000001',2500,'NGN','credit','plug_credit_ledger',
+  'f6100000-0000-4000-8000-000000000001',10000,'NGN','credit','plug_credit_ledger',
   'plug_credit_ledger','f6400000-0000-4000-8000-000000000001',
   'journal-fixture-wallet-funding',
   '{"legacy_reason":"Campus Wallet funding","legacy_reference_id":null}'::jsonb
@@ -115,6 +115,56 @@ SELECT is(
   1,'Legacy Campus Wallet funding is mirrored into the double-entry journal'
 );
 
+-- Exercise the wallet escrow hold, release and refund reason mappings.
+INSERT INTO public.listings (id,seller_id,title,category,price,status,university)
+VALUES
+  ('f6200000-0000-4000-8000-000000000002','f6100000-0000-4000-8000-000000000002','Wallet release fixture','Other',5000,'sold','University of Lagos'),
+  ('f6200000-0000-4000-8000-000000000003','f6100000-0000-4000-8000-000000000002','Wallet refund fixture','Other',3000,'sold','University of Lagos');
+
+INSERT INTO public.transactions (
+  id,listing_id,buyer_id,seller_id,amount,status,payment_method,
+  paystack_ref,payment_verified,payout_status,escrow_status
+) VALUES
+  ('f6300000-0000-4000-8000-000000000002','f6200000-0000-4000-8000-000000000002',
+   'f6100000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002',
+   5000,'locked','campus_wallet',NULL,false,'not_applicable','held'),
+  ('f6300000-0000-4000-8000-000000000003','f6200000-0000-4000-8000-000000000003',
+   'f6100000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002',
+   3000,'locked','campus_wallet',NULL,false,'not_applicable','held');
+
+INSERT INTO public.financial_ledger (
+  user_id,amount,currency,direction,source,reference_type,reference_id,idempotency_key,metadata
+) VALUES
+  ('f6100000-0000-4000-8000-000000000001',5000,'NGN','debit','plug_credit_ledger','plug_credit_ledger',
+   'f6400000-0000-4000-8000-000000000002','journal-fixture-wallet-hold-release',
+   '{"legacy_reason":"Campus Wallet escrow hold","legacy_reference_id":"f6300000-0000-4000-8000-000000000002"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000002',5000,'NGN','credit','plug_credit_ledger','plug_credit_ledger',
+   'f6400000-0000-4000-8000-000000000003','journal-fixture-wallet-release',
+   '{"legacy_reason":"Campus Wallet micro-escrow release","legacy_reference_id":"f6300000-0000-4000-8000-000000000002"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000001',3000,'NGN','debit','plug_credit_ledger','plug_credit_ledger',
+   'f6400000-0000-4000-8000-000000000004','journal-fixture-wallet-hold-refund',
+   '{"legacy_reason":"Campus Wallet escrow hold","legacy_reference_id":"f6300000-0000-4000-8000-000000000003"}'::jsonb),
+  ('f6100000-0000-4000-8000-000000000001',3000,'NGN','credit','plug_credit_ledger','plug_credit_ledger',
+   'f6400000-0000-4000-8000-000000000005','journal-fixture-wallet-refund',
+   '{"legacy_reason":"Campus Wallet micro-escrow refund","legacy_reference_id":"f6300000-0000-4000-8000-000000000003"}'::jsonb);
+
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE idempotency_key LIKE 'financial-ledger:%'
+      AND metadata->>'legacy_reason'='Campus Wallet escrow hold'),
+  2,'Campus Wallet escrow holds create transaction-specific escrow liabilities'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE metadata->>'legacy_reason'='Campus Wallet micro-escrow release'),
+  1,'Campus Wallet escrow release credits the seller wallet liability'
+);
+SELECT is(
+  (SELECT count(*)::integer FROM public.financial_journal_transactions
+    WHERE metadata->>'legacy_reason'='Campus Wallet micro-escrow refund'),
+  1,'Campus Wallet escrow refund restores the buyer wallet liability'
+);
+
 SELECT ok(
   (SELECT total_debits=total_credits AND imbalance=0
      FROM public.financial_journal_trial_balance WHERE currency='NGN'),
@@ -124,7 +174,7 @@ SELECT is(
   (SELECT balance FROM public.financial_account_balances
     WHERE account_code='liability.user_wallet'
       AND owner_id='f6100000-0000-4000-8000-000000000001'),
-  2500::bigint,
+  5000::bigint,
   'Per-account balance view reflects the Campus Wallet liability'
 );
 SELECT ok(

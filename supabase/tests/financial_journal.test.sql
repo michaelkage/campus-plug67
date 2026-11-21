@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(24);
+SELECT plan(26);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -288,6 +288,14 @@ SELECT throws_ok(
   'P0001',
   'Journal idempotency key reused with a different financial payload',
   'A repeated idempotency key cannot post a different journal payload'
+);
+SELECT is(
+  has_function_privilege('service_role','public.record_financial_ledger_entry(uuid,bigint,text,text,text,text,uuid,text,jsonb)','EXECUTE'),
+  false,'Service role cannot bypass the PlugCredit ledger trigger with direct compatibility writes'
+);
+SELECT is(
+  has_function_privilege('service_role','public.post_financial_journal_transaction(text,text,text,uuid,text,jsonb,jsonb)','EXECUTE'),
+  false,'Service role cannot post arbitrary double-entry journal transactions'
 );
 SELECT * FROM finish();
 ROLLBACK;

@@ -19,7 +19,8 @@ All values are integer kobo. The first release is NGN-only.
 | `asset.paystack_clearing` | Asset | System | Control account for funds held/settled through Paystack |
 | `asset.seller_recovery` | Asset | Per seller | Receivable when a refund is paid after seller payout |
 | `liability.user_wallet` | Liability | Per user | Campus Plug's outstanding PlugCredit wallet obligation |
-| `liability.escrow` | Liability | Per transaction | Funds held pending escrow resolution |
+| `liability.escrow` | Liability | Per transaction | Marketplace funds held pending escrow resolution |
+| `liability.gear_rental_escrow` | Liability | Per rental | Rental fee and security deposit held pending return/dispute resolution |
 | `liability.seller_payable` | Liability | Per seller | Released Paystack proceeds owed to the seller |
 
 The Paystack clearing account is a control account, not proof that a specific amount has reached the bank. Provider settlement reports and bank reconciliation are a later accounting integration.
@@ -32,6 +33,10 @@ The Paystack clearing account is a control account, not proof that a specific am
 | Wallet escrow hold | Buyer wallet liability | Transaction escrow liability |
 | Wallet escrow release | Transaction escrow liability | Seller wallet liability |
 | Wallet escrow refund | Transaction escrow liability | Buyer wallet liability |
+| Gear rental hold | Borrower wallet liability | Gear rental escrow liability |
+| Gear rental fee release | Gear rental escrow liability | Lender wallet liability |
+| Gear rental deposit return / cancellation refund | Gear rental escrow liability | Borrower wallet liability |
+| Gear rental dispute split | Gear rental escrow liability | Lender and borrower wallet liabilities |
 | Verified Paystack purchase | Paystack clearing | Transaction escrow liability |
 | Paystack escrow released | Transaction escrow liability | Seller payable |
 | Refund processed before payout | Transaction escrow liability | Paystack clearing |
@@ -57,7 +62,7 @@ A refund arriving after payout creates a per-seller receivable. If the transfer 
 ## Event integration
 
 - The PlugCredit-to-`financial_ledger` bridge runs after a PlugCredit insert and is part of the same database transaction.
-- The `financial_ledger` trigger posts supported wallet reasons to the double-entry journal. Unknown legacy reasons are intentionally left unposted and appear in reconciliation; the system must not invent a counter-account for them.
+- The `financial_ledger` trigger posts supported marketplace and gear-rental wallet reasons to the double-entry journal. Unknown legacy reasons are intentionally left unposted and appear in reconciliation; the system must not invent a counter-account for them.
 - A transaction trigger posts Paystack funding, escrow release and provider-confirmed refund events. It is idempotent and can safely run on repeated updates.
 - A seller payout transfer trigger posts only conclusive `success` and a true `success` to `reversed` transition. Pending, processing, failed and manual-attention states do not move the general ledger.
 - Refund claims are serialized against payout claims by locking the transaction row. A new refund cannot start while a seller transfer is processing or requires manual reconciliation. A repeated existing refund claim remains idempotently readable.

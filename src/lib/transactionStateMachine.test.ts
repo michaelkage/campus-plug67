@@ -67,6 +67,13 @@ describe('Campus Plug database transaction state machine', () => {
     expect(lifecycle.payout.settled).toBe(false)
   })
 
+  it('treats legacy completed rows as terminal without assuming payout is paid', () => {
+    const lifecycle = deriveTransactionLifecycle({ status: 'completed', payout_status: 'processing' })
+    expect(lifecycle.phase).toBe('resolution')
+    expect(lifecycle.terminal).toBe(true)
+    expect(lifecycle.payout.settled).toBe(false)
+  })
+
   it('only reports a completed refund from an explicit refund status', () => {
     expect(deriveTransactionLifecycle({ status: 'cancelled', refund_status: 'processed' }).description)
       .toContain('refund has been processed')

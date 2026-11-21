@@ -350,6 +350,10 @@ BEGIN
 
     WHEN 'Campus Wallet escrow hold' THEN
       IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow hold is missing its transaction reference'; END IF;
+      SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
+      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id OR v_tx.amount IS DISTINCT FROM p_entry.amount THEN
+        RAISE EXCEPTION 'Wallet escrow hold does not match the transaction buyer and amount';
+      END IF;
       v_counter_account := public.get_financial_account_id(
         'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
       );
@@ -361,8 +365,8 @@ BEGIN
     WHEN 'Campus Wallet micro-escrow release' THEN
       IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow release is missing its transaction reference'; END IF;
       SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
-      IF NOT FOUND OR v_tx.seller_id <> p_entry.user_id THEN
-        RAISE EXCEPTION 'Wallet escrow release does not match the transaction seller';
+      IF NOT FOUND OR v_tx.seller_id <> p_entry.user_id OR v_tx.amount IS DISTINCT FROM p_entry.amount THEN
+        RAISE EXCEPTION 'Wallet escrow release does not match the transaction seller and amount';
       END IF;
       v_counter_account := public.get_financial_account_id(
         'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text
@@ -375,8 +379,8 @@ BEGIN
     WHEN 'Campus Wallet micro-escrow refund' THEN
       IF v_reference_id IS NULL THEN RAISE EXCEPTION 'Wallet escrow refund is missing its transaction reference'; END IF;
       SELECT * INTO v_tx FROM public.transactions WHERE id = v_reference_id FOR SHARE;
-      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id THEN
-        RAISE EXCEPTION 'Wallet escrow refund does not match the transaction buyer';
+      IF NOT FOUND OR v_tx.buyer_id <> p_entry.user_id OR v_tx.amount IS DISTINCT FROM p_entry.amount THEN
+        RAISE EXCEPTION 'Wallet escrow refund does not match the transaction buyer and amount';
       END IF;
       v_counter_account := public.get_financial_account_id(
         'liability.escrow','liability','credit',v_reference_id,'Escrow liability for transaction ' || v_reference_id::text

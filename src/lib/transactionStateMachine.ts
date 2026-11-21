@@ -11,6 +11,7 @@ const transitions: Record<TransactionStatus, readonly TransactionStatus[]> = {
   disputed: ['released', 'cancelled'],
   released: [],
   cancelled: [],
+  completed: [],
 }
 
 export const canTransition = (from: TransactionStatus, to: TransactionStatus) =>

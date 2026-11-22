@@ -292,6 +292,10 @@ export default function Marketplace() {
     enabled: Boolean(profile?.id),
     onInsert: (incoming) => {
       const rows = Array.isArray(incoming) ? incoming : [incoming]
+      if (search.trim() || page > 0 || sort !== 'newest') {
+        void qc.invalidateQueries({ queryKey: feedKey })
+        return
+      }
       for (const row of rows) {
         if (!matchesMarketplaceListing(row, feedFilters)) continue
         qc.setQueryData(feedKey, (current = []) =>
@@ -303,6 +307,10 @@ export default function Marketplace() {
       }
     },
     onUpdate: (updated) => {
+      if (search.trim() || page > 0 || sort !== 'newest') {
+        void qc.invalidateQueries({ queryKey: feedKey })
+        return
+      }
       qc.setQueryData(feedKey, (current = []) => {
         if (!matchesMarketplaceListing(updated, feedFilters)) {
           return removeMarketplaceListing(current, updated.id)

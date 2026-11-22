@@ -29,8 +29,8 @@ export interface MarketplaceListingFilters {
 }
 const MARKETPLACE_SELECT = '*, profiles!listings_seller_id_fkey(full_name, university, avatar_url, is_verified)'
 
-export function escapeMarketplaceSearchTerm(value: string): string {
-  return value.replace(/[\\%_]/g, (character) => `\\${character}`)
+export export function normalizeMarketplaceSearchTerm(value: string): string {
+  return value.trim().replace(/\\s+/g, ' ').slice(0, 120)
 }
 
 /** Server-side bounded search. Campus is never an access boundary; RLS is. */
@@ -42,8 +42,8 @@ export async function listMarketplaceListings(filters: MarketplaceListingFilters
   if (filters.hostel) query = query.eq('hostel', filters.hostel)
   if (filters.sellerId) query = query.eq('seller_id', filters.sellerId)
   if (filters.verifiedOnly) query = query.eq('metadata_verified', true)
-  const search = filters.search?.trim()
-  if (search) query = query.ilike('title', `%${escapeMarketplaceSearchTerm(search)}%`)
+  const search = filters.search ? normalizeMarketplaceSearchTerm(filters.search) : ''
+  if (search) query = query.textSearch('search_vector', search, { config: 'simple', type: 'plain' })
   switch (filters.sort ?? 'newest') {
     case 'oldest': query = query.order('created_at', { ascending: true }).order('id', { ascending: true }); break
     case 'price-low': query = query.order('price', { ascending: true }).order('id', { ascending: true }); break

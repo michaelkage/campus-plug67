@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, formatNaira } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useMarketplaceListing } from '@/features/marketplace/useMarketplaceListings'
 import { isReleaseGateOpen } from '@/lib/escrowTiming'
 import { useTransactionStatus } from '@/hooks/useRealtime'
 import toast from 'react-hot-toast'
@@ -107,8 +108,7 @@ function EscrowPanel({ tx, isSeller, onRefresh, otherUserId }) {
     ...baseMeta,
     label: lifecycle.title,
     color: lifecycle.tone === 'danger' ? 'red' : lifecycle.tone === 'success' ? 'green' : lifecycle.tone === 'warning' ? 'amber' : 'cyan',
-    icon: lifecycle.phase === 'dispute' ? '🚨' : lifecycle.handoffConfirmed ? '🛡️' : baseMeta.icon,
-  }
+    icon: lifecycle.phase === 'dispute' ? '🚨' : lifecycle.handoffConfirmed ? '🛡️' : baseMeta.icon,  }
   const stepIdx = TX_STEPS.findIndex(step => step.key === tx.status)
   const releaseGateOpen = isReleaseGateOpen(tx.meetup_initiated_at)
   const autoReleaseMs = tx.auto_release_at ? Math.max(0, new Date(tx.auto_release_at) - Date.now()) : null
@@ -176,17 +176,7 @@ export default function ListingDetail() {
   const [buying, setBuying] = useState(false)
   const [liveTx, setLiveTx] = useState(null)
 
-  const { data: listing, isLoading } = useQuery({
-    queryKey: ['listing', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('listings')
-        .select('*, profiles!listings_seller_id_fkey(id, full_name, university, plug_score, total_sales, avatar_url, badges, is_verified)')
-        .eq('id', id).single()
-      if (error) throw error
-      return data
-    },
-  })
+  const { data: listing, isLoading } = useMarketplaceListing(id)
 
   const { data: existingTx } = useQuery({
     queryKey: ['transaction', id, user?.id],

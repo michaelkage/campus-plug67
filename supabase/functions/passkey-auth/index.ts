@@ -74,11 +74,20 @@ serve(async(req:Request)=>{
   }
 
   if(action==="generate_authentication_options"){
-    if(!userId)return jsonResponse({error:"Missing userId"},400,{},req);
-    const rate=await rateLimitPasskey(req,action,userId);if(!rate.allowed)return jsonResponse({error:"Too many passkey requests. Please wait and try again."},429,{"Retry-After":"60"},req);
+    const normalizedEmail=typeof userEmail==="string"?userEmail.trim().toLowerCase():"";
+    if(!normalizedEmail||normalizedEmail.length>320)return jsonResponse({options:null,userId:null},200,{},req);
+    const rate=await rateLimitPasskey(req,action,normalizedEmail);if(!rate.allowed)return jsonResponse({error:"Too many passkey requests. Please wait and try again."},429,{"Retry-After":"60"},req);
     const deviceCheck=await assertDeviceAllowed(req,clientFingerprint);if(!deviceCheck.ok)return jsonResponse({error:deviceCheck.error},deviceCheck.error?.startsWith("DEVICE_BANNED")?403:503,{},req);
-    const {data:creds}=await admin.from("passkey_credentials").select("credential_id,transports").eq("user_id",userId);if(!creds?.length)return jsonResponse({options:null},200,{},req);
-    const options=await generateAuthenticationOptions({rpID:RP_ID,timeout:60000,allowCredentials:creds.map(c=>({id:c.credential_id,type:"public-key",transports:(c.transports?.length?c.transports:["internal","hybrid"]) as never})),userVerification:"required"});await saveChallenge(userId,"auth",options.challenge);return jsonResponse({options},200,{},req);
+    const {data:profile,error:profileError}=await admin.from("profiles").select("id").eq("email",normalizedEmail).maybeSingle();
+    if(profileError)return jsonResponse({error:"Security service unavailable"},503,{},req);
+    if(!profile?.id)return jsonResponse({options:null,userId:null},200,{},req);
+    const resolvedUserId=profile.id;
+    const {data:creds,error:credentialError}=await admin.from("passkey_credentials").select("credential_id,transports").eq("user_id",resolvedUserId);
+    if(credentialError)return jsonResponse({error:"Security service unavailable"},503,{},req);
+    if(!creds?.length)return jsonResponse({options:null,userId:null},200,{},req);
+    const options=await generateAuthenticationOptions({rpID:RP_ID,timeout:60000,allowCredentials:creds.map(c=>({id:c.credential_id,type:"public-key",transports:(c.transports?.length?c.transports:["internal","hybrid"]) as never})),userVerification:"required"});
+    await saveChallenge(resolvedUserId,"auth",options.challenge);
+    return jsonResponse({options,userId:resolvedUserId},200,{},req);
   }
 
   if(action==="verify_authentication"){

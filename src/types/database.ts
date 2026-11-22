@@ -945,6 +945,29 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['gps_spoof_log']['Row']>
       }
 
+    },
+    Views: {
+      public_profiles: {
+        Row: {
+          id: string
+          full_name: string | null
+          university: string | null
+          department: string | null
+          level: string | null
+          avatar_url: string | null
+          bio: string | null
+          plug_score: number | null
+          total_sales: number | null
+          total_earnings: number | null
+          badges: string[] | null
+          is_verified: boolean | null
+          created_at: string | null
+          streak_days: number | null
+          tier: string | null
+          course: string | null
+        }
+        Relationships: []
+      }
     }
   }
 }
@@ -983,6 +1006,7 @@ export type PublicProfileStat  = Database['public']['Tables']['public_profile_st
 export type SafeZone           = Database['public']['Tables']['safe_zones']['Row']
 export type ReferralEvent      = Database['public']['Tables']['referral_events']['Row']
 export type Profile            = Database['public']['Tables']['profiles']['Row']
+export type PublicProfile      = Database['public']['Views']['public_profiles']['Row']
 export type AuditLog           = Database['public']['Tables']['audit_logs']['Row']
 export type JuryCase           = Database['public']['Tables']['jury_cases']['Row']
 export type JuryVote           = Database['public']['Tables']['jury_votes']['Row']

@@ -42,7 +42,7 @@ export default function Leaderboard() {
     queryKey: ['leaderboard'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, full_name, university, plug_score, total_sales, total_earnings, badges, avatar_url')
         .order('plug_score', { ascending: false })
         .limit(50)
@@ -57,7 +57,7 @@ export default function Leaderboard() {
     queryKey: ['student-of-month'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, full_name, university, total_sales, plug_score, badges, avatar_url')
         .order('total_sales', { ascending: false })
         .limit(1)

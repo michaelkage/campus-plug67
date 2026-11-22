@@ -55,43 +55,45 @@ async function assignJurors(caseId: string, required: number, excludeIds: string
 }
 
 async function executeVerdict(juryCase: DisputeCase, verdict: string) {
-  if (verdict === "claimant") {
-    const { data: tx, error: txError } = await admin.from("transactions")
-      .select("id,amount,payment_method,paystack_ref,refund_status")
-      .eq("id", juryCase.transaction_id).single();
-    if (txError || !tx) throw txError ?? new Error("Transaction not found");
-    if ((tx.payment_method ?? "paystack") !== "campus_wallet") {
-      const { data: claim, error: claimError } = await admin.rpc("claim_paystack_refund", { p_transaction_id: tx.id });
-      if (claimError) throw claimError;
-      if (claim?.claimed) {
-        const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
-        if (!secret) throw new Error("Paystack refund service is not configured");
-        const response = await fetch("https://api.paystack.co/refund", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            transaction: tx.paystack_ref,
-            amount: tx.amount,
-            customer_note: `Campus Plug dispute refund for ${tx.paystack_ref}`,
-            merchant_note: `Campus Plug dispute refund for transaction ${tx.id}`,
-          }),
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.status) {
-          const message = payload?.message || "Paystack rejected the dispute refund";
-          await admin.from("transactions").update({ refund_status: "failed", refund_failure_reason: message }).eq("id", tx.id);
-          throw new Error(message);
-        }
-        const refund = payload.data ?? {};
-        await admin.from("transactions").update({
-          refund_status: typeof refund.status === "string" ? refund.status : "pending",
-          paystack_refund_id: refund.id != null ? String(refund.id) : null,
-          refund_initiated_at: new Date().toISOString(),
-          refund_failure_reason: null,
-        }).eq("id", tx.id);
-      } else if (claim?.status === "processing" && !claim?.refund_id) {
-        throw new Error("A Paystack refund is already being initiated for this transaction; dispute settlement will retry after reconciliation");
+  const winnerId = verdict === "claimant" ? juryCase.claimant_id : juryCase.respondent_id;
+  const { data: tx, error: txError } = await admin.from("transactions")
+    .select("id,buyer_id,seller_id,amount,payment_method,paystack_ref,refund_status")
+    .eq("id", juryCase.transaction_id).single();
+  if (txError || !tx) throw txError ?? new Error("Transaction not found");
+
+  // Jury verdicts are relative to the case participants. A seller may be the
+  // claimant, so only initiate a Paystack refund when the actual winner is the buyer.
+  if (winnerId === tx.buyer_id && (tx.payment_method ?? "paystack") !== "campus_wallet") {
+    const { data: claim, error: claimError } = await admin.rpc("claim_paystack_refund", { p_transaction_id: tx.id });
+    if (claimError) throw claimError;
+    if (claim?.claimed) {
+      const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+      if (!secret) throw new Error("Paystack refund service is not configured");
+      const response = await fetch("https://api.paystack.co/refund", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transaction: tx.paystack_ref,
+          amount: tx.amount,
+          customer_note: `Campus Plug dispute refund for ${tx.paystack_ref}`,
+          merchant_note: `Campus Plug dispute refund for transaction ${tx.id}`,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.status) {
+        const message = payload?.message || "Paystack rejected the dispute refund";
+        await admin.from("transactions").update({ refund_status: "failed", refund_failure_reason: message }).eq("id", tx.id);
+        throw new Error(message);
       }
+      const refund = payload.data ?? {};
+      await admin.from("transactions").update({
+        refund_status: typeof refund.status === "string" ? refund.status : "pending",
+        paystack_refund_id: refund.id != null ? String(refund.id) : null,
+        refund_initiated_at: new Date().toISOString(),
+        refund_failure_reason: null,
+      }).eq("id", tx.id);
+    } else if (claim?.status === "processing" && !claim?.refund_id) {
+      throw new Error("A Paystack refund is already being initiated for this transaction; dispute settlement will retry after reconciliation");
     }
   }
 

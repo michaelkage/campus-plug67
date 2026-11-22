@@ -9,7 +9,7 @@ const forbidden = [
   /service[_-]?role[_-]?key\s*[:=]\s*['"]ey/i,
   /jwt[_-]?secret\s*[:=]/i,
   /database[_-]?password\s*[:=]/i,
-  /SUPABASE_SERVICE_ROLE_KEY\s*=\s*[^$\s]/i,
+  /SUPABASE_SERVICE_ROLE_KEY\s*=\s*(?!["']?\$)[^$\s]/i,
 ];
 
 const walk = (dir) => {

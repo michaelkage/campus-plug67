@@ -6,6 +6,7 @@ import {
 } from './listingRepository'
 
 export interface UseMarketplaceListingsOptions extends MarketplaceListingFilters {
+  myOnly?: boolean
   userId?: string | null
   university?: string | null
 }

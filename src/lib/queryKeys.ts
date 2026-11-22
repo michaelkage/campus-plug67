@@ -13,6 +13,8 @@ export const queryKeys = {
     all: ['listings'] as const,
     detail: (id: string) => ['listings', id] as const,
     marketplace: (university?: string) => ['listings', 'marketplace', university ?? 'all'] as const,
+    marketplaceFeed: (filters: { category: string; hostel: string; myOnly: boolean; verifiedOnly: boolean; userId: string; university: string }) =>
+      ['listings', filters.category, filters.hostel, filters.myOnly, filters.verifiedOnly, filters.userId, filters.university] as const,
     marketplaceFiltered: (filters: { institutionId?: string; category?: string; search?: string; sort?: string } = {}) =>
       ['listings', 'marketplace-filtered', filters] as const,
     bySeller: (sellerId: string) => ['listings', 'seller', sellerId] as const,

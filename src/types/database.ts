@@ -634,6 +634,7 @@ export type Database = {
           phone_verified: boolean
           email_verified: boolean
           is_verified?: boolean | null
+          badges?: string[] | null
           is_banned: boolean
           juror_enabled?: boolean | null
           juror_cases_today?: number | null

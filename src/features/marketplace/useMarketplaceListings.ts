@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import {
   listMarketplaceListings,
+  getMarketplaceListingById,
   type MarketplaceListingFilters,
 } from './listingRepository'
 
@@ -32,5 +33,14 @@ export function useMarketplaceListings(options: UseMarketplaceListingsOptions) {
     queryFn: () => listMarketplaceListings(filters),
     staleTime: 30_000,
     placeholderData: (previousData) => previousData,
+  })
+}
+
+export function useMarketplaceListing(listingId?: string) {
+  return useQuery({
+    queryKey: queryKeys.listingDetail(listingId || ''),
+    enabled: Boolean(listingId),
+    queryFn: () => getMarketplaceListingById(listingId || ''),
+    staleTime: 30_000,
   })
 }

@@ -43,6 +43,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install integration test dependencies
+        run: npm ci --no-audit --no-fund --prefer-offline
       - name: Normalize migrations for PostgreSQL immutability rules
         run: node scripts/normalize-migrations.mjs
       - uses: supabase/setup-cli@v1
@@ -61,6 +67,15 @@ jobs:
         run: supabase start --exclude studio
       - name: Apply migrations from a clean database
         run: supabase db reset --local
+      - name: Run escrow lifecycle database integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export SUPABASE_URL="${API_URL:-${SUPABASE_URL:-}}"
+          export SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}"
+          export SUPABASE_ANON_KEY="${ANON_KEY:-${SUPABASE_ANON_KEY:-}}"
+          npm run test:escrow-lifecycle:integration
       - name: Validate Edge Functions compile
         shell: bash
         run: |

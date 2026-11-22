@@ -1,7 +1,7 @@
-import type { Database } from './database'
+import type { Database, MyProfile } from './database'
 
 export type Listing = Database['public']['Tables']['listings']['Row']
-export type Profile = Database['public']['Tables']['profiles']['Row']
+export type Profile = MyProfile
 export type PlugCreditLedgerEntry = Database['public']['Tables']['plug_credit_ledger']['Row']
 
 export type ChatEvidenceMessage = {

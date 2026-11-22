@@ -19,17 +19,15 @@ export function useReferral() {
     queryFn:  async () => {
       const [events, invitees] = await Promise.all([
         supabase.from('referral_events')
-          .select('*, referee:referee_id(full_name, created_at)')
+          .select('*')
           .eq('referrer_id', profile.id)
           .order('created_at', { ascending: false }),
-        supabase.from('profiles')
-          .select('id, full_name, created_at')
-          .eq('referred_by', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(10),
+        supabase.rpc('get_my_referrals', {}),
       ])
+      if (events.error) throw events.error
+      if (invitees.error) throw invitees.error
       return {
-        events:   events.data  || [],
+        events: events.data || [],
         invitees: invitees.data || [],
         bonusEarned: (events.data || []).filter(e => e.bonus_awarded).length * 50,
       }

@@ -375,6 +375,13 @@ export type Database = {
         }
         Insert: Omit<Database['public']['Tables']['listings']['Row'], 'id' | 'created_at' | 'updated_at' | 'view_count'>
         Update: Partial<Database['public']['Tables']['listings']['Row']>
+        Relationships: [{
+          foreignKeyName: 'listings_seller_id_fkey'
+          columns: ['seller_id']
+          isOneToOne: false
+          referencedRelation: 'profiles'
+          referencedColumns: ['id']
+        }]
       }
 
       // ── ticker_events ────────────────────────────────────────────────────────
@@ -626,6 +633,7 @@ export type Database = {
           tier?: 'citizen' | 'trusted' | 'elite' | null
           phone_verified: boolean
           email_verified: boolean
+          is_verified?: boolean | null
           is_banned: boolean
           juror_enabled?: boolean | null
           juror_cases_today?: number | null

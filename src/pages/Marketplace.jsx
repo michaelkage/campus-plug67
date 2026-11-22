@@ -110,7 +110,8 @@ function CreateListingModal({ onClose, profile }) {
     setImages(prev => [...prev, ...newImgs].slice(0, 4))
     const allExif = [...images, ...newImgs].map(i => i.exif).filter(Boolean)
     const anyFlagged = allExif.some(e => e.gps_mismatch || e.timestamp_flag)
-    setExifStatus(anyFlagged ? 'flagged' : allExif.length > 0 ? 'clean' : null)  }, [images, profile?.university])
+    setExifStatus(anyFlagged ? 'flagged' : allExif.length > 0 ? 'clean' : null)
+  }, [images, profile?.university])
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxSize: 5 * 1024 * 1024 })
   const removeImage = (idx) => setImages(prev => { URL.revokeObjectURL(prev[idx].preview); const next = prev.filter((_, i) => i !== idx); if (!next.length) setExifStatus(null); return next })
 
@@ -219,7 +220,8 @@ function CreateListingModal({ onClose, profile }) {
           <div className="space-y-3 rounded-md border border-outline-variant bg-surface-container p-4">
             <div><label className="label">How can students use this listing?</label><select aria-label="Listing mode" className="input" value={form.listing_mode} onChange={set('listing_mode')}><option value="sale">Sell only</option><option value="both">Sell and rent</option></select><p className="mt-1 text-[10px] text-on-surface-variant">Rental reservations use Campus Wallet escrow and are separate from a purchase.</p></div>
             {form.listing_mode === 'both' && <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">                <div><label className="label">Rental rate per day (₦)</label><input className="input" type="number" min="1" step="1" value={form.rental_daily_rate} onChange={set('rental_daily_rate')} placeholder="e.g. 1500" required /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="label">Rental rate per day (₦)</label><input className="input" type="number" min="1" step="1" value={form.rental_daily_rate} onChange={set('rental_daily_rate')} placeholder="e.g. 1500" required /></div>
                 <div><label className="label">Refundable deposit (₦)</label><input className="input" type="number" min="0" step="1" value={form.rental_security_deposit} onChange={set('rental_security_deposit')} placeholder="e.g. 3000" required /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">

@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/queryKeys'
+import { useMarketplaceListings } from '@/features/marketplace/useMarketplaceListings'
+import { matchesMarketplaceListing, upsertMarketplaceListing, removeMarketplaceListing, type MarketplaceListing } from '@/features/marketplace/listingRepository'
 import { useDropzone } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, formatNaira, toKobo, uploadImage } from '@/lib/supabase'
@@ -107,8 +110,7 @@ function CreateListingModal({ onClose, profile }) {
     setImages(prev => [...prev, ...newImgs].slice(0, 4))
     const allExif = [...images, ...newImgs].map(i => i.exif).filter(Boolean)
     const anyFlagged = allExif.some(e => e.gps_mismatch || e.timestamp_flag)
-    setExifStatus(anyFlagged ? 'flagged' : allExif.length > 0 ? 'clean' : null)
-  }, [images, profile?.university])
+    setExifStatus(anyFlagged ? 'flagged' : allExif.length > 0 ? 'clean' : null)  }, [images, profile?.university])
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxSize: 5 * 1024 * 1024 })
   const removeImage = (idx) => setImages(prev => { URL.revokeObjectURL(prev[idx].preview); const next = prev.filter((_, i) => i !== idx); if (!next.length) setExifStatus(null); return next })
 
@@ -217,8 +219,7 @@ function CreateListingModal({ onClose, profile }) {
           <div className="space-y-3 rounded-md border border-outline-variant bg-surface-container p-4">
             <div><label className="label">How can students use this listing?</label><select aria-label="Listing mode" className="input" value={form.listing_mode} onChange={set('listing_mode')}><option value="sale">Sell only</option><option value="both">Sell and rent</option></select><p className="mt-1 text-[10px] text-on-surface-variant">Rental reservations use Campus Wallet escrow and are separate from a purchase.</p></div>
             {form.listing_mode === 'both' && <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">Rental rate per day (₦)</label><input className="input" type="number" min="1" step="1" value={form.rental_daily_rate} onChange={set('rental_daily_rate')} placeholder="e.g. 1500" required /></div>
+              <div className="grid grid-cols-2 gap-3">                <div><label className="label">Rental rate per day (₦)</label><input className="input" type="number" min="1" step="1" value={form.rental_daily_rate} onChange={set('rental_daily_rate')} placeholder="e.g. 1500" required /></div>
                 <div><label className="label">Refundable deposit (₦)</label><input className="input" type="number" min="0" step="1" value={form.rental_security_deposit} onChange={set('rental_security_deposit')} placeholder="e.g. 3000" required /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -254,23 +255,60 @@ export default function Marketplace() {
   const [showCreate, setShowCreate] = useState(searchParams.get('action') === 'create')
   const [search, setSearch] = useState(''); const [category, setCategory] = useState(searchParams.get('cat') || '')
   const [hostel, setHostel] = useState(searchParams.get('hostel') || ''); const [myOnly, setMyOnly] = useState(searchParams.get('tab') === 'my-listings'); const [verifiedOnly, setVerifiedOnly] = useState(false); const [sort, setSort] = useState('newest'); const [showMoreCategories, setShowMoreCategories] = useState(false)
-  const { data: listings = [], isLoading } = useQuery({
-    queryKey: ['listings', category, hostel, myOnly, verifiedOnly, profile?.id, profile?.university],
-    // Wait for the profile to resolve, but do not require a university: a new
-    // account with no campus set should still be able to browse. RLS already
-    // allows reading active listings campus-wide, so the campus filter below is
-    // a scoping preference rather than an access boundary.
+  const feedKey = queryKeys.listings.marketplaceFeed({
+    category,
+    hostel,
+    myOnly,
+    verifiedOnly,
+    userId: profile?.id || '',
+    university: profile?.university || '',
+  })
+  const feedFilters = {
+    category: category || undefined,
+    hostel: hostel || undefined,
+    sellerId: myOnly ? profile?.id || undefined : undefined,
+    verifiedOnly,
+  }
+  const { data: listings = [], isLoading } = useMarketplaceListings({
+    category,
+    hostel,
+    myOnly,
+    verifiedOnly,
+    userId: profile?.id,
+    university: profile?.university,
+  })
+
+  useRealtimeTable({
+    table: 'listings',
     enabled: Boolean(profile?.id),
-    queryFn: async () => {
-      let q = supabase.from('listings').select('*, profiles!listings_seller_id_fkey(full_name, university, avatar_url, is_verified)').eq('status', 'active')
-      // Do not hard-filter by university: keep same-campus listings prominent,
-      // but allow other listings to appear (ranked below same-campus ones).
-      q = q.order('created_at', { ascending: false })
-      if (category) q = q.eq('category', category); if (hostel) q = q.eq('hostel', hostel); if (myOnly) q = q.eq('seller_id', profile?.id); if (verifiedOnly) q = q.eq('metadata_verified', true)
-      const { data, error } = await q; if (error) throw error; return data || []
+    onInsert: (incoming) => {
+      const rows = Array.isArray(incoming) ? incoming : [incoming]
+      for (const row of rows) {
+        if (!matchesMarketplaceListing(row, feedFilters)) continue
+        qc.setQueryData(feedKey, (current = []) =>
+          upsertMarketplaceListing(current, row as MarketplaceListing),
+        )
+      }
+      if (rows.some(row => matchesMarketplaceListing(row, feedFilters))) {
+        void qc.invalidateQueries({ queryKey: feedKey })
+      }
+    },
+    onUpdate: (updated) => {
+      qc.setQueryData(feedKey, (current = []) => {
+        if (!matchesMarketplaceListing(updated, feedFilters)) {
+          return removeMarketplaceListing(current, updated.id)
+        }
+        const existing = current.find(row => row.id === updated.id)
+        const merged = { ...existing, ...updated } as MarketplaceListing
+        return upsertMarketplaceListing(current, merged)
+      })
+    },
+    onDelete: (deleted) => {
+      qc.setQueryData(feedKey, (current = []) =>
+        removeMarketplaceListing(current, deleted.id),
+      )
     },
   })
-  useRealtimeTable({ table: 'listings', onInsert: (l) => { if (profile?.university && l.university !== profile.university) return; if (myOnly && l.seller_id !== profile?.id) return; if (category && l.category !== category) return; if (hostel && l.hostel !== hostel) return; qc.setQueryData(['listings', category, hostel, myOnly, verifiedOnly, profile?.id, profile?.university], old => [l, ...(old || [])]) }, onUpdate: (u) => qc.setQueryData(['listings', category, hostel, myOnly, verifiedOnly, profile?.id, profile?.university], old => (old || []).map(l => l.id === u.id ? { ...l, ...u } : l)) })
   const filtered = listings
     .filter(l => !search || l.title.toLowerCase().includes(search.toLowerCase()) || l.description?.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {

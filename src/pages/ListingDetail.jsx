@@ -207,7 +207,8 @@ export default function ListingDetail() {
     try {
       const ref = `CP-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`
       const amountInKobo = Number(listing.price)
-      if (!Number.isSafeInteger(amountInKobo) || amountInKobo <= 0) throw new Error('This listing has an invalid price.')      const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
+      if (!Number.isSafeInteger(amountInKobo) || amountInKobo <= 0) throw new Error('This listing has an invalid price.')
+      const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
       if (!publicKey) throw new Error('Payment service is not configured. Please try again later.')
       const { data: tx, error } = await supabase.rpc('create_pending_paystack_transaction', { p_listing_id: listing.id, p_paystack_ref: ref })
       if (error) throw error

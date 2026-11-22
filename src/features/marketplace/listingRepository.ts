@@ -21,6 +21,7 @@ export type MarketplaceListing = ListingRow & {
     university?: string | null
     avatar_url?: string | null
     is_verified?: boolean | null
+    badges?: string[] | null
     plug_score?: number | null
     total_sales?: number | null
   } | null
@@ -67,3 +68,24 @@ export async function listMarketplaceListings(
   return (data ?? []) as unknown as MarketplaceListing[]
 }
 
+
+const LISTING_DETAIL_SELECT =
+  '*, profiles!listings_seller_id_fkey(id, full_name, university, plug_score, total_sales, avatar_url, badges, is_verified)'
+
+export async function getMarketplaceListingById(
+  listingId: string,
+): Promise<MarketplaceListing | null> {
+  if (!listingId) throw new Error('A listing ID is required')
+
+  const { data, error } = await supabase
+    .from('listings')
+    .select(LISTING_DETAIL_SELECT)
+    .eq('id', listingId)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Unable to load listing: ${error.message}`, { cause: error })
+  }
+
+  return (data ?? null) as unknown as MarketplaceListing | null
+}

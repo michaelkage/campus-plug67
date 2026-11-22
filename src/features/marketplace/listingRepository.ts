@@ -29,7 +29,7 @@ export interface MarketplaceListingFilters {
 }
 const MARKETPLACE_SELECT = '*, profiles!listings_seller_id_fkey(full_name, university, avatar_url, is_verified)'
 
-export export function normalizeMarketplaceSearchTerm(value: string): string {
+export function normalizeMarketplaceSearchTerm(value: string): string {
   return value.trim().replace(/\s+/g, ' ').slice(0, 120)
 }
 

@@ -29,7 +29,7 @@ export interface MarketplaceListingFilters {
 }
 const MARKETPLACE_SELECT = '*, profiles!listings_seller_id_fkey(full_name, university, avatar_url, is_verified)'
 
-function escapeLikeLiteral(value: string): string {
+export function escapeMarketplaceSearchTerm(value: string): string {
   return value.replace(/[\\%_]/g, (character) => `\\${character}`)
 }
 
@@ -43,7 +43,7 @@ export async function listMarketplaceListings(filters: MarketplaceListingFilters
   if (filters.sellerId) query = query.eq('seller_id', filters.sellerId)
   if (filters.verifiedOnly) query = query.eq('metadata_verified', true)
   const search = filters.search?.trim()
-  if (search) query = query.ilike('title', `%${escapeLikeLiteral(search)}%`)
+  if (search) query = query.ilike('title', `%${escapeMarketplaceSearchTerm(search)}%`)
   switch (filters.sort ?? 'newest') {
     case 'oldest': query = query.order('created_at', { ascending: true }).order('id', { ascending: true }); break
     case 'price-low': query = query.order('price', { ascending: true }).order('id', { ascending: true }); break

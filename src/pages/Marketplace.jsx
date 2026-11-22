@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import { useMarketplaceListings } from '@/features/marketplace/useMarketplaceListings'
-import { matchesMarketplaceListing, upsertMarketplaceListing, removeMarketplaceListing, type MarketplaceListing } from '@/features/marketplace/listingRepository'
+import { matchesMarketplaceListing, upsertMarketplaceListing, removeMarketplaceListing } from '@/features/marketplace/listingRepository'
 import { useDropzone } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, formatNaira, toKobo, uploadImage } from '@/lib/supabase'
@@ -286,7 +286,7 @@ export default function Marketplace() {
       for (const row of rows) {
         if (!matchesMarketplaceListing(row, feedFilters)) continue
         qc.setQueryData(feedKey, (current = []) =>
-          upsertMarketplaceListing(current, row as MarketplaceListing),
+          upsertMarketplaceListing(current, row),
         )
       }
       if (rows.some(row => matchesMarketplaceListing(row, feedFilters))) {
@@ -299,7 +299,7 @@ export default function Marketplace() {
           return removeMarketplaceListing(current, updated.id)
         }
         const existing = current.find(row => row.id === updated.id)
-        const merged = { ...existing, ...updated } as MarketplaceListing
+        const merged = { ...existing, ...updated }
         return upsertMarketplaceListing(current, merged)
       })
     },

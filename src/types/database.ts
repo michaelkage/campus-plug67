@@ -364,6 +364,14 @@ export type Database = {
           featured?: boolean | null
           is_trending?: boolean | null
           exif_flagged?: boolean | null
+          hostel?: string | null
+          metadata_verified?: boolean | null
+          floor_override?: boolean | null
+          listing_mode?: 'sale' | 'both' | null
+          rental_daily_rate_kobo?: number | null
+          rental_security_deposit_kobo?: number | null
+          rental_min_days?: number | null
+          rental_max_days?: number | null
         }
         Insert: Omit<Database['public']['Tables']['listings']['Row'], 'id' | 'created_at' | 'updated_at' | 'view_count'>
         Update: Partial<Database['public']['Tables']['listings']['Row']>

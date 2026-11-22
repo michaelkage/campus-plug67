@@ -4,7 +4,7 @@ import {
   removeMarketplaceListing,
   upsertMarketplaceListing,
   type MarketplaceListing,
-} from './listingRepository'
+} from './listingCache'
 
 function listing(overrides: Partial<MarketplaceListing> = {}): MarketplaceListing {
   return {

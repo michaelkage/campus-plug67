@@ -3,8 +3,8 @@ import {
   matchesMarketplaceListing,
   removeMarketplaceListing,
   upsertMarketplaceListing,
-  type MarketplaceListing,
 } from './listingCache'
+import type { MarketplaceListing } from './listingRepository'
 
 function listing(overrides: Partial<MarketplaceListing> = {}): MarketplaceListing {
   return {

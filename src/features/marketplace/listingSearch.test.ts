@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeMarketplaceSearchTerm } from './listingRepository'
+import { normalizeMarketplaceSearchTerm } from './searchUtils'
 
 describe('marketplace search normalization', () => {
   it('normalizes whitespace without interpreting user text as query syntax', () => {

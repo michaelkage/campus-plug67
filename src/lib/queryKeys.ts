@@ -64,7 +64,9 @@ export const queryKeys = {
   },
   institutions: {
     all: ['institutions'] as const,
+    directory: ['institutions', 'directory'] as const,
     detail: (institutionId: string) => ['institutions', 'detail', institutionId] as const,
+    memberships: (userId: string) => ['institutions', 'memberships', userId] as const,
   },
   trust: {
     profile: (userId: string) => ['trust', 'profile', userId] as const,

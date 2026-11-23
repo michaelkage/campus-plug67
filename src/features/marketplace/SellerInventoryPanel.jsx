@@ -11,9 +11,9 @@ const FILTERS = [
   { id: 'active', label: 'Active' },
   { id: 'reserved', label: 'Reserved' },
   { id: 'sold', label: 'Sold' },
-  { id: 'deleted', label: 'Archived' },
+  { id: 'archived', label: 'Archived' },
 ]
-const EMPTY_COUNTS = { all: 0, active: 0, reserved: 0, sold: 0, deleted: 0, pending: 0 }
+const EMPTY_COUNTS = { all: 0, active: 0, reserved: 0, sold: 0, archived: 0, deleted: 0, removed: 0, pending: 0 }
 
 async function fetchSellerInventory(sellerId, filter, page) {
   const from = page * PAGE_SIZE
@@ -24,11 +24,12 @@ async function fetchSellerInventory(sellerId, filter, page) {
     .order('id', { ascending: false })
     .range(from, from + PAGE_SIZE - 1)
 
-  if (filter !== 'all') query = query.eq('status', filter)
+  if (filter === 'archived') query = query.in('status', ['deleted', 'removed'])
+  else if (filter !== 'all') query = query.eq('status', filter)
   const { data, error, count } = await query
   if (error) throw error
 
-  const statusQueries = ['active', 'reserved', 'sold', 'deleted', 'pending'].map(async status => {
+  const statusQueries = ['active', 'reserved', 'sold', 'deleted', 'removed', 'pending'].map(async status => {
     const result = await supabase.from('listings')
       .select('id', { count: 'exact', head: true })
       .eq('seller_id', sellerId)
@@ -45,7 +46,7 @@ async function fetchSellerInventory(sellerId, filter, page) {
   return {
     rows: data ?? [],
     total: count ?? 0,
-    counts: { ...EMPTY_COUNTS, ...statusCounts, all: allCount.count ?? 0 },
+    counts: { ...EMPTY_COUNTS, ...statusCounts, archived: (statusCounts.deleted ?? 0) + (statusCounts.removed ?? 0), all: allCount.count ?? 0 },
   }
 }
 
@@ -149,7 +150,7 @@ export default function SellerInventoryPanel({ sellerId }) {
           {rows.map(listing => {
             const isBusy = statusMutation.isPending && statusMutation.variables?.listingId === listing.id
             const canArchive = listing.status === 'active'
-            const canRestore = listing.status === 'deleted'
+            const canRestore = listing.status === 'deleted' || listing.status === 'removed'
             return (
               <article key={listing.id} className="flex min-w-0 gap-3 rounded-md border border-outline-variant bg-surface-container-high p-3">
                 <Link to={`/marketplace/${listing.id}`} className="h-20 w-20 shrink-0 overflow-hidden rounded bg-surface-container-highest" aria-label={`View ${listing.title}`}>
@@ -160,7 +161,7 @@ export default function SellerInventoryPanel({ sellerId }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link to={`/marketplace/${listing.id}`} className="truncate text-sm font-semibold hover:text-primary">{listing.title}</Link>
-                    <span className={`rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide ${listing.status === 'active' ? 'bg-primary/10 text-primary' : listing.status === 'reserved' ? 'bg-[var(--md-secondary)]/10 text-[var(--md-secondary)]' : listing.status === 'sold' ? 'bg-[var(--md-tertiary)]/10 text-[var(--md-tertiary)]' : 'bg-surface-container-highest text-on-surface/50'}`}>{listing.status === 'deleted' ? 'archived' : listing.status}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide ${listing.status === 'active' ? 'bg-primary/10 text-primary' : listing.status === 'reserved' ? 'bg-[var(--md-secondary)]/10 text-[var(--md-secondary)]' : listing.status === 'sold' ? 'bg-[var(--md-tertiary)]/10 text-[var(--md-tertiary)]' : 'bg-surface-container-highest text-on-surface/50'}`}>{['deleted', 'removed'].includes(listing.status) ? 'archived' : listing.status}</span>
                   </div>
                   <div className="mt-1 font-mono text-sm font-bold">{formatNaira(listing.price)}</div>
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-on-surface/45">

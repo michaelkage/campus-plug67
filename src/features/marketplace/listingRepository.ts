@@ -31,10 +31,6 @@ export interface MarketplaceListingFilters {
 }
 const MARKETPLACE_SELECT = '*, profiles!listings_seller_id_fkey(full_name, university, avatar_url, is_verified)'
 
-export function normalizeMarketplaceSearchTerm(value: string): string {
-  return value.trim().replace(/\s+/g, ' ').slice(0, 120)
-}
-
 /** Server-side bounded search. Campus is never an access boundary; RLS is. */
 export async function listMarketplaceListings(filters: MarketplaceListingFilters = {}): Promise<MarketplaceListing[]> {
   const page = Number.isInteger(filters.page) && (filters.page ?? 0) >= 0 ? filters.page as number : 0

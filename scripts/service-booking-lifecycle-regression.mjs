@@ -112,6 +112,7 @@ for (const value of [
   "now() + interval '72 hours'",
   "cron.schedule(",
   'plug_credit_ledger_service_booking_reference_uidx',
+  "WHERE status IN ('pending', 'quoted', 'confirmed', 'in_progress', 'delivered', 'disputed')",
   'ALTER PUBLICATION supabase_realtime ADD TABLE public.service_booking_escrows',
 ]) includes(escrowMigration, value, `Service escrow migration missing invariant: ${value}`)
 

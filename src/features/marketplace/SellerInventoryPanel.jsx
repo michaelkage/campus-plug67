@@ -98,7 +98,7 @@ export default function SellerInventoryPanel({ sellerId }) {
     { label: 'Active', value: counts.active, tone: 'text-primary' },
     { label: 'Reserved', value: counts.reserved, tone: 'text-[var(--md-secondary)]' },
     { label: 'Sold', value: counts.sold, tone: 'text-[var(--md-tertiary)]' },
-    { label: 'Archived', value: counts.deleted, tone: 'text-on-surface/50' },
+    { label: 'Archived', value: counts.archived, tone: 'text-on-surface/50' },
   ], [counts.active, counts.reserved, counts.sold, counts.deleted])
 
   return (
@@ -172,7 +172,7 @@ export default function SellerInventoryPanel({ sellerId }) {
                 </div>
                 <div className="flex shrink-0 flex-col justify-center gap-1">
                   {canArchive && <button type="button" disabled={isBusy} onClick={() => statusMutation.mutate({ listingId: listing.id, fromStatus: 'active', toStatus: 'deleted' })} className="btn-ghost inline-flex items-center gap-1 text-[10px] disabled:opacity-40"><Archive size={12} />Archive</button>}
-                  {canRestore && <button type="button" disabled={isBusy} onClick={() => statusMutation.mutate({ listingId: listing.id, fromStatus: 'deleted', toStatus: 'active' })} className="btn-ghost inline-flex items-center gap-1 text-[10px] disabled:opacity-40"><RotateCcw size={12} />Restore</button>}
+                  {canRestore && <button type="button" disabled={isBusy} onClick={() => statusMutation.mutate({ listingId: listing.id, fromStatus: listing.status, toStatus: 'active' })} className="btn-ghost inline-flex items-center gap-1 text-[10px] disabled:opacity-40"><RotateCcw size={12} />Restore</button>}
                 </div>
               </article>
             )

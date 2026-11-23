@@ -28,6 +28,7 @@ assert.ok(topNav.includes("queryClient.invalidateQueries({queryKey:['unread-mess
 
 assert.ok(migration.includes('ALTER COLUMN read SET NOT NULL'), 'Read receipt state must not be nullable')
 assert.ok(migration.includes('messages_unread_recipient_conversation_idx'), 'Unread counts must use a partial recipient index')
+assert.ok(migration.includes('messages_sender_inbox_idx') && migration.includes('messages_receiver_inbox_idx'), 'Conversation history scans must be indexed in both directions')
 assert.ok(migration.includes('CREATE OR REPLACE FUNCTION public.get_chat_inbox()'), 'Inbox summary RPC must exist')
 assert.ok(migration.includes('SECURITY INVOKER'), 'Inbox summaries must preserve caller RLS')
 assert.ok(migration.includes('count(*)::bigint AS unread_count'), 'Unread counts must be exact per conversation')

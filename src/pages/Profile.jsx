@@ -7,6 +7,7 @@ import { supabase, formatNaira } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { DEPARTMENTS, getProgrammesForDepartment } from '@/data/academicOptions'
 import { listPasskeys, removePasskey } from '@/lib/passkeys'
+import SellerInventoryPanel from '@/features/marketplace/SellerInventoryPanel'
 import toast from 'react-hot-toast'
 import { Edit2, Shield, Download, CreditCard, Package, TrendingUp, Star, Loader, Fingerprint, Trash2, Plus } from 'lucide-react'
 
@@ -513,8 +514,9 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Listings grid */}
-      <div>
+      {viewingOwn && <SellerInventoryPanel sellerId={targetId} />}
+      {/* Public listing preview */}
+      <div className={viewingOwn ? 'hidden' : ''}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold">{viewingOwn ? 'My Listings' : `${profile.full_name?.split(' ')[0]}'s Listings`}</h2>
           <div className="text-xs text-on-surface/40">

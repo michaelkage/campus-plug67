@@ -104,8 +104,14 @@ async function executeVerdict(juryCase: DisputeCase, verdict: string) {
 
 async function rewardJuror(jurorId: string, correct: boolean, caseId: string) {
   const scoreBonus = correct ? 20 : 5;
-  const { data: profile } = await admin.from("profiles").select("plug_score").eq("id", jurorId).single();
-  if (profile) await admin.from("profiles").update({ plug_score: Math.min((profile.plug_score ?? 500) + scoreBonus, 1000) }).eq("id", jurorId);
+  const { error: scoreError } = await admin.rpc("enqueue_plugscore_event", {
+    p_user_id: jurorId,
+    p_event_type: correct ? "jury_vote_correct" : "jury_vote_incorrect",
+    p_points: scoreBonus,
+    p_reference_id: caseId,
+    p_metadata: { source: "peer_jury", correct },
+  });
+  if (scoreError) throw new Error("Unable to enqueue idempotent juror reputation reward: " + scoreError.message);
   if (correct) {
     await admin.rpc("payout_juror_incentive", { p_juror_id: jurorId, p_amount: JURY_PAYOUT_KOBO });
     await admin.from("jury_votes").update({ plug_credit_payout: JURY_PAYOUT_KOBO, payout_processed: true, reward_given: true }).eq("case_id", caseId).eq("juror_id", jurorId);

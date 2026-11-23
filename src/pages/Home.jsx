@@ -42,7 +42,7 @@ export default function Home() {
   const workspaceQuery = useStudentWorkspace(user?.id)
   const workspace = workspaceQuery.data
   const actions = useMemo(() => workspace && user?.id
-    ? buildWorkspaceActions(user.id, workspace.transactions, workspace.bookings, workspace.rentals)
+    ? buildWorkspaceActions(user.id, workspace.activeTransactions, workspace.bookings, workspace.rentals)
     : [], [workspace, user?.id])
 
   const { data: initialFeed = [] } = useQuery({

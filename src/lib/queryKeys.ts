@@ -68,6 +68,9 @@ export const queryKeys = {
     detail: (institutionId: string) => ['institutions', 'detail', institutionId] as const,
     memberships: (userId: string) => ['institutions', 'memberships', userId] as const,
   },
+  workspace: {
+    overview: (userId: string) => ['workspace', 'overview', userId] as const,
+  },
   trust: {
     profile: (userId: string) => ['trust', 'profile', userId] as const,
     reports: (userId: string) => ['trust', 'reports', userId] as const,

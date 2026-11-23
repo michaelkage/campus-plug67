@@ -202,7 +202,13 @@ export default function MarketplaceChat({ currentUserId, otherUserId, transactio
               void qc.invalidateQueries({ queryKey: ['chat-inbox', currentUserId] })
             })
         }
-      } else if (payload.eventType === 'UPDATE') setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...newMsg, isOptimistic: false, scanStatus: 'safe' } : m))
+      } else if (payload.eventType === 'UPDATE') {
+        setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...newMsg, isOptimistic: false, scanStatus: 'safe' } : m))
+        void Promise.all([
+          qc.invalidateQueries({ queryKey: ['unread-messages', currentUserId] }),
+          qc.invalidateQueries({ queryKey: ['chat-inbox', currentUserId] }),
+        ])
+      }
     }).subscribe()
     subscriptionRef.current = subscription
   }

@@ -3,6 +3,7 @@ import { AlertTriangle, Camera, CheckCircle2, MapPinned, ShieldAlert, X } from '
 import { supabase } from '@/lib/supabase'
 import { offlineHandoffReceiptKey, verifyOfflineHandoffTicket, type OfflineHandoffCommitment } from '@/lib/offlineHandoff'
 import { getLocalTransaction, removeLocalTransaction, saveLocalTransaction } from '@/lib/transactionState'
+import { syncOfflineQueue } from '@/lib/offlineSync'
 import toast from 'react-hot-toast'
 
 type BarcodeDetectorLike={detect:(source:CanvasImageSource)=>Promise<Array<{rawValue:string}>>}
@@ -40,29 +41,13 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
       toast.success('QR verified offline. Your handoff proof is saved. Reconnect and sync it before the 24-hour server expiry. Funds have not been released.');
       return;
     }
-    const {data,error}=await supabase.rpc('confirm_offline_handoff',{
-      p_transaction_id:transactionId,p_voucher_id:ticket.voucher_id,p_token:ticket.token,
-    });
-    if(error){
-      const httpStatus=(error as {status?:number}).status;
-      if(!navigator.onLine||!httpStatus||httpStatus===0||httpStatus===401||httpStatus===408||httpStatus===429||httpStatus>=500){
-        toast.success('QR verified offline. Your handoff proof is saved. Reconnect to synchronize it. Funds have not been released.');
-        return;
-      }
-      await saveLocalTransaction({
-        id:offlineHandoffReceiptKey(transactionId),
-        ownerId:offlineCommitment.buyer_id,
-        kind:'offline-handoff-receipt',
-        payload:{transactionId,voucherId:ticket.voucher_id,token:ticket.token},
-        status:'failed',
-        updatedAt:Date.now(),
-        error:error.message||'Server rejected the offline handoff proof',
-      }).catch(()=>{});
-      throw error;
+    await syncOfflineQueue(offlineCommitment.buyer_id);
+    const pendingProof=await getLocalTransaction(offlineHandoffReceiptKey(transactionId));
+    if(pendingProof){
+      if(pendingProof.status==='failed')throw new Error(pendingProof.error||'The server rejected the saved handoff proof.');
+      toast.success('QR verified. Handoff proof is saved and queued for server confirmation. Funds have not been released.');
+      return;
     }
-    const confirmation=data as {success?:boolean;error?:string}|null;
-    if(!confirmation?.success)throw new Error(confirmation?.error||'Handoff confirmation failed');
-    await removeLocalTransaction(offlineHandoffReceiptKey(transactionId)).catch(()=>{});
     toast.success('Handoff confirmed. Funds remain protected for a 2-hour inspection window.');
     onReleased?.();
   }catch(error){toast.error(error instanceof Error?error.message:'QR handoff verification failed')}finally{setBusy(false)}}

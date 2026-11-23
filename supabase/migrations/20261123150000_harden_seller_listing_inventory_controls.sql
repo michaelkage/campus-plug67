@@ -112,6 +112,13 @@ BEGIN
             WHERE h.transaction_id = t.id AND h.status = 'held'
           ))
         OR
+        (OLD.status = 'reserved' AND NEW.status = 'active'
+          AND t.status = 'cancelled'
+          AND EXISTS (
+            SELECT 1 FROM public.wallet_escrow_holds h
+            WHERE h.transaction_id = t.id AND h.status = 'refunded'
+          ))
+        OR
         (OLD.status = 'reserved' AND NEW.status = 'sold'
           AND t.status = 'released'
           AND EXISTS (

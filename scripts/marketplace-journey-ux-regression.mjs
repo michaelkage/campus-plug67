@@ -35,18 +35,18 @@ for (const label of ['Funds held', 'Pickup', 'Protected release window', 'Comple
 
 assertIncludes(gigs, 'How service bookings work',
   'Service listings must explain the booking journey');
-assertIncludes(gigs, 'does not charge your wallet or hold money in escrow',
+assertIncludes(gigs, 'customer accepts and funds it from Campus Wallet',
   'Service booking UI must disclose that it does not collect or hold payment');
 assertIncludes(gigs, 'Message {isSeller ? \'customer\' : \'provider\'}',
   'Both service booking participants must have a direct chat action');
 assertIncludes(serviceActions, 'Mark delivered',
   'Provider must explicitly mark service delivery');
-assertIncludes(serviceActions, 'Confirm service received',
+assertIncludes(serviceActions, 'Confirm service and release funds',
   'Customer must explicitly confirm service receipt');
 
 for (const source of [gigs, booking]) {
   if (source.includes('Payment collected on confirmation via PlugPay')) {
-    fail('Service booking UI must not claim PlugPay collects payment when no service escrow exists');
+    fail('Service booking UI must not claim PlugPay collects payment when the service escrow is active');
   }
 }
 assertIncludes(booking, 'No payment is collected or held here',

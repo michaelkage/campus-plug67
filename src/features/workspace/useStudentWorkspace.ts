@@ -72,7 +72,7 @@ async function fetchStudentWorkspace(userId: string): Promise<StudentWorkspaceDa
     supabase.from('transactions')
       .select('id,buyer_id,seller_id,listing_id,amount,status,escrow_status,created_at,updated_at')
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-       .neq('status','cancelled').neq('status','released').not('escrow_status','in','("released","refunded")')
+      .neq('status','cancelled').neq('status','released').not('escrow_status','in','("released","refunded")')
       .order('updated_at',{ascending:false}).limit(30),
     supabase.from('gig_bookings')
       .select('id,client_id,seller_id,status,slot_date,slot_time,amount,created_at,gigs(title)')
@@ -93,9 +93,9 @@ async function fetchStudentWorkspace(userId: string): Promise<StudentWorkspaceDa
       .select('id', { count: 'exact', head: true })
       .eq('receiver_id', userId).eq('read', false),
     supabase.from('transactions').select('id', { count:'exact', head:true })
-      .eq('seller_id',userId).neq('status','cancelled').not('escrow_status','in','("released","refunded")'),
+       .eq('seller_id',userId).neq('status','cancelled').neq('status','released').not('escrow_status','in','("released","refunded")'),
     supabase.from('transactions').select('id', { count:'exact', head:true })
-      .eq('buyer_id',userId).neq('status','cancelled').not('escrow_status','in','("released","refunded")'),
+       .eq('buyer_id',userId).neq('status','cancelled').neq('status','released').not('escrow_status','in','("released","refunded")'),
     supabase.from('listings').select('id', { count:'exact', head:true }).eq('seller_id',userId).eq('status','active'),
     supabase.from('profiles').select('plug_credit_balance,plug_score,total_sales').eq('id',userId).single(),
   ])

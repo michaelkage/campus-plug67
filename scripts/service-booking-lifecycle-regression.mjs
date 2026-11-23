@@ -66,7 +66,7 @@ for (const value of [
   'Decline quote',
   'Start service',
   'Mark delivered',
-  'Confirm service received',
+  'Confirm service and release funds',
   'The customer has 24 hours to accept or decline',
 ]) includes(actions, value, `Service booking UI missing invariant: ${value}`)
 

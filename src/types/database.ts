@@ -143,6 +143,63 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['lost_found']['Row']>
       }
 
+      // ── institutions ──────────────────────────────────────────────────────────
+      institutions: {
+        Row: {
+          id: string
+          name: string
+          slug: string
+          normalized_name: string
+          country_code: string | null
+          timezone: string | null
+          website_url: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          slug: string
+          country_code?: string | null
+          timezone?: string | null
+          website_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['institutions']['Row']>
+      }
+
+      // ── institution_memberships ──────────────────────────────────────────────
+      institution_memberships: {
+        Row: {
+          id: string
+          user_id: string
+          institution_id: string
+          status: 'pending' | 'verified' | 'rejected' | 'suspended'
+          verification_method: string | null
+          verified_email: string | null
+          verified_at: string | null
+          is_primary: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          institution_id: string
+          status?: 'pending' | 'verified' | 'rejected' | 'suspended'
+          verification_method?: string | null
+          verified_email?: string | null
+          verified_at?: string | null
+          is_primary?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['institution_memberships']['Row']>
+      }
+
       // ── allowed_domains ──────────────────────────────────────────────────────
       // NOTE: column is `institution_name`, NOT `university`.
       // supabase.ts validateEduEmail must query `institution_name`.
@@ -153,6 +210,7 @@ export type Database = {
           institution_name: string
           university?: string | null   // alias populated by trigger for legacy queries
           active: boolean
+          institution_id: string
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['allowed_domains']['Row'], 'id' | 'created_at'>
@@ -688,6 +746,7 @@ export type Database = {
           bio?: string | null
           campus_domain: string
           university?: string | null
+          primary_institution_id?: string | null
           department?: string | null
           course?: string | null
           balance: number

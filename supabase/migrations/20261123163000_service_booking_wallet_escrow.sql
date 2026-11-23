@@ -164,6 +164,11 @@ BEGIN
   INSERT INTO public.plug_credit_ledger(user_id, amount, reason, reference_id)
   VALUES(v_actor, -v_quote.amount_kobo, 'Service booking escrow hold', v_booking.id);
 
+  INSERT INTO public.notifications(user_id, type, title, body, data)
+  VALUES(v_booking.seller_id, 'service_escrow_funded', 'Service booking funded',
+    'The customer funded the accepted quote. You can now start the service.',
+    jsonb_build_object('booking_id', v_booking.id, 'escrow_id', v_escrow.id, 'amount_kobo', v_quote.amount_kobo));
+
   RETURN jsonb_build_object(
     'success', true, 'escrow_id', v_escrow.id, 'status', v_escrow.status,
     'amount_kobo', v_escrow.amount_kobo, 'wallet_balance_after', v_balance - v_quote.amount_kobo
@@ -300,6 +305,10 @@ BEGIN
   VALUES(v_booking.id, v_escrow.id, v_actor, btrim(p_reason))
   RETURNING * INTO v_dispute;
   UPDATE public.gig_bookings SET status = 'disputed' WHERE id = v_booking.id;
+  INSERT INTO public.notifications(user_id, type, title, body, data)
+  VALUES(v_booking.seller_id, 'service_booking_disputed', 'Service booking disputed',
+    'The customer raised an issue. Funds remain held pending platform review.',
+    jsonb_build_object('booking_id', v_booking.id, 'dispute_id', v_dispute.id));
 
   RETURN jsonb_build_object('success', true, 'booking_id', v_booking.id, 'dispute_id', v_dispute.id, 'status', 'disputed');
 END;
@@ -356,6 +365,14 @@ BEGIN
          resolved_by = v_resolved_by, resolved_at = now()
    WHERE id = v_dispute.id AND status = 'open';
   UPDATE public.gig_bookings SET status = v_target_status WHERE id = v_booking.id;
+  INSERT INTO public.notifications(user_id, type, title, body, data)
+  VALUES
+    (v_booking.client_id, 'service_dispute_resolved', 'Service dispute resolved',
+      CASE WHEN p_outcome = 'refund_customer' THEN 'The service escrow was refunded to your Campus Wallet.' ELSE 'The platform approved release of the service escrow to the provider.' END,
+      jsonb_build_object('booking_id', v_booking.id, 'outcome', p_outcome)),
+    (v_booking.seller_id, 'service_dispute_resolved', 'Service dispute resolved',
+      CASE WHEN p_outcome = 'release_to_provider' THEN 'The platform approved release of the service escrow to your Campus Wallet.' ELSE 'The platform refunded the service escrow to the customer.' END,
+      jsonb_build_object('booking_id', v_booking.id, 'outcome', p_outcome));
 
   RETURN jsonb_build_object('success', true, 'booking_id', v_booking.id, 'status', v_target_status, 'outcome', p_outcome);
 END;
@@ -405,6 +422,14 @@ BEGIN
        SET status = 'released', resolved_at = now()
      WHERE id = v_escrow.id AND status = 'held';
     UPDATE public.gig_bookings SET status = 'completed' WHERE id = v_booking.id AND status = 'delivered';
+    INSERT INTO public.notifications(user_id, type, title, body, data)
+    VALUES
+      (v_booking.client_id, 'service_escrow_auto_released', 'Service payment released',
+        'The 72-hour delivery review window ended without a dispute. Funds were released to the provider.',
+        jsonb_build_object('booking_id', v_booking.id, 'amount_kobo', v_escrow.amount_kobo)),
+      (v_booking.seller_id, 'service_escrow_auto_released', 'Service payment released',
+        'The 72-hour delivery review window ended. Your Campus Wallet has been credited.',
+        jsonb_build_object('booking_id', v_booking.id, 'amount_kobo', v_escrow.amount_kobo));
     v_count := v_count + 1;
   END LOOP;
 
@@ -450,3 +475,20 @@ COMMENT ON TABLE public.service_booking_escrows IS
   'Campus Wallet funds held against an accepted service quote until customer confirmation, dispute resolution or 72-hour delivery timeout.';
 COMMENT ON FUNCTION public.release_expired_service_booking_escrows() IS
   'Service-role worker: releases held service escrow after the 72-hour delivery inspection window when no dispute is open.';
+
+-- Schedule the 72-hour delivery-window settlement worker. The function itself
+-- remains service-role-only over the API; pg_cron executes it as postgres.
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+DO $cron$
+DECLARE
+  v_job_id bigint;
+BEGIN
+  SELECT jobid INTO v_job_id FROM cron.job WHERE jobname = 'service-booking-escrow-auto-release';
+  IF v_job_id IS NOT NULL THEN PERFORM cron.unschedule(v_job_id); END IF;
+  PERFORM cron.schedule(
+    'service-booking-escrow-auto-release',
+    '*/15 * * * *',
+    'SELECT public.release_expired_service_booking_escrows();'
+  );
+END;
+$cron$;

@@ -9,6 +9,11 @@ ALTER TABLE public.messages
   ALTER COLUMN read SET NOT NULL;
 ALTER TABLE public.messages ENABLE TRIGGER messages_guard_immutable;
 
+CREATE INDEX IF NOT EXISTS messages_sender_inbox_idx
+  ON public.messages(sender_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS messages_receiver_inbox_idx
+  ON public.messages(receiver_id, created_at DESC, id DESC);
+
 CREATE INDEX IF NOT EXISTS messages_unread_recipient_conversation_idx
   ON public.messages(receiver_id, transaction_id, created_at DESC, id DESC)
   WHERE read = false;

@@ -1,5 +1,7 @@
 import type { Database } from '@/types/database'
 import { supabase } from '@/lib/supabase/client'
+import { normalizeMarketplaceSearchTerm } from './searchUtils'
+export { normalizeMarketplaceSearchTerm } from './searchUtils'
 export { matchesMarketplaceListing, upsertMarketplaceListing, removeMarketplaceListing } from './listingCache'
 
 type ListingRow = Database['public']['Tables']['listings']['Row']

@@ -6,8 +6,8 @@ const list = vi.fn(async (ownerId: string) => rows.filter(row => row.ownerId ===
 const save = vi.fn(async (row: any) => { const index = rows.findIndex(value => value.id === row.id); if (index >= 0) rows[index] = row; else rows.push(row) })
 const remove = vi.fn(async (id: string) => { const index = rows.findIndex(row => row.id === id); if (index >= 0) rows.splice(index, 1) })
 
-vi.mock('@/lib/supabase', () => ({ supabase: { rpc: (...args: any[]) => rpc(...args) } }))
-vi.mock('@/lib/transactionState', () => ({ listActiveLocalTransactions: (...args: any[]) => list(...args), saveLocalTransaction: (...args: any[]) => save(...args), removeLocalTransaction: (...args: any[]) => remove(...args) }))
+vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }))
+vi.mock('@/lib/transactionState', () => ({ listActiveLocalTransactions: list, saveLocalTransaction: save, removeLocalTransaction: remove }))
 vi.mock('@/lib/offlineHandoff', () => ({ offlineHandoffReceiptKey: (id: string) => `offline-handoff-receipt:${id}` }))
 
 import { syncOfflineQueue } from './offlineSync'

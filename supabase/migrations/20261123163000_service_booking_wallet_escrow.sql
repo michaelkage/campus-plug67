@@ -260,7 +260,7 @@ BEGIN
       END IF;
       UPDATE public.service_booking_quotes
          SET status = 'cancelled', responded_at = now()
-       WHERE booking_id = v_booking.id AND status = 'sent';
+       WHERE booking_id = v_booking.id AND status IN ('sent','accepted');
       v_target_status := 'cancelled';
 
     ELSE
@@ -339,7 +339,7 @@ DECLARE
   v_reason text;
 BEGIN
   IF auth.role() <> 'service_role' THEN RAISE EXCEPTION 'Only platform operations can resolve service disputes'; END IF;
-  IF p_outcome NOT IN ('release_to_provider','refund_customer') THEN RAISE EXCEPTION 'Invalid service dispute outcome'; END IF;
+  IF p_outcome IS NULL OR p_outcome NOT IN ('release_to_provider','refund_customer') THEN RAISE EXCEPTION 'Invalid service dispute outcome'; END IF;
   IF p_resolution_note IS NULL OR char_length(btrim(p_resolution_note)) NOT BETWEEN 10 AND 2000 THEN
     RAISE EXCEPTION 'A resolution note between 10 and 2000 characters is required';
   END IF;

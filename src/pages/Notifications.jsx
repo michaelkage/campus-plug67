@@ -34,12 +34,27 @@ export default function Notifications() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50)
+      if (error) throw error
       return data || []
     },
     enabled: !!user,
   })
 
-  // Real-time: batch-prepend to avoid re-render storms on busy accounts
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['unread-notifications', user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const { count, error } = await supabase.from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false)
+      if (error) throw error
+      return count ?? 0
+    },
+    refetchInterval: 30_000,
+  })
+
+  // Real-time inserts and read-state updates keep both the inbox and global badge in sync.
   useNotifications(user?.id, (incoming) => {
     const items = Array.isArray(incoming) ? incoming : [incoming]
     qc.setQueryData(['notifications', user?.id], (old) => {
@@ -57,6 +72,14 @@ export default function Notifications() {
     })
     const latest = items[items.length - 1]
     if (latest?.title) toast(latest.title, { icon: TYPE_ICON[latest.type] || '🔔' })
+    void qc.invalidateQueries({ queryKey: ['unread-notifications', user?.id] })
+  }, {
+    onUpdate: (updated) => {
+      qc.setQueryData(['notifications', user?.id], old =>
+        old?.map(row => row.id === updated.id ? { ...row, ...updated } : row)
+      )
+      void qc.invalidateQueries({ queryKey: ['unread-notifications', user?.id] })
+    },
   })
 
   const markAllRead = async () => {
@@ -65,9 +88,20 @@ export default function Notifications() {
       .update({ read: true })
       .eq('user_id', user.id)
       .eq('read', false)
+      .select('id')
     if (error) {
       toast.error('Could not mark notifications as read. Please try again.')
       console.error('Mark all notifications read failed:', error)
+      return
+    }
+    const { count: remainingUnread, error: verifyError } = await supabase.from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('read', false)
+    if (verifyError || (remainingUnread ?? 0) > 0) {
+      toast.error('Some notifications could not be marked as read. Refresh and retry.')
+      await qc.invalidateQueries({ queryKey: ['notifications', user?.id] })
+      await qc.invalidateQueries({ queryKey: ['unread-notifications', user?.id] })
       return
     }
     qc.setQueryData(['notifications', user?.id], old => old?.map(n => ({ ...n, read: true })))
@@ -75,14 +109,29 @@ export default function Notifications() {
   }
 
   const markRead = async (id) => {
-    const { error } = await supabase.from('notifications')
+    const { data, error } = await supabase.from('notifications')
       .update({ read: true })
       .eq('id', id)
       .eq('user_id', user.id)
+      .eq('read', false)
+      .select('id')
+      .maybeSingle()
     if (error) {
       toast.error('Could not mark this notification as read.')
       console.error('Mark notification read failed:', error)
       return false
+    }
+    if (!data) {
+      const { data: current, error: verifyError } = await supabase.from('notifications')
+        .select('read')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (verifyError || !current?.read) {
+        toast.error('Could not verify this notification as read.')
+        console.error('Notification read verification failed:', verifyError || 'No persisted read receipt')
+        return false
+      }
     }
     qc.setQueryData(['notifications', user?.id], old =>
       old?.map(n => n.id === id ? { ...n, read: true } : n)
@@ -130,7 +179,7 @@ export default function Notifications() {
     }
   }
 
-  const unread = notifications.filter(n => !n.read).length
+  const unread = unreadCount
 
   const timeAgo = (ts) => {
     const diff = Date.now() - new Date(ts).getTime()

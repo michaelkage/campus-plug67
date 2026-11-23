@@ -11,7 +11,19 @@ export default function TopNav(){
   const {user,profile,signOut}=useAuth()
   const queryClient = useQueryClient()
   const [menuOpen,setMenuOpen]=useState(false)
-  const {data:unreadCount=0}=useQuery({queryKey:['unread-notifications',user?.id],queryFn:async()=>{const {data,error}=await supabase.from('notifications').select('id').eq('user_id',user.id).eq('read',false);if(error){console.error('[CampusPlug] unread notification query failed',error);return 0}return data?.length||0},enabled:!!user,refetchInterval:30_000})
+  const {data:unreadCount=0}=useQuery({
+    queryKey:['unread-notifications',user?.id],
+    queryFn:async()=>{
+      const {count,error}=await supabase.from('notifications')
+        .select('id',{count:'exact',head:true})
+        .eq('user_id',user.id)
+        .eq('read',false)
+      if(error) throw error
+      return count ?? 0
+    },
+    enabled:!!user?.id,
+    refetchInterval:30_000,
+  })
   const {data:unreadMessages=0}=useQuery({
     queryKey:['unread-messages',user?.id],
     queryFn:async()=>{
@@ -25,6 +37,18 @@ export default function TopNav(){
     enabled:!!user?.id,
     refetchInterval:30_000,
   })
+  useEffect(()=>{
+    if(!user?.id) return
+    const channel=supabase.channel(`unread-notification-count:${user.id}`)
+      .on('postgres_changes',{event:'*',schema:'public',table:'notifications'},payload=>{
+        const row=payload.new?.user_id ? payload.new : payload.old
+        if(row?.user_id===user.id) {
+          void queryClient.invalidateQueries({queryKey:['unread-notifications',user.id]})
+        }
+      })
+      .subscribe()
+    return ()=>{ void supabase.removeChannel(channel) }
+  },[queryClient,user?.id])
   useEffect(()=>{
     if(!user?.id) return
     const channel=supabase.channel(`unread-message-count:${user.id}`)

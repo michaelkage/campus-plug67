@@ -17,9 +17,14 @@ export default function OfflineSyncBanner() {
   if (online) return null
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[100] border-b border-[var(--md-error-container)] bg-[var(--md-surface-container-high)] text-[var(--md-on-surface)] shadow-none">
+    <div
+      className="fixed inset-x-0 top-0 z-[100] border-b border-[var(--md-error-container)] bg-[var(--md-surface-container-high)] text-[var(--md-on-surface)] shadow-none"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 text-xs sm:text-sm">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--md-error-container)] text-[var(--md-on-error-container)]">
+        <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--md-error-container)] text-[var(--md-on-error-container)]">
           <CloudOff size={16} />
         </span>
         <div className="min-w-0 flex-1 leading-5">

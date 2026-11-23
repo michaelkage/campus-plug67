@@ -132,7 +132,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!user?.id) return
-    const tables = ['transactions','gig_bookings','gear_rentals','notifications','messages']
+    const tables = ['transactions','gig_bookings','gear_rentals','notifications','messages','profiles']
     const channel = supabase.channel(`student-workspace:${user.id}`)
     tables.forEach(table => {
       channel.on('postgres_changes',{event:'*',schema:'public',table},() => {
@@ -144,8 +144,8 @@ export default function Home() {
   }, [queryClient,user?.id])
 
   const statCards = [
-    {label:'Campus Wallet',value:profile?.plug_credit_balance == null ? '—' : formatNaira(profile.plug_credit_balance),detail:'Available balance',icon:WalletCards,href:'/wallet'},
-    {label:'PlugScore',value:profile?.plug_score ?? '—',detail:'Your campus reputation',icon:Zap,href:'/profile'},
+    {label:'Campus Wallet',value:workspace?.walletBalanceKobo == null ? '—' : formatNaira(workspace.walletBalanceKobo),detail:'Available balance',icon:WalletCards,href:'/wallet'},
+    {label:'PlugScore',value:workspace?.plugScore ?? '—',detail:'Your campus reputation',icon:Zap,href:'/profile'},
     {label:'Active listings',value:workspaceQuery.isLoading ? '…' : workspace?.activeListingCount ?? 0,detail:'Items you are selling',icon:Package,href:'/marketplace?tab=my-listings'},
     {label:'Open purchases',value:workspaceQuery.isLoading ? '…' : workspace?.pendingPurchasesCount ?? 0,detail:'Buyer-side transactions',icon:ShoppingBag,href:'/marketplace'},
     {label:'Open sales',value:workspaceQuery.isLoading ? '…' : workspace?.pendingSalesCount ?? 0,detail:'Seller-side transactions',icon:TrendingUp,href:'/marketplace?tab=my-listings'},

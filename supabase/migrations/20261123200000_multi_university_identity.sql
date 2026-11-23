@@ -282,8 +282,11 @@ BEGIN
         updated_at = now()
     WHERE id = actor;
     UPDATE public.institution_memberships
-    SET is_primary = (institution_id = resolved_institution.id), updated_at = now()
+    SET is_primary = false, updated_at = now()
     WHERE user_id = actor AND status = 'verified';
+    UPDATE public.institution_memberships
+    SET is_primary = true, updated_at = now()
+    WHERE user_id = actor AND institution_id = resolved_institution.id AND status = 'verified';
   ELSIF profile_primary = resolved_institution.id THEN
     UPDATE public.institution_memberships
     SET is_primary = (institution_id = resolved_institution.id), updated_at = now()
@@ -328,8 +331,11 @@ BEGIN
 
   PERFORM set_config('app.institution_write', 'on', true);
   UPDATE public.institution_memberships
-  SET is_primary = (institution_id = p_institution_id), updated_at = now()
+  SET is_primary = false, updated_at = now()
   WHERE user_id = actor AND status = 'verified';
+  UPDATE public.institution_memberships
+  SET is_primary = true, updated_at = now()
+  WHERE user_id = actor AND institution_id = p_institution_id AND status = 'verified';
 
   UPDATE public.profiles
   SET primary_institution_id = p_institution_id,

@@ -347,6 +347,7 @@ export type Database = {
           id: string
           title: string
           description: string
+          search_vector?: string | null
           price: number
           category: string
           subcategory?: string | null

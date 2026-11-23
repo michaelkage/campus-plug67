@@ -28,7 +28,7 @@ export default function Notifications() {
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
@@ -197,26 +197,27 @@ export default function Notifications() {
         <div>
           <p className="section-label">Inbox</p>
           <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
-          {unread > 0 && (
-            <p className="text-sm text-on-surface/40 mt-1">{unread} unread</p>
-          )}
+          <p className="text-sm text-on-surface/40 mt-1" aria-live="polite" aria-atomic="true">{unread > 0 ? `${unread} unread` : 'No unread notifications'}</p>
         </div>
         {unread > 0 && (
           <button onClick={markAllRead}
             className="flex items-center gap-2 text-xs text-primary hover:text-primary/80 transition-colors font-semibold">
-            <CheckCheck size={14} />
+            <CheckCheck size={14} aria-hidden="true" />
             Mark all read
           </button>
         )}
       </div>
 
       {isLoading ? (
-        Array.from({ length: 5 }).map((_, i) => (
+        <div role="status" aria-live="polite" className="space-y-3">
+        <span className="sr-only">Loading notifications</span>
+        {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="bg-surface-container-high border border-outline-variant rounded-md p-4 mb-3 animate-pulse h-20" />
-        ))
+        ))}
+        </div>
       ) : notifications.length === 0 ? (
-        <div className="text-center py-20 text-on-surface/30">
-          <Bell size={36} className="mx-auto mb-4 opacity-30" />
+        <div className="text-center py-20 text-on-surface/30" role="status">
+          <Bell size={36} aria-hidden="true" className="mx-auto mb-4 opacity-30" />
           <p className="font-semibold">No notifications yet</p>
           <p className="text-sm mt-1">You're all caught up 👌</p>
         </div>
@@ -240,7 +241,8 @@ export default function Notifications() {
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-sm">{notif.title}</p>
                   {!notif.read && (
-                    <div className="w-2 h-2 rounded-sm bg-primary flex-shrink-0 mt-1" />
+                    <span className="sr-only">Unread</span>
+                    <div aria-hidden="true" className="w-2 h-2 rounded-sm bg-primary flex-shrink-0 mt-1" />
                   )}
                 </div>
                 {notif.body && (

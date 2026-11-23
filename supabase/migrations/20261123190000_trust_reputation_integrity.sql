@@ -2,16 +2,13 @@
 -- Make reputation changes server-authoritative and PlugScore event processing idempotent.
 -- Append-only migration. No existing score history or wallet ledger is rewritten.
 
-CREATE UNIQUE INDEX IF NOT EXISTS plugscore_events_source_uidx
-  ON public.plugscore_events(user_id, event_type, reference_id)
-  WHERE reference_id IS NOT NULL;
-
-CREATE UNIQUE INDEX IF NOT EXISTS plugscore_events_integrity_streak_uidx
-  ON public.plugscore_events(user_id, event_type)
-  WHERE event_type = 'integrity_streak' AND reference_id IS NULL;
-
 ALTER TABLE public.plugscore_events
-  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS idempotency_key text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS plugscore_events_idempotency_uidx
+  ON public.plugscore_events(idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS plugscore_events_stale_processing_idx
   ON public.plugscore_events(status, updated_at)
@@ -52,19 +49,20 @@ BEGIN
     RAISE EXCEPTION 'PlugScore event metadata must be a small JSON object';
   END IF;
 
-  IF p_reference_id IS NOT NULL THEN
-    INSERT INTO public.plugscore_events(user_id,event_type,points,reference_id,metadata)
-    VALUES(p_user_id,p_event_type,p_points,p_reference_id,p_metadata)
-    ON CONFLICT (user_id,event_type,reference_id) WHERE reference_id IS NOT NULL DO NOTHING;
-    SELECT id INTO v_id FROM public.plugscore_events
-      WHERE user_id=p_user_id AND event_type=p_event_type AND reference_id=p_reference_id;
-  ELSE
-    INSERT INTO public.plugscore_events(user_id,event_type,points,reference_id,metadata)
-    VALUES(p_user_id,p_event_type,p_points,NULL,p_metadata)
-    ON CONFLICT (user_id,event_type) WHERE event_type='integrity_streak' AND reference_id IS NULL DO NOTHING;
-    SELECT id INTO v_id FROM public.plugscore_events
-      WHERE user_id=p_user_id AND event_type=p_event_type AND reference_id IS NULL;
-  END IF;
+  INSERT INTO public.plugscore_events(user_id,event_type,points,reference_id,metadata,idempotency_key)
+  VALUES(
+    p_user_id,
+    p_event_type,
+    p_points,
+    p_reference_id,
+    p_metadata,
+    p_event_type || ':' || p_user_id::text || ':' || COALESCE(p_reference_id::text,'singleton')
+  )
+  ON CONFLICT (idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING;
+
+  SELECT id INTO v_id
+  FROM public.plugscore_events
+  WHERE idempotency_key=p_event_type || ':' || p_user_id::text || ':' || COALESCE(p_reference_id::text,'singleton');
   RETURN v_id;
 END;
 $$;

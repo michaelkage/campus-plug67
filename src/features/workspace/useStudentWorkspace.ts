@@ -57,10 +57,13 @@ export type StudentWorkspaceData = {
   activeListingCount: number
   pendingSalesCount: number
   pendingPurchasesCount: number
+  walletBalanceKobo: number
+  plugScore: number
+  totalSales: number
 }
 
 async function fetchStudentWorkspace(userId: string): Promise<StudentWorkspaceData> {
-  const [transactions, bookings, rentals, listings, notifications, messages] = await Promise.all([
+  const [transactions, bookings, rentals, listings, notifications, messages, salesCount, purchasesCount, activeListingsCount, profile] = await Promise.all([
     supabase.from('transactions')
       .select('id,buyer_id,seller_id,listing_id,amount,status,escrow_status,created_at,updated_at')
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
@@ -83,9 +86,15 @@ async function fetchStudentWorkspace(userId: string): Promise<StudentWorkspaceDa
     supabase.from('messages')
       .select('id', { count: 'exact', head: true })
       .eq('receiver_id', userId).eq('read', false),
+    supabase.from('transactions').select('id', { count:'exact', head:true })
+      .eq('seller_id',userId).neq('status','cancelled').not('escrow_status','in','("released","refunded")'),
+    supabase.from('transactions').select('id', { count:'exact', head:true })
+      .eq('buyer_id',userId).neq('status','cancelled').not('escrow_status','in','("released","refunded")'),
+    supabase.from('listings').select('id', { count:'exact', head:true }).eq('seller_id',userId).eq('status','active'),
+    supabase.from('profiles').select('plug_credit_balance,plug_score,total_sales').eq('id',userId).single(),
   ])
 
-  const results = [transactions, bookings, rentals, listings, notifications, messages]
+  const results = [transactions, bookings, rentals, listings, notifications, messages, salesCount, purchasesCount, activeListingsCount, profile]
   const failed = results.find(result => result.error)
   if (failed?.error) throw failed.error
 
@@ -97,9 +106,12 @@ async function fetchStudentWorkspace(userId: string): Promise<StudentWorkspaceDa
     listings: listings.data ?? [],
     unreadNotifications: notifications.count ?? 0,
     unreadMessages: messages.count ?? 0,
-    activeListingCount: (listings.data ?? []).filter(row => row.status === 'active').length,
-    pendingSalesCount: transactionRows.filter(row => row.seller_id === userId && row.status !== 'cancelled' && !['released', 'refunded'].includes(row.escrow_status)).length,
-    pendingPurchasesCount: transactionRows.filter(row => row.buyer_id === userId && row.status !== 'cancelled' && !['released', 'refunded'].includes(row.escrow_status)).length,
+    activeListingCount: activeListingsCount.count ?? 0,
+    pendingSalesCount: salesCount.count ?? 0,
+    pendingPurchasesCount: purchasesCount.count ?? 0,
+    walletBalanceKobo: Number(profile.data?.plug_credit_balance ?? 0),
+    plugScore: Number(profile.data?.plug_score ?? 0),
+    totalSales: Number(profile.data?.total_sales ?? 0),
   }
 }
 

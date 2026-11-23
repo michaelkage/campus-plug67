@@ -7,7 +7,7 @@ const panel = read('../src/features/marketplace/SellerInventoryPanel.jsx')
 const types = read('../src/types/database.ts')
 
 assert.match(migration, /auth\.role\(\)\s*=\s*'service_role'/, 'Service-side settlement must retain authority over listing status')
-assert.match(migration, /auth\.uid\(\)\s*<>\s*OLD\.seller_id/, 'Only the authenticated listing owner may manage the listing')
+assert.match(migration, /auth\.uid\(\) = OLD\.seller_id/, 'Seller self-service path must be scoped to the authenticated listing owner')
 assert.match(migration, /OLD\.status\s*=\s*'active'\s+AND\s+NEW\.status\s*=\s*'deleted'/, 'Seller archive transition must be explicit')
 assert.match(migration, /OLD\.status\s+IN\s+\('deleted','removed'\)\s+AND\s+NEW\.status\s*=\s*'active'/, 'Archived listing restoration must include legacy removed rows')
 assert.match(migration, /Listing status is managed by the transaction system/, 'Seller must not mark an item reserved, sold or pending')

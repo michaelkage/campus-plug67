@@ -98,8 +98,8 @@ async function fetchStudentWorkspace(userId: string): Promise<StudentWorkspaceDa
     unreadNotifications: notifications.count ?? 0,
     unreadMessages: messages.count ?? 0,
     activeListingCount: (listings.data ?? []).filter(row => row.status === 'active').length,
-    pendingSalesCount: transactionRows.filter(row => row.seller_id === userId && !['released', 'completed', 'cancelled'].includes(row.status)).length,
-    pendingPurchasesCount: transactionRows.filter(row => row.buyer_id === userId && !['released', 'completed', 'cancelled'].includes(row.status)).length,
+    pendingSalesCount: transactionRows.filter(row => row.seller_id === userId && row.status !== 'cancelled' && !['released', 'refunded'].includes(row.escrow_status)).length,
+    pendingPurchasesCount: transactionRows.filter(row => row.buyer_id === userId && row.status !== 'cancelled' && !['released', 'refunded'].includes(row.escrow_status)).length,
   }
 }
 

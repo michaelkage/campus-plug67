@@ -50,6 +50,28 @@ export function Gigs() {
       }
     },
   })
+  useRealtimeTable({
+    table: 'service_booking_escrows',
+    enabled: Boolean(profile?.id),
+    onInsert: escrow => {
+      if (escrow.client_id === profile?.id || escrow.seller_id === profile?.id) {
+        qc.invalidateQueries({ queryKey: ['gig-bookings'] })
+        qc.invalidateQueries({ queryKey: ['service-booking-escrow', escrow.booking_id] })
+      }
+    },
+    onUpdate: escrow => {
+      if (escrow.client_id === profile?.id || escrow.seller_id === profile?.id) {
+        qc.invalidateQueries({ queryKey: ['gig-bookings'] })
+        qc.invalidateQueries({ queryKey: ['service-booking-escrow', escrow.booking_id] })
+      }
+    },
+  })
+  useRealtimeTable({
+    table: 'service_booking_disputes',
+    enabled: Boolean(profile?.id),
+    onInsert: () => qc.invalidateQueries({ queryKey: ['gig-bookings'] }),
+    onUpdate: () => qc.invalidateQueries({ queryKey: ['gig-bookings'] }),
+  })
   const { data: myBookings = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ['gig-bookings', profile?.id],
     enabled: Boolean(profile?.id),
@@ -121,7 +143,7 @@ export function Gigs() {
     <section className="surface mb-5 space-y-4 p-4 sm:p-5" aria-labelledby="service-booking-guide">
       <div>
         <h2 id="service-booking-guide" className="font-bold text-sm">How service bookings work</h2>
-        <p className="mt-1 text-xs leading-5 text-on-surface/60">A booking request agrees a time first. It is not an instant purchase or a payment.</p>
+        <p className="mt-1 text-xs leading-5 text-on-surface/60">A booking request agrees a time first. After the provider's final quote is accepted, Campus Wallet holds the payment until the customer confirms delivery.</p>
       </div>
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <li className="rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3">
@@ -137,12 +159,12 @@ export function Gigs() {
           <p className="mt-1 text-xs leading-5 text-on-surface/60">The provider sends a final quote with the exact scope and price. The customer reviews and accepts or declines it.</p>
         </li>
         <li className="rounded-md border border-[var(--md-outline-variant)] bg-[var(--md-surface-container)] p-3">
-          <p className="text-xs font-bold text-[var(--md-primary)]">4. Service is delivered</p>
-          <p className="mt-1 text-xs leading-5 text-on-surface/60">The provider starts the agreed work and marks it delivered. The customer confirms that the service was received.</p>
+          <p className="text-xs font-bold text-[var(--md-primary)]">4. Fund, deliver and confirm</p>
+          <p className="mt-1 text-xs leading-5 text-on-surface/60">The customer funds the accepted quote from Campus Wallet. The provider starts only after funds are held, then marks delivery. The customer confirms or opens a dispute within 72 hours.</p>
         </li>
       </ol>
       <p className="rounded-md border border-[var(--md-secondary)]/25 bg-[var(--md-secondary)]/5 p-3 text-xs leading-5 text-on-surface/70">
-        <strong className="text-[var(--md-secondary)]">Payment clarity:</strong> This service-booking flow does not charge your wallet or hold money in escrow. The displayed starting price is indicative. The provider sends a final quote with the agreed scope and price, and the customer accepts it before work starts. Do not send money expecting PlugPay escrow protection; service bookings are not protected payments yet.
+        <strong className="text-[var(--md-secondary)]">Payment protection:</strong> The displayed starting price is indicative. The provider sends a final scope and price, then the customer accepts and funds it from Campus Wallet. Funds stay in service escrow until the customer confirms delivery, a platform dispute is resolved, or the 72-hour review window expires without a dispute. Paystack is not currently enabled for service escrow.
       </p>
     </section>
     <div className="mb-5 rounded-md border border-[var(--md-secondary)]/20 bg-tertiary/5 p-4"><div className="mb-3 flex items-center gap-2"><GraduationCap size={15} className="text-[var(--md-secondary)]" /><span className="text-xs font-black uppercase tracking-widest text-[var(--md-secondary)]">Academic Emergency Plug</span></div><div className="flex flex-wrap gap-2">{ACADEMIC_GIGS.map(c => <button key={c} onClick={() => setFilter(filter === c ? '' : c)} className={`min-h-10 rounded-md border px-3 py-2 text-xs font-semibold transition-all ${filter === c ? 'border-tertiary bg-tertiary text-on-tertiary' : 'border-[var(--md-outline-variant)] bg-surface-container-high text-on-surface/60 hover:border-tertiary/40 hover:text-on-surface'}`}>{c}</button>)}</div></div>

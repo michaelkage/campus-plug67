@@ -315,6 +315,9 @@ DECLARE
 BEGIN
   IF actor IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
 
+  -- Serialize concurrent primary-campus switches for this account.
+  PERFORM 1 FROM public.profiles WHERE id = actor FOR UPDATE;
+
   SELECT i.name
     INTO institution_name
   FROM public.institution_memberships m

@@ -10,6 +10,12 @@ ALTER TABLE public.gig_bookings
     'completed'::text, 'cancelled'::text
   ]));
 
+-- A disputed booking still owns its provider time slot until resolution.
+DROP INDEX IF EXISTS public.gig_bookings_one_active_provider_slot_uidx;
+CREATE UNIQUE INDEX gig_bookings_one_active_provider_slot_uidx
+  ON public.gig_bookings (seller_id, slot_date, slot_time)
+  WHERE status IN ('pending', 'quoted', 'confirmed', 'in_progress', 'delivered', 'disputed');
+
 CREATE TABLE IF NOT EXISTS public.service_booking_escrows (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id uuid NOT NULL UNIQUE REFERENCES public.gig_bookings(id) ON DELETE RESTRICT,

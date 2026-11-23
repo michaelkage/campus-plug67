@@ -109,17 +109,29 @@ export default function Notifications() {
   }
 
   const markRead = async (id) => {
-    const { error } = await supabase.from('notifications')
+    const { data, error } = await supabase.from('notifications')
       .update({ read: true })
       .eq('id', id)
       .eq('user_id', user.id)
       .eq('read', false)
       .select('id')
       .maybeSingle()
-    if (error || !data) {
+    if (error) {
       toast.error('Could not mark this notification as read.')
       console.error('Mark notification read failed:', error)
       return false
+    }
+    if (!data) {
+      const { data: current, error: verifyError } = await supabase.from('notifications')
+        .select('read')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (verifyError || !current?.read) {
+        toast.error('Could not verify this notification as read.')
+        console.error('Notification read verification failed:', verifyError || 'No persisted read receipt')
+        return false
+      }
     }
     qc.setQueryData(['notifications', user?.id], old =>
       old?.map(n => n.id === id ? { ...n, read: true } : n)

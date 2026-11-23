@@ -10,12 +10,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS plugscore_events_integrity_streak_uidx
   ON public.plugscore_events(user_id, event_type)
   WHERE event_type = 'integrity_streak' AND reference_id IS NULL;
 
+ALTER TABLE public.plugscore_events
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS plugscore_events_stale_processing_idx
   ON public.plugscore_events(status, updated_at)
   WHERE status = 'processing';
-
-ALTER TABLE public.plugscore_events
-  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
 -- Only trusted server callers can enqueue score events. A source event can
 -- contribute points once, even if its trigger/Edge Function is retried.

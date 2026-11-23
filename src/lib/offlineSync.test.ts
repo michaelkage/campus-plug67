@@ -1,14 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const rows: any[] = []
-const rpc = vi.fn()
-const list = vi.fn(async (ownerId: string) => rows.filter(row => row.ownerId === ownerId && row.status !== 'synced'))
-const save = vi.fn(async (row: any) => { const index = rows.findIndex(value => value.id === row.id); if (index >= 0) rows[index] = row; else rows.push(row) })
-const remove = vi.fn(async (id: string) => { const index = rows.findIndex(row => row.id === id); if (index >= 0) rows.splice(index, 1) })
+const mocks = vi.hoisted(() => {
+  const rows: any[] = []
+  return {
+    rows,
+    rpc: vi.fn(),
+    list: vi.fn(async (ownerId: string) => rows.filter(row => row.ownerId === ownerId && row.status !== 'synced')),
+    save: vi.fn(async (row: any) => {
+      const index = rows.findIndex(value => value.id === row.id)
+      if (index >= 0) rows[index] = row
+      else rows.push(row)
+    }),
+    remove: vi.fn(async (id: string) => {
+      const index = rows.findIndex(row => row.id === id)
+      if (index >= 0) rows.splice(index, 1)
+    }),
+  }
+})
+const { rows, rpc, list, save, remove } = mocks
 
-vi.mock('@/lib/supabase', () => ({ supabase: { rpc } }))
-vi.mock('@/lib/transactionState', () => ({ listActiveLocalTransactions: list, saveLocalTransaction: save, removeLocalTransaction: remove }))
-vi.mock('@/lib/offlineHandoff', () => ({ offlineHandoffReceiptKey: (id: string) => `offline-handoff-receipt:${id}` }))
+vi.mock('@/lib/supabase', () => ({ supabase: { rpc: mocks.rpc } }))
+vi.mock('@/lib/transactionState', () => ({
+  listActiveLocalTransactions: mocks.list,
+  saveLocalTransaction: mocks.save,
+  removeLocalTransaction: mocks.remove,
+}))
+vi.mock('@/lib/offlineHandoff', () => ({
+  offlineHandoffReceiptKey: (id: string) => `offline-handoff-receipt:${id}`,
+}))
 
 import { syncOfflineQueue } from './offlineSync'
 

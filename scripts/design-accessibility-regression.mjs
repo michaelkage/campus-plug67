@@ -10,6 +10,9 @@ const index = read('src/index.css')
 const layout = read('src/components/layout/Layout.jsx')
 const tokens = JSON.parse(read('src/theme/theme.tokens.json'))
 const app = read('src/App.tsx')
+const notifications = read('src/pages/Notifications.jsx')
+const notificationToast = read('src/components/ui/NotificationBanner.jsx')
+const offlineBanner = read('src/components/ui/OfflineSyncBanner.tsx')
 
 for (const required of [
   '--cp-control-min-height',
@@ -40,6 +43,16 @@ if (tokens.spacing.minTouchTarget !== '48px') {
 if (!tokens.color || !tokens.typography || !tokens.radius || !tokens.motion) {
   fail('Theme tokens must retain color, typography, radius and motion foundations')
 }
+for (const [name, source, required] of [
+  ['notification inbox', notifications, ['const { data, error }', 'aria-live="polite"', 'role="status"', 'sr-only']],
+  ['notification toast', notificationToast, ['role="status"', 'aria-live="polite"', 'aria-label={`Dismiss notification:', 'min-h-12 min-w-12']],
+  ['offline banner', offlineBanner, ['role="status"', 'aria-live="polite"', 'aria-atomic="true"']],
+]) {
+  for (const value of required) {
+    if (!source.includes(value)) fail(`${name} accessibility contract missing: ${value}`)
+  }
+}
+
 if (css.includes('#[0-9a-fA-F]{3,8}') || /#[0-9a-fA-F]{3,8}\b/.test(css)) {
   fail('Accessibility layer must consume semantic theme roles, not hard-coded colors')
 }

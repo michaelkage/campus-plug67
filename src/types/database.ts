@@ -249,7 +249,7 @@ export type Database = {
           seller_id: string
           slot_date: string
           slot_time: string
-          status?: 'pending' | 'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'completed' | 'cancelled'
+          status?: 'pending' | 'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'disputed' | 'completed' | 'cancelled'
           notes?: string | null
           amount?: number | null
           created_at?: string | null

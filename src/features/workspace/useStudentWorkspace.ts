@@ -49,6 +49,7 @@ export type WorkspaceListing = {
 
 export type StudentWorkspaceData = {
   transactions: WorkspaceTransaction[]
+  activeTransactions: WorkspaceTransaction[]
   bookings: WorkspaceBooking[]
   rentals: WorkspaceRental[]
   listings: WorkspaceListing[]
@@ -63,11 +64,16 @@ export type StudentWorkspaceData = {
 }
 
 async function fetchStudentWorkspace(userId: string): Promise<StudentWorkspaceData> {
-  const [transactions, bookings, rentals, listings, notifications, messages, salesCount, purchasesCount, activeListingsCount, profile] = await Promise.all([
+  const [transactions, activeTransactions, bookings, rentals, listings, notifications, messages, salesCount, purchasesCount, activeListingsCount, profile] = await Promise.all([
     supabase.from('transactions')
       .select('id,buyer_id,seller_id,listing_id,amount,status,escrow_status,created_at,updated_at')
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
       .order('updated_at', { ascending: false }).limit(12),
+    supabase.from('transactions')
+      .select('id,buyer_id,seller_id,listing_id,amount,status,escrow_status,created_at,updated_at')
+      .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+      .neq('status','cancelled').not('escrow_status','in','("released","refunded")')
+      .order('updated_at',{ascending:false}).limit(30),
     supabase.from('gig_bookings')
       .select('id,client_id,seller_id,status,slot_date,slot_time,amount,created_at,gigs(title)')
       .or(`client_id.eq.${userId},seller_id.eq.${userId}`)
@@ -94,13 +100,14 @@ async function fetchStudentWorkspace(userId: string): Promise<StudentWorkspaceDa
     supabase.from('profiles').select('plug_credit_balance,plug_score,total_sales').eq('id',userId).single(),
   ])
 
-  const results = [transactions, bookings, rentals, listings, notifications, messages, salesCount, purchasesCount, activeListingsCount, profile]
+  const results = [transactions, activeTransactions, bookings, rentals, listings, notifications, messages, salesCount, purchasesCount, activeListingsCount, profile]
   const failed = results.find(result => result.error)
   if (failed?.error) throw failed.error
 
   const transactionRows = transactions.data ?? []
   return {
     transactions: transactionRows,
+    activeTransactions: activeTransactions.data ?? [],
     bookings: bookings.data ?? [],
     rentals: rentals.data ?? [],
     listings: listings.data ?? [],

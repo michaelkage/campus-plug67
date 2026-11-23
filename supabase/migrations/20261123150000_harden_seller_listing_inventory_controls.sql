@@ -50,7 +50,7 @@ BEGIN
   IF NEW.status IS DISTINCT FROM OLD.status THEN
     IF NOT (
       (OLD.status = 'active' AND NEW.status = 'deleted')
-      OR (OLD.status = 'deleted' AND NEW.status = 'active')
+      OR (OLD.status IN ('deleted','removed') AND NEW.status = 'active')
     ) THEN
       RAISE EXCEPTION 'Listing status is managed by the transaction system';
     END IF;

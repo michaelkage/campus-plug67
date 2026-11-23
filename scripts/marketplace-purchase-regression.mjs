@@ -121,7 +121,7 @@ if (!(wallet.indexOf('INSERT INTO public.wallet_escrow_holds') < wallet.indexOf(
 assertIncludes(listingDetail, 'tx?.success === false', 'Paystack client must handle structured RPC conflicts');
 assertIncludes(listingDetail, "['listings']", 'Paystack conflict handling must refresh marketplace results');
 assertIncludes(listingDetail, "listing.status === 'reserved'", 'Marketplace detail must explain reserved listings');
-assertIncludes(databaseTypes, "status: 'active' | 'reserved' | 'sold' | 'removed' | 'pending'", 'Listing database types must include the reserved state');
+assertIncludes(databaseTypes, "status: 'active' | 'reserved' | 'sold' | 'removed' | 'deleted' | 'pending'", 'Listing database types must include the reserved state');
 assertIncludes(rpcTypes, "code?:string;message?:string;transaction_id?:string", 'Paystack RPC types must model structured conflict responses');
 assertIncludes(walletLauncher, "['listings']", 'Wallet success must refresh marketplace results');
 assertIncludes(walletLauncher, "['transaction', listing.id, user.id]", 'Wallet success must refresh transaction state');

@@ -24,7 +24,8 @@ for (const value of [
 }
 for (const value of [
   "from('transactions')", "from('gig_bookings')", "from('gear_rentals')",
-  "from('listings')", "from('notifications')", "from('messages')",
+  "from('listings')", "from('notifications')", "from('messages')", "from('profiles')",
+  "not('escrow_status','in','(\"released\",\"refunded\")')", 'walletBalanceKobo', 'plugScore',
   'refetchInterval: 30_000', 'refetchOnWindowFocus: true',
   'pendingSalesCount', 'pendingPurchasesCount',
 ]) {

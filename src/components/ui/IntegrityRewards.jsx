@@ -9,11 +9,11 @@ export function IntegrityStreakCard({ profile }) {
   const { data } = useQuery({
     queryKey: ['integrity', profile?.id],
     queryFn: async () => {
-      const { count } = await supabase.from('transactions').select('id', { count: 'exact', head: true })
-        .eq('seller_id', profile.id).eq('status', 'released')
-      return { clean: Math.min(count || 0, 5) }
+      const { data, error } = await supabase.rpc('get_integrity_streak_progress')
+      if (error) throw error
+      return { clean: Math.min(Number(data?.clean_trades || 0), 5) }
     },
-    enabled: !!profile?.id, staleTime: 300_000,
+    enabled: !!profile?.id, staleTime: 60_000,
   })
   const has = profile?.badges?.includes('Integrity Streak')
   const pct = ((data?.clean || 0) / 5) * 100
@@ -80,23 +80,38 @@ export function useGamifiedRewards() {
 
   const checkRewards = async () => {
     if (!user?.id || !profile) return
-    const badges = profile.badges || []
-    if (!badges.includes('Integrity Streak')) {
-      const [{ count: clean }, { count: disputed }] = await Promise.all([
-        supabase.from('transactions').select('id',{count:'exact',head:true}).eq('seller_id',user.id).eq('status','released'),
-        supabase.from('transactions').select('id',{count:'exact',head:true}).eq('seller_id',user.id).eq('status','disputed').gte('created_at',new Date(Date.now()-30*86400000).toISOString()),
-      ])
-      if ((clean||0) >= 5 && (disputed||0) === 0) {
-        await supabase.from('profiles').update({ badges: [...badges,'Integrity Streak'], plug_score: Math.min((profile.plug_score||500)+25,1000) }).eq('id',user.id)
-        setPending({ badge:'Integrity Streak', description:'5 consecutive clean trades. No disputes.', reward:'+25 PlugScore applied' })
-        await refreshProfile?.()
-        qc.invalidateQueries({ queryKey: ['profile',user.id] })
-      }
-    }
-    if (!badges.includes('Power User') && (profile.total_sales||0) >= 20 && (profile.plug_score||0) >= 700) {
-      await supabase.from('profiles').update({ badges: [...badges,'Power User'] }).eq('id',user.id)
-      if (!pending) setPending({ badge:'Power User', description:'20+ trades, clean record, PlugScore ≥700.', reward:'Power User badge unlocked' })
+
+    const { data: integrity, error: integrityError } = await supabase.rpc('claim_trust_achievement', {
+      p_achievement: 'Integrity Streak',
+    })
+    if (integrityError) throw integrityError
+    if (integrity?.awarded) {
+      setPending({
+        badge: 'Integrity Streak',
+        description: 'Five consecutive seller transactions completed without a dispute or cancellation.',
+        reward: '+25 PlugScore queued for server processing',
+      })
       await refreshProfile?.()
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['profile', user.id] }),
+        qc.invalidateQueries({ queryKey: ['integrity', user.id] }),
+      ])
+    }
+
+    const { data: powerUser, error: powerUserError } = await supabase.rpc('claim_trust_achievement', {
+      p_achievement: 'Power User',
+    })
+    if (powerUserError) throw powerUserError
+    if (powerUser?.awarded) {
+      if (!integrity?.awarded) {
+        setPending({
+          badge: 'Power User',
+          description: 'Twenty completed sales and a PlugScore of at least 700.',
+          reward: 'Power User badge unlocked',
+        })
+      }
+      await refreshProfile?.()
+      await qc.invalidateQueries({ queryKey: ['profile', user.id] })
     }
   }
 

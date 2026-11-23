@@ -66,22 +66,22 @@ for (const value of [
   'Decline quote',
   'Start service',
   'Mark delivered',
-  'Confirm service received',
-  'do not collect or protect funds yet',
+  'Confirm service and release funds',
   'The customer has 24 hours to accept or decline',
 ]) includes(actions, value, `Service booking UI missing invariant: ${value}`)
 
 includes(actions, ".eq('status', 'accepted')", 'Accepted quotes must be fetched independently of the recent quote history limit')
 includes(actions, '.maybeSingle()', 'Accepted quote lookup must return the authoritative accepted quote')
 includes(databaseTypes, 'service_booking_quotes:', 'Database types must include service booking quotes')
-includes(databaseTypes, "'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'completed'", 'Database types must include the full service booking state machine')
+includes(databaseTypes, "'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'disputed' | 'completed'", 'Database types must include the full service booking state machine')
 includes(page, "import { ServiceBookingActions } from '@/components/services/ServiceBookingActions'", 'Gigs page must use the server-authoritative booking controls')
 includes(page, "table: 'service_booking_quotes'", 'Gigs page must subscribe to quote realtime events')
 includes(page, "table: 'gig_bookings'", 'Gigs page must subscribe to booking realtime events')
 includes(actions, 'This booking was confirmed before final quotes were introduced', 'Legacy confirmed bookings without an accepted quote must be clearly identified to the customer')
 includes(actions, 'isLoading: quotesLoading', 'Booking actions must wait until the accepted quote lookup completes')
 includes(page, 'provider sends a final quote with the exact scope and price', 'Service journey must explain in-app quote creation and acceptance')
-includes(page, 'customer confirms that the service was received', 'Service journey must explain customer delivery confirmation')
+includes(page, 'customer confirms delivery', 'Service journey must explain customer delivery confirmation')
+includes(page, '72-hour review window', 'Service journey must explain the inspection/dispute window')
 
 if (page.includes(".from('gig_bookings').update(")) fail('Direct client-side booking status updates must remain disabled')
 if (actions.includes(".from('service_booking_quotes').insert(") || actions.includes(".from('service_booking_quotes').update(")) {
@@ -94,6 +94,42 @@ if (!packageJson.scripts['test:platform-integrity'].includes('service-booking-li
   fail('Service booking regression must run in the platform-integrity suite')
 }
 
+
+const escrowMigration = read('supabase/migrations/20261123163000_service_booking_wallet_escrow.sql')
+for (const value of [
+  'CREATE TABLE IF NOT EXISTS public.service_booking_escrows',
+  'CREATE TABLE IF NOT EXISTS public.service_booking_disputes',
+  'CREATE OR REPLACE FUNCTION public.fund_gig_booking_escrow',
+  'CREATE OR REPLACE FUNCTION public.transition_gig_booking',
+  'Customer must fund the service escrow before work starts',
+  'Service booking escrow hold',
+  'Service booking escrow release',
+  'Service booking escrow refund',
+  'CREATE OR REPLACE FUNCTION public.open_gig_booking_dispute',
+  'CREATE OR REPLACE FUNCTION public.resolve_gig_booking_dispute',
+  'Only platform operations can resolve service disputes',
+  'CREATE OR REPLACE FUNCTION public.release_expired_service_booking_escrows',
+  "now() + interval '72 hours'",
+  "cron.schedule(",
+  'plug_credit_ledger_service_booking_reference_uidx',
+  "WHERE status IN ('pending', 'quoted', 'confirmed', 'in_progress', 'delivered', 'disputed')",
+  'ALTER PUBLICATION supabase_realtime ADD TABLE public.service_booking_escrows',
+]) includes(escrowMigration, value, `Service escrow migration missing invariant: ${value}`)
+
+for (const value of [
+  "'fund_gig_booking_escrow'",
+  "'open_gig_booking_dispute'",
+  "queryKey: ['service-booking-escrow', booking.id]",
+  'Fund ',
+  'Confirm service and release funds',
+  'Report a problem / dispute',
+  'Funds stay held until customer confirmation',
+  'automatic release 72 hours after delivery',
+]) includes(actions, value, `Service escrow UI missing invariant: ${value}`)
+
+includes(databaseTypes, 'service_booking_escrows:', 'Database types must include service escrow holds')
+includes(databaseTypes, 'service_booking_disputes:', 'Database types must include service booking disputes')
+if (actions.includes('do not collect or protect funds yet')) fail('Service booking UI must not claim that protected payments are unavailable after escrow launch')
 
 const availabilityMigration = read('supabase/migrations/20261103190000_service_booking_server_availability.sql')
 for (const value of [

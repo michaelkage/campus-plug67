@@ -237,7 +237,7 @@ export type Database = {
           seller_id: string
           slot_date: string
           slot_time: string
-          status: 'pending' | 'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'completed' | 'cancelled'
+          status: 'pending' | 'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'disputed' | 'completed' | 'cancelled'
           notes: string | null
           amount: number | null
           created_at: string | null
@@ -249,7 +249,7 @@ export type Database = {
           seller_id: string
           slot_date: string
           slot_time: string
-          status?: 'pending' | 'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'completed' | 'cancelled'
+          status?: 'pending' | 'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'disputed' | 'completed' | 'cancelled'
           notes?: string | null
           amount?: number | null
           created_at?: string | null
@@ -286,6 +286,68 @@ export type Database = {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['service_booking_quotes']['Row']>
+      }
+
+      // ── service_booking_escrows ──────────────────────────────────────────────
+      service_booking_escrows: {
+        Row: {
+          id: string
+          booking_id: string
+          quote_id: string
+          client_id: string
+          seller_id: string
+          amount_kobo: number
+          status: 'held' | 'disputed' | 'released' | 'refunded'
+          created_at: string
+          delivered_at: string | null
+          auto_release_at: string | null
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          quote_id: string
+          client_id: string
+          seller_id: string
+          amount_kobo: number
+          status?: 'held' | 'disputed' | 'released' | 'refunded'
+          created_at?: string
+          delivered_at?: string | null
+          auto_release_at?: string | null
+          resolved_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['service_booking_escrows']['Row']>
+      }
+
+      // ── service_booking_disputes ──────────────────────────────────────────────
+      service_booking_disputes: {
+        Row: {
+          id: string
+          booking_id: string
+          escrow_id: string
+          opened_by: string
+          reason: string
+          status: 'open' | 'resolved'
+          resolution: 'release_to_provider' | 'refund_customer' | null
+          resolution_note: string | null
+          resolved_by: string | null
+          created_at: string
+          resolved_at: string | null
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          escrow_id: string
+          opened_by: string
+          reason: string
+          status?: 'open' | 'resolved'
+          resolution?: 'release_to_provider' | 'refund_customer' | null
+          resolution_note?: string | null
+          resolved_by?: string | null
+          created_at?: string
+          resolved_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['service_booking_disputes']['Row']>
       }
 
       // ── listing_views ────────────────────────────────────────────────────────

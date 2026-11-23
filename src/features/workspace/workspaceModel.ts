@@ -47,6 +47,9 @@ export function buildWorkspaceActions(
     const disputed = transaction.status === 'disputed'
     const title = disputed
       ? 'Dispute needs attention'
+      : transaction.status === 'completed'
+        ? 'Transaction completed, settlement still pending'
+      
       : transaction.status === 'release_requested'
         ? isBuyer ? 'Inspect item and respond' : 'Awaiting buyer inspection'
         : transaction.status === 'meetup_initiated'

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
-  Activity, ArrowDownToLine, ArrowRight, Bell, CalendarDays, CheckCircle2,
+  ArrowDownToLine, ArrowRight, Bell, CalendarDays, CheckCircle2,
   ClipboardList, Flame, GraduationCap, MessageCircle, Package, Plus,
   ShieldCheck, ShoppingBag, Sparkles, TrendingUp, WalletCards, Zap,
 } from 'lucide-react'
@@ -145,6 +145,7 @@ export default function Home() {
 
   const statCards = [
     {label:'Campus Wallet',value:profile?.plug_credit_balance == null ? '—' : formatNaira(profile.plug_credit_balance),detail:'Available balance',icon:WalletCards,href:'/wallet'},
+    {label:'PlugScore',value:profile?.plug_score ?? '—',detail:'Your campus reputation',icon:Zap,href:'/profile'},
     {label:'Active listings',value:workspaceQuery.isLoading ? '…' : workspace?.activeListingCount ?? 0,detail:'Items you are selling',icon:Package,href:'/marketplace?tab=my-listings'},
     {label:'Open purchases',value:workspaceQuery.isLoading ? '…' : workspace?.pendingPurchasesCount ?? 0,detail:'Buyer-side transactions',icon:ShoppingBag,href:'/marketplace'},
     {label:'Open sales',value:workspaceQuery.isLoading ? '…' : workspace?.pendingSalesCount ?? 0,detail:'Seller-side transactions',icon:TrendingUp,href:'/marketplace?tab=my-listings'},
@@ -156,7 +157,7 @@ export default function Home() {
       <div className="relative z-10">
         <div className="mb-2 flex flex-wrap items-center gap-2"><p className="section-label">Your campus workspace</p>{profile?.tier && <TierBadge tier={profile.tier} size="xs"/>}</div>
         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Welcome back, {profile?.full_name?.split(' ')[0] || 'Student'}.</h1>
-        <p className="mt-2 max-w-2xl text-sm text-on-surface/55">{profile?.university ? `Your ${profile.university} activity, transactions and campus services in one place.` : 'Your transactions, services and campus activity in one place.'}</p>
+        <p className="mt-2 max-w-2xl text-sm text-on-surface/55">{profile?.university ? `Your ${profile.university} activity, transactions and campus services in one place. ${campusStats?.activeListings ?? '—'} listings are currently active on campus.` : 'Your transactions, services and campus activity in one place.'}</p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link to="/marketplace" className="btn-primary inline-flex items-center gap-2 text-sm"><ShoppingBag size={14}/>Browse marketplace</Link>
           <Link to="/marketplace?action=create" className="btn-secondary inline-flex items-center gap-2 text-sm"><Plus size={14}/>List an item</Link>
@@ -168,7 +169,7 @@ export default function Home() {
 
     {!profile?.primary_institution_id && <section className="flex flex-col gap-3 rounded-md border border-amber-400/25 bg-amber-400/5 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><GraduationCap size={18} className="mt-0.5 text-amber-300"/><div><p className="text-sm font-bold">Verify your campus identity</p><p className="mt-1 text-xs text-on-surface/55">Verify your university email to unlock the right campus context and membership features.</p></div></div><Link to="/settings" className="btn-secondary shrink-0 text-xs">Verify campus <ArrowRight size={12}/></Link></section>}
 
-    <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <section className="grid grid-cols-2 gap-3 xl:grid-cols-5">
       {statCards.map(card=><MetricCard key={card.label} {...card}/>)}
     </section>
 

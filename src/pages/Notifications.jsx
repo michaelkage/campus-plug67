@@ -241,8 +241,10 @@ export default function Notifications() {
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-sm">{notif.title}</p>
                   {!notif.read && (
-                    <span className="sr-only">Unread</span>
-                    <div aria-hidden="true" className="w-2 h-2 rounded-sm bg-primary flex-shrink-0 mt-1" />
+                    <>
+                      <span className="sr-only">Unread</span>
+                      <div aria-hidden="true" className="w-2 h-2 rounded-sm bg-primary flex-shrink-0 mt-1" />
+                    </>
                   )}
                 </div>
                 {notif.body && (

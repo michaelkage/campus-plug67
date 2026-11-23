@@ -10,6 +10,7 @@ const helper = read('src/lib/offlineHandoff.ts')
 const test = read('src/lib/offlineHandoff.test.ts')
 const safeSwap = read('src/pages/SafeSwapZone.tsx')
 const meetup = read('src/components/meetup/MobileMeetupMode.tsx')
+const dispatcher = read('src/lib/offlineSync.ts')
 
 const requiredMigrationInvariants = [
   'CREATE TABLE IF NOT EXISTS public.offline_handoff_vouchers',
@@ -50,7 +51,10 @@ if (safeSwap.includes('qr_secret') || safeSwap.includes('release_code')) throw n
 for (const invariant of ['prepare_offline_handoff', 'get_offline_handoff_commitment', 'offline-handoff-seller:', 'offlineHandoffCommitmentKey(', 'offlineHandoffReceiptKey(', 'safeZone={zones.find(zone=>zone.id===tx?.buyer_safe_zone_id)||null}']) {
   if (!safeSwap.includes(invariant)) throw new Error(`Safe Swap offline voucher wiring is missing: ${invariant}`)
 }
-for (const invariant of ['verifyOfflineHandoffTicket', 'confirm_offline_handoff', 'status:\'queued\'', 'Funds have not been released', 'sync it before the 24-hour server expiry', 'safeZone.radius_m', 'position.coords.accuracy>50']) {
+for (const invariant of ['verifyOfflineHandoffTicket', 'syncOfflineQueue(', 'status:\'queued\'', 'Funds have not been released', 'sync it before the 24-hour server expiry', 'safeZone.radius_m', 'position.coords.accuracy>50']) {
   if (!meetup.includes(invariant)) throw new Error(`Mobile offline handoff wiring is missing: ${invariant}`)
+}
+for (const invariant of ["supabase.rpc('confirm_offline_handoff'", 'p_transaction_id:', 'p_voucher_id:', 'p_token:', 'row.ownerId !== userId', "row.kind !== 'offline-handoff-receipt'"]) {
+  if (!dispatcher.includes(invariant)) throw new Error(`Central offline dispatcher is missing: ${invariant}`)
 }
 console.log('Offline handoff voucher security regression checks passed.')

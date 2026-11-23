@@ -3,6 +3,7 @@ import { AlertTriangle, Camera, CheckCircle2, MapPinned, ShieldAlert, X } from '
 import { supabase } from '@/lib/supabase'
 import { offlineHandoffReceiptKey, verifyOfflineHandoffTicket, type OfflineHandoffCommitment } from '@/lib/offlineHandoff'
 import { getLocalTransaction, removeLocalTransaction, saveLocalTransaction } from '@/lib/transactionState'
+import { syncOfflineQueue } from '@/lib/offlineSync'
 import toast from 'react-hot-toast'
 
 type BarcodeDetectorLike={detect:(source:CanvasImageSource)=>Promise<Array<{rawValue:string}>>}
@@ -10,8 +11,8 @@ type Props={transactionId:string;releaseUnlocked:boolean;offlineCommitment?:Offl
 
 export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineCommitment,safeZone,onReleased}:Props){
   const videoRef=useRef<HTMLVideoElement>(null);const streamRef=useRef<MediaStream|null>(null);const [scanning,setScanning]=useState(false);const [duressOpen,setDuressOpen]=useState(false);const [code,setCode]=useState('');const [manualQr,setManualQr]=useState('');const [busy,setBusy]=useState(false);const [receiptStatus,setReceiptStatus]=useState<string|null>(null);const [receiptError,setReceiptError]=useState<string|null>(null)
-  useEffect(()=>{let active=true;const refresh=()=>void getLocalTransaction(offlineHandoffReceiptKey(transactionId)).then(local=>{if(!active||!local||local.ownerId!==offlineCommitment?.buyer_id)return;setReceiptStatus(local.status);setReceiptError(local.error||null)}).catch(()=>{});refresh();const timer=window.setInterval(refresh,3000);return()=>{active=false;window.clearInterval(timer)}},[transactionId,offlineCommitment?.buyer_id])
-  const retrySavedProof=async()=>{const key=offlineHandoffReceiptKey(transactionId);const local=await getLocalTransaction(key).catch(()=>undefined);if(!local||local.ownerId!==offlineCommitment?.buyer_id||local.kind!=='offline-handoff-receipt'){setReceiptStatus(null);return}await saveLocalTransaction({...local,status:'queued',updatedAt:Date.now(),error:undefined});setReceiptStatus('queued');setReceiptError(null);if(!navigator.onLine){toast.success('Proof queued. Reconnect to synchronize it with Campus Plug.');return}toast.success('Proof queued for secure synchronization. Keep this page open briefly while it retries.')}
+  useEffect(()=>{let active=true;const key=offlineHandoffReceiptKey(transactionId);const refresh=()=>void getLocalTransaction(key).then(local=>{if(!active)return;if(!local||local.ownerId!==offlineCommitment?.buyer_id){setReceiptStatus(null);setReceiptError(null);return}setReceiptStatus(local.status);setReceiptError(local.error||null)}).catch(()=>{});const onSync=(event:Event)=>{const detail=(event as CustomEvent<{id?:string;status?:string}>).detail;if(detail?.id===key&&detail.status==='synced'){setReceiptStatus(null);setReceiptError(null);onReleased?.()}};window.addEventListener('campusplug:offline-sync',onSync);refresh();const timer=window.setInterval(refresh,3000);return()=>{active=false;window.clearInterval(timer);window.removeEventListener('campusplug:offline-sync',onSync)}},[transactionId,offlineCommitment?.buyer_id,onReleased])
+  const retrySavedProof=async()=>{const key=offlineHandoffReceiptKey(transactionId);const local=await getLocalTransaction(key).catch(()=>undefined);if(!local||local.ownerId!==offlineCommitment?.buyer_id||local.kind!=='offline-handoff-receipt'){setReceiptStatus(null);return}await saveLocalTransaction({...local,status:'queued',updatedAt:Date.now(),attempts:0,nextAttemptAt:undefined,error:undefined});setReceiptStatus('queued');setReceiptError(null);if(!navigator.onLine){toast.success('Proof queued. Reconnect to synchronize it with Campus Plug.');return}toast.success('Proof queued for secure synchronization. Keep this page open briefly while it retries.')}
   useEffect(()=>()=>{streamRef.current?.getTracks().forEach(track=>track.stop())},[])
   const stopScan=()=>{streamRef.current?.getTracks().forEach(track=>track.stop());streamRef.current=null;setScanning(false)}
 
@@ -40,29 +41,13 @@ export default function MobileMeetupMode({transactionId,releaseUnlocked,offlineC
       toast.success('QR verified offline. Your handoff proof is saved. Reconnect and sync it before the 24-hour server expiry. Funds have not been released.');
       return;
     }
-    const {data,error}=await supabase.rpc('confirm_offline_handoff',{
-      p_transaction_id:transactionId,p_voucher_id:ticket.voucher_id,p_token:ticket.token,
-    });
-    if(error){
-      const httpStatus=(error as {status?:number}).status;
-      if(!navigator.onLine||!httpStatus||httpStatus===0||httpStatus===401||httpStatus===408||httpStatus===429||httpStatus>=500){
-        toast.success('QR verified offline. Your handoff proof is saved. Reconnect to synchronize it. Funds have not been released.');
-        return;
-      }
-      await saveLocalTransaction({
-        id:offlineHandoffReceiptKey(transactionId),
-        ownerId:offlineCommitment.buyer_id,
-        kind:'offline-handoff-receipt',
-        payload:{transactionId,voucherId:ticket.voucher_id,token:ticket.token},
-        status:'failed',
-        updatedAt:Date.now(),
-        error:error.message||'Server rejected the offline handoff proof',
-      }).catch(()=>{});
-      throw error;
+    await syncOfflineQueue(offlineCommitment.buyer_id);
+    const pendingProof=await getLocalTransaction(offlineHandoffReceiptKey(transactionId));
+    if(pendingProof){
+      if(pendingProof.status==='failed')throw new Error(pendingProof.error||'The server rejected the saved handoff proof.');
+      toast.success('QR verified. Handoff proof is saved and queued for server confirmation. Funds have not been released.');
+      return;
     }
-    const confirmation=data as {success?:boolean;error?:string}|null;
-    if(!confirmation?.success)throw new Error(confirmation?.error||'Handoff confirmation failed');
-    await removeLocalTransaction(offlineHandoffReceiptKey(transactionId)).catch(()=>{});
     toast.success('Handoff confirmed. Funds remain protected for a 2-hour inspection window.');
     onReleased?.();
   }catch(error){toast.error(error instanceof Error?error.message:'QR handoff verification failed')}finally{setBusy(false)}}

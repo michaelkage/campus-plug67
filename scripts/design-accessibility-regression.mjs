@@ -19,6 +19,11 @@ const listingDetail = read('src/pages/ListingDetail.jsx')
 const offlineBanner = read('src/components/ui/OfflineSyncBanner.tsx')
 const gearRentalPanel = read('src/components/gear/GearRentalPanel.tsx')
 const myRentalsPage = read('src/pages/MyRentals.jsx')
+const gigs = read('src/pages/Gigs.jsx')
+const studyPools = read('src/pages/StudyPools.jsx')
+const lostFound = read('src/pages/LostFound.jsx')
+const bulletin = read('src/pages/NewsBulletin.tsx')
+const accessibleDialog = read('src/hooks/useAccessibleDialog.js')
 
 for (const required of [
   '--cp-control-min-height',
@@ -67,6 +72,18 @@ if (!gearRentalPanel.includes('htmlFor={`${sectionId}-dispute-${rental.id}`}') |
 if (!gearRentalPanel.includes('disputeFieldRef.current?.focus()') || !gearRentalPanel.includes('disputeTriggerRef.current?.focus()') || !gearRentalPanel.includes('aria-expanded={disputeFor === rental.id}')) fail('Gear rental dispute forms must manage focus and expose expanded state')
 if (!gearRentalPanel.includes('aria-busy={busy || isLoading}') || !gearRentalPanel.includes('role="status" aria-live="polite"')) fail('Gear rental pending states and generated handoff codes must be announced')
 if (!myRentalsPage.includes('role="alert"') || !myRentalsPage.includes('role="status"')) fail('My Rentals loading and error states must be announced accessibly')
+
+for (const [name, source, required] of [
+  ['shared dialog hook', accessibleDialog, ['event.key === ' + "'Escape'", "event.key !== 'Tab'", 'previousFocus.focus()', 'dialog.addEventListener(\'keydown\'', 'focusInitial()']],
+  ['service listing and booking dialogs', gigs, ['role="dialog"', 'aria-modal="true"', 'useAccessibleDialog(showCreate', 'useAccessibleDialog(Boolean(bookingGig)', 'htmlFor={`gig-title-${formId}`}', 'htmlFor={`gig-booking-date-${formId}`}', 'aria-busy={submitting}']],
+  ['study pool composer', studyPools, ['role="dialog"', 'aria-modal="true"', 'useAccessibleDialog(true, onClose)', 'htmlFor={`pool-title-${formId}`}', 'htmlFor={`pool-unit-price-${formId}`}', 'aria-busy={submitting}']],
+  ['lost and found report', lostFound, ['role="dialog"', 'aria-modal="true"', 'useAccessibleDialog(true, onClose)', 'aria-pressed={type === val}', 'htmlFor={`lost-title-${formId}`}', 'aria-label={`Remove tag ${t}`}', 'aria-busy={submitting}']],
+  ['campus bulletin composer', bulletin, ['role="dialog"', 'aria-modal="true"', 'useAccessibleDialog(showComposer', 'htmlFor={`bulletin-headline-${formId}`}', 'htmlFor={`bulletin-category-${formId}`}', 'htmlFor={`bulletin-body-${formId}`}', 'aria-busy={submitting}']],
+]) {
+  for (const value of required) {
+    if (!source.includes(value)) fail(`${name} accessibility contract missing: ${value}`)
+  }
+}
 
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')

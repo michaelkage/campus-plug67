@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { useAccessibleDialog } from '@/hooks/useAccessibleDialog'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
@@ -27,7 +28,7 @@ function TagInput({ tags, setTags }) {
         {tags.map(t => (
           <span key={t} className="flex items-center gap-1 tag tag-cyan text-[11px]">
             #{t}
-            <button onClick={() => remove(t)} className="hover:text-error transition-colors">
+            <button type="button" aria-label={`Remove tag ${t}`} onClick={() => remove(t)} className="hover:text-error transition-colors">
               <X size={10} />
             </button>
           </span>
@@ -36,6 +37,7 @@ function TagInput({ tags, setTags }) {
       <div className="flex gap-2">
         <input
           className="input flex-1 text-sm"
+          aria-label="Add a matching tag"
           placeholder="Add tag (e.g. keys, wallet...)"
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -64,6 +66,8 @@ function TagInput({ tags, setTags }) {
 
 function ReportModal({ onClose, profile }) {
   const qc = useQueryClient()
+  const formId = useId()
+  const dialogRef = useAccessibleDialog(true, onClose)
   const [type, setType]     = useState('lost')
   const [form, setForm]     = useState({ title: '', description: '', location: '' })
   const [tags, setTags]     = useState([])
@@ -112,12 +116,12 @@ function ReportModal({ onClose, profile }) {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
          onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-[var(--md-scrim)]/75" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-md overflow-hidden">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={`lost-found-title-${formId}`} tabIndex={-1} className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-md overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-outline-variant">
-          <h2 className="font-bold">Report an Item</h2>
-          <button onClick={onClose} className="text-on-surface/30 hover:text-on-surface"><X size={18} /></button>
+          <h2 id={`lost-found-title-${formId}`} className="font-bold">Report an Item</h2>
+          <button type="button" onClick={onClose} aria-label="Close report dialog" className="icon-button min-h-12 min-w-12 text-on-surface/60 hover:text-on-surface"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} aria-busy={submitting} className="p-5 space-y-4">
           {/* Lost / Found toggle */}
           <div className="flex bg-surface-container-highest rounded-md p-1">
             {[
@@ -127,6 +131,7 @@ function ReportModal({ onClose, profile }) {
               <button
                 key={val}
                 type="button"
+                aria-pressed={type === val}
                 onClick={() => setType(val)}
                 className={`flex-1 py-2 rounded-sm text-sm font-semibold transition-colors ${
                   type === val ? 'bg-primary text-on-primary' : 'text-on-surface/40 hover:text-on-surface/70'
@@ -138,27 +143,27 @@ function ReportModal({ onClose, profile }) {
           </div>
 
           <div>
-            <label className="label">What is it?</label>
-            <input className="input" placeholder='e.g. "Blue keychain with house key and a small bear"'
+            <label className="label" htmlFor={`lost-title-${formId}`}>What is it?</label>
+            <input id={`lost-title-${formId}`} className="input" placeholder='e.g. "Blue keychain with house key and a small bear"'
               value={form.title} onChange={set('title')} required />
           </div>
 
           <div>
-            <label className="label">Description</label>
-            <textarea className="input resize-none" rows={2}
+            <label className="label" htmlFor={`lost-description-${formId}`}>Description</label>
+            <textarea id={`lost-description-${formId}`} className="input resize-none" rows={2}
               placeholder="Any identifying features, serial numbers, etc."
               value={form.description} onChange={set('description')} />
           </div>
 
           <div>
-            <label className="label">Where was it {type === 'lost' ? 'last seen' : 'found'}?</label>
-            <input className="input" placeholder="e.g. Faculty of Science block B, 2nd floor"
+            <label className="label" htmlFor={`lost-location-${formId}`}>Where was it {type === 'lost' ? 'last seen' : 'found'}?</label>
+            <input id={`lost-location-${formId}`} className="input" placeholder="e.g. Faculty of Science block B, 2nd floor"
               value={form.location} onChange={set('location')} />
           </div>
 
           <div>
-            <label className="label">Tags <span className="text-error">*</span></label>
-            <TagInput tags={tags} setTags={setTags} />
+            <span className="label" id={`lost-tags-label-${formId}`}>Tags <span className="text-error">*</span></span>
+            <div aria-labelledby={`lost-tags-label-${formId}`}><TagInput tags={tags} setTags={setTags} /></div>
             <p className="text-xs text-on-surface/30 mt-1">
               Tags are used by AI matching to connect lost & found reports.
             </p>
@@ -302,7 +307,7 @@ export default function LostFound() {
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface/30" />
-          <input className="input pl-9" placeholder="Search by title or tag..."
+          <input className="input pl-9" aria-label="Search lost and found reports" placeholder="Search by title or tag..."
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="flex gap-2">
@@ -313,6 +318,8 @@ export default function LostFound() {
           ].map(({ val, label }) => (
             <button
               key={val}
+              type="button"
+              aria-pressed={filter === val}
               onClick={() => setFilter(val)}
               className={`px-4 py-2 rounded-sm text-sm font-semibold border transition-colors ${
                 filter === val

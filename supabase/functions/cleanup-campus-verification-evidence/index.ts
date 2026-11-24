@@ -35,7 +35,6 @@ Deno.serve(async (req) => {
   const items = (claim?.claimed ?? []) as CleanupItem[];
   let deleted = 0;
   let failed = 0;
-  let staleClaims = 0;
 
   for (const item of items) {
     const { error: storageError } = await admin.storage.from(BUCKET).remove([item.evidence_path]);
@@ -71,6 +70,57 @@ Deno.serve(async (req) => {
     deleted += 1;
   }
 
+  const { data: orphanClaim, error: orphanClaimError } = await admin.rpc(
+    "claim_campus_verification_orphan_cleanup",
+    { p_batch_size: BATCH_SIZE },
+  );
+  if (orphanClaimError) {
+    failed += 1;
+    console.error("Campus orphan evidence cleanup claim failed", orphanClaimError.message);
+  }
+
+  const orphanItems = (orphanClaim?.claimed ?? []) as Array<{
+    id: string;
+    evidence_path: string;
+    attempts: number;
+  }>;
+  let orphanDeleted = 0;
+  let orphanFailed = 0;
+
+  for (const item of orphanItems) {
+    const { error: storageError } = await admin.storage.from(BUCKET).remove([item.evidence_path]);
+    if (storageError) {
+      orphanFailed += 1;
+      failed += 1;
+      const { error: recordError } = await admin.rpc("fail_campus_verification_orphan_cleanup", {
+        p_job_id: item.id,
+        p_evidence_path: item.evidence_path,
+        p_error: storageError.message,
+      });
+      if (recordError) console.error("Unable to record orphan evidence cleanup failure", item.id, recordError.message);
+      continue;
+    }
+
+    const { data: completed, error: completeError } = await admin.rpc(
+      "complete_campus_verification_orphan_cleanup",
+      { p_job_id: item.id, p_evidence_path: item.evidence_path },
+    );
+    if (completeError || completed !== true) {
+      orphanFailed += 1;
+      failed += 1;
+      console.error("Unable to finalize orphan evidence cleanup", item.id, completeError?.message ?? "Claim no longer active");
+      if (!completeError) {
+        await admin.rpc("fail_campus_verification_orphan_cleanup", {
+          p_job_id: item.id,
+          p_evidence_path: item.evidence_path,
+          p_error: "Storage object removed but orphan cleanup finalization did not complete",
+        });
+      }
+      continue;
+    }
+    orphanDeleted += 1;
+  }
+
   const expiredRequests = Number(claim?.expired_requests ?? 0);
   return jsonResponse({
     success: failed === 0,
@@ -78,6 +128,9 @@ Deno.serve(async (req) => {
     claimed: items.length,
     deleted,
     failed,
-    stale_claims: staleClaims,
+    orphan_discovered: Number(orphanClaim?.discovered ?? 0),
+    orphan_claimed: orphanItems.length,
+    orphan_deleted: orphanDeleted,
+    orphan_failed: orphanFailed,
   }, failed === 0 ? 200 : 207, {}, req);
 });

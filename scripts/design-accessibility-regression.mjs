@@ -17,6 +17,8 @@ const serviceBookingActions = read('src/components/services/ServiceBookingAction
 const authPage = read('src/pages/Auth.jsx')
 const listingDetail = read('src/pages/ListingDetail.jsx')
 const offlineBanner = read('src/components/ui/OfflineSyncBanner.tsx')
+const gearRentalPanel = read('src/components/gear/GearRentalPanel.tsx')
+const myRentalsPage = read('src/pages/MyRentals.jsx')
 
 for (const required of [
   '--cp-control-min-height',
@@ -58,6 +60,14 @@ if (!listingDetail.includes('transaction-dispute-help-') || !listingDetail.inclu
 if (!listingDetail.includes('disputeFieldRef.current?.focus()') || !listingDetail.includes('disputeTriggerRef.current?.focus()') || !listingDetail.includes('aria-expanded={showDispute}')) fail('Escrow dispute forms must manage focus and expose expanded state')
 if (!listingDetail.includes('useReducedMotion()') || !listingDetail.includes('prefersReducedMotion ? 0 : 0.2')) fail('Escrow dispute transitions must respect reduced-motion preferences')
 if ((listingDetail.match(/ref=\{disputeTriggerRef\}/g) || []).length < 3 || (listingDetail.match(/ref=\{disputeFieldRef\}/g) || []).length < 3) fail('Every escrow dispute entry point must label its field and manage keyboard focus')
+
+if (!gearRentalPanel.includes('aria-labelledby={`${sectionId}-title`}') || !gearRentalPanel.includes('id={`${sectionId}-title`}')) fail('Each gear rental panel must have a unique accessible section name')
+if (!gearRentalPanel.includes('aria-label={`Pickup code for rental ${rental.id.slice(0, 8)}`}') || !gearRentalPanel.includes('aria-label={`Return code for rental ${rental.id.slice(0, 8)}`}') || !gearRentalPanel.includes('aria-label={`Disputed return code for rental ${rental.id.slice(0, 8)}`}')) fail('Gear rental verification code fields must have contextual accessible names')
+if (!gearRentalPanel.includes('htmlFor={`${sectionId}-dispute-${rental.id}`}') || !gearRentalPanel.includes('aria-describedby={`${sectionId}-dispute-help-${rental.id}`}') || !gearRentalPanel.includes('minLength={20}')) fail('Gear rental dispute fields must expose a label and minimum-length guidance')
+if (!gearRentalPanel.includes('disputeFieldRef.current?.focus()') || !gearRentalPanel.includes('disputeTriggerRef.current?.focus()') || !gearRentalPanel.includes('aria-expanded={disputeFor === rental.id}')) fail('Gear rental dispute forms must manage focus and expose expanded state')
+if (!gearRentalPanel.includes('aria-busy={busy || isLoading}') || !gearRentalPanel.includes('role="status" aria-live="polite"')) fail('Gear rental pending states and generated handoff codes must be announced')
+if (!myRentalsPage.includes('role="alert"') || !myRentalsPage.includes('role="status"')) fail('My Rentals loading and error states must be announced accessibly')
+
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')
 }

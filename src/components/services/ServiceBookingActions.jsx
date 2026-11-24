@@ -256,7 +256,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
               <Send size={13} /> {latestQuote?.status === 'sent' ? 'Revise quote' : 'Send final quote'}
             </button>
           ) : (
-            <form onSubmit={sendQuote} className="space-y-2 rounded-md border border-[var(--md-outline-variant)] p-3">
+            <form onSubmit={sendQuote} aria-busy={busy} className="space-y-2 rounded-md border border-[var(--md-outline-variant)] p-3">
               <label className="block text-xs font-semibold" htmlFor={`service-quote-amount-${booking.id}`}>Final price (₦)</label>
               <input
                 id={`service-quote-amount-${booking.id}`}
@@ -272,6 +272,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
               <label className="block text-xs font-semibold" htmlFor={`service-quote-scope-${booking.id}`}>Work included</label>
               <textarea
                 id={`service-quote-scope-${booking.id}`}
+                aria-describedby={`service-quote-scope-help-${booking.id}`}
                 className="input min-h-24 resize-y"
                 minLength={20}
                 maxLength={5000}
@@ -280,7 +281,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
                 onChange={event => setScope(event.target.value)}
                 placeholder="Describe the deliverables, materials, turnaround and what is not included."
               />
-              <p className="text-[11px] leading-4 text-on-surface/50">The customer has 24 hours to accept or decline. Once accepted, they fund the exact quote from Campus Wallet before you start.</p>
+              <p id={`service-quote-scope-help-${booking.id}`} className="text-[11px] leading-4 text-on-surface/50">Describe at least 20 characters. The customer has 24 hours to accept or decline. Once accepted, they fund the exact quote from Campus Wallet before you start.</p>
               <div className="flex flex-wrap gap-2">
                 <button type="submit" disabled={actionsDisabled} className="btn-primary text-xs">{busy ? 'Sending…' : 'Send quote'}</button>
                 <button type="button" disabled={actionsDisabled} onClick={() => setShowQuoteForm(false)} className="btn-secondary text-xs">Close</button>
@@ -314,12 +315,12 @@ export function ServiceBookingActions({ booking, currentUserId }) {
         </button>
       )}
       {canDispute && showDisputeForm && (
-        <form onSubmit={openDispute} className="space-y-2 rounded-md border border-error/30 bg-error/5 p-3">
+        <form onSubmit={openDispute} aria-busy={busy} className="space-y-2 rounded-md border border-error/30 bg-error/5 p-3">
           <label htmlFor={`service-dispute-${booking.id}`} className="text-xs font-semibold">What went wrong?</label>
-          <textarea id={`service-dispute-${booking.id}`} className="input min-h-24 resize-y" minLength={20} maxLength={5000} required
+          <textarea id={`service-dispute-${booking.id}`} aria-describedby={`service-dispute-help-${booking.id}`} className="input min-h-24 resize-y" minLength={20} maxLength={5000} required
             value={disputeReason} onChange={event => setDisputeReason(event.target.value)}
             placeholder="Explain what was agreed, what was delivered and what still needs fixing." />
-          <p className="text-[11px] text-on-surface/55">Opening a dispute freezes the held funds. Platform operations will review the case.</p>
+          <p id={`service-dispute-help-${booking.id}`} className="text-[11px] text-on-surface/55">Describe the issue in at least 20 characters. Opening a dispute freezes the held funds. Platform operations will review the case.</p>
           <div className="flex gap-2">
             <button type="submit" disabled={actionsDisabled} className="btn-primary text-xs">{busy ? 'Submitting…' : 'Open dispute'}</button>
             <button type="button" disabled={actionsDisabled} onClick={() => setShowDisputeForm(false)} className="btn-secondary text-xs">Cancel</button>

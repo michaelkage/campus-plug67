@@ -113,6 +113,8 @@ BEGIN
        AND NOT EXISTS (
          SELECT 1 FROM public.campus_verification_evidence_orphan_jobs j
          WHERE j.evidence_path = o.name
+           AND j.deleted_at IS NULL
+           AND j.cancelled_at IS NULL
        )
      ORDER BY o.created_at, o.name
      LIMIT p_batch_size
@@ -120,7 +122,11 @@ BEGIN
   ), inserted AS (
     INSERT INTO public.campus_verification_evidence_orphan_jobs(evidence_path)
     SELECT name FROM stale_objects
-    ON CONFLICT (evidence_path) DO NOTHING
+    ON CONFLICT (evidence_path) DO UPDATE
+      SET cancelled_at = NULL, attempts = 0, next_attempt_at = NULL,
+          claimed_at = NULL, last_error = NULL, updated_at = now()
+      WHERE public.campus_verification_evidence_orphan_jobs.deleted_at IS NULL
+        AND public.campus_verification_evidence_orphan_jobs.cancelled_at IS NOT NULL
     RETURNING id
   )
   SELECT count(*)::integer INTO v_discovered FROM inserted;

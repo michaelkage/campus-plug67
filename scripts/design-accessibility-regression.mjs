@@ -47,6 +47,8 @@ if (!settings.includes('saveQueueRef') || !settings.includes('prefsRef.current')
 if (!serviceBookingActions.includes('aria-describedby={`service-quote-scope-help-${booking.id}`}') || !serviceBookingActions.includes('id={`service-quote-scope-help-${booking.id}`}')) fail('Service quote scope guidance must be programmatically associated with its field')
 if (!serviceBookingActions.includes('aria-describedby={`service-dispute-help-${booking.id}`}') || !serviceBookingActions.includes('id={`service-dispute-help-${booking.id}`}')) fail('Service dispute guidance must be programmatically associated with its field')
 if (!serviceBookingActions.includes('<form onSubmit={sendQuote} aria-busy={busy}') || !serviceBookingActions.includes('<form onSubmit={openDispute} aria-busy={busy}')) fail('Service quote and dispute submissions must expose pending state')
+if (!serviceBookingActions.includes('quoteTriggerRef.current?.focus()') || !serviceBookingActions.includes('disputeTriggerRef.current?.focus()') || !serviceBookingActions.includes('quoteFieldRef.current?.focus()') || !serviceBookingActions.includes('disputeFieldRef.current?.focus()')) fail('Opening service inline forms must move focus into the form and restore it to the trigger when closed')
+if (!serviceBookingActions.includes('aria-expanded={showQuoteForm}') || !serviceBookingActions.includes('aria-expanded={showDisputeForm}')) fail('Service inline form triggers must expose their expanded state')
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')
 }

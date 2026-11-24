@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { useAccessibleDialog } from '@/hooks/useAccessibleDialog'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, CalendarDays, Pin, Plus, Trash2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -11,6 +12,8 @@ type Bulletin = { id:string; university:string; title:string; body:string; categ
 export default function NewsBulletin() {
   const { profile } = useAuth()
   const qc = useQueryClient()
+  const formId = useId()
+  const dialogRef = useAccessibleDialog(showComposer, () => setShowComposer(false))
   const [showComposer, setShowComposer] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({title:'',body:'',category:'Announcement'})
@@ -64,6 +67,6 @@ export default function NewsBulletin() {
       <h2 className="text-lg font-bold">{post.title}</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-on-surface/70">{post.body}</p>
       <div className="mt-4 flex items-center justify-between border-t border-outline-variant pt-3"><span className="text-xs text-[var(--md-on-surface)]/30">Posted by {post.profiles?.full_name||'Campus team'}</span>{post.created_by===profile?.id&&<div className="flex gap-2"><button className="btn-secondary text-xs" onClick={()=>togglePin(post)}><Pin size={12}/>{post.is_pinned?'Unpin':'Pin'}</button><button className="btn-secondary text-xs text-error" onClick={()=>remove(post)}><Trash2 size={12}/>Delete</button></div>}</div>
     </article>)}</div>
-    {showComposer&&<div className="modal-backdrop"><button aria-label="Close bulletin form" className="absolute inset-0" onClick={()=>setShowComposer(false)}/><div className="modal-panel"><div className="modal-header"><h2 className="font-bold">Publish campus update</h2><button className="icon-button" onClick={()=>setShowComposer(false)}><X size={16}/></button></div><form className="space-y-4 p-5" onSubmit={publish}><div><label className="label">Headline</label><input className="input" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} minLength={3} maxLength={160} required placeholder="e.g. Registration deadline extended"/></div><div><label className="label">Category</label><select className="input" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>{CATEGORIES.map(category=><option key={category}>{category}</option>)}</select></div><div><label className="label">Update details</label><textarea className="input resize-y" rows={6} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} minLength={3} maxLength={10000} required placeholder="What should students know? Include dates, venues and official links."/></div><button className="btn-primary w-full" type="submit" disabled={submitting}>{submitting?'Publishing…':'Publish bulletin'}</button></form></div></div>}
+    {showComposer&&<div className="modal-backdrop"><button type="button" aria-label="Close bulletin form" className="absolute inset-0" onClick={()=>setShowComposer(false)}/><div ref={dialogRef} className="modal-panel" role="dialog" aria-modal="true" aria-labelledby={`bulletin-title-${formId}`} tabIndex={-1}><div className="modal-header"><h2 id={`bulletin-title-${formId}`} className="font-bold">Publish campus update</h2><button type="button" aria-label="Close bulletin dialog" className="icon-button min-h-12 min-w-12" onClick={()=>setShowComposer(false)}><X size={16}/></button></div><form className="space-y-4 p-5" onSubmit={publish} aria-busy={submitting}><div><label className="label" htmlFor={`bulletin-headline-${formId}`}>Headline</label><input id={`bulletin-headline-${formId}`} className="input" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} minLength={3} maxLength={160} required placeholder="e.g. Registration deadline extended"/></div><div><label className="label" htmlFor={`bulletin-category-${formId}`}>Category</label><select id={`bulletin-category-${formId}`} className="input" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>{CATEGORIES.map(category=><option key={category}>{category}</option>)}</select></div><div><label className="label" htmlFor={`bulletin-body-${formId}`}>Update details</label><textarea id={`bulletin-body-${formId}`} className="input resize-y" rows={6} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} minLength={3} maxLength={10000} required placeholder="What should students know? Include dates, venues and official links."/></div><button className="btn-primary w-full" type="submit" disabled={submitting}>{submitting?'Publishing…':'Publish bulletin'}</button></form></div></div>}
   </div>
 }

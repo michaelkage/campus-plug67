@@ -255,7 +255,7 @@ export default function Auth() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
                       className="overflow-hidden space-y-4"
                     >
                       <div>

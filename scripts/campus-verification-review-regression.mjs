@@ -51,7 +51,6 @@ assert.ok(!authPage.includes('UNIVERSITIES'))
 assert.ok(!authPage.includes('setDepartment'))
 
 for (const invariant of [
-  "from('campus-verification-requests')",
   "from('campus_verification_requests')",
   "from('campus-verification-evidence')",
   "submit_my_campus_verification",

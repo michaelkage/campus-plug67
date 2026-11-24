@@ -49,7 +49,7 @@ test.describe('authenticated student journey', () => {
 
   test('sign in, traverse core student surfaces, sign out, and return to auth', async ({ page }) => {
     await page.goto('/auth')
-    await page.getByLabel('University email').fill(email!)
+    await page.getByLabel('Email address').fill(email!)
     await page.getByLabel('Password').fill(password!)
     await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click()
 
@@ -66,7 +66,7 @@ test.describe('authenticated student journey', () => {
     await page.getByRole('button', { name: /account|profile/i }).click()
     await page.getByRole('button', { name: 'Sign Out', exact: true }).click()
     await expect(page).toHaveURL(/\/auth(?:\?|$)/, { timeout: 15_000 })
-    await expect(page.getByLabel('University email')).toBeVisible()
+    await expect(page.getByLabel('Email address')).toBeVisible()
 
     await page.goto('/marketplace')
     await expect(page).toHaveURL(/\/auth(?:\?|$)/, { timeout: 15_000 })

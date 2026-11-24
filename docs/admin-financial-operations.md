@@ -6,7 +6,7 @@ The Admin Console's Financial ops tab is a read-only reconciliation workbench. I
 
 It currently reports:
 
-- Refunds marked failed/needs-attention, plus pending or processing refunds older than 15 minutes.
+- Refund attention: refunds marked failed/needs-attention, plus pending or processing refunds older than 15 minutes.
 - Failed payment/webhook events.
 - Verified Paystack transactions missing their expected funding, release or processed-refund journal posting.
 - Legacy PlugCredit ledger entries missing their matching financial journal mirror.

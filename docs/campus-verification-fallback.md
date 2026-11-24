@@ -41,7 +41,48 @@ The evidence-review implementation is now present in the stacked Campus Plug bra
 
 This is repository implementation, not a live verification service. The migration must be applied and the frontend deployed before users can use it. No migration has been applied and no Edge Function or production setting has been changed.
 
-Pending evidence receives a 30-day `evidence_expires_at` timestamp. The reviewer UI attempts deletion immediately after a decision, but an automated expiry worker and scheduled invocation are not yet configured. Until that is deployed and monitored, do not represent the 30-day timestamp as guaranteed deletion. A failed immediate deletion must be treated as a privacy cleanup incident and manually reconciled from the private bucket.
+Pending evidence receives a 30-day `evidence_expires_at` timestamp. The repository now includes a service-role cleanup worker and a database claim/retry state machine. Approved/rejected evidence is eligible for immediate cleanup; pending evidence expires after 30 days, is marked `expired`, and its pending institution membership is rejected without granting verification. Request, decision and audit metadata remain available after the object path is cleared. Storage deletion retries use a 10-minute stale-claim lease, batches of 50, exponential backoff and a maximum of eight attempts. Exhausted failures remain visible in `evidence_cleanup_last_error` for operator reconciliation. The worker is not automatically scheduled until the production Vault secrets and Cron job below are configured.
+
+### Configure the scheduled worker after deployment
+
+1. Deploy the migration and Edge Function, then add the following secrets in the Supabase Vault (use the project's actual API URL and service-role secret; never commit either value):
+
+   ```sql
+   select vault.create_secret('https://YOUR_PROJECT_REF.supabase.co', 'campus_verification_project_url');
+   select vault.create_secret('YOUR_SERVICE_ROLE_SECRET', 'campus_verification_service_key');
+   ```
+
+2. Enable `pg_cron` and `pg_net` if they are not already enabled. Schedule the worker with:
+
+   ```sql
+   do $
+   declare job_id bigint;
+   begin
+     select jobid into job_id from cron.job
+      where jobname = 'campus-verification-evidence-retention';
+     if job_id is not null then perform cron.unschedule(job_id); end if;
+     perform cron.schedule(
+       'campus-verification-evidence-retention',
+       '*/15 * * * *',
+       $
+       select net.http_post(
+         url := (select decrypted_secret from vault.decrypted_secrets where name = 'campus_verification_project_url')
+           || '/functions/v1/cleanup-campus-verification-evidence',
+         headers := jsonb_build_object(
+           'Content-Type', 'application/json',
+           'apikey', (select decrypted_secret from vault.decrypted_secrets where name = 'campus_verification_service_key'),
+           'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'campus_verification_service_key')
+         ),
+         body := jsonb_build_object('trigger', 'scheduled')
+       );
+       $
+     );
+   end $;
+   ```
+
+3. Confirm the Cron run history and Edge Function logs show successful invocations. Alert on nonzero `failed`, `evidence_cleanup_attempts >= 8`, or old non-null evidence paths whose expiry/review time has passed. Run a manual worker POST with the service key after deployment to verify end-to-end Storage deletion before enabling the recurring job.
+
+Until these production steps are completed and monitored, the code is implemented but automatic deletion is not live. A failed deletion must be treated as a privacy cleanup incident and manually reconciled from the private bucket.
 
 The initial vouch controls reduce casual abuse but do not prove the voucher knows the applicant. Reviewers must treat vouches as supporting context only. Stronger anti-collusion signals (shared device/payment graph, voucher clusters, and campus-admin review) remain follow-on work.
 

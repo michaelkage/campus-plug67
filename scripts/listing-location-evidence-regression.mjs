@@ -9,7 +9,6 @@ const security = read('src/lib/security.ts');
 for (const required of [
   'has_capture_timestamp',
   'metadata_missing',
-  'Photo GPS or capture time is missing',
   'const metadataComplete = results.length > 0 && results.length === images.length',
   'result.gps_lat !== null && result.gps_lng !== null && result.has_capture_timestamp',
   'metadata_verified:metadataComplete&&!needsMobile',
@@ -29,6 +28,7 @@ for (const required of [
   'navigator.geolocation.getCurrentPosition',
   'enableHighAccuracy: true',
   'Location evidence captured',
+  'Photo GPS or capture time is missing',
   'cameraCaptureReported: images.some(image => image.capturedByCamera)',
 ]) if (!marketplace.includes(required)) fail(`Marketplace camera/location fallback missing: ${required}`);
 

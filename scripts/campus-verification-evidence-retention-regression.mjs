@@ -73,6 +73,43 @@ assert.ok(config.includes('verify_jwt = false'))
 
 for (const invariant of [
   'vault.create_secret',
+  'do $block
+  'pg_cron',
+  'pg_net',
+  'cleanup-campus-verification-evidence',
+  'evidence_cleanup_attempts',
+  'evidence_deleted_at',
+  'expired',
+  'maximum of eight attempts',
+  '24-hour submission grace period',
+  'abandoned, unreferenced uploads',
+  'orphan jobs with',
+  'campus_verification_evidence_orphan_jobs',
+  'Request, decision and audit metadata remain available',
+  'No migration has been applied',
+]) assert.ok(docs.includes(invariant), `Retention runbook missing: ${invariant}`)
+
+console.log('Campus verification evidence retention regression checks passed.')
+,
+  '$job
+  'pg_cron',
+  'pg_net',
+  'cleanup-campus-verification-evidence',
+  'evidence_cleanup_attempts',
+  'evidence_deleted_at',
+  'expired',
+  'maximum of eight attempts',
+  '24-hour submission grace period',
+  'abandoned, unreferenced uploads',
+  'orphan jobs with',
+  'campus_verification_evidence_orphan_jobs',
+  'Request, decision and audit metadata remain available',
+  'No migration has been applied',
+]) assert.ok(docs.includes(invariant), `Retention runbook missing: ${invariant}`)
+
+console.log('Campus verification evidence retention regression checks passed.')
+,
+  'end $block$;',
   'pg_cron',
   'pg_net',
   'cleanup-campus-verification-evidence',

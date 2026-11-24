@@ -14,7 +14,7 @@ This file is the canonical repository-wide guidance for coding agents and contri
 - Never trust client-supplied identity, university, roles, device type, GPS, EXIF, transaction state, wallet balance, payment status or PlugScore as authoritative.
 - Browser fingerprints and browser geolocation are correlation/evidence signals only.
 - Preserve RLS, rate limits, idempotency, auditability, and server-side ownership checks. SECURITY DEFINER functions must use a safe `search_path` and explicit execute grants.
-- Marketplace escrow transitions, inspection windows, dispute decisions, wallet debits/credits, refunds and payouts remain server/database authoritative. A QR scan, offline receipt or local state is never itself a payout instruction.
+- Never bypass the 7-state escrow state engine. Marketplace escrow transitions, inspection windows, dispute decisions, wallet debits/credits, refunds and payouts remain server/database authoritative. A QR scan, offline receipt or local state is never itself a payout instruction.
 - Never add client-side writes to wallet balances or directly release escrow from a browser.
 - Offline replay is allowlisted. Do not queue payment intents, wallet transfers, escrow releases, payouts, dispute decisions or other irreversible financial operations.
 - Scope IndexedDB queues and cached private data to the authenticated user; reject stale-user work after account changes.

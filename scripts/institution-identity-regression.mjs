@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = file => fs.readFileSync(path.join(root, file), 'utf8')
 const migration = read('supabase/migrations/20261123200000_multi_university_identity.sql')
-const settings = read('src/pages/Settings.jsx')
 const campusPanel = read('src/components/settings/CampusVerificationPanel.jsx')
 const auth = read('src/contexts/AuthContext.tsx')
 const types = read('src/types/database.ts')

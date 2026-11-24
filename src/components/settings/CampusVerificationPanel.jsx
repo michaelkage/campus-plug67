@@ -177,7 +177,7 @@ export default function CampusVerificationPanel() {
         <div>
           <label className="label" htmlFor="campus-evidence-file">Student ID or enrollment evidence</label>
           <input id="campus-evidence-file" className="input" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={event => setEvidence(event.target.files?.[0] || null)} required />
-          <p className="mt-1 text-[11px] leading-4 text-on-surface/45">Private upload, JPG/PNG/WebP/PDF, maximum 5 MB. Remove unrelated personal details before upload. Evidence is retained for up to 30 days after submission.</p>
+          <p className="mt-1 text-[11px] leading-4 text-on-surface/45">Private upload, JPG/PNG/WebP/PDF, maximum 5 MB. Remove unrelated personal details before upload. Reviewers delete evidence after a decision; pending evidence remains private while awaiting review.</p>
         </div>
         <button type="submit" className="btn-primary w-full sm:w-auto" disabled={submitting || loading || !institutionId || !evidence || hasPending}>
           <Upload size={15} /> {submitting ? 'Submitting securely…' : hasPending ? 'Request awaiting review' : 'Submit for campus review'}

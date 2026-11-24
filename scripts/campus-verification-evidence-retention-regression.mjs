@@ -53,6 +53,8 @@ for (const invariant of [
   'campus_verification_evidence_orphan_jobs',
   'campus_verification_evidence_object_exists',
   'FOR UPDATE OF o SKIP LOCKED',
+  'ON CONFLICT (evidence_path) DO UPDATE',
+  'cancelled_at IS NOT NULL',
   "interval '24 hours'",
   'campus_verification_evidence_submission_guard',
   'guard_campus_verification_evidence_submission',

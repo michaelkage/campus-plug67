@@ -52,8 +52,8 @@ for (const invariant of [
   'evidence_cleanup_attempts',
   'evidence_deleted_at',
   'expired',
-  '8 attempts',
-  'does not delete request metadata',
+  'maximum of eight attempts',
+  'Request, decision and audit metadata remain available',
   'No migration has been applied',
 ]) assert.ok(docs.includes(invariant), `Retention runbook missing: ${invariant}`)
 

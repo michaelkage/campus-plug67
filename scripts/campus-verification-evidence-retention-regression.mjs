@@ -58,6 +58,7 @@ for (const invariant of [
   "interval '24 hours'",
   'campus_verification_evidence_submission_guard',
   'guard_campus_verification_evidence_submission',
+  'REVOKE ALL ON FUNCTION public.guard_campus_verification_evidence_submission()',
   'claim_campus_verification_orphan_cleanup',
   'complete_campus_verification_orphan_cleanup',
   'fail_campus_verification_orphan_cleanup',

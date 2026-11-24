@@ -12,6 +12,8 @@ const applicant = read('src/components/settings/CampusVerificationPanel.jsx')
 const reviewer = read('src/components/admin/CampusVerificationReview.jsx')
 const admin = read('src/pages/AdminConsole.jsx')
 const settings = read('src/pages/Settings.jsx')
+const terms = read('src/pages/Terms.jsx')
+const privacy = read('src/pages/Privacy.jsx')
 
 for (const invariant of [
   'CREATE TABLE IF NOT EXISTS public.campus_verification_requests',
@@ -71,5 +73,9 @@ for (const invariant of [
 ]) assert.ok(reviewer.includes(invariant), `Reviewer workflow missing: ${invariant}`)
 assert.ok(admin.includes('CampusVerificationReview'))
 assert.ok(settings.includes('<CampusVerificationPanel />'))
+assert.ok(terms.includes('You may register with an email address you control'))
+assert.ok(!terms.includes('register with a valid .edu.ng'))
+assert.ok(privacy.includes('Student ID / enrollment evidence'))
+assert.ok(privacy.includes('30-day expiry target'))
 
 console.log('Campus membership evidence review regression checks passed.')

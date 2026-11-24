@@ -1,0 +1,60 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import assert from 'node:assert/strict'
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const read = file => fs.readFileSync(path.join(root, file), 'utf8')
+const migration = read('supabase/migrations/20261125100000_campus_verification_evidence_retention.sql')
+const worker = read('supabase/functions/cleanup-campus-verification-evidence/index.ts')
+const config = read('supabase/config.toml')
+const docs = read('docs/campus-verification-fallback.md')
+
+for (const invariant of [
+  'ALTER COLUMN evidence_path DROP NOT NULL',
+  "'expired'",
+  'evidence_cleanup_attempts',
+  'evidence_cleanup_next_attempt_at',
+  'evidence_cleanup_claimed_at',
+  'evidence_cleanup_last_error',
+  'evidence_deleted_at',
+  'FOR UPDATE SKIP LOCKED',
+  "status = 'pending_review'",
+  "evidence_expires_at <= now()",
+  "SET status = 'expired'",
+  "SET status = 'rejected'",
+  "'evidence_expired'",
+  "'evidence_deleted'",
+  "'evidence_cleanup_failed'",
+  'auth.role() IS DISTINCT FROM \'service_role\'',
+  'interval \'10 minutes\'',
+  'evidence_cleanup_attempts < 8',
+  'LEAST(1440',
+  'REVOKE ALL ON FUNCTION public.claim_campus_verification_evidence_cleanup',
+  'GRANT EXECUTE ON FUNCTION public.claim_campus_verification_evidence_cleanup(integer) TO service_role',
+]) assert.ok(migration.includes(invariant), `Retention migration missing invariant: ${invariant}`)
+
+assert.ok(worker.includes('isServiceRoleRequest(req)'))
+assert.ok(worker.includes('admin.storage.from(BUCKET).remove([item.evidence_path])'))
+assert.ok(worker.includes('claim_campus_verification_evidence_cleanup'))
+assert.ok(worker.includes('complete_campus_verification_evidence_cleanup'))
+assert.ok(worker.includes('fail_campus_verification_evidence_cleanup'))
+assert.ok(worker.includes('BATCH_SIZE = 50'))
+assert.ok(worker.includes('failed === 0 ? 200 : 207'))
+assert.ok(config.includes('[functions.cleanup-campus-verification-evidence]'))
+assert.ok(config.includes('verify_jwt = false'))
+
+for (const invariant of [
+  'vault.create_secret',
+  'pg_cron',
+  'pg_net',
+  'cleanup-campus-verification-evidence',
+  'evidence_cleanup_attempts',
+  'evidence_deleted_at',
+  'expired',
+  '8 attempts',
+  'does not delete request metadata',
+  'No migration has been applied',
+]) assert.ok(docs.includes(invariant), `Retention runbook missing: ${invariant}`)
+
+console.log('Campus verification evidence retention regression checks passed.')

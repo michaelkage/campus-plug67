@@ -114,9 +114,22 @@ CREATE POLICY "Applicants and admins read campus verification evidence"
   );
 
 DROP POLICY IF EXISTS "Platform admins delete campus verification evidence" ON storage.objects;
-CREATE POLICY "Platform admins delete campus verification evidence"
+DROP POLICY IF EXISTS "Applicants delete unclaimed and admins delete campus verification evidence" ON storage.objects;
+CREATE POLICY "Applicants delete unclaimed and admins delete campus verification evidence"
   ON storage.objects FOR DELETE TO authenticated
-  USING (bucket_id = 'campus-verification-evidence' AND public.is_platform_admin());
+  USING (
+    bucket_id = 'campus-verification-evidence'
+    AND (
+      public.is_platform_admin()
+      OR (
+        owner_id = auth.uid()::text
+        AND NOT EXISTS (
+          SELECT 1 FROM public.campus_verification_requests r
+          WHERE r.evidence_path = name
+        )
+      )
+    )
+  );
 
 -- The legacy membership constraint required an email address for every verified
 -- member. Manual review has no institutional email, so permit NULL only for the

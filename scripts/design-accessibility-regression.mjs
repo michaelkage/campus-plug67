@@ -57,6 +57,7 @@ if (!authPage.includes('useReducedMotion()') || !authPage.includes('prefersReduc
 if (!listingDetail.includes('transaction-dispute-help-') || !listingDetail.includes('aria-describedby={`transaction-dispute-help-${tx.id}`}')) fail('Escrow dispute reason fields must expose their minimum-length guidance')
 if (!listingDetail.includes('disputeFieldRef.current?.focus()') || !listingDetail.includes('disputeTriggerRef.current?.focus()') || !listingDetail.includes('aria-expanded={showDispute}')) fail('Escrow dispute forms must manage focus and expose expanded state')
 if (!listingDetail.includes('useReducedMotion()') || !listingDetail.includes('prefersReducedMotion ? 0 : 0.2')) fail('Escrow dispute transitions must respect reduced-motion preferences')
+if ((listingDetail.match(/ref=\{disputeTriggerRef\}/g) || []).length < 3 || (listingDetail.match(/ref=\{disputeFieldRef\}/g) || []).length < 3) fail('Every escrow dispute entry point must label its field and manage keyboard focus')
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')
 }

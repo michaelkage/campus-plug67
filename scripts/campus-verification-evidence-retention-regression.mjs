@@ -36,7 +36,9 @@ for (const invariant of [
 ]) assert.ok(migration.includes(invariant), `Retention migration missing invariant: ${invariant}`)
 
 assert.ok(worker.includes('isServiceRoleRequest(req)'))
-assert.ok(worker.includes('admin.storage.from(BUCKET).remove([item.evidence_path])'))
+assert.ok(worker.includes('admin.storage.from(BUCKET).remove([evidencePath])'))
+assert.ok(worker.includes('removeIfPresent(admin, item.evidence_path)'))
+assert.ok(worker.includes('campus_verification_evidence_object_exists'))
 assert.ok(worker.includes('claim_campus_verification_evidence_cleanup'))
 assert.ok(worker.includes('complete_campus_verification_evidence_cleanup'))
 assert.ok(worker.includes('fail_campus_verification_evidence_cleanup'))
@@ -49,6 +51,7 @@ assert.ok(worker.includes('orphan_deleted'))
 
 for (const invariant of [
   'campus_verification_evidence_orphan_jobs',
+  'campus_verification_evidence_object_exists',
   'FOR UPDATE OF o SKIP LOCKED',
   "interval '24 hours'",
   'campus_verification_evidence_submission_guard',

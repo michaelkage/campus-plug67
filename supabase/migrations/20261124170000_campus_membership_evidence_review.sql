@@ -176,7 +176,7 @@ BEGIN
   IF p_evidence_mime_type NOT IN ('image/jpeg','image/png','image/webp','application/pdf') THEN
     RAISE EXCEPTION 'Unsupported evidence file type';
   END IF;
-  IF p_evidence_path !~ ('^' || actor::text || '/' || p_institution_id::text || '/[0-9a-fA-F-]{36}\\.(jpg|jpeg|png|webp|pdf)$') THEN
+  IF p_evidence_path !~ ('^' || actor::text || '/' || p_institution_id::text || '/[0-9a-fA-F-]{36}\.(jpg|jpeg|png|webp|pdf)$') THEN
     RAISE EXCEPTION 'Evidence path is not scoped to this account and institution';
   END IF;
   IF NOT EXISTS (

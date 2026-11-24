@@ -15,6 +15,7 @@ const notificationToast = read('src/components/ui/NotificationBanner.jsx')
 const settings = read('src/pages/Settings.jsx')
 const serviceBookingActions = read('src/components/services/ServiceBookingActions.jsx')
 const authPage = read('src/pages/Auth.jsx')
+const listingDetail = read('src/pages/ListingDetail.jsx')
 const offlineBanner = read('src/components/ui/OfflineSyncBanner.tsx')
 
 for (const required of [
@@ -53,6 +54,9 @@ if (!serviceBookingActions.includes('aria-expanded={showQuoteForm}') || !service
 if (!authPage.includes('role={formError ? \'alert\' : \'status\'}') || !authPage.includes('aria-live={formError ? \'assertive\' : \'polite\'}')) fail('Authentication outcomes must be announced accessibly')
 if (!authPage.includes('aria-busy={submitting}') || !authPage.includes('aria-pressed={showPass}')) fail('Authentication form and password visibility state must be exposed to assistive technology')
 if (!authPage.includes('useReducedMotion()') || !authPage.includes('prefersReducedMotion ? 0 : 0.3') || !authPage.includes('prefersReducedMotion ? 0 : 0.2')) fail('Authentication transitions must respect reduced-motion preferences')
+if (!listingDetail.includes('transaction-dispute-help-') || !listingDetail.includes('aria-describedby={`transaction-dispute-help-${tx.id}`}')) fail('Escrow dispute reason fields must expose their minimum-length guidance')
+if (!listingDetail.includes('disputeFieldRef.current?.focus()') || !listingDetail.includes('disputeTriggerRef.current?.focus()') || !listingDetail.includes('aria-expanded={showDispute}')) fail('Escrow dispute forms must manage focus and expose expanded state')
+if (!listingDetail.includes('useReducedMotion()') || !listingDetail.includes('prefersReducedMotion ? 0 : 0.2')) fail('Escrow dispute transitions must respect reduced-motion preferences')
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')
 }

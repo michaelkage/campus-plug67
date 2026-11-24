@@ -16,7 +16,7 @@ ALTER TABLE public.campus_verification_requests
 ALTER TABLE public.campus_verification_requests
   DROP CONSTRAINT IF EXISTS campus_verification_requests_status_check;
 ALTER TABLE public.campus_verification_requests
-  ADD CONSTRAINT campus_verification_requests_status_check
+  ADD CONSTRAINT campus_verification_requests_state_vocabulary_check
   CHECK (status IN ('pending_review','approved','rejected','expired'));
 
 ALTER TABLE public.campus_verification_requests

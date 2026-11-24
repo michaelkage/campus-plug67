@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, formatNaira, toKobo } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -26,6 +26,24 @@ export function ServiceBookingActions({ booking, currentUserId }) {
   const [scope, setScope] = useState('')
   const [disputeReason, setDisputeReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const quoteTriggerRef = useRef(null)
+  const quoteFieldRef = useRef(null)
+  const disputeTriggerRef = useRef(null)
+  const disputeFieldRef = useRef(null)
+  const quoteWasOpenRef = useRef(false)
+  const disputeWasOpenRef = useRef(false)
+
+  useEffect(() => {
+    if (showQuoteForm) quoteFieldRef.current?.focus()
+    else if (quoteWasOpenRef.current) quoteTriggerRef.current?.focus()
+    quoteWasOpenRef.current = showQuoteForm
+  }, [showQuoteForm])
+
+  useEffect(() => {
+    if (showDisputeForm) disputeFieldRef.current?.focus()
+    else if (disputeWasOpenRef.current) disputeTriggerRef.current?.focus()
+    disputeWasOpenRef.current = showDisputeForm
+  }, [showDisputeForm])
 
   const { data: quoteData = { recent: [], accepted: null }, isLoading: quotesLoading } = useQuery({
     queryKey: ['service-booking-quotes', booking.id],
@@ -252,14 +270,15 @@ export function ServiceBookingActions({ booking, currentUserId }) {
       {isProvider && (['pending', 'quoted'].includes(booking.status) || (booking.status === 'confirmed' && !acceptedQuote)) && (
         <div className="space-y-2">
           {!showQuoteForm ? (
-            <button type="button" disabled={actionsDisabled} onClick={() => setShowQuoteForm(true)} className="btn-primary text-xs">
+            <button ref={quoteTriggerRef} type="button" aria-expanded={showQuoteForm} disabled={actionsDisabled} onClick={() => setShowQuoteForm(true)} className="btn-primary text-xs">
               <Send size={13} /> {latestQuote?.status === 'sent' ? 'Revise quote' : 'Send final quote'}
             </button>
           ) : (
-            <form onSubmit={sendQuote} className="space-y-2 rounded-md border border-[var(--md-outline-variant)] p-3">
+            <form onSubmit={sendQuote} aria-busy={busy} className="space-y-2 rounded-md border border-[var(--md-outline-variant)] p-3">
               <label className="block text-xs font-semibold" htmlFor={`service-quote-amount-${booking.id}`}>Final price (₦)</label>
               <input
                 id={`service-quote-amount-${booking.id}`}
+                ref={quoteFieldRef}
                 className="input"
                 type="number"
                 min="1"
@@ -272,6 +291,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
               <label className="block text-xs font-semibold" htmlFor={`service-quote-scope-${booking.id}`}>Work included</label>
               <textarea
                 id={`service-quote-scope-${booking.id}`}
+                aria-describedby={`service-quote-scope-help-${booking.id}`}
                 className="input min-h-24 resize-y"
                 minLength={20}
                 maxLength={5000}
@@ -280,7 +300,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
                 onChange={event => setScope(event.target.value)}
                 placeholder="Describe the deliverables, materials, turnaround and what is not included."
               />
-              <p className="text-[11px] leading-4 text-on-surface/50">The customer has 24 hours to accept or decline. Once accepted, they fund the exact quote from Campus Wallet before you start.</p>
+              <p id={`service-quote-scope-help-${booking.id}`} className="text-[11px] leading-4 text-on-surface/50">Describe at least 20 characters. The customer has 24 hours to accept or decline. Once accepted, they fund the exact quote from Campus Wallet before you start.</p>
               <div className="flex flex-wrap gap-2">
                 <button type="submit" disabled={actionsDisabled} className="btn-primary text-xs">{busy ? 'Sending…' : 'Send quote'}</button>
                 <button type="button" disabled={actionsDisabled} onClick={() => setShowQuoteForm(false)} className="btn-secondary text-xs">Close</button>
@@ -309,17 +329,17 @@ export function ServiceBookingActions({ booking, currentUserId }) {
       )}
 
       {canDispute && !showDisputeForm && (
-        <button type="button" disabled={actionsDisabled} onClick={() => setShowDisputeForm(true)} className="btn-secondary text-xs text-error">
+        <button ref={disputeTriggerRef} type="button" aria-expanded={showDisputeForm} disabled={actionsDisabled} onClick={() => setShowDisputeForm(true)} className="btn-secondary text-xs text-error">
           <AlertTriangle size={13} /> Report a problem / dispute
         </button>
       )}
       {canDispute && showDisputeForm && (
-        <form onSubmit={openDispute} className="space-y-2 rounded-md border border-error/30 bg-error/5 p-3">
+        <form onSubmit={openDispute} aria-busy={busy} className="space-y-2 rounded-md border border-error/30 bg-error/5 p-3">
           <label htmlFor={`service-dispute-${booking.id}`} className="text-xs font-semibold">What went wrong?</label>
-          <textarea id={`service-dispute-${booking.id}`} className="input min-h-24 resize-y" minLength={20} maxLength={5000} required
+          <textarea ref={disputeFieldRef} id={`service-dispute-${booking.id}`} aria-describedby={`service-dispute-help-${booking.id}`} className="input min-h-24 resize-y" minLength={20} maxLength={5000} required
             value={disputeReason} onChange={event => setDisputeReason(event.target.value)}
             placeholder="Explain what was agreed, what was delivered and what still needs fixing." />
-          <p className="text-[11px] text-on-surface/55">Opening a dispute freezes the held funds. Platform operations will review the case.</p>
+          <p id={`service-dispute-help-${booking.id}`} className="text-[11px] text-on-surface/55">Describe the issue in at least 20 characters. Opening a dispute freezes the held funds. Platform operations will review the case.</p>
           <div className="flex gap-2">
             <button type="submit" disabled={actionsDisabled} className="btn-primary text-xs">{busy ? 'Submitting…' : 'Open dispute'}</button>
             <button type="button" disabled={actionsDisabled} onClick={() => setShowDisputeForm(false)} className="btn-secondary text-xs">Cancel</button>

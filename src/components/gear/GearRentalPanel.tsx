@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Copy, KeyRound, PackageCheck, ShieldAlert } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -74,6 +74,10 @@ const STATUS_COPY: Record<string, string> = {
 export default function GearRentalPanel({ listing, allowRequest = true }: { listing: ListingForRental; allowRequest?: boolean }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const sectionId = useId()
+  const disputeTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const disputeFieldRef = useRef<HTMLTextAreaElement | null>(null)
+  const disputeWasOpenRef = useRef(false)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [pickupCode, setPickupCode] = useState('')
@@ -87,6 +91,12 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
   const [disputeReturnCode, setDisputeReturnCode] = useState('')
   const [disputeReturnCodeRentalId, setDisputeReturnCodeRentalId] = useState<string | null>(null)
   const [disputeReturnInput, setDisputeReturnInput] = useState('')
+
+  useEffect(() => {
+    if (disputeFor) disputeFieldRef.current?.focus()
+    else if (disputeWasOpenRef.current) disputeTriggerRef.current?.focus()
+    disputeWasOpenRef.current = Boolean(disputeFor)
+  }, [disputeFor])
 
   const isOwner = user?.id === listing.seller_id
   const days = inclusiveDays(startDate, endDate)
@@ -197,10 +207,10 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
   const canRequest = Boolean(allowRequest && user && !isOwner && listing.status === 'active' && listing.listing_mode === 'both')
 
   return (
-    <section className="surface space-y-4 p-4 sm:p-5" aria-labelledby="gear-rental-title">
+    <section className="surface space-y-4 p-4 sm:p-5" aria-labelledby={`${sectionId}-title`} aria-busy={busy || isLoading}>
       <div className="flex items-center gap-2">
         <PackageCheck size={16} className="text-primary" />
-        <h2 id="gear-rental-title" className="font-bold text-sm">Rent this item</h2>
+        <h2 id={`${sectionId}-title`} className="font-bold text-sm">Rent this item</h2>
         <span className="ml-auto rounded-sm border border-primary/20 bg-primary/5 px-2 py-1 text-[10px] font-bold text-primary">CAMPUS WALLET</span>
       </div>
       <div className="rounded-md border border-outline-variant bg-surface-container p-3 text-xs leading-5 text-on-surface-variant">
@@ -262,7 +272,8 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                 )}
                 {rental.rental_status === 'funds_escrowed' && borrower && (
                   <div className="flex gap-2">
-                    <input className="input min-w-0" value={pickupInput} onChange={event => setPickupInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character pickup code" autoComplete="one-time-code" />
+                    <input className="input min-w-0" aria-label={`Pickup code for rental ${rental.id.slice(0, 8)}`} aria-describedby={`${sectionId}-pickup-help-${rental.id}`} value={pickupInput} onChange={event => setPickupInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character pickup code" autoComplete="one-time-code" />
+                    <span id={`${sectionId}-pickup-help-${rental.id}`} className="sr-only">Enter the 8-character code provided by the lender.</span>
                     <button type="button" className="btn-primary shrink-0" disabled={busy || pickupInput.trim().length !== 8} onClick={() => confirmPickupMutation.mutate(rental.id)}>Confirm pickup</button>
                   </div>
                 )}
@@ -287,20 +298,21 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                 )}
                 {rental.rental_status === 'return_pending' && lender && (
                   <div className="flex gap-2">
-                    <input className="input min-w-0" value={returnInput} onChange={event => setReturnInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character return code" autoComplete="one-time-code" />
+                    <input className="input min-w-0" aria-label={`Return code for rental ${rental.id.slice(0, 8)}`} aria-describedby={`${sectionId}-return-help-${rental.id}`} value={returnInput} onChange={event => setReturnInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character return code" autoComplete="one-time-code" />
+                    <span id={`${sectionId}-return-help-${rental.id}`} className="sr-only">Enter the 8-character return code provided by the borrower.</span>
                     <button type="button" className="btn-primary shrink-0" disabled={busy || returnInput.trim().length !== 8} onClick={() => confirmReturnMutation.mutate(rental.id)}>Confirm return</button>
                   </div>
                 )}
 
                 {pickupCode && pickupCodeRentalId === rental.id && lender && rental.rental_status === 'funds_escrowed' && (
-                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3" role="status" aria-live="polite">
                     <p className="text-[10px] font-bold uppercase text-primary">One-time pickup code</p>
                     <div className="mt-2 flex items-center justify-between gap-2"><code className="text-lg font-black tracking-widest">{pickupCode}</code><button type="button" onClick={() => void copyCode(pickupCode)} className="btn-secondary"><Copy size={13} /> Copy</button></div>
                     <p className="mt-1 text-[10px] text-on-surface-variant">Valid for 15 minutes. Give this to the borrower only when physically handing over the item.</p>
                   </div>
                 )}
                 {returnCode && returnCodeRentalId === rental.id && borrower && ['active','return_pending'].includes(rental.rental_status) && (
-                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3" role="status" aria-live="polite">
                     <p className="text-[10px] font-bold uppercase text-primary">One-time return code</p>
                     <div className="mt-2 flex items-center justify-between gap-2"><code className="text-lg font-black tracking-widest">{returnCode}</code><button type="button" onClick={() => void copyCode(returnCode)} className="btn-secondary"><Copy size={13} /> Copy</button></div>
                     <p className="mt-1 text-[10px] text-on-surface-variant">Valid for 15 minutes. Share it only when returning the item to its owner.</p>
@@ -316,10 +328,12 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                   <div className="space-y-2">
                     {disputeFor === rental.id ? (
                       <>
-                        <textarea className="input w-full" rows={3} maxLength={2000} value={disputeReason} onChange={event => setDisputeReason(event.target.value)} placeholder="Describe the issue in at least 20 characters." />
+                        <label className="block text-xs font-semibold" htmlFor={`${sectionId}-dispute-${rental.id}`}>Describe the rental problem</label>
+                        <textarea ref={disputeFieldRef} id={`${sectionId}-dispute-${rental.id}`} className="input w-full" rows={3} minLength={20} maxLength={2000} aria-describedby={`${sectionId}-dispute-help-${rental.id}`} value={disputeReason} onChange={event => setDisputeReason(event.target.value)} placeholder="Describe the issue in at least 20 characters." />
+                        <p id={`${sectionId}-dispute-help-${rental.id}`} className="text-xs text-on-surface-variant">Include at least 20 characters. Explain the condition of the item and what went wrong.</p>
                         <div className="flex gap-2"><button type="button" className="btn-secondary flex-1" onClick={() => { setDisputeFor(null); setDisputeReason('') }}>Keep rental active</button><button type="button" className="btn-primary flex-1" disabled={busy || disputeReason.trim().length < 20} onClick={() => disputeMutation.mutate({ rentalId: rental.id, reason: disputeReason.trim() })}>Open dispute</button></div>
                       </>
-                    ) : <button type="button" className="text-xs font-semibold text-error" disabled={busy} onClick={() => setDisputeFor(rental.id)}><ShieldAlert size={13} className="inline mr-1" />Report a problem</button>}
+                    ) : <button type="button" aria-expanded={disputeFor === rental.id} className="text-xs font-semibold text-error" disabled={busy} onClick={event => { disputeTriggerRef.current = event.currentTarget; setDisputeFor(rental.id) }}><ShieldAlert size={13} className="inline mr-1" />Report a problem</button>}
                   </div>
                 )}
                 {rental.rental_status === 'completed' && <div className="flex items-center gap-2 text-xs text-primary"><CheckCircle2 size={14} /> Return verified and funds settled</div>}
@@ -330,7 +344,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                 )}
                 {['disputed','resolved'].includes(rental.rental_status) && !rental.custody_resolved_at && lender && (
                   <div className="flex gap-2">
-                    <input className="input min-w-0" value={disputeReturnInput} onChange={event => setDisputeReturnInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character return code" autoComplete="one-time-code" />
+                    <input className="input min-w-0" aria-label={`Disputed return code for rental ${rental.id.slice(0, 8)}`} value={disputeReturnInput} onChange={event => setDisputeReturnInput(event.target.value.toUpperCase().slice(0, 8))} placeholder="8-character return code" autoComplete="one-time-code" />
                     <button type="button" className="btn-primary shrink-0" disabled={busy || disputeReturnInput.trim().length !== 8} onClick={() => confirmDisputeReturnMutation.mutate(rental.id)}>Verify return</button>
                   </div>
                 )}

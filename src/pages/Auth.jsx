@@ -1,7 +1,7 @@
 /* eslint-disable no-hardcoded-colors/no-hardcoded-colors */
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
 import { DEPARTMENTS, getProgrammesForDepartment } from '@/data/academicOptions'
 import { ArrowRight, Eye, EyeOff, Fingerprint, LockKeyhole, Mail, ShieldCheck, Zap } from 'lucide-react'
@@ -26,10 +26,13 @@ const features = [
 
 export default function Auth() {
   const { isAuthenticated, signIn, signUp, signInWithPasskey, passkeySupported } = useAuth()
+  const prefersReducedMotion = useReducedMotion()
   const [mode, setMode] = useState('signin')
   const [showPass, setShowPass] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const [formMessage, setFormMessage] = useState('')
+  const [formError, setFormError] = useState(false)
   const [form, setForm] = useState({ email: '', password: '', fullName: '', university: '', department: '', course: '', matric: '' })
 
   if (isAuthenticated) return <Navigate to="/" replace />
@@ -40,17 +43,20 @@ export default function Auth() {
   const switchMode = nextMode => {
     if (submitting) return
     setMode(nextMode)
+    setFormMessage('')
+    setFormError(false)
   }
 
   const handleSubmit = async event => {
     event.preventDefault()
     setSubmitting(true)
+    setFormMessage('')
+    setFormError(false)
 
     try {
-      if (mode === 'signin') {
-        await signIn({ email: form.email, password: form.password })
-      } else {
-        await signUp({
+      const result = mode === 'signin'
+        ? await signIn({ email: form.email, password: form.password })
+        : await signUp({
           email: form.email,
           password: form.password,
           fullName: form.fullName,
@@ -59,7 +65,21 @@ export default function Auth() {
           course: form.course,
           matric: form.matric,
         })
+
+      if (result?.error) {
+        const message = typeof result.error === 'string'
+          ? result.error
+          : result.error instanceof Error
+            ? result.error.message
+            : 'Unable to complete authentication. Check your details and try again.'
+        setFormError(true)
+        setFormMessage(message)
+      } else if (mode === 'signup') {
+        setFormMessage('Account created. Check your university email for the verification link before signing in.')
       }
+    } catch (error) {
+      setFormError(true)
+      setFormMessage(error instanceof Error ? error.message : 'Unable to complete authentication. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -67,13 +87,23 @@ export default function Auth() {
 
   const handlePasskey = async () => {
     if (!form.email) {
-      alert('Enter your email first')
+      setFormError(true)
+      setFormMessage('Enter your email address before using a passkey.')
       return
     }
+    setFormMessage('')
+    setFormError(false)
 
     setPasskeyLoading(true)
     try {
-      await signInWithPasskey(form.email)
+      const result = await signInWithPasskey(form.email)
+      if (result?.error) {
+        setFormError(true)
+        setFormMessage(typeof result.error === 'string' ? result.error : 'Passkey sign-in failed. Try your password instead.')
+      }
+    } catch (error) {
+      setFormError(true)
+      setFormMessage(error instanceof Error ? error.message : 'Passkey sign-in failed. Try your password instead.')
     } finally {
       setPasskeyLoading(false)
     }
@@ -135,9 +165,9 @@ export default function Auth() {
 
           <motion.div
             className="relative z-10 w-full max-w-[460px]"
-            initial={{ opacity: 0, y: 12 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.3, ease: 'easeOut' }}
           >
             <div className="mb-8 lg:hidden">
               <div className="mb-7 flex items-center gap-3">
@@ -190,14 +220,14 @@ export default function Auth() {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-4">
                 <AnimatePresence initial={false} mode="popLayout">
                   {mode === 'signup' && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
                       className="overflow-hidden"
                     >
                       <label className="label" htmlFor="full-name">Full name</label>
@@ -225,7 +255,7 @@ export default function Auth() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
                       className="overflow-hidden space-y-4"
                     >
                       <div>
@@ -266,6 +296,7 @@ export default function Auth() {
                       type="button"
                       onClick={() => setShowPass(value => !value)}
                       aria-label={showPass ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPass}
                       className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-on-surface-variant/25 transition-colors hover:bg-surface-container-high hover:text-on-surface/60"
                     >
                       {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -281,6 +312,7 @@ export default function Auth() {
                   {submitting ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
                   {!submitting && <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />}
                 </button>
+                <p className={formError ? 'text-sm text-error' : 'text-sm text-on-surface-variant'} role={formError ? 'alert' : 'status'} aria-live={formError ? 'assertive' : 'polite'} aria-atomic="true">{formMessage}</p>
               </form>
 
               {mode === 'signin' && passkeySupported && (
@@ -294,7 +326,7 @@ export default function Auth() {
                     type="button"
                     onClick={handlePasskey}
                     disabled={passkeyLoading || !form.email}
-                    whileTap={{ scale: 0.985 }}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.985 }}
                     className="mt-4 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-md border border-outline-variant bg-surface-container text-sm font-bold text-on-surface/70 transition-colors hover:border-primary/25 hover:bg-primary/[0.04] hover:text-primary disabled:cursor-not-allowed disabled:opacity-35"
                   >
                     <Fingerprint size={17} className={passkeyLoading ? 'animate-pulse' : ''} />

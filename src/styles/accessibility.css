@@ -1,0 +1,112 @@
+/*
+ * Campus Plug accessibility foundation.
+ * Semantic colors remain owned by themeEngine.ts; this layer only consumes roles.
+ */
+
+:root {
+  --cp-space-1: 0.25rem;
+  --cp-space-2: 0.5rem;
+  --cp-space-3: 0.75rem;
+  --cp-space-4: 1rem;
+  --cp-space-5: 1.5rem;
+  --cp-space-6: 2rem;
+  --cp-space-7: 2.5rem;
+  --cp-space-8: 3rem;
+  --cp-control-min-height: 3rem;
+  --cp-focus-width: 3px;
+  --cp-focus-offset: 3px;
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--cp-focus-width) solid var(--md-primary);
+  outline-offset: var(--cp-focus-offset);
+}
+
+:where(button, input, select, textarea):disabled,
+:where([aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
+:where(input, select, textarea)[aria-invalid="true"],
+:where(input, select, textarea):user-invalid {
+  border-color: var(--md-error);
+}
+
+:where(input, select, textarea)[aria-invalid="true"]:focus-visible {
+  outline-color: var(--md-error);
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+}
+
+button,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+.cp-skip-link {
+  position: fixed;
+  z-index: 1000;
+  inset-block-start: var(--cp-space-3);
+  inset-inline-start: var(--cp-space-3);
+  padding: var(--cp-space-3) var(--cp-space-4);
+  border: 2px solid var(--md-primary);
+  border-radius: 4px;
+  background: var(--md-surface-container-high);
+  color: var(--md-on-surface);
+  transform: translateY(calc(-100% - 1rem));
+  transition: transform 120ms ease-out;
+}
+
+.cp-skip-link:focus,
+.cp-skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.cp-field-error {
+  color: var(--md-error);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.cp-focus-ring:focus-visible {
+  outline: var(--cp-focus-width) solid var(--md-primary);
+  outline-offset: var(--cp-focus-offset);
+}
+
+#main-content {
+  scroll-margin-block-start: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 3px;
+  }
+
+  .cp-skip-link {
+    border: 2px solid ButtonText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  :where(input, select, textarea)[aria-invalid="true"] {
+    border: 2px solid Mark;
+  }
+}

@@ -45,12 +45,15 @@ async function verifyListing(listingId:string,userId:string,sourceDevice:string,
       && browserLocation!.longitude >= bounds[2] && browserLocation!.longitude <= bounds[3]
     : false;
 
+  const {error:clearImageEvidenceError}=await admin.from('listing_exif_flags').delete().eq('listing_id',listingId).eq('verification_source','server_verified');
+  if(clearImageEvidenceError)throw clearImageEvidenceError;
   if(results.length){
-    await admin.from('listing_exif_flags').delete().eq('listing_id',listingId).eq('verification_source','server_verified');
     const rows=results.map(({has_capture_timestamp,...result})=>({...result,listing_id:listingId,raw_exif:null,verification_source: "server_verified",verified_at:new Date().toISOString()}));
     const {error:insertError}=await admin.from('listing_exif_flags').insert(rows); if(insertError)throw insertError;
   }
   if(locationIsPlausible){
+    const {error:clearLocationEvidenceError}=await admin.from('listing_exif_flags').delete().eq('listing_id',listingId).eq('verification_source','browser_geolocation');
+    if(clearLocationEvidenceError)throw clearLocationEvidenceError;
     const {error:locationError}=await admin.from('listing_exif_flags').insert({
       listing_id:listingId,image_url:null,flag_type:'browser_geolocation_evidence',
       description:cameraCaptureReported?'User-reported camera capture with recent browser geolocation. This is untrusted corroborating evidence.':'Recent browser geolocation supplied without a camera-capture claim. This is untrusted corroborating evidence.',
@@ -64,14 +67,14 @@ async function verifyListing(listingId:string,userId:string,sourceDevice:string,
 
   // Stripped images commonly have no EXIF. Absence of a mismatch is not proof:
   // require server-readable GPS and capture time before awarding metadata_verified.
-  const metadataComplete = results.length > 0 && results.every(result =>
+  const metadataComplete = results.length > 0 && results.length === images.length && results.every(result =>
     result.gps_lat !== null && result.gps_lng !== null && result.has_capture_timestamp
       && !result.gps_mismatch && !result.timestamp_flag
   );
   const needsMobile=sourceDevice==='desktop';
   await admin.from('listings').update({metadata_verified:metadataComplete&&!needsMobile,verification_source_device:sourceDevice,mobile_verification_required:needsMobile,mobile_verification_requested_at:needsMobile?new Date().toISOString():null}).eq('id',listingId).eq('seller_id',userId);
   if(needsMobile){await admin.from('notifications').insert({user_id:userId,type:'mobile_verification_required',title:'📱 Live photo verification needed',body:'Your listing was uploaded from a laptop. Use the in-app camera and location evidence on a phone; browser signals are reviewed separately and do not automatically verify metadata.',data:{listing_id:listingId,grace_window_hours:24}})}
-  return {verified:metadataComplete&&!needsMobile,processed:results.length,flagged:results.filter(r=>r.gps_mismatch||r.timestamp_flag).length,metadata_missing:results.some(r=>r.gps_lat===null||r.gps_lng===null||!r.has_capture_timestamp),location_evidence_submitted:locationIsPlausible,location_evidence_in_campus_bounds:locationInCampusBounds,camera_capture_reported:cameraCaptureReported,mobile_verification_required:needsMobile};
+  return {verified:metadataComplete&&!needsMobile,processed:results.length,flagged:results.filter(r=>r.gps_mismatch||r.timestamp_flag).length,metadata_missing:results.length !== images.length || results.some(r=>r.gps_lat===null||r.gps_lng===null||!r.has_capture_timestamp),location_evidence_submitted:locationIsPlausible,location_evidence_in_campus_bounds:locationInCampusBounds,camera_capture_reported:cameraCaptureReported,mobile_verification_required:needsMobile};
 }
 
 serve(async(req:Request)=>{

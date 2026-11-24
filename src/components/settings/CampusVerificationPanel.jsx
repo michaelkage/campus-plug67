@@ -19,6 +19,7 @@ export default function CampusVerificationPanel() {
   const [memberships, setMemberships] = useState([])
   const [requests, setRequests] = useState([])
   const [institutionId, setInstitutionId] = useState('')
+  const [primaryInstitutionId, setPrimaryInstitutionId] = useState(profile?.primary_institution_id || '')
   const [matricNumber, setMatricNumber] = useState('')
   const [evidence, setEvidence] = useState(null)
   const [vouchCode, setVouchCode] = useState('')
@@ -43,7 +44,8 @@ export default function CampusVerificationPanel() {
     setMemberships(membershipRows.data || [])
     setRequests(requestRows.data || [])
     setInstitutionId(current => current || directory.data?.[0]?.id || '')
-  }, [user?.id])
+    setPrimaryInstitutionId(current => current || profile?.primary_institution_id || membershipRows.data?.find(item => item.status === 'verified')?.institution_id || '')
+  }, [user?.id, profile?.primary_institution_id])
 
   useEffect(() => { void loadData() }, [loadData])
 
@@ -58,6 +60,20 @@ export default function CampusVerificationPanel() {
     await refreshProfile()
     await loadData()
     toast.success(data?.institution_name ? `Verified ${data.institution_name}` : 'Campus membership verified')
+  }
+
+  const setPrimaryCampus = async () => {
+    if (!primaryInstitutionId) return
+    setLoading(true)
+    const { error } = await supabase.rpc('set_my_primary_institution', { p_institution_id: primaryInstitutionId })
+    setLoading(false)
+    if (error) {
+      toast.error(error.message || 'Unable to change primary campus')
+      return
+    }
+    await refreshProfile()
+    await loadData()
+    toast.success('Primary campus updated')
   }
 
   const submitEvidence = async event => {
@@ -155,6 +171,18 @@ export default function CampusVerificationPanel() {
         <button className="btn-secondary mt-3" onClick={() => void verifyInstitutionEmail()} disabled={loading || !user?.email}>
           Verify approved university email
         </button>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-bold">Verified memberships</h3>
+        {verifiedMemberships.length === 0
+          ? <p className="rounded-md bg-surface-container p-3 text-xs text-on-surface/55">No verified campus memberships yet.</p>
+          : <div className="flex flex-col gap-2 sm:flex-row">
+              <select className="input min-w-0 flex-1" value={primaryInstitutionId} onChange={event => setPrimaryInstitutionId(event.target.value)} aria-label="Primary campus">
+                {verifiedMemberships.map(item => <option key={item.institution_id} value={item.institution_id}>{institutionName(item.institution_id)}</option>)}
+              </select>
+              <button type="button" className="btn-secondary" onClick={() => void setPrimaryCampus()} disabled={loading || !primaryInstitutionId || primaryInstitutionId === profile?.primary_institution_id}>Set primary campus</button>
+            </div>}
       </div>
 
       <form onSubmit={submitEvidence} className="space-y-3 rounded-md border border-outline-variant p-4" aria-busy={submitting}>

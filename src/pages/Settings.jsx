@@ -109,7 +109,7 @@ export default function Settings(){
  const verifiedMemberships=memberships.filter(m=>m.status==='verified')
  const institutionName=id=>institutions.find(item=>item.id===id)?.name||'Institution'
 
- return <div className="page-shell max-w-3xl space-y-6">
+ return <div className="page-shell max-w-3xl space-y-6" aria-busy={saving}>
    <header className="page-header"><div><p className="section-label">Preferences</p><h1 className="page-title">Settings</h1><p className="page-subtitle">Control appearance, motion, density and notification behavior.</p></div></header>
    <section className="surface p-5">
      <div className="flex items-center gap-3 mb-5"><GraduationCap size={18} className="text-primary"/><div><h2 className="font-black">Campus identity</h2><p className="text-xs text-on-surface/50">Your campus is verified from your confirmed university email, not a manually typed profile label.</p></div></div>

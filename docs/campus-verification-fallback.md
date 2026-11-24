@@ -55,7 +55,7 @@ Pending evidence receives a 30-day `evidence_expires_at` timestamp. The reposito
 2. Enable `pg_cron` and `pg_net` if they are not already enabled. Schedule the worker with:
 
    ```sql
-   do $
+   do $block$
    declare job_id bigint;
    begin
      select jobid into job_id from cron.job
@@ -64,7 +64,7 @@ Pending evidence receives a 30-day `evidence_expires_at` timestamp. The reposito
      perform cron.schedule(
        'campus-verification-evidence-retention',
        '*/15 * * * *',
-       $
+       $job$
        select net.http_post(
          url := (select decrypted_secret from vault.decrypted_secrets where name = 'campus_verification_project_url')
            || '/functions/v1/cleanup-campus-verification-evidence',
@@ -75,9 +75,9 @@ Pending evidence receives a 30-day `evidence_expires_at` timestamp. The reposito
          ),
          body := jsonb_build_object('trigger', 'scheduled')
        );
-       $
+       $job$
      );
-   end $;
+   end $block$;
    ```
 
 3. Confirm the Cron run history and Edge Function logs show successful invocations. Alert on nonzero `failed`, `evidence_cleanup_attempts >= 8`, orphan jobs with `attempts >= 8`, or old non-null evidence paths whose expiry/review time has passed. Orphan job history is retained in `campus_verification_evidence_orphan_jobs`; successfully deleted objects are marked with `deleted_at`. Successful deletion stamps `evidence_deleted_at` and clears `evidence_path`; failed attempts retain the path and last error for retry or operator recovery. Run a manual worker POST with the service key after deployment to verify end-to-end Storage deletion before enabling the recurring job.

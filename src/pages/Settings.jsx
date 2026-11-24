@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bell, Check, Monitor, Moon, Smartphone, Sparkles, Volume2, GraduationCap, ShieldCheck } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -12,12 +12,16 @@ export default function Settings(){
  const {user,profile,refreshProfile}=useAuth()
  const [prefs,setPrefs]=useState(profile?.preferences??defaults)
  const [saving,setSaving]=useState(false)
+ const [saveAnnouncement,setSaveAnnouncement]=useState('')
+ const prefsRef=useRef(prefs)
+ const saveQueueRef=useRef(Promise.resolve())
+ const pendingSavesRef=useRef(0)
  const [institutions,setInstitutions]=useState([])
  const [memberships,setMemberships]=useState([])
  const [institutionLoading,setInstitutionLoading]=useState(false)
  const [selectedInstitutionId,setSelectedInstitutionId]=useState(profile?.primary_institution_id||'')
 
- useEffect(()=>{setPrefs(profile?.preferences??defaults)},[profile?.preferences])
+ useEffect(()=>{const next=profile?.preferences??defaults;prefsRef.current=next;setPrefs(next)},[profile?.preferences])
  useEffect(()=>{setSelectedInstitutionId(profile?.primary_institution_id||'')},[profile?.primary_institution_id])
  useEffect(()=>{document.documentElement.dataset.reducedMotion=prefs.reducedMotion?'true':'false';document.documentElement.dataset.compact=prefs.compactMode?'true':'false'},[prefs])
 
@@ -37,16 +41,49 @@ export default function Settings(){
 
  useEffect(()=>{void loadInstitutionData()},[loadInstitutionData])
 
- const update=async(key,value)=>{
-   if(!user)return
-   const next={...prefs,[key]:value}
-   setPrefs(next)
+ const enqueuePreferenceSave=(operation,onError)=>{
+   pendingSavesRef.current+=1
    setSaving(true)
-   const {error}=await supabase.from('profiles').update({preferences:next}).eq('id',user.id)
-   setSaving(false)
-   if(error){setPrefs(prefs);toast.error(error.message||'Failed to save preference')}
+   setSaveAnnouncement('Saving preferences')
+   const task=saveQueueRef.current.then(async()=>{
+     const {error}=await operation()
+     if(error)throw error
+     setSaveAnnouncement('Preferences saved')
+     return true
+   }).catch(error=>{
+     onError?.(error)
+     setSaveAnnouncement('Unable to save preferences')
+     toast.error(error?.message||'Failed to save preferences')
+     return false
+   }).finally(()=>{
+     pendingSavesRef.current=Math.max(0,pendingSavesRef.current-1)
+     setSaving(pendingSavesRef.current>0)
+   })
+   saveQueueRef.current=task
+   return task
  }
- const saveProfile=async(next)=>{if(!user)return;setSaving(true);const {error}=await supabase.from('profiles').update({theme_mode:next}).eq('id',user.id);setSaving(false);if(error)toast.error(error.message);else toast.success('Preferences saved')}
+ const update=(key,value)=>{
+   if(!user)return
+   const previous=prefsRef.current
+   const next={...previous,[key]:value}
+   prefsRef.current=next
+   setPrefs(next)
+   return enqueuePreferenceSave(
+     ()=>supabase.from('profiles').update({preferences:prefsRef.current}).eq('id',user.id),
+     ()=>{
+       const current=prefsRef.current
+       if(current[key]===value){
+         const rollback={...current,[key]:previous[key]}
+         prefsRef.current=rollback
+         setPrefs(rollback)
+       }
+     }
+   )
+ }
+ const saveProfile=next=>{
+   if(!user)return
+   return enqueuePreferenceSave(()=>supabase.from('profiles').update({theme_mode:next}).eq('id',user.id))
+ }
 
  const claimCampus=async()=>{
    if(!user)return
@@ -92,6 +129,6 @@ export default function Settings(){
    </section>
    <section className="surface p-5"><div className="flex items-center gap-3 mb-5"><Smartphone size={18} className="text-primary"/><div><h2 className="font-black">Accessibility & comfort</h2><p className="text-xs text-on-surface/40">These preferences are synced to your Campus Plug profile.</p></div></div><div className="divide-y divide-[var(--md-outline-variant)]">{[['reducedMotion','Reduce motion','Respects motion-sensitive users',Sparkles],['compactMode','Compact density','Fit more information on desktop',Monitor],['transactionAlerts','Transaction alerts','Important escrow and payment notifications',Bell],['chatAlerts','Chat alerts','New marketplace and group messages',Volume2]].map(([key,title,desc,Icon])=><label key={key} className="flex min-h-16 cursor-pointer items-center gap-3 py-3"><Icon size={17} className="text-on-surface/50"/><span className="flex-1"><span className="block text-sm font-semibold">{title}</span><span className="block text-xs text-on-surface/45">{desc}</span></span><input type="checkbox" checked={Boolean(prefs[key])} onChange={e=>void update(key,e.target.checked)} aria-label={title}/></label>)}</div></section>
    <section className="rounded-md border border-primary/20 bg-primary/5 p-4 text-xs text-on-surface/75"><strong className="text-on-surface">Tip:</strong> Reduced motion follows your system preference as well as this setting. Financial actions never rely on offline success states.</section>
-   <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{saving?'Saving preferences':'Preferences saved'}</p>
+   <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{saveAnnouncement}</p>
  </div>
 }

@@ -3,20 +3,7 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useAuth } from '@/contexts/AuthContext'
-import { DEPARTMENTS, getProgrammesForDepartment } from '@/data/academicOptions'
 import { ArrowRight, Eye, EyeOff, Fingerprint, LockKeyhole, Mail, ShieldCheck, Zap } from 'lucide-react'
-
-const UNIVERSITIES = [
-  'University of Lagos (UNILAG)',
-  'Obafemi Awolowo University (OAU)',
-  'University of Ibadan (UI)',
-  'University of Benin (UNIBEN)',
-  'Ahmadu Bello University (ABU)',
-  'Yaba College of Technology (YABATECH)',
-  'Lagos State University (LASU)',
-  'University of Nigeria Nsukka (UNN)',
-  'Other',
-]
 
 const features = [
   { title: 'Your campus, connected', text: 'Find people, services, opportunities and things happening around you.' },
@@ -33,7 +20,7 @@ export default function Auth() {
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [formMessage, setFormMessage] = useState('')
   const [formError, setFormError] = useState(false)
-  const [form, setForm] = useState({ email: '', password: '', fullName: '', university: '', department: '', course: '', matric: '' })
+  const [form, setForm] = useState({ email: '', password: '', fullName: '' })
 
   if (isAuthenticated) return <Navigate to="/" replace />
 
@@ -60,10 +47,6 @@ export default function Auth() {
           email: form.email,
           password: form.password,
           fullName: form.fullName,
-          university: form.university,
-          department: form.department,
-          course: form.course,
-          matric: form.matric,
         })
 
       if (result?.error) {
@@ -75,7 +58,7 @@ export default function Auth() {
         setFormError(true)
         setFormMessage(message)
       } else if (mode === 'signup') {
-        setFormMessage('Account created. Check your university email for the verification link before signing in.')
+        setFormMessage('Account created. Check your email for the verification link. Campus membership is a separate step in Settings.')
       }
     } catch (error) {
       setFormError(true)
@@ -187,7 +170,7 @@ export default function Auth() {
               </h1>
               <p className="mt-2 text-sm leading-6 text-on-surface/40">
                 {mode === 'signin'
-                  ? 'Use your university email to continue where you left off.'
+                  ? 'Use your email address to continue where you left off.'
                   : 'Join your campus community in a few quick steps.'}
               </p>
             </header>
@@ -216,7 +199,7 @@ export default function Auth() {
                 <ShieldCheck size={17} className="shrink-0 text-primary" />
                 <div>
                   <p className="text-xs font-bold text-on-surface/70">Secure student access</p>
-                  <p className="mt-0.5 text-[11px] leading-4 text-on-surface/30">Your credentials are protected and your university identity is verified.</p>
+                  <p className="mt-0.5 text-[11px] leading-4 text-on-surface/30">Your account is protected. Campus membership is verified separately.</p>
                 </div>
               </div>
 
@@ -237,55 +220,17 @@ export default function Auth() {
                 </AnimatePresence>
 
                 <div>
-                  <label className="label" htmlFor="university-email">University email</label>
+                  <label className="label" htmlFor="university-email">Email address</label>
                   <div className="relative">
                     <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/25" />
-                    <input id="university-email" className="input pl-10" type="email" autoComplete="email" placeholder="your.name@unilag.edu.ng" value={form.email} onChange={set('email')} required />
+                    <input id="university-email" className="input pl-10" type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={set('email')} required />
                   </div>
                   {mode === 'signup' && (
                     <p className="mt-2 text-[11px] leading-4 text-on-surface/30">
-                      Use an approved university email. We verify it against the campus allowlist.
+                      Confirm your email to activate your account. Campus membership can be verified separately.
                     </p>
                   )}
                 </div>
-
-                <AnimatePresence initial={false} mode="popLayout">
-                  {mode === 'signup' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
-                      className="overflow-hidden space-y-4"
-                    >
-                      <div>
-                        <label className="label" htmlFor="university">University</label>
-                        <select id="university" className="input" value={form.university} onChange={set('university')} required>
-                          <option value="">Select your university</option>
-                          {UNIVERSITIES.map(university => <option key={university} value={university}>{university}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label" htmlFor="department">Department</label>
-                        <select id="department" className="input" value={form.department} onChange={setDepartment} required>
-                          <option value="">Choose your department</option>
-                          {DEPARTMENTS.map(department => <option key={department} value={department}>{department}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label" htmlFor="course">Course / Programme</label>
-                        <select id="course" className="input" value={form.course} onChange={set('course')} required>
-                          <option value="">Choose a department first</option>
-                          {getProgrammesForDepartment(form.department).map(programme => <option key={programme} value={programme}>{programme}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label" htmlFor="matric-number">Matric number <span className="font-normal text-on-surface/20">(optional)</span></label>
-                        <input id="matric-number" className="input" type="text" placeholder="e.g. 190402056" value={form.matric} onChange={set('matric')} />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
 
                 <div>
                   <label className="label" htmlFor="password">Password</label>
@@ -338,7 +283,7 @@ export default function Auth() {
 
               {mode === 'signup' && (
                 <p className="mt-5 text-center text-[11px] leading-5 text-on-surface-variant/25">
-                  By creating an account, you confirm that you are a registered student. Device fingerprinting may be used for fraud prevention.
+                  After confirming your email, you can use Campus Plug while campus membership is pending. Submit your student evidence in Settings to request verification.
                 </p>
               )}
             </div>

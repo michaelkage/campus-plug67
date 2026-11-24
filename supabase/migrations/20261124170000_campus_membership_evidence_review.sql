@@ -121,7 +121,7 @@ CREATE POLICY "Platform admins delete campus verification evidence"
 -- The legacy membership constraint required an email address for every verified
 -- member. Manual review has no institutional email, so permit NULL only for the
 -- explicitly named manual-review method.
-DO $
+DO $$
 DECLARE existing_constraint text;
 BEGIN
   SELECT conname INTO existing_constraint
@@ -133,7 +133,7 @@ BEGIN
   IF existing_constraint IS NOT NULL THEN
     EXECUTE format('ALTER TABLE public.institution_memberships DROP CONSTRAINT %I', existing_constraint);
   END IF;
-END $;
+END $$;
 ALTER TABLE public.institution_memberships
   ADD CONSTRAINT institution_memberships_verification_evidence_check
   CHECK (
@@ -157,7 +157,7 @@ SET search_path = public, storage
 AS $$
 DECLARE
   actor uuid := auth.uid();
-  normalized_matric text := upper(regexp_replace(trim(COALESCE(p_matric_number,'')), '\\s+', '', 'g'));
+  normalized_matric text := upper(regexp_replace(trim(COALESCE(p_matric_number,'')), '\s+', '', 'g'));
   request_row public.campus_verification_requests%ROWTYPE;
   confirmed_at timestamptz;
   request_count integer;

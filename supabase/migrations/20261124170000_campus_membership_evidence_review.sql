@@ -121,8 +121,19 @@ CREATE POLICY "Platform admins delete campus verification evidence"
 -- The legacy membership constraint required an email address for every verified
 -- member. Manual review has no institutional email, so permit NULL only for the
 -- explicitly named manual-review method.
-ALTER TABLE public.institution_memberships
-  DROP CONSTRAINT IF EXISTS institution_memberships_check;
+DO $
+DECLARE existing_constraint text;
+BEGIN
+  SELECT conname INTO existing_constraint
+  FROM pg_constraint
+  WHERE conrelid = 'public.institution_memberships'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) ILIKE '%verified_email IS NOT NULL%'
+  LIMIT 1;
+  IF existing_constraint IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.institution_memberships DROP CONSTRAINT %I', existing_constraint);
+  END IF;
+END $;
 ALTER TABLE public.institution_memberships
   ADD CONSTRAINT institution_memberships_verification_evidence_check
   CHECK (
@@ -274,7 +285,14 @@ BEGIN
     SELECT r.id,r.user_id,r.institution_id,r.matric_number,r.evidence_path,
       r.evidence_mime_type,r.status,r.review_reason,r.submitted_at,
       i.name AS institution_name,p.full_name AS applicant_name,p.email AS applicant_email,
-      (SELECT count(*) FROM public.campus_verification_vouches v WHERE v.request_id=r.id) AS vouch_count
+      (SELECT count(*) FROM public.campus_verification_vouches v WHERE v.request_id=r.id) AS vouch_count,
+      COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('name',vp.full_name,'account_created_at',vu.created_at) ORDER BY v.created_at)
+        FROM public.campus_verification_vouches v
+        JOIN public.profiles vp ON vp.id=v.voucher_id
+        JOIN auth.users vu ON vu.id=v.voucher_id
+        WHERE v.request_id=r.id
+      ),'[]'::jsonb) AS peer_vouches
     FROM public.campus_verification_requests r
     JOIN public.institutions i ON i.id=r.institution_id
     JOIN public.profiles p ON p.id=r.user_id
@@ -314,6 +332,11 @@ BEGIN
     SELECT 1 FROM storage.objects
     WHERE bucket_id='campus-verification-evidence' AND name=request_row.evidence_path
   ) THEN RAISE EXCEPTION 'Evidence file is missing; request cannot be approved'; END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.institution_memberships
+    WHERE user_id=request_row.user_id AND institution_id=request_row.institution_id AND status='suspended'
+  ) THEN RAISE EXCEPTION 'This campus membership is suspended and requires a separate appeal process'; END IF;
 
   UPDATE public.campus_verification_requests
   SET status=p_decision,review_reason=NULLIF(trim(p_reason),''),reviewed_by=actor,

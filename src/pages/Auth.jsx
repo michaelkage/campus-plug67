@@ -25,7 +25,6 @@ export default function Auth() {
   if (isAuthenticated) return <Navigate to="/" replace />
 
   const set = key => event => setForm(current => ({ ...current, [key]: event.target.value }))
-  const setDepartment = event => setForm(current => ({ ...current, department: event.target.value, course: '' }))
 
   const switchMode = nextMode => {
     if (submitting) return

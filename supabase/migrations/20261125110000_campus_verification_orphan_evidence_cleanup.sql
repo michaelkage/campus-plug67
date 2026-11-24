@@ -239,7 +239,9 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.guard_campus_verification_evidence_submission()\n  FROM PUBLIC, anon, authenticated, service_role;\nREVOKE ALL ON FUNCTION public.campus_verification_evidence_object_exists(text)\n  FROM PUBLIC, anon, authenticated;\nREVOKE ALL ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer)
+REVOKE ALL ON FUNCTION public.guard_campus_verification_evidence_submission()
+  FROM PUBLIC, anon, authenticated, service_role;\nREVOKE ALL ON FUNCTION public.campus_verification_evidence_object_exists(text)
+  FROM PUBLIC, anon, authenticated;\nREVOKE ALL ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.complete_campus_verification_orphan_cleanup(uuid,text)
   FROM PUBLIC, anon, authenticated;

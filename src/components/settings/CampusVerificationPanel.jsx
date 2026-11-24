@@ -114,12 +114,25 @@ export default function CampusVerificationPanel() {
       p_evidence_mime_type: evidence.type,
     })
     if (error) {
-      const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([objectPath])
-      setSubmitting(false)
-      toast.error(cleanupError
-        ? `${error.message}. Evidence cleanup needs support review.`
-        : error.message || 'Campus verification submission failed')
-      return
+      // A network timeout can happen after Postgres commits. Check the owner-scoped
+      // request row before deleting the uploaded object, or a valid request could
+      // be left pointing at evidence that the client just removed.
+      const { data: committedRequest, error: lookupError } = await supabase
+        .from('campus_verification_requests')
+        .select('id,status')
+        .eq('evidence_path', objectPath)
+        .maybeSingle()
+      if (!lookupError && !committedRequest) {
+        await supabase.storage.from(BUCKET).remove([objectPath])
+        setSubmitting(false)
+        toast.error(error.message || 'Campus verification submission failed')
+        return
+      }
+      if (lookupError) {
+        setSubmitting(false)
+        toast.error('Submission status is unclear. Refresh verification history before retrying; your private evidence was retained.')
+        return
+      }
     }
 
     setMatricNumber('')

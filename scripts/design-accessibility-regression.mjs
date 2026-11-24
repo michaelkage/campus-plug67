@@ -12,6 +12,7 @@ const tokens = JSON.parse(read('src/theme/theme.tokens.json'))
 const app = read('src/App.tsx')
 const notifications = read('src/pages/Notifications.jsx')
 const notificationToast = read('src/components/ui/NotificationBanner.jsx')
+const settings = read('src/pages/Settings.jsx')
 const offlineBanner = read('src/components/ui/OfflineSyncBanner.tsx')
 
 for (const required of [
@@ -37,6 +38,9 @@ if (!layout.includes('useReducedMotion()') || !layout.includes('reduceMotion ? f
   fail('Route transitions must respect the user reduced-motion preference')
 }
 if (!app.includes('<Layout/>')) fail('Accessibility layout regression must run against the app shell')
+if (/<main\\b/.test(settings)) fail('Settings page must not create a nested main landmark inside the authenticated layout')
+if (!settings.includes("aria-pressed={theme==='dark'}") || !settings.includes("aria-pressed={theme==='amoled'}")) fail('Theme controls must expose their selected state with aria-pressed')
+if (!settings.includes('aria-live="polite"') || !settings.includes('role="status"')) fail('Preference save state must be announced to assistive technology')
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')
 }

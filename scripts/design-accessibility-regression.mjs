@@ -38,7 +38,7 @@ if (!layout.includes('useReducedMotion()') || !layout.includes('reduceMotion ? f
   fail('Route transitions must respect the user reduced-motion preference')
 }
 if (!app.includes('<Layout/>')) fail('Accessibility layout regression must run against the app shell')
-if (/<main\\b/.test(settings)) fail('Settings page must not create a nested main landmark inside the authenticated layout')
+if (/<main\b/.test(settings)) fail('Settings page must not create a nested main landmark inside the authenticated layout')
 if (!settings.includes("aria-pressed={theme==='dark'}") || !settings.includes("aria-pressed={theme==='amoled'}")) fail('Theme controls must expose their selected state with aria-pressed')
 if (!settings.includes('aria-live="polite"') || !settings.includes('role="status"')) fail('Preference save state must be announced to assistive technology')
 if (tokens.spacing.minTouchTarget !== '48px') {

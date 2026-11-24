@@ -52,14 +52,13 @@ assert.ok(!authPage.includes('setDepartment'))
 
 for (const invariant of [
   "from('campus_verification_requests')",
-  "from('campus-verification-evidence')",
+  "const BUCKET = 'campus-verification-evidence'",
   "submit_my_campus_verification",
   'crypto.randomUUID()',
   'MAX_FILE_BYTES',
   'vouch_for_campus_verification',
   'does not approve the membership',
 ]) assert.ok(applicant.includes(invariant), `Applicant campus workflow missing: ${invariant}`)
-assert.ok(applicant.includes('from(\'campus-verification-evidence\')'))
 
 for (const invariant of [
   'get_campus_verification_review_queue',

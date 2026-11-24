@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
   let orphanFailed = 0;
 
   for (const item of orphanItems) {
-    const { error: storageError } = await admin.storage.from(BUCKET).remove([item.evidence_path]);
+    const storageError = await removeIfPresent(admin, item.evidence_path);
     if (storageError) {
       orphanFailed += 1;
       failed += 1;

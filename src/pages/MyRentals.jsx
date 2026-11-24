@@ -59,8 +59,8 @@ export default function MyRentals() {
         <p className="text-[11px] leading-5 text-on-surface-variant">Rental payments currently use Campus Wallet only and are capped at ₦10,000 per reservation. Cash and Paystack rental checkout are not supported in this release.</p>
       </section>
 
-      {isLoading ? <div className="surface p-8 text-center text-sm text-on-surface-variant">Loading your rentals…</div>
-        : error ? <div className="surface p-6 text-sm text-error">Could not load rentals. {error instanceof Error ? error.message : ''}</div>
+      {isLoading ? <div className="surface p-8 text-center text-sm text-on-surface-variant" role="status" aria-live="polite">Loading your rentals…</div>
+        : error ? <div className="surface p-6 text-sm text-error" role="alert">Could not load rentals. {error instanceof Error ? error.message : ''}</div>
         : listings.length === 0 ? <div className="surface flex flex-col items-center p-10 text-center"><PackageSearch size={32} className="mb-3 text-on-surface-variant/40"/><h2 className="font-bold">No rentals yet</h2><p className="mt-1 max-w-sm text-sm text-on-surface-variant">When you reserve or lend an item, its pickup, return and settlement steps will appear here.</p></div>
         : <div className="space-y-5">{listings.map(listing => <GearRentalPanel key={listing.id} listing={listing} allowRequest={false} />)}</div>}
     </div>

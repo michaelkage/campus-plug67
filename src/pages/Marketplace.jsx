@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
@@ -64,6 +64,9 @@ function CreateListingModal({ onClose, profile }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({ title: '', description: '', category: '', subcategory: '', price: '', hostel: '', listing_mode: 'sale', rental_daily_rate: '', rental_security_deposit: '0', rental_min_days: '1', rental_max_days: '30' })
   const [images, setImages] = useState([])
+  const [locationEvidence, setLocationEvidence] = useState(null)
+  const [locationStatus, setLocationStatus] = useState('')
+  const cameraInputRef = useRef(null)
   const [suggestion, setSuggestion] = useState(null)
   const [floorData, setFloorData] = useState(null)
   const [exifStatus, setExifStatus] = useState(null)
@@ -101,11 +104,11 @@ function CreateListingModal({ onClose, profile }) {
     const cat = e.target.value; setForm(f => ({ ...f, category: cat, subcategory: '' })); if (!cat || !profile?.university) return
     setLoadingPrice(true); const { data } = await supabase.rpc('get_price_suggestion', { p_category: cat, p_university: profile.university }); setSuggestion(data); setLoadingPrice(false)
   }
-  const onDrop = useCallback(async (files) => {
+  const onDrop = useCallback(async (files, capturedByCamera = false) => {
     const newImgs = []
     for (const file of files.slice(0, 4 - images.length)) {
       setExifStatus('analyzing'); const exif = await analyzeAndStripExif(file, profile?.university)
-      newImgs.push({ file: exif.clean_blob || file, preview: URL.createObjectURL(exif.clean_blob || file), exif })
+      newImgs.push({ file: exif.clean_blob || file, preview: URL.createObjectURL(exif.clean_blob || file), exif, capturedByCamera })
     }
     setImages(prev => [...prev, ...newImgs].slice(0, 4))
     const allExif = [...images, ...newImgs].map(i => i.exif).filter(Boolean)
@@ -113,6 +116,21 @@ function CreateListingModal({ onClose, profile }) {
     setExifStatus(anyFlagged ? 'flagged' : allExif.length > 0 ? 'clean' : null)
   }, [images, profile?.university])
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] }, maxSize: 5 * 1024 * 1024 })
+  const captureCampusLocation = () => {
+    if (!navigator.geolocation) { setLocationStatus('Location is unavailable in this browser.'); return }
+    setLocationStatus('Requesting approximate campus location…')
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        setLocationEvidence({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy, capturedAt: new Date(position.timestamp).toISOString() })
+        setLocationStatus(`Location evidence captured (±${Math.round(position.coords.accuracy)} m). It is a signal for review, not proof of identity or location.`)
+      },
+      error => {
+        setLocationEvidence(null)
+        setLocationStatus(error.code === error.PERMISSION_DENIED ? 'Location permission was denied. You can still publish without location evidence.' : 'Could not get a location fix. Try again outdoors or continue without it.')
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+    )
+  }
   const removeImage = (idx) => setImages(prev => { URL.revokeObjectURL(prev[idx].preview); const next = prev.filter((_, i) => i !== idx); if (!next.length) setExifStatus(null); return next })
 
   const handleSubmit = async (e) => {
@@ -171,13 +189,15 @@ function CreateListingModal({ onClose, profile }) {
             sideEffectFailures.push('emergency token')
           }
         }
-        for (let i = 0; i < images.length; i++) {
-          if (!images[i].exif || !uploadedUrls[i]) continue
+        if (images.length || locationEvidence) {
           try {
-            await saveExifFlags(listing.id, uploadedUrls[i], images[i].exif)
+            await saveExifFlags(listing.id, {
+              browserLocation: locationEvidence,
+              cameraCaptureReported: images.some(image => image.capturedByCamera),
+            })
           } catch (error) {
-            console.error('Server image verification failed after listing publish:', { listingId: listing.id, imageIndex: i, error })
-            sideEffectFailures.push('image verification')
+            console.error('Server image/location evidence processing failed after listing publish:', { listingId: listing.id, error })
+            sideEffectFailures.push('image/location verification')
           }
         }
         try {
@@ -237,7 +257,7 @@ function CreateListingModal({ onClose, profile }) {
           {tokenOverride && <div className="flex items-center gap-2 text-xs text-tertiary"><Zap size={12} />Emergency token applied — below-floor price allowed</div>}
           {(loadingPrice || suggestion) && !floorData && <div className="bg-primary/5 border border-primary/20 rounded-md p-4"><div className="flex items-center gap-2 mb-2"><TrendingUp size={13} className="text-primary" /><span className="text-xs font-bold text-primary uppercase tracking-wider">Smart Price (IQR-cleaned)</span></div>{loadingPrice ? <div className="text-sm text-on-surface/40 animate-pulse">Analyzing campus prices...</div> : suggestion?.sample_count > 0 ? <div className="space-y-2"><div className="flex items-center gap-4"><div><div className="text-xl font-black text-primary font-mono">{formatNaira(suggestion.median_price)}</div><div className="text-xs text-on-surface/40">Recommended median{suggestion.outliers_removed > 0 && ` (${suggestion.outliers_removed} outliers excluded)`}</div></div><button type="button" onClick={() => setForm(f => ({ ...f, price: (suggestion.median_price / 100).toFixed(0) }))} className="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/30 transition-colors font-semibold">Use This Price</button></div><div className="flex gap-3 text-xs text-on-surface/40"><span>Min: {formatNaira(suggestion.min_price)}</span><span>Max: {formatNaira(suggestion.max_price)}</span><span>{suggestion.sample_count} listings analyzed</span></div><div className="relative h-1.5 bg-surface-container-highest rounded-sm"><div className="absolute h-full rounded-sm bg-none from-primary to-tertiary" style={{ width: suggestion.max_price > 0 ? `${Math.min(suggestion.median_price / suggestion.max_price * 100, 100)}%` : '50%' }} /></div></div> : <p className="text-sm text-on-surface/40">No comparable listings yet. Set any price.</p>}</div>}
           <div><label className="label">Description</label><textarea aria-label="Description" className="input resize-none" rows={3} placeholder="Condition, edition, accessories included..." value={form.description} onChange={set('description')} /></div>
-          <div><label className="label">Photos (up to 4) — EXIF auto-stripped</label><div {...getRootProps()} className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/5' : 'border-outline-variant hover:border-primary/40 hover:bg-surface-container-highest/30'}`}><input {...getInputProps()} /><Upload size={22} className="mx-auto text-on-surface/30 mb-2" /><p className="text-sm text-on-surface/40">{isDragActive ? 'Drop here' : 'Drag & drop or click'}</p><p className="text-xs text-white/25 mt-1">GPS data stripped automatically. Location verified server-side for trust.</p></div>{exifStatus && <div className="mt-2"><ExifStatus status={exifStatus} /></div>}{images.length > 0 && <div className="flex gap-2 mt-3 flex-wrap">{images.map((img, i) => <div key={i} className="relative"><img src={img.preview} alt="" className={`w-20 h-20 rounded-lg object-cover border-2 ${img.exif?.gps_mismatch || img.exif?.timestamp_flag ? 'border-error/50' : 'border-outline-variant'}`} />{img.exif && !img.exif.gps_mismatch && !img.exif.timestamp_flag && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-sm bg-primary flex items-center justify-center text-[8px] text-on-primary font-bold">✓</div>}{(img.exif?.gps_mismatch || img.exif?.timestamp_flag) && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-sm bg-error flex items-center justify-center text-[8px] text-white">!</div>}<button type="button" onClick={() => removeImage(i)} className="absolute -bottom-1 -left-1 w-4 h-4 rounded-sm bg-surface border border-outline-variant text-on-surface/60 flex items-center justify-center text-[10px]">×</button></div>)}</div>}</div>
+          <div><label className="label">Photos (up to 4) — private metadata is stripped before publishing</label><div {...getRootProps()} className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${isDragActive ? 'border-primary bg-primary/5' : 'border-outline-variant hover:border-primary/40 hover:bg-surface-container-highest/30'}`}><input {...getInputProps()} /><Upload size={22} className="mx-auto text-on-surface/30 mb-2" /><p className="text-sm text-on-surface/40">{isDragActive ? 'Drop here' : 'Drag & drop or click'}</p><p className="text-xs text-on-surface-variant mt-1">Photo metadata is removed where supported. Missing GPS data will not count as verification.</p></div><div className="mt-3 flex flex-wrap gap-2"><button type="button" className="btn-secondary" onClick={() => cameraInputRef.current?.click()}>Use camera</button><input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={event => { const file = event.target.files?.[0]; if (file) void onDrop([file], true); event.target.value = '' }} /><button type="button" className="btn-secondary" onClick={captureCampusLocation} disabled={locationStatus.startsWith('Requesting')}>Capture approximate location</button></div>{locationStatus && <p className="mt-2 text-xs text-on-surface-variant" role="status" aria-live="polite">{locationStatus}</p>}{exifStatus && <div className="mt-2"><ExifStatus status={exifStatus} /></div>}{images.length > 0 && <div className="flex gap-2 mt-3 flex-wrap">{images.map((img, i) => <div key={i} className="relative"><img src={img.preview} alt="" className={`w-20 h-20 rounded-lg object-cover border-2 ${img.exif?.gps_mismatch || img.exif?.timestamp_flag ? 'border-error/50' : 'border-outline-variant'}`} />{img.exif && !img.exif.gps_mismatch && !img.exif.timestamp_flag && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-sm bg-primary flex items-center justify-center text-[8px] text-on-primary font-bold">✓</div>}{(img.exif?.gps_mismatch || img.exif?.timestamp_flag) && <div className="absolute -top-1 -right-1 w-4 h-4 rounded-sm bg-error flex items-center justify-center text-[8px] text-white">!</div>}<button type="button" onClick={() => removeImage(i)} className="absolute -bottom-1 -left-1 w-4 h-4 rounded-sm bg-surface border border-outline-variant text-on-surface/60 flex items-center justify-center text-[10px]">×</button></div>)}</div>}</div>
           <button type="submit" aria-label="Publish Listing" disabled={submitting || (!!floorData && !tokenOverride)} className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed">{submitting ? 'Publishing...' : 'Publish Listing'}</button>
         </form>
       </motion.div>

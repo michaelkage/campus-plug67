@@ -59,6 +59,28 @@ CREATE TRIGGER campus_verification_evidence_submission_guard
 BEFORE INSERT ON public.campus_verification_requests
 FOR EACH ROW EXECUTE FUNCTION public.guard_campus_verification_evidence_submission();
 
+CREATE OR REPLACE FUNCTION public.campus_verification_evidence_object_exists(
+  p_evidence_path text
+) RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
+  END IF;
+  IF p_evidence_path IS NULL OR length(trim(p_evidence_path)) = 0 THEN
+    RAISE EXCEPTION 'Evidence path is required';
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM storage.objects
+     WHERE bucket_id = 'campus-verification-evidence'
+       AND name = p_evidence_path
+  );
+END;
+$;
+
 CREATE OR REPLACE FUNCTION public.claim_campus_verification_orphan_cleanup(
   p_batch_size integer DEFAULT 50
 ) RETURNS jsonb
@@ -211,13 +233,13 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer)
+REVOKE ALL ON FUNCTION public.campus_verification_evidence_object_exists(text)\n  FROM PUBLIC, anon, authenticated;\nREVOKE ALL ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.complete_campus_verification_orphan_cleanup(uuid,text)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.fail_campus_verification_orphan_cleanup(uuid,text,text)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.campus_verification_evidence_object_exists(text) TO service_role;\nGRANT EXECUTE ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.complete_campus_verification_orphan_cleanup(uuid,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.fail_campus_verification_orphan_cleanup(uuid,text,text) TO service_role;
 

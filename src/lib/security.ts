@@ -17,6 +17,7 @@ type ExifResult = {
   gps_lng: number | null
   gps_mismatch: boolean
   timestamp_flag: boolean
+  has_capture_timestamp: boolean
   make: string | null
   model: string | null
   software: string | null
@@ -102,7 +103,7 @@ export async function registerDevice(userId: string): Promise<string> {
 
 export async function analyzeAndStripExif(file: File, userUniversity: string): Promise<ExifResult> {
   const result: ExifResult = {
-    gps_lat: null, gps_lng: null, gps_mismatch: false, timestamp_flag: false,
+    gps_lat: null, gps_lng: null, gps_mismatch: false, timestamp_flag: false, has_capture_timestamp: false,
     make: null, model: null, software: null, raw_exif: null, clean_blob: file,
   }
 
@@ -130,6 +131,7 @@ export async function analyzeAndStripExif(file: File, userUniversity: string): P
       }
 
       const imageDate = exif.DateTimeOriginal || exif.DateTime
+      result.has_capture_timestamp = Boolean(imageDate)
       if (imageDate) {
         const imageTs = new Date(imageDate).getTime()
         if (Number.isFinite(imageTs)) {

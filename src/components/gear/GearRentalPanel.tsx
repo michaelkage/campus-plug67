@@ -333,7 +333,7 @@ export default function GearRentalPanel({ listing, allowRequest = true }: { list
                         <p id={`${sectionId}-dispute-help-${rental.id}`} className="text-xs text-on-surface-variant">Include at least 20 characters. Explain the condition of the item and what went wrong.</p>
                         <div className="flex gap-2"><button type="button" className="btn-secondary flex-1" onClick={() => { setDisputeFor(null); setDisputeReason('') }}>Keep rental active</button><button type="button" className="btn-primary flex-1" disabled={busy || disputeReason.trim().length < 20} onClick={() => disputeMutation.mutate({ rentalId: rental.id, reason: disputeReason.trim() })}>Open dispute</button></div>
                       </>
-                    ) : <button ref={disputeTriggerRef} type="button" aria-expanded={disputeFor === rental.id} className="text-xs font-semibold text-error" disabled={busy} onClick={() => setDisputeFor(rental.id)}><ShieldAlert size={13} className="inline mr-1" />Report a problem</button>}
+                    ) : <button type="button" aria-expanded={disputeFor === rental.id} className="text-xs font-semibold text-error" disabled={busy} onClick={event => { disputeTriggerRef.current = event.currentTarget; setDisputeFor(rental.id) }}><ShieldAlert size={13} className="inline mr-1" />Report a problem</button>}
                   </div>
                 )}
                 {rental.rental_status === 'completed' && <div className="flex items-center gap-2 text-xs text-primary"><CheckCircle2 size={14} /> Return verified and funds settled</div>}

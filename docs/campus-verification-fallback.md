@@ -80,7 +80,7 @@ Pending evidence receives a 30-day `evidence_expires_at` timestamp. The reposito
    end $;
    ```
 
-3. Confirm the Cron run history and Edge Function logs show successful invocations. Alert on nonzero `failed`, `evidence_cleanup_attempts >= 8`, or old non-null evidence paths whose expiry/review time has passed. Run a manual worker POST with the service key after deployment to verify end-to-end Storage deletion before enabling the recurring job.
+3. Confirm the Cron run history and Edge Function logs show successful invocations. Alert on nonzero `failed`, `evidence_cleanup_attempts >= 8`, or old non-null evidence paths whose expiry/review time has passed. Successful deletion stamps `evidence_deleted_at` and clears `evidence_path`; failed attempts retain the path and last error for retry or operator recovery. Run a manual worker POST with the service key after deployment to verify end-to-end Storage deletion before enabling the recurring job.
 
 Until these production steps are completed and monitored, the code is implemented but automatic deletion is not live. A failed deletion must be treated as a privacy cleanup incident and manually reconciled from the private bucket.
 

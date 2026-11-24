@@ -163,6 +163,7 @@ DECLARE
   request_count integer;
 BEGIN
   IF actor IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended(actor::text || ':campus-verification', 0));
 
   SELECT email_confirmed_at INTO confirmed_at FROM auth.users WHERE id = actor;
   IF confirmed_at IS NULL THEN RAISE EXCEPTION 'Confirm your account email before submitting campus evidence'; END IF;
@@ -173,7 +174,7 @@ BEGIN
   IF normalized_matric !~ '^[A-Z0-9/-]{4,32}$' THEN
     RAISE EXCEPTION 'Enter a valid matric number using 4 to 32 letters, numbers, hyphens or slashes';
   END IF;
-  IF p_evidence_mime_type NOT IN ('image/jpeg','image/png','image/webp','application/pdf') THEN
+  IF p_evidence_mime_type IS NULL OR p_evidence_mime_type NOT IN ('image/jpeg','image/png','image/webp','application/pdf') THEN
     RAISE EXCEPTION 'Unsupported evidence file type';
   END IF;
   IF p_evidence_path !~ ('^' || actor::text || '/' || p_institution_id::text || '/[0-9a-fA-F-]{36}\.(jpg|jpeg|png|webp|pdf)$') THEN
@@ -193,6 +194,10 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'You already have a verified membership at this institution';
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.institution_memberships
+    WHERE user_id = actor AND institution_id = p_institution_id AND status = 'suspended'
+  ) THEN RAISE EXCEPTION 'This campus membership is suspended and requires a separate appeal process'; END IF;
   IF EXISTS (
     SELECT 1 FROM public.campus_verification_requests
     WHERE user_id = actor AND institution_id = p_institution_id AND status = 'pending_review'
@@ -241,6 +246,7 @@ DECLARE
   total_vouches integer;
 BEGIN
   IF actor IS NULL THEN RAISE EXCEPTION 'Authentication required'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended(actor::text || ':campus-vouch', 0));
   SELECT * INTO target_request FROM public.campus_verification_requests
   WHERE id = p_request_id AND status = 'pending_review' FOR UPDATE;
   IF target_request.id IS NULL THEN RAISE EXCEPTION 'Pending campus request not found'; END IF;
@@ -317,7 +323,7 @@ DECLARE
   primary_id uuid;
 BEGIN
   IF actor IS NULL OR NOT public.is_platform_admin() THEN RAISE EXCEPTION 'Platform admin required'; END IF;
-  IF p_decision NOT IN ('approved','rejected') THEN RAISE EXCEPTION 'Invalid review decision'; END IF;
+  IF p_decision IS NULL OR p_decision NOT IN ('approved','rejected') THEN RAISE EXCEPTION 'Invalid review decision'; END IF;
   IF p_decision='rejected' AND length(trim(COALESCE(p_reason,''))) < 8 THEN
     RAISE EXCEPTION 'Provide a clear rejection reason of at least 8 characters';
   END IF;

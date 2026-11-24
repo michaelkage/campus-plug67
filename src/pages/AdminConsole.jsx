@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, CreditCard, Database, LayoutDashboard, PackageCheck, RefreshCw, Search, Shield, Users, WalletCards } from 'lucide-react'
+import { Activity, AlertTriangle, CreditCard, Database, GraduationCap, LayoutDashboard, PackageCheck, RefreshCw, Search, Shield, Users, WalletCards } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import TransactionTimeline from '@/components/admin/TransactionTimeline'
+import CampusVerificationReview from '@/components/admin/CampusVerificationReview'
 
-const tabs=[['overview','Overview',LayoutDashboard],['transactions','Transactions',CreditCard],['rentals','Rental disputes',PackageCheck],['payments','Payments',WalletCards],['security','Security',Shield],['operations','Operations',Activity]]
+const tabs=[['overview','Overview',LayoutDashboard],['transactions','Transactions',CreditCard],['rentals','Rental disputes',PackageCheck],['payments','Payments',WalletCards],['security','Security',Shield],['operations','Operations',Activity],['campus-verification','Campus verification',GraduationCap]]
 
 export default function AdminConsole(){
   const { user }=useAuth(); const [tab,setTab]=useState('overview'); const [transactionId,setTransactionId]=useState(''); const [rentalShares,setRentalShares]=useState({}); const [rentalCustody,setRentalCustody]=useState({})
@@ -56,6 +57,7 @@ export default function AdminConsole(){
     {tab==='payments'&&<section className="surface overflow-hidden"><div className="p-5 border-b border-[var(--md-outline-variant)]"><h2 className="font-black">Payment event ledger</h2><p className="text-xs text-[var(--md-on-surface)]/40 mt-1">Provider events are immutable; this view is read-only.</p></div><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr className="border-b border-[var(--md-outline-variant)]"><th className="p-4">Event</th><th className="p-4">Reference</th><th className="p-4">Status</th><th className="p-4">Received</th></tr></thead><tbody>{(snapshot?.recent_payments||[]).map((e,i)=><tr key={e.event_id||i} className="border-b border-[var(--md-outline-variant)]"><td className="p-4 font-bold">{e.event_type}</td><td className="p-4 font-mono text-[var(--md-on-surface)]/50">{e.reference||'—'}</td><td className="p-4">{e.processing_status}</td><td className="p-4 text-[var(--md-on-surface)]/40">{new Date(e.received_at).toLocaleString()}</td></tr>)}</tbody></table></div></section>}
     {tab==='security'&&<section className="grid gap-5 md:grid-cols-2"><div className="surface p-5"><h2 className="font-black">Security posture</h2><ul className="mt-4 space-y-3 text-sm text-[var(--md-on-surface)]/55"><li>✓ Platform-admin RPC authorization</li><li>✓ Service-role-only sensitive telemetry tables</li><li>✓ Transaction transition audit trail</li><li>✓ Payment event idempotency ledger</li><li>✓ Client device signals are not authentication</li></ul></div><div className="surface p-5"><h2 className="font-black">Incident signals</h2><div className="mt-4 text-3xl font-black">{snapshot?.observability_errors_24h||0}</div><p className="text-xs text-[var(--md-on-surface)]/40">observability errors in the last 24 hours</p></div></section>}
     {tab==='operations'&&<section className="grid gap-5 md:grid-cols-2"><div className="surface p-5"><h2 className="font-black">Marketplace</h2><div className="mt-4 space-y-2 text-sm"><div className="flex justify-between"><span className="text-[var(--md-on-surface)]/45">Active listings</span><strong>{snapshot?.active_listings??'—'}</strong></div><div className="flex justify-between"><span className="text-[var(--md-on-surface)]/45">Pending/review</span><strong>{snapshot?.pending_listings??'—'}</strong></div></div></div><div className="surface p-5"><h2 className="font-black">Users</h2><div className="mt-4 space-y-2 text-sm"><div className="flex justify-between"><span className="text-[var(--md-on-surface)]/45">Total</span><strong>{snapshot?.users??'—'}</strong></div><div className="flex justify-between"><span className="text-[var(--md-on-surface)]/45">Verified</span><strong>{snapshot?.verified_users??'—'}</strong></div></div></div></section>}
+    {tab==='campus-verification'&&<CampusVerificationReview/>}
   </main>
 }
 function HealthRow({label,value,bad}){return <div className="flex items-center justify-between rounded-md border border-[var(--md-outline-variant)] p-3"><span className="text-sm text-[var(--md-on-surface)]/55">{label}</span><span className={`font-mono font-black ${bad?'text-[var(--md-error)]':'text-primary'}`}>{value}</span></div>}

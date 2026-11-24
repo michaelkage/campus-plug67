@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import { useAccessibleDialog } from '@/hooks/useAccessibleDialog'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, formatNaira, toKobo } from '@/lib/supabase'
@@ -21,6 +22,8 @@ function timeLeft(expiresAt) {
 // ── Create Pool Modal ─────────────────────────────────────────────────────────
 function CreatePoolModal({ onClose, profile }) {
   const qc = useQueryClient()
+  const formId = useId()
+  const dialogRef = useAccessibleDialog(true, onClose)
   const [form, setForm] = useState({
     title: '', item_name: '', description: '',
     category: '', unit_price: '', total_price: '',
@@ -69,52 +72,57 @@ function CreatePoolModal({ onClose, profile }) {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-scrim/70" onClick={onClose} />
       <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`study-pool-title-${formId}`}
+        tabIndex={-1}
         initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         className="relative z-10 w-full max-w-lg bg-surface-container-high border border-outline-variant rounded-md max-h-[90vh] overflow-y-auto"
       >
         <div className="sticky top-0 bg-surface-container-high border-b border-outline-variant px-6 py-4 flex items-center justify-between">
-          <h2 className="font-bold text-lg">Start a Study Pool</h2>
-          <button onClick={onClose} className="text-on-surface/30 hover:text-on-surface"><X size={18}/></button>
+          <h2 id={`study-pool-title-${formId}`} className="font-bold text-lg">Start a Study Pool</h2>
+          <button type="button" onClick={onClose} aria-label="Close study pool dialog" className="icon-button min-h-12 min-w-12 text-on-surface/60 hover:text-on-surface"><X size={18}/></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} aria-busy={submitting} className="p-6 space-y-4">
           <div className="bg-[var(--md-primary)]/5 border border-primary/20 rounded-md p-4 text-sm text-on-surface/60">
             <strong className="text-primary">How pools work:</strong> Set a group buy deal.
             Students join and pay their share. When full, the pool locks and you purchase together at the bulk price.
           </div>
 
-          <div><label className="label">Pool Title</label>
-            <input className="input" placeholder='e.g. "Bulk A4 Paper — Faculty of Science"'
+          <div><label className="label" htmlFor={`pool-title-${formId}`}>Pool Title</label>
+            <input id={`pool-title-${formId}`} className="input" placeholder='e.g. "Bulk A4 Paper — Faculty of Science"'
               value={form.title} onChange={set('title')} required /></div>
 
-          <div><label className="label">Item Name</label>
-            <input className="input" placeholder='e.g. "Ream of Balogun A4 Paper (500 sheets)"'
+          <div><label className="label" htmlFor={`pool-item-${formId}`}>Item Name</label>
+            <input id={`pool-item-${formId}`} className="input" placeholder='e.g. "Ream of Balogun A4 Paper (500 sheets)"'
               value={form.item_name} onChange={set('item_name')} required /></div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Category</label>
-              <select className="input" value={form.category} onChange={set('category')}>
+            <div><label className="label" htmlFor={`pool-category-${formId}`}>Category</label>
+              <select id={`pool-category-${formId}`} className="input" value={form.category} onChange={set('category')}>
                 <option value="">Select</option>
                 {POOL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-            <div><label className="label">Max Participants</label>
-              <input className="input" type="number" min="2" max="50" placeholder="e.g. 10"
+            <div><label className="label" htmlFor={`pool-capacity-${formId}`}>Max Participants</label>
+              <input id={`pool-capacity-${formId}`} className="input" type="number" min="2" max="50" placeholder="e.g. 10"
                 value={form.max_capacity} onChange={set('max_capacity')} required /></div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Per-Person Price (₦)</label>
-              <input className="input" type="number" placeholder="e.g. 500"
+            <div><label className="label" htmlFor={`pool-unit-price-${formId}`}>Per-Person Price (₦)</label>
+              <input id={`pool-unit-price-${formId}`} className="input" type="number" placeholder="e.g. 500"
                 value={form.unit_price} onChange={set('unit_price')} required /></div>
-            <div><label className="label">Full Deal Price (₦)</label>
-              <input className="input" type="number" placeholder="e.g. 4500"
+            <div><label className="label" htmlFor={`pool-total-price-${formId}`}>Full Deal Price (₦)</label>
+              <input id={`pool-total-price-${formId}`} className="input" type="number" placeholder="e.g. 4500"
                 value={form.total_price} onChange={set('total_price')} required /></div>
           </div>
 
-          <div><label className="label">Pool Duration</label>
-            <select className="input" value={form.expires_hours} onChange={set('expires_hours')}>
+          <div><label className="label" htmlFor={`pool-duration-${formId}`}>Pool Duration</label>
+            <select id={`pool-duration-${formId}`} className="input" value={form.expires_hours} onChange={set('expires_hours')}>
               <option value="24">24 hours</option>
               <option value="48">48 hours</option>
               <option value="72">72 hours</option>
@@ -122,12 +130,12 @@ function CreatePoolModal({ onClose, profile }) {
             </select>
           </div>
 
-          <div><label className="label">Supplier Info (optional)</label>
-            <input className="input" placeholder="Where you'll buy from, contact, etc."
+          <div><label className="label" htmlFor={`pool-supplier-${formId}`}>Supplier Info (optional)</label>
+            <input id={`pool-supplier-${formId}`} className="input" placeholder="Where you'll buy from, contact, etc."
               value={form.supplier_info} onChange={set('supplier_info')} /></div>
 
-          <div><label className="label">Description</label>
-            <textarea className="input resize-none" rows={2} placeholder="Any extra details..."
+          <div><label className="label" htmlFor={`pool-description-${formId}`}>Description</label>
+            <textarea id={`pool-description-${formId}`} className="input resize-none" rows={2} placeholder="Any extra details..."
               value={form.description} onChange={set('description')} /></div>
 
           <button type="submit" disabled={submitting} className="btn-primary w-full disabled:opacity-50">

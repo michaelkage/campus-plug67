@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = file => fs.readFileSync(path.join(root, file), 'utf8')
 const migration = read('supabase/migrations/20261125100000_campus_verification_evidence_retention.sql')
+const orphanMigration = read('supabase/migrations/20261125110000_campus_verification_orphan_evidence_cleanup.sql')
 const worker = read('supabase/functions/cleanup-campus-verification-evidence/index.ts')
 const config = read('supabase/config.toml')
 const docs = read('docs/campus-verification-fallback.md')
@@ -40,6 +41,26 @@ assert.ok(worker.includes('claim_campus_verification_evidence_cleanup'))
 assert.ok(worker.includes('complete_campus_verification_evidence_cleanup'))
 assert.ok(worker.includes('fail_campus_verification_evidence_cleanup'))
 assert.ok(worker.includes('BATCH_SIZE = 50'))
+assert.ok(worker.includes('claim_campus_verification_orphan_cleanup'))
+assert.ok(worker.includes('complete_campus_verification_orphan_cleanup'))
+assert.ok(worker.includes('fail_campus_verification_orphan_cleanup'))
+assert.ok(worker.includes('orphan_discovered'))
+assert.ok(worker.includes('orphan_deleted'))
+
+for (const invariant of [
+  'campus_verification_evidence_orphan_jobs',
+  'FOR UPDATE OF o SKIP LOCKED',
+  "interval '24 hours'",
+  'campus_verification_evidence_submission_guard',
+  'guard_campus_verification_evidence_submission',
+  'claim_campus_verification_orphan_cleanup',
+  'complete_campus_verification_orphan_cleanup',
+  'fail_campus_verification_orphan_cleanup',
+  'auth.role() IS DISTINCT FROM \\'service_role\\'',
+  'evidence_path = NEW.evidence_path',
+  'FOR UPDATE',
+  'REVOKE ALL ON public.campus_verification_evidence_orphan_jobs',
+]) assert.ok(orphanMigration.includes(invariant), `Orphan retention migration missing invariant: ${invariant}`)
 assert.ok(worker.includes('failed === 0 ? 200 : 207'))
 assert.ok(config.includes('[functions.cleanup-campus-verification-evidence]'))
 assert.ok(config.includes('verify_jwt = false'))
@@ -53,6 +74,10 @@ for (const invariant of [
   'evidence_deleted_at',
   'expired',
   'maximum of eight attempts',
+  '24-hour submission grace period',
+  'abandoned, unreferenced uploads',
+  'orphan jobs with',
+  'campus_verification_evidence_orphan_jobs',
   'Request, decision and audit metadata remain available',
   'No migration has been applied',
 ]) assert.ok(docs.includes(invariant), `Retention runbook missing: ${invariant}`)

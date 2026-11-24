@@ -91,6 +91,16 @@ export default function CampusVerificationReview() {
                 </div>
                 <span className="rounded-sm bg-surface-container px-2 py-1 text-[11px] font-bold">{request.vouch_count} peer vouch{request.vouch_count === 1 ? '' : 'es'}</span>
               </div>
+              {request.peer_vouches?.length > 0 && (
+                <div className="rounded-md border border-outline-variant p-3">
+                  <p className="text-xs font-bold">Peer attestations</p>
+                  <ul className="mt-2 space-y-1 text-xs text-on-surface-variant">
+                    {request.peer_vouches.map((vouch, index) => (
+                      <li key={index}>{vouch.name || 'Verified campus member'} · account since {new Date(vouch.account_created_at).toLocaleDateString()}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="grid gap-3 text-xs sm:grid-cols-2">
                 <div><p className="text-on-surface-variant">Matric number</p><p className="mt-1 font-mono font-semibold">{request.matric_number}</p></div>
                 <div><p className="text-on-surface-variant">Submitted</p><p className="mt-1 font-semibold">{new Date(request.submitted_at).toLocaleString()}</p></div>

@@ -22,7 +22,8 @@
 | **Social** | Study Pools | Atomic `UPDATE ... WHERE current_count < max_capacity` |
 | **Social** | Gig marketplace | `gigs` table + real-time pulsing dots |
 | **Academic** | Class Alert Hub | `class_alerts` & Note Marketplace integration |
-| **Career** | PlugScore | Dynamic 500–1000, DB triggers: +50 sale, +10 EXIF, -100 dispute |
+| **Career** | PlugScore | Dynamic 500–1000, DB triggers: +50 sale, +10 verified metadata, -100 dispute |
+| **Marketplace trust** | Listing location evidence | Server-readable EXIF is required for automatic metadata verification; browser geolocation is untrusted corroborating evidence only |
 | **Career** | Verified Resume PDF | `jsPDF` with live QR code → `/verify/:id` public route |
 | **Passkeys** | Registration & Auth | Challenge → biometric → signature verify → session token |
 | **UI/UX** | Page transitions | Framer Motion `AnimatePresence` + spring |

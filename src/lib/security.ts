@@ -10,11 +10,14 @@ import { supabase } from '@/lib/supabase'
 
 type UniversityBounds = readonly [number, number, number, number]
 
+export type BrowserLocationEvidence = { latitude: number; longitude: number; accuracy: number; capturedAt: string }
+
 type ExifResult = {
   gps_lat: number | null
   gps_lng: number | null
   gps_mismatch: boolean
   timestamp_flag: boolean
+  has_capture_timestamp: boolean
   make: string | null
   model: string | null
   software: string | null
@@ -100,7 +103,7 @@ export async function registerDevice(userId: string): Promise<string> {
 
 export async function analyzeAndStripExif(file: File, userUniversity: string): Promise<ExifResult> {
   const result: ExifResult = {
-    gps_lat: null, gps_lng: null, gps_mismatch: false, timestamp_flag: false,
+    gps_lat: null, gps_lng: null, gps_mismatch: false, timestamp_flag: false, has_capture_timestamp: false,
     make: null, model: null, software: null, raw_exif: null, clean_blob: file,
   }
 
@@ -128,6 +131,7 @@ export async function analyzeAndStripExif(file: File, userUniversity: string): P
       }
 
       const imageDate = exif.DateTimeOriginal || exif.DateTime
+      result.has_capture_timestamp = Boolean(imageDate)
       if (imageDate) {
         const imageTs = new Date(imageDate).getTime()
         if (Number.isFinite(imageTs)) {
@@ -186,13 +190,16 @@ function sanitizeExif(exif: Record<string, unknown>): Record<string, string | nu
 }
 
 /** Browser EXIF is advisory; authoritative verification is performed server-side. */
-export async function saveExifFlags(listingId: string, _imageUrl: string, _exifResult: ExifResult): Promise<void> {
+export async function saveExifFlags(
+  listingId: string,
+  evidence: { browserLocation?: BrowserLocationEvidence | null; cameraCaptureReported?: boolean } = {},
+): Promise<void> {
   const { data, error } = await supabase.functions.invoke<{
     success?: boolean
     error?: string
     message?: string
   }>('verify-listing-images', {
-    body: { listing_id: listingId },
+    body: { listing_id: listingId, browser_location: evidence.browserLocation ?? null, camera_capture_reported: evidence.cameraCaptureReported === true },
   })
   if (error) throw new Error(error.message || 'Server image verification failed')
   if (data?.success === false || data?.error) {

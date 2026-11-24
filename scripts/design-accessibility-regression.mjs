@@ -40,7 +40,9 @@ if (!layout.includes('useReducedMotion()') || !layout.includes('reduceMotion ? f
 if (!app.includes('<Layout/>')) fail('Accessibility layout regression must run against the app shell')
 if (/<main\b/.test(settings)) fail('Settings page must not create a nested main landmark inside the authenticated layout')
 if (!settings.includes("aria-pressed={theme==='dark'}") || !settings.includes("aria-pressed={theme==='amoled'}")) fail('Theme controls must expose their selected state with aria-pressed')
-if (!settings.includes('aria-live="polite"') || !settings.includes('role="status"')) fail('Preference save state must be announced to assistive technology')
+if (!settings.includes('aria-live="polite"') || !settings.includes('role="status"') || !settings.includes('{saveAnnouncement}')) fail('Preference save state must be announced only when an actual save state changes')
+if (!settings.includes("setSaveAnnouncement('Saving preferences')") || !settings.includes("setSaveAnnouncement('Preferences saved')") || !settings.includes("setSaveAnnouncement('Unable to save preferences')")) fail('Preference save announcements must cover pending, success and failure states')
+if (!settings.includes('saveQueueRef') || !settings.includes('prefsRef.current')) fail('Preference writes must serialize and use the latest optimistic preference snapshot')
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')
 }

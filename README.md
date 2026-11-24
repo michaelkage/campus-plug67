@@ -61,6 +61,12 @@ campus-plug/
 
 ---
 
+## Contributor and production readiness
+
+- Shared coding and security rules: [`AGENTS.md`](AGENTS.md)
+- Campus membership verification fallback design: [`docs/campus-verification-fallback.md`](docs/campus-verification-fallback.md)
+- Production domain, WebAuthn and Paystack webhook cutover: [`docs/production-domain-cutover.md`](docs/production-domain-cutover.md)
+
 ## Quick Start
 
 ```bash

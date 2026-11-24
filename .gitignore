@@ -50,3 +50,7 @@ coverage
 .turbo
 .vercel
 .netlify
+# Personal AI/IDE configuration (shared guidance lives in AGENTS.md)
+.claude/
+.clinerules
+.cursorrules

@@ -14,6 +14,7 @@ const notifications = read('src/pages/Notifications.jsx')
 const notificationToast = read('src/components/ui/NotificationBanner.jsx')
 const settings = read('src/pages/Settings.jsx')
 const serviceBookingActions = read('src/components/services/ServiceBookingActions.jsx')
+const authPage = read('src/pages/Auth.jsx')
 const offlineBanner = read('src/components/ui/OfflineSyncBanner.tsx')
 
 for (const required of [
@@ -49,6 +50,9 @@ if (!serviceBookingActions.includes('aria-describedby={`service-dispute-help-${b
 if (!serviceBookingActions.includes('<form onSubmit={sendQuote} aria-busy={busy}') || !serviceBookingActions.includes('<form onSubmit={openDispute} aria-busy={busy}')) fail('Service quote and dispute submissions must expose pending state')
 if (!serviceBookingActions.includes('quoteTriggerRef.current?.focus()') || !serviceBookingActions.includes('disputeTriggerRef.current?.focus()') || !serviceBookingActions.includes('quoteFieldRef.current?.focus()') || !serviceBookingActions.includes('disputeFieldRef.current?.focus()')) fail('Opening service inline forms must move focus into the form and restore it to the trigger when closed')
 if (!serviceBookingActions.includes('aria-expanded={showQuoteForm}') || !serviceBookingActions.includes('aria-expanded={showDisputeForm}')) fail('Service inline form triggers must expose their expanded state')
+if (!authPage.includes('role={formError ? \'alert\' : \'status\'}') || !authPage.includes('aria-live={formError ? \'assertive\' : \'polite\'}')) fail('Authentication outcomes must be announced accessibly')
+if (!authPage.includes('aria-busy={submitting}') || !authPage.includes('aria-pressed={showPass}')) fail('Authentication form and password visibility state must be exposed to assistive technology')
+if (!authPage.includes('useReducedMotion()') || !authPage.includes('prefersReducedMotion ? 0 : 0.3') || !authPage.includes('prefersReducedMotion ? 0 : 0.2')) fail('Authentication transitions must respect reduced-motion preferences')
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')
 }

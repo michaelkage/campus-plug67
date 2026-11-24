@@ -63,6 +63,9 @@ BEGIN
       ),
       'disputed_transactions', (
         SELECT count(*) FROM public.transactions WHERE status = 'disputed'
+      ),
+      'journal_balance_imbalances', (
+        SELECT count(*) FROM public.financial_journal_trial_balance WHERE imbalance <> 0
       )
     ),
     'refund_attention', COALESCE((

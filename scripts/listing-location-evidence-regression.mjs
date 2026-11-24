@@ -8,6 +8,8 @@ const security = read('src/lib/security.ts');
 
 for (const required of [
   'has_capture_timestamp',
+  'metadata_missing',
+  'Photo GPS or capture time is missing',
   'const metadataComplete = results.length > 0',
   'result.gps_lat !== null && result.gps_lng !== null && result.has_capture_timestamp',
   'metadata_verified:metadataComplete&&!needsMobile',

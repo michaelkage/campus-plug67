@@ -10,7 +10,7 @@ for (const required of [
   'has_capture_timestamp',
   'metadata_missing',
   'Photo GPS or capture time is missing',
-  'const metadataComplete = results.length > 0',
+  'const metadataComplete = results.length > 0 && results.length === images.length',
   'result.gps_lat !== null && result.gps_lng !== null && result.has_capture_timestamp',
   'metadata_verified:metadataComplete&&!needsMobile',
   "verification_source:'browser_geolocation'",

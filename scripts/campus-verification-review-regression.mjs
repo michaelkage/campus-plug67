@@ -20,6 +20,8 @@ for (const invariant of [
   "VALUES (\n  'campus-verification-evidence',\n  'campus-verification-evidence',\n  false",
   "bucket_id = 'campus-verification-evidence'",
   "storage.foldername(name))[1] = auth.uid()::text",
+  'owner_id = auth.uid()::text',
+  'NOT EXISTS (',
   'public.is_platform_admin()',
   'public.submit_my_campus_verification',
   'public.vouch_for_campus_verification',

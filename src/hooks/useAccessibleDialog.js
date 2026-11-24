@@ -30,8 +30,9 @@ export function useAccessibleDialog(open, onClose) {
       .filter(element => element.getAttribute('aria-hidden') !== 'true')
 
     const focusInitial = () => {
-      const first = getFocusable()[0]
-      ;(first || dialog).focus()
+      const focusable = getFocusable()
+      const preferred = dialog.querySelector('[autofocus], input:not([disabled]), select:not([disabled]), textarea:not([disabled])')
+      ;(preferred || focusable[0] || dialog).focus()
     }
 
     const onKeyDown = event => {

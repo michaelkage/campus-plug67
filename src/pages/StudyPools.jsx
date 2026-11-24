@@ -399,13 +399,13 @@ export default function StudyPools() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6" role="group" aria-label="Study pool filters">
         {[
           { val: 'all',    label: 'All Pools' },
           { val: 'joined', label: '✓ Joined' },
           { val: 'mine',   label: '⚡ My Pools' },
         ].map(({ val, label }) => (
-          <button key={val} onClick={() => setFilter(val)}
+          <button key={val} type="button" aria-pressed={filter === val} onClick={() => setFilter(val)}
             className={`px-4 py-1.5 rounded-sm text-sm font-semibold border transition-all ${
               filter === val ? 'bg-[var(--md-primary)] text-on-primary border-primary' : 'bg-transparent text-on-surface/40 border-outline-variant hover:border-primary/30'
             }`}>

@@ -4,6 +4,17 @@ import { isServiceRoleRequest, jsonResponse, optionsResponse } from "../_shared/
 const BUCKET = "campus-verification-evidence";
 const BATCH_SIZE = 50;
 
+async function removeIfPresent(admin: ReturnType<typeof createClient>, evidencePath: string) {
+  const { data: exists, error: existsError } = await admin.rpc(
+    'campus_verification_evidence_object_exists',
+    { p_evidence_path: evidencePath },
+  );
+  if (existsError) return existsError;
+  if (!exists) return null;
+  const { error } = await admin.storage.from(BUCKET).remove([evidencePath]);
+  return error;
+}
+
 type CleanupItem = {
   id: string;
   evidence_path: string;
@@ -37,7 +48,7 @@ Deno.serve(async (req) => {
   let failed = 0;
 
   for (const item of items) {
-    const { error: storageError } = await admin.storage.from(BUCKET).remove([item.evidence_path]);
+    const storageError = await removeIfPresent(admin, item.evidence_path);
     if (storageError) {
       failed += 1;
       const { error: recordError } = await admin.rpc("fail_campus_verification_evidence_cleanup", {

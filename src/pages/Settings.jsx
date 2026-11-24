@@ -65,27 +65,6 @@ export default function Settings(){
    return enqueuePreferenceSave(()=>supabase.from('profiles').update({theme_mode:next}).eq('id',user.id))
  }
 
- const claimCampus=async()=>{
-   if(!user)return
-   setInstitutionLoading(true)
-   const {data,error}=await supabase.rpc('claim_my_institution_membership')
-   setInstitutionLoading(false)
-   if(error){toast.error(error.message||'Campus verification failed');return}
-   await refreshProfile()
-   await loadInstitutionData()
-   toast.success(data?.institution_name? `Verified ${data.institution_name}`:'Campus membership verified')
- }
- const setPrimaryCampus=async()=>{
-   if(!selectedInstitutionId||!user)return
-   setInstitutionLoading(true)
-   const {error}=await supabase.rpc('set_my_primary_institution',{p_institution_id:selectedInstitutionId})
-   setInstitutionLoading(false)
-   if(error){toast.error(error.message||'Unable to change primary campus');return}
-   await refreshProfile()
-   await loadInstitutionData()
-   toast.success('Primary campus updated')
- }
-
  return <div className="page-shell max-w-3xl space-y-6" aria-busy={saving}>
    <header className="page-header"><div><p className="section-label">Preferences</p><h1 className="page-title">Settings</h1><p className="page-subtitle">Control appearance, motion, density and notification behavior.</p></div></header>
    <CampusVerificationPanel />

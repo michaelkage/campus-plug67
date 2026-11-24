@@ -56,8 +56,8 @@ for (const invariant of [
   'claim_campus_verification_orphan_cleanup',
   'complete_campus_verification_orphan_cleanup',
   'fail_campus_verification_orphan_cleanup',
-  'auth.role() IS DISTINCT FROM \\'service_role\\'',
-  'evidence_path = NEW.evidence_path',
+  "auth.role() IS DISTINCT FROM 'service_role'",
+  'name = NEW.evidence_path',
   'FOR UPDATE',
   'REVOKE ALL ON public.campus_verification_evidence_orphan_jobs',
 ]) assert.ok(orphanMigration.includes(invariant), `Orphan retention migration missing invariant: ${invariant}`)

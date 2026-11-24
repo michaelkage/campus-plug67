@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = file => fs.readFileSync(path.join(root, file), 'utf8')
 const migration = read('supabase/migrations/20261123200000_multi_university_identity.sql')
 const settings = read('src/pages/Settings.jsx')
+const campusPanel = read('src/components/settings/CampusVerificationPanel.jsx')
 const auth = read('src/contexts/AuthContext.tsx')
 const types = read('src/types/database.ts')
 const keys = read('src/lib/queryKeys.ts')
@@ -42,9 +43,9 @@ for (const invariant of [
   "from('institutions')",
   'Verified memberships',
 ]) {
-  if (!settings.includes(invariant)) throw new Error(`Campus settings integration is missing: ${invariant}`)
+  if (!campusPanel.includes(invariant)) throw new Error(`Campus settings integration is missing: ${invariant}`)
 }
-if (settings.includes('setUniversity') || settings.includes('saveUniversity')) {
+if (campusPanel.includes('setUniversity') || campusPanel.includes('saveUniversity')) {
   throw new Error('Settings must not expose free-text university identity editing')
 }
 if (auth.includes("update({university:") || auth.includes('university:university||detectedUni')) {

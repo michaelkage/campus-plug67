@@ -26,9 +26,9 @@ function GigCard({ gig, onBook, isOwner, onEdit, onDelete }) {
 export function Gigs() {
   const { user, profile } = useAuth(); const qc = useQueryClient()
   const formId = useId()
+  const [showCreate, setShowCreate] = useState(false); const [editingGig, setEditingGig] = useState(null); const [bookingGig, setBookingGig] = useState(null); const [booking, setBooking] = useState({ date:'', time:'', notes:'' }); const [bookingSubmitting, setBookingSubmitting] = useState(false); const [form, setForm] = useState({ title: '', description: '', category: '', starting_price: '', max_price: '', available_days: [] }); const [filter, setFilter] = useState(''); const [submitting, setSubmitting] = useState(false)
   const createDialogRef = useAccessibleDialog(showCreate, () => { setShowCreate(false); setEditingGig(null) })
   const bookingDialogRef = useAccessibleDialog(Boolean(bookingGig), () => setBookingGig(null))
-  const [showCreate, setShowCreate] = useState(false); const [editingGig, setEditingGig] = useState(null); const [bookingGig, setBookingGig] = useState(null); const [booking, setBooking] = useState({ date:'', time:'', notes:'' }); const [bookingSubmitting, setBookingSubmitting] = useState(false); const [form, setForm] = useState({ title: '', description: '', category: '', starting_price: '', max_price: '', available_days: [] }); const [filter, setFilter] = useState(''); const [submitting, setSubmitting] = useState(false)
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
   const { data: gigs = [], isLoading } = useQuery({ queryKey: ['gigs', filter, profile?.university], enabled: Boolean(profile?.university), queryFn: async () => { let q = supabase.from('gigs').select('*, profiles(full_name, university)').eq('active', true).eq('university', profile?.university).order('created_at', { ascending: false }); if (filter) q = q.eq('category', filter); const { data, error } = await q; if (error) throw error; return data || [] } })
   useRealtimeTable({ table: 'gigs', onInsert: g => { if (g.university === profile?.university) qc.setQueryData(['gigs', filter, profile?.university], old => [g, ...(old || [])]) } })

@@ -13,6 +13,7 @@ const app = read('src/App.tsx')
 const notifications = read('src/pages/Notifications.jsx')
 const notificationToast = read('src/components/ui/NotificationBanner.jsx')
 const settings = read('src/pages/Settings.jsx')
+const serviceBookingActions = read('src/components/services/ServiceBookingActions.jsx')
 const offlineBanner = read('src/components/ui/OfflineSyncBanner.tsx')
 
 for (const required of [
@@ -43,6 +44,9 @@ if (!settings.includes("aria-pressed={theme==='dark'}") || !settings.includes("a
 if (!settings.includes('aria-live="polite"') || !settings.includes('role="status"') || !settings.includes('{saveAnnouncement}')) fail('Preference save state must be announced only when an actual save state changes')
 if (!settings.includes("setSaveAnnouncement('Saving preferences')") || !settings.includes("setSaveAnnouncement('Preferences saved')") || !settings.includes("setSaveAnnouncement('Unable to save preferences')")) fail('Preference save announcements must cover pending, success and failure states')
 if (!settings.includes('saveQueueRef') || !settings.includes('prefsRef.current')) fail('Preference writes must serialize and use the latest optimistic preference snapshot')
+if (!serviceBookingActions.includes('aria-describedby={`service-quote-scope-help-${booking.id}`}') || !serviceBookingActions.includes('id={`service-quote-scope-help-${booking.id}`}')) fail('Service quote scope guidance must be programmatically associated with its field')
+if (!serviceBookingActions.includes('aria-describedby={`service-dispute-help-${booking.id}`}') || !serviceBookingActions.includes('id={`service-dispute-help-${booking.id}`}')) fail('Service dispute guidance must be programmatically associated with its field')
+if (!serviceBookingActions.includes('<form onSubmit={sendQuote} aria-busy={busy}') || !serviceBookingActions.includes('<form onSubmit={openDispute} aria-busy={busy}')) fail('Service quote and dispute submissions must expose pending state')
 if (tokens.spacing.minTouchTarget !== '48px') {
   fail('Design token contract must retain a 48px minimum touch target')
 }

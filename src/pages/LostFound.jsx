@@ -68,7 +68,7 @@ function ReportModal({ onClose, profile }) {
   const qc = useQueryClient()
   const formId = useId()
   const dialogRef = useAccessibleDialog(true, onClose)
-  const [type, setType     = useState('lost')
+  const [type, setType]     = useState('lost')
   const [form, setForm]     = useState({ title: '', description: '', location: '' })
   const [tags, setTags]     = useState([])
   const [image, setImage]   = useState(null)
@@ -307,7 +307,7 @@ export default function LostFound() {
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface/30" />
-          <input className="input pl-9" placeholder="Search by title or tag..."
+          <input className="input pl-9" aria-label="Search lost and found reports" placeholder="Search by title or tag..."
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="flex gap-2">
@@ -318,6 +318,8 @@ export default function LostFound() {
           ].map(({ val, label }) => (
             <button
               key={val}
+              type="button"
+              aria-pressed={filter === val}
               onClick={() => setFilter(val)}
               className={`px-4 py-2 rounded-sm text-sm font-semibold border transition-colors ${
                 filter === val

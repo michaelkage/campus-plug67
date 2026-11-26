@@ -11,6 +11,7 @@ const worker = read('supabase/functions/cleanup-campus-verification-evidence/ind
 const config = read('supabase/config.toml')
 const docs = read('docs/campus-verification-fallback.md')
 const validationWorkflow = read('.github/workflows/production-validation.yml')
+const scheduledWorkflow = read('.github/workflows/campus-verification-evidence-retention.yml')
 
 for (const invariant of [
   'ALTER COLUMN evidence_path DROP NOT NULL',
@@ -76,13 +77,12 @@ assert.ok(config.includes('[functions.cleanup-campus-verification-evidence]'))
 assert.ok(config.includes('verify_jwt = false'))
 
 for (const invariant of [
-  'vault.create_secret',
-  'do $block$',
-  '$job$',
-  'end $block$;',
-  'pg_cron',
-  'pg_net',
-  'cleanup-campus-verification-evidence',
+  'campus-verification-evidence-retention.yml',
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'workflow_dispatch',
+  'every 15 minutes',
+  'No `pg_cron`, `pg_net`, Vault secret',
   'evidence_cleanup_attempts',
   'evidence_deleted_at',
   'expired',
@@ -94,5 +94,15 @@ for (const invariant of [
   'Request, decision and audit metadata remain available',
   'No migration has been applied',
 ]) assert.ok(docs.includes(invariant), `Retention runbook missing: ${invariant}`)
+
+for (const invariant of [
+  "cron: \"*/15 * * * *\"",
+  "if: github.ref == 'refs/heads/main'",
+  'SUPABASE_URL: ${{ secrets.SUPABASE_URL }}',
+  'SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}',
+  '/functions/v1/cleanup-campus-verification-evidence',
+  "jq -r '.failed // 0'",
+  'exit 1',
+]) assert.ok(scheduledWorkflow.includes(invariant), `Retention scheduler missing: ${invariant}`)
 
 console.log('Campus verification evidence retention regression checks passed.')

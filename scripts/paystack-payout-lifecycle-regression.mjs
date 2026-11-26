@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const migration = read('supabase/migrations/20261112130000_add_paystack_seller_payout_foundation.sql');
-const transitionGuard = read('supabase/migrations/20261112160000_preserve_paystack_payout_manual_attention.sql');
+const transitionGuard = read('supabase/migrations/20261112160000_preserve_paystack_payout_manual_attention.sql')
+const settlementBoundary = read('supabase/migrations/20261112110000_separate_escrow_resolution_from_seller_payout.sql');
 const onboarding = read('supabase/functions/manage-payout-recipient/index.ts');
 const worker = read('supabase/functions/process-paystack-payouts/index.ts');
 const reconciler = read('supabase/functions/reconcile-paystack-transfers/index.ts');
@@ -13,6 +14,12 @@ const workflow = read('.github/workflows/seller-payout-reconciliation.yml');
 const settingsUi = read('src/components/wallet/SellerPayoutSettings.tsx');
 const settingsPage = read('src/pages/Settings.jsx');
 const lifecycle = read('src/lib/transactionLifecycle.ts');
+
+assert.ok(settlementBoundary.includes('CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END'), 'Paystack escrow release must not credit PlugCredit earnings');
+assert.ok(settlementBoundary.includes('credit_seller_earnings_after_external_payout'));
+assert.ok(settlementBoundary.includes("NEW.payout_status = 'paid'"));
+assert.ok(settlementBoundary.includes("t.payout_status = 'paid'"));
+assert.ok(settlementBoundary.includes('bank payout has not yet been confirmed'));
 
 assert.ok(transitionGuard.includes("v_previous_status = 'needs_attention'"));
 assert.ok(transitionGuard.includes("v_status IN ('pending','received')"));

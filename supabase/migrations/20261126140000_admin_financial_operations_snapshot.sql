@@ -1,5 +1,5 @@
 -- Milestone 17: read-only financial operations and reconciliation workbench.
--- All queues are derived from immutable provider events and journal postings.
+-- Queues combine provider event history, seller payout transfer state, operator audit and journal postings.
 -- This RPC intentionally performs no settlement, refund, payout or ledger writes.
 
 CREATE INDEX IF NOT EXISTS seller_payout_transfers_attention_idx

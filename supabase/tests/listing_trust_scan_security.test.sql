@@ -48,7 +48,7 @@ SELECT is(
 );
 
 SELECT throws_ok(
-  $$UPDATE public.listings SET trust_score = 99 WHERE id = 'f7200000-0000-4000-8000-000000000001'$$,
+  $$q$UPDATE public.listings SET trust_score = 99 WHERE id = 'f7200000-0000-4000-8000-000000000001'$q$$,
   'P0001',
   'Listing trust metadata is system-managed',
   'A seller cannot directly forge listing trust metadata'
@@ -56,14 +56,14 @@ SELECT throws_ok(
 
 SELECT set_config('app.listing_trust_scan_write', '00000000-0000-4000-8000-000000000000', true);
 SELECT throws_ok(
-  $UPDATE public.listings SET trust_score = 98 WHERE id = 'f7200000-0000-4000-8000-000000000001'$,
+  $q$UPDATE public.listings SET trust_score = 98 WHERE id = 'f7200000-0000-4000-8000-000000000001'$q$,
   'P0001',
   'Listing trust metadata is system-managed',
   'A caller-set GUC without a matching private transaction capability cannot bypass the guard'
 );
 
 SELECT throws_ok(
-  $UPDATE public.listings SET status = 'sold' WHERE id = 'f7200000-0000-4000-8000-000000000001'$,
+  $q$UPDATE public.listings SET status = 'sold' WHERE id = 'f7200000-0000-4000-8000-000000000001'$q$,
   'P0001',
   'Listing status is managed by the transaction system',
   'The trust-scan capability cannot bypass listing lifecycle controls'

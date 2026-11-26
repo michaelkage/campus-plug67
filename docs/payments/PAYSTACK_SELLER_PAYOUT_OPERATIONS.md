@@ -38,12 +38,12 @@ Keep the execution flag off until all gates above are complete. Do not enable it
 
 ## Scheduled jobs and ownership
 
-After merge and deployment, `.github/workflows/payment-reconciliation.yml` runs every ten minutes on `main`:
+After merge and deployment, `.github/workflows/seller-payout-reconciliation.yml` runs every ten minutes on `main`:
 
-1. `process-paystack-payouts` claims a bounded batch (up to ten) and verifies the persisted reference before any create request.
+1. `process-paystack-payouts` claims a bounded batch (up to five) and verifies the persisted reference before any create request.
 2. `reconcile-paystack-transfers` performs provider lookups only. It never creates or retries transfers.
 
-The same scheduled workflow also reconciles incoming payments and refunds. Outbound processing remains a no-op unless `PAYSTACK_SELLER_PAYOUTS_ENABLED=true` is explicitly set in Supabase. The payout worker uses the Supabase service-role key from GitHub Actions; the Paystack secret remains in Supabase Edge Function secrets.
+The separate payment reconciliation workflow handles incoming payments and refunds. Outbound processing remains a no-op unless `PAYSTACK_SELLER_PAYOUTS_ENABLED=true` is explicitly set in Supabase. The payout worker uses the Supabase service-role key from GitHub Actions; the Paystack secret remains in Supabase Edge Function secrets.
 
 Check GitHub Actions for every scheduled run. A green workflow means the HTTP calls completed successfully, not that every payout succeeded. Inspect the JSON result arrays and the database queue below. A worker can correctly defer an individual provider/API error while the overall invocation returns HTTP 200.
 

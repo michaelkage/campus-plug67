@@ -72,7 +72,7 @@ BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
     RAISE EXCEPTION 'Service role required';
   END IF;
-  IF p_operator_id IS NULL OR p_action NOT IN ('provider_not_found','recovery_rejected')
+  IF p_operator_id IS NULL OR p_action IS NULL OR p_action NOT IN ('provider_not_found','recovery_rejected')
      OR p_provider_http_status IS DISTINCT FROM 404
      OR p_provider_verified_at IS NULL
      OR length(trim(COALESCE(p_note,''))) NOT BETWEEN 20 AND 500

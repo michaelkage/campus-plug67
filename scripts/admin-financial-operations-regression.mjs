@@ -75,8 +75,6 @@ for (const required of [
   'append-only operator recovery audit',
 ]) assert.ok(docs.toLowerCase().includes(required.toLowerCase()), `Financial operations runbook missing: ${required}`)
 
-console.log('Admin financial operations regression checks passed.')
-
 for (const required of [
   'SELECT plan(3)',
   'get_admin_financial_operations_snapshot',
@@ -84,3 +82,6 @@ for (const required of [
   "has_function_privilege('anon'",
   "has_function_privilege('authenticated'",
 ]) assert.ok(databaseTest.includes(required), `Financial operations database test missing: ${required}`)
+
+console.log('Admin financial operations regression checks passed.')
+

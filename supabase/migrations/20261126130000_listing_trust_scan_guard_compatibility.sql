@@ -180,8 +180,8 @@ $$;
 
 
 create or replace function public.scan_listing_trust(p_listing_id uuid)
-returns void language plpgsql security definer set search_path = pg_catalog, public, app_private as $$
-declare
+returns void language plpgsql security definer set search_path = pg_catalog, public, app_private AS $listing_trust_scan$
+DECLARE
   desc_text     text;
   has_contact   boolean;
   new_score     integer;
@@ -219,7 +219,7 @@ begin
      AND backend_pid = pg_backend_pid();
   PERFORM set_config('app.listing_trust_scan_write', COALESCE(previous_scan_flag, ''), true);
 end;
-$$;
+$listing_trust_scan$;
 
 REVOKE ALL ON FUNCTION public.scan_listing_trust(uuid) FROM PUBLIC, anon, authenticated;
 

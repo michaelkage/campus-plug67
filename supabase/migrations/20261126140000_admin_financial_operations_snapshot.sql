@@ -69,6 +69,14 @@ BEGIN
               WHERE p.transaction_id = t.id AND p.status = 'reversed'
                 AND NOT EXISTS (
                   SELECT 1 FROM public.financial_journal_transactions j
+                  WHERE j.idempotency_key = 'paystack-payout:' || p.reference || ':success'
+                )
+            )
+            OR EXISTS (
+              SELECT 1 FROM public.seller_payout_transfers p
+              WHERE p.transaction_id = t.id AND p.status = 'reversed'
+                AND NOT EXISTS (
+                  SELECT 1 FROM public.financial_journal_transactions j
                   WHERE j.idempotency_key = 'paystack-payout:' || p.reference || ':reversed'
                 )
             )
@@ -94,7 +102,7 @@ BEGIN
         FROM public.seller_payout_transfers p
         JOIN public.transactions t ON t.id = p.transaction_id
         WHERE (
-          p.status IN ('needs_attention','blocked','rejected','abandoned')
+          p.status IN ('needs_attention','blocked','rejected','abandoned','reversed')
           OR (p.status = 'failed' AND t.payout_status = 'failed')
         )
         AND NOT EXISTS (
@@ -106,7 +114,7 @@ BEGIN
       'stale_payout_attempts', (
         SELECT count(*) FROM public.seller_payout_transfers p
         WHERE p.status IN ('processing','pending')
-          AND COALESCE(p.updated_at,p.created_at) <= now() - interval '15 minutes'
+          AND GREATEST(p.updated_at, COALESCE(p.last_reconciled_at,p.created_at)) <= now() - interval '15 minutes'
       ),
       'payout_operator_audits', (
         SELECT count(*) FROM public.seller_payout_operator_audit
@@ -182,6 +190,15 @@ BEGIN
             WHERE j.idempotency_key = 'paystack-payout:' || p.reference || ':success'
           )
         UNION ALL
+        SELECT p.transaction_id, 'paystack_payout_reversal_success_not_posted',
+               p.amount_kobo, p.status, p.reference, p.created_at
+        FROM public.seller_payout_transfers p
+        WHERE p.status = 'reversed'
+          AND NOT EXISTS (
+            SELECT 1 FROM public.financial_journal_transactions j
+            WHERE j.idempotency_key = 'paystack-payout:' || p.reference || ':success'
+          )
+        UNION ALL
         SELECT p.transaction_id, 'paystack_payout_reversal_not_posted',
                p.amount_kobo, p.status, p.reference, p.created_at
         FROM public.seller_payout_transfers p
@@ -220,7 +237,7 @@ BEGIN
         FROM public.seller_payout_transfers p
         JOIN public.transactions t ON t.id = p.transaction_id
         WHERE (
-          p.status IN ('needs_attention','blocked','rejected','abandoned')
+          p.status IN ('needs_attention','blocked','rejected','abandoned','reversed')
           OR (p.status = 'failed' AND t.payout_status = 'failed')
         )
         AND NOT EXISTS (
@@ -240,7 +257,7 @@ BEGIN
                p.provider_status, p.provider_message, p.created_at, p.updated_at
         FROM public.seller_payout_transfers p
         WHERE p.status IN ('processing','pending')
-          AND COALESCE(p.updated_at,p.created_at) <= now() - interval '15 minutes'
+          AND GREATEST(p.updated_at, COALESCE(p.last_reconciled_at,p.created_at)) <= now() - interval '15 minutes'
         ORDER BY p.updated_at ASC
         LIMIT v_limit
       ) x

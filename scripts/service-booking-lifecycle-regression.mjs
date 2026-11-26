@@ -72,6 +72,10 @@ for (const value of [
 ]) includes(actions, value, `Service booking UI missing invariant: ${value}`)
 
 includes(actions, ".eq('status', 'accepted')", 'Accepted quotes must be fetched independently of the recent quote history limit')
+includes(actions, 'useEffect(() => {', 'Quote expiry must trigger a UI refresh without requiring navigation or another realtime event')
+includes(actions, 'window.setTimeout(', 'Quote expiry UI must schedule a deadline refresh')
+includes(actions, 'window.clearTimeout(timeout)', 'Quote expiry timers must be cleaned up when the quote changes or component unmounts')
+includes(actions, 'quoteExpiryMs <= clockNow', 'Quote acceptance controls must disappear as soon as the displayed quote expires')
 includes(actions, '.maybeSingle()', 'Accepted quote lookup must return the authoritative accepted quote')
 includes(databaseTypes, 'service_booking_quotes:', 'Database types must include service booking quotes')
 includes(databaseTypes, "'quoted' | 'confirmed' | 'in_progress' | 'delivered' | 'completed'", 'Database types must include the full service booking state machine')

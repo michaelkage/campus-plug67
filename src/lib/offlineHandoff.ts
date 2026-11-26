@@ -32,7 +32,7 @@ export function createOfflineHandoffToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '')
 }
 
 export async function hashOfflineHandoffToken(token: string): Promise<string> {
@@ -70,15 +70,15 @@ export async function verifyOfflineHandoffTicket(
     || value.seller_id !== commitment.seller_id
     || value.safe_zone_id !== commitment.safe_zone_id
     || value.amount !== commitment.amount
-    || typeof value.token !== 'string'
-    || typeof value.expires_at !== 'string') {
+    || value.expires_at !== commitment.expires_at
+    || typeof value.token !== 'string') {
     throw new Error('This QR does not match the prepared transaction handoff')
   }
 
-  // Device clocks are user-controlled and may be badly skewed. This check is
-  // intentionally cryptographic only; the server enforces voucher expiry when
-  // the queued proof is synchronized. Never authorize settlement from this result.
-  if (!Number.isFinite(Date.parse(value.expires_at)) || !Number.isFinite(Date.parse(commitment.expires_at))) {
+  // The expiry value is integrity-bound to the buyer's server-fetched
+  // commitment, but the local device clock never authorizes or rejects it.
+  // PostgreSQL remains authoritative when the proof is synchronized.
+  if (!Number.isFinite(Date.parse(value.expires_at))) {
     throw new Error('Offline handoff QR has an invalid expiry timestamp')
   }
 

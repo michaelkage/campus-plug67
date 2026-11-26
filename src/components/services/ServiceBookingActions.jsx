@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, formatNaira, toKobo } from '@/lib/supabase'
 import toast from 'react-hot-toast'
@@ -23,6 +23,7 @@ export function ServiceBookingActions({ booking, currentUserId }) {
   )
   const [scope, setScope] = useState('')
   const [busy, setBusy] = useState(false)
+  const [clockNow, setClockNow] = useState(() => Date.now())
 
   const { data: quoteData = { recent: [], accepted: null }, isLoading: quotesLoading } = useQuery({
     queryKey: ['service-booking-quotes', booking.id],
@@ -54,7 +55,19 @@ export function ServiceBookingActions({ booking, currentUserId }) {
   const latestQuote = quoteData.recent[0] || null
   const acceptedQuote = quoteData.accepted
   const displayedQuote = acceptedQuote || latestQuote
-  const quoteExpired = latestQuote?.status === 'sent' && new Date(latestQuote.expires_at).getTime() <= Date.now()
+  const quoteExpiryMs = latestQuote?.status === 'sent' ? Date.parse(latestQuote.expires_at) : Number.NaN
+
+  // Re-render when the quote deadline is reached; the RPC remains authoritative.
+  useEffect(() => {
+    if (!Number.isFinite(quoteExpiryMs)) return undefined
+    const timeout = window.setTimeout(
+      () => setClockNow(Date.now()),
+      Math.max(0, quoteExpiryMs - Date.now()),
+    )
+    return () => window.clearTimeout(timeout)
+  }, [quoteExpiryMs])
+
+  const quoteExpired = Number.isFinite(quoteExpiryMs) && quoteExpiryMs <= clockNow
   const actionsDisabled = busy || quotesLoading
 
   const refresh = async () => {

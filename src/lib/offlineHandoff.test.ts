@@ -71,6 +71,7 @@ describe('offline handoff voucher', () => {
     }, token)
 
     await expect(verifyOfflineHandoffTicket(JSON.stringify({ ...ticket, amount: 1 }), commitment)).rejects.toThrow(/does not match/)
+    await expect(verifyOfflineHandoffTicket(JSON.stringify({ ...ticket, expires_at: '2026-11-12T10:00:00.000Z' }), commitment)).rejects.toThrow(/does not match/)
     await expect(verifyOfflineHandoffTicket(JSON.stringify({ ...ticket, token: createOfflineHandoffToken() }), commitment)).rejects.toThrow(/cryptographic check/)
   })
 
@@ -92,7 +93,6 @@ describe('offline handoff voucher', () => {
 
     vi.setSystemTime(new Date('2026-11-11T10:00:00.000Z'))
     await expect(verifyOfflineHandoffTicket(JSON.stringify(ticket), commitment)).resolves.toMatchObject({ voucher_id: commitment.voucher_id })
-    await expect(verifyOfflineHandoffTicket(JSON.stringify({ ...ticket, expires_at: '2026-11-12T10:00:00.000Z' }), commitment)).resolves.toMatchObject({ voucher_id: commitment.voucher_id })
     await expect(verifyOfflineHandoffTicket('not-json', commitment)).rejects.toThrow(/valid offline handoff QR/)
   })
 

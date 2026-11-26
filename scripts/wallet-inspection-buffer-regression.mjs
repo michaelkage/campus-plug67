@@ -191,7 +191,8 @@ includes(safeSwap, 'QRCodeSVG', 'Seller handoff QR must be available inside Safe
 includes(safeSwap, 'tx.seller_id===user?.id', 'Only the transaction seller can display the handoff QR')
 if (listingDetail.includes('QRCodeSVG')) fail('Seller QR must not be exposed outside the verified Safe Swap flow')
 includes(safeSwap, 'auto_release_at', 'Safe Swap must display the authoritative inspection expiry')
-includes(safeSwap, 'Campus Plug automatically processes the seller payout', 'Safe Swap must explain automatic settlement')
+includes(safeSwap, 'server settlement is triggered when this timer expires', 'Safe Swap must explain that the deadline triggers server settlement, not confirmed seller payout')
+if (safeSwap.includes('automatically processes the seller payout')) fail('Safe Swap must not equate inspection expiry with confirmed seller payout')
 includes(escrowState, "label: 'Protected release window'", 'Escrow progress must show the inspection stage')
 includes(listingDetail, 'tx.handshake_receipt_buffer', 'Transaction details must distinguish QR handoff inspection from seller-requested release')
 includes(listingDetail, 'process-dispute', 'Campus Wallet dispute action must create a jury case during inspection')
@@ -199,7 +200,8 @@ includes(listingDetail, 'Continue to Safe Swap handoff', 'Every buyer must use s
 if (/QR release action unlocks 24 hours|QR release unlocks 24 hours|24-hour gate has opened|after the 24-hour gate/i.test(listingDetail)) {
   fail('Listing detail must not show the obsolete 24-hour delay for buyer QR handoff')
 }
-includes(listingDetail, 'two hours after QR handoff', 'Buyer-facing purchase guide must state the two-hour QR inspection dispute window')
+includes(listingDetail, 'two hours to dispute after QR handoff', 'Buyer-facing purchase guide must state the two-hour QR inspection dispute window')
+includes(listingDetail, 'A QR-confirmed handoff starts a two-hour inspection window', 'Buyer-facing purchase guide must explain when QR inspection begins')
 includes(listingDetail, 'seller-requested release', 'Buyer-facing purchase guide must distinguish the seller-requested release window')
 
 if (!packageJson.scripts['test:platform-integrity'].includes('wallet-inspection-buffer-regression.mjs')) {

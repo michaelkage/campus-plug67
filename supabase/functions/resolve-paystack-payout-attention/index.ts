@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
   // Manual recovery must be initiated by a real, authenticated platform admin.
   // The service-role credential is used only for the protected provider/database work below.
   const authorization = req.headers.get("Authorization") ?? "";
-  const bearer = authorization.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!bearer || isServiceRoleRequest(req)) return jsonResponse({ error: "Platform admin authentication required" }, 401, {}, req);
   const { data: authData, error: authError } = await admin.auth.getUser(bearer);
   const operator = authData?.user;

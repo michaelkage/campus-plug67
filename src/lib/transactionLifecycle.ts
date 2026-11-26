@@ -11,7 +11,7 @@ export const TRANSACTION_STATUSES = [
 ] as const
 
 export type TransactionStatus = typeof TRANSACTION_STATUSES[number]
-export type TransactionPayoutStatus = 'not_applicable' | 'pending' | 'approved_for_settlement' | 'processing' | 'paid' | 'failed' | string
+export type TransactionPayoutStatus = 'not_applicable' | 'pending' | 'approved_for_settlement' | 'processing' | 'needs_attention' | 'paid' | 'failed' | string
 
 export type TransactionLifecycleInput = {
   status?: string | null
@@ -19,6 +19,7 @@ export type TransactionLifecycleInput = {
   auto_release_at?: string | null
   escrow_status?: string | null
   payout_status?: TransactionPayoutStatus | null
+  payout_failure_reason?: string | null
   refund_status?: string | null
   payment_method?: string | null
 }
@@ -57,10 +58,18 @@ export function canOpenTransactionDispute(
 function payoutPresentation(tx: TransactionLifecycleInput) {
   const status = tx.payout_status ?? 'not_applicable'
   if (status === 'paid') {
-    return { status, title: 'Seller paid', description: 'The seller payout has been completed.', settled: true }
+    return { status, title: 'Bank transfer successful', description: 'Paystack marked the bank transfer successful. The recipient bank may take additional time to post the funds.', settled: true }
   }
   if (status === 'failed') {
-    return { status, title: 'Payout needs attention', description: 'The transaction is resolved, but the payout failed and needs reconciliation.', settled: false }
+    return { status, title: 'Payout needs attention', description: tx.payout_failure_reason || 'The transaction is resolved, but the payout failed and needs reconciliation.', settled: false }
+  }
+  if (status === 'needs_attention') {
+    return {
+      status,
+      title: 'Payout needs manual approval',
+      description: tx.payout_failure_reason || 'Paystack requires merchant approval or manual reconciliation before the seller can be paid.',
+      settled: false,
+    }
   }
   if (status === 'processing' || status === 'approved_for_settlement') {
     return { status, title: 'Payout processing', description: 'The transaction is resolved. The payment provider is still processing the seller payout.', settled: false }

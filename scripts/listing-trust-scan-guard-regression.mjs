@@ -14,14 +14,15 @@ for (const invariant of [
   'c.token::text = current_setting(\'app.listing_trust_scan_write\', true)',
   'c.transaction_id = txid_current()',
   'c.backend_pid = pg_backend_pid()',
-  "to_jsonb(NEW) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at']",
-  "to_jsonb(OLD) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at']",
+  'FROM app_private.listing_trust_scan_capabilities c',
   'Listing trust metadata is system-managed',
   'REVOKE ALL ON FUNCTION public.scan_listing_trust(uuid) FROM PUBLIC, anon, authenticated',
 ]) assert.ok(migration.includes(invariant), `Listing lifecycle guard missing: ${invariant}`)
 
 assert.ok(migration.includes("set_config('app.listing_trust_scan_write', v_scan_capability::text, true)"))
 assert.ok(migration.includes('DELETE FROM app_private.listing_trust_scan_capabilities'))
+assert.ok(migration.includes('transaction_id = txid_current()'))
+assert.ok(migration.includes('backend_pid = pg_backend_pid()'))
 assert.ok(migration.includes("REVOKE ALL ON app_private.listing_trust_scan_capabilities FROM PUBLIC, anon, authenticated, service_role"))
 assert.ok(scanner.includes('plugpay_protected = false'))
 assert.ok(scanner.includes('visibility_score'))

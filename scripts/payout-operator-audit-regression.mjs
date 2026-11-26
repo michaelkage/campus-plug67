@@ -21,7 +21,7 @@ for (const required of [
   'audit_recorded',
   'GRANT EXECUTE ON FUNCTION public.confirm_paystack_transfer_not_created(text,text,uuid)',
  ]) assert.ok(migration.includes(required), `Payout audit migration missing: ${required}`)
-assert.ok(/GRANT EXECUTE ON FUNCTION public\\.confirm_paystack_transfer_not_created\\(text,text,uuid\\)\\s+TO service_role;/.test(migration), 'Service-role execution grant must be present')
+assert.ok(/GRANT EXECUTE ON FUNCTION public\.confirm_paystack_transfer_not_created\(text,text,uuid\)\s+TO service_role;/.test(migration), 'Service-role execution grant must be present')
 
 for (const required of [
   'SUPABASE_ANON_KEY',

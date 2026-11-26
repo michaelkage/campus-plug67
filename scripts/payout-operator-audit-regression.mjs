@@ -19,7 +19,7 @@ for (const required of [
   'p_operator_id uuid',
   'FOR UPDATE',
   'audit_recorded',
-  'GRANT EXECUTE ON FUNCTION public.confirm_paystack_transfer_not_created(text,text,uuid) TO service_role',
+   /GRANT EXECUTE ON FUNCTION public\\.confirm_paystack_transfer_not_created\\(text,text,uuid\\)\\s+TO service_role;/,
 ]) assert.ok(migration.includes(required), `Payout audit migration missing: ${required}`)
 
 for (const required of [

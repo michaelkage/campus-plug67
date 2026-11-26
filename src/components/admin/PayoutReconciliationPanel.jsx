@@ -188,10 +188,10 @@ export default function PayoutReconciliationPanel({ data, loading, onRefresh }) 
                   <p className="text-xs font-bold">{item.action.replaceAll('_', ' ')}</p>
                   <p className="text-[10px] text-on-surface/45">{new Date(item.created_at).toLocaleString()}</p>
                 </div>
-                <p className="mt-1 break-all font-mono text-[11px]">{item.transfer_id}</p>
+                <p className="mt-1 break-all font-mono text-[11px]">{item.reference || item.transfer_id}</p>
                 <p className="mt-2 text-xs">{item.before_status} → {item.after_status} · Provider: {item.provider_status || 'unknown'} ({item.provider_http_status ?? 'n/a'})</p>
                 <p className="mt-2 whitespace-pre-wrap text-xs text-on-surface/65">{item.note}</p>
-                <p className="mt-1 text-[10px] text-on-surface/40">Operator {item.operator_id}{item.support_ticket ? ` · ${item.support_ticket}` : ''}</p>
+                <p className="mt-1 text-[10px] text-on-surface/40">Operator {item.operator_name || item.operator_id} · {item.operator_id}{item.support_ticket ? ` · ${item.support_ticket}` : ''}</p>
               </article>
             ))}
           </div>}

@@ -10,7 +10,7 @@ const scanner = migration.slice(scannerStart)
 
 for (const invariant of [
   "current_setting('app.listing_trust_scan_write', true) = 'true'",
-  "to_jsonb(NEW) - ARRAY['plugpay_protected','visibility_score','trust_score']",
+  "to_jsonb(NEW) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at']",
   "to_jsonb(OLD) - ARRAY['plugpay_protected','visibility_score','trust_score']",
   "current_setting('app.listing_trust_scan_write', true) IS DISTINCT FROM 'true'",
   'Listing trust metadata is system-managed',

@@ -276,7 +276,8 @@ UPDATE public.transactions
 SELECT is(
   (public.confirm_paystack_transfer_not_created(
     'cp_tr_manualfixture3',
-    'Support verified the reference is absent from the Paystack dashboard.'
+    'Support verified the reference is absent from the Paystack dashboard.',
+    'f5100000-0000-4000-8000-000000000001'
   )->>'retry_eligible')::boolean,
   true,
   'Manual no-transfer confirmation requires a mature, provider-absent reference and remains retry eligible'
@@ -284,7 +285,7 @@ SELECT is(
 SELECT is((SELECT count(*)::integer FROM public.seller_payout_operator_audit WHERE transfer_id = (SELECT id FROM public.seller_payout_transfers WHERE reference = 'cp_tr_manualfixture3')), 1, 'Manual recovery records one immutable operator audit row');
 SELECT is((SELECT operator_id FROM public.seller_payout_operator_audit WHERE provider_reference = 'cp_tr_manualfixture3'), 'f5100000-0000-4000-8000-000000000001'::uuid, 'Audit row records the verified operator identity');
 SELECT throws_ok(
-  $ UPDATE public.seller_payout_operator_audit SET note = 'Attempted rewrite of operator evidence' WHERE provider_reference = 'cp_tr_manualfixture3' $,
+  $audit$ UPDATE public.seller_payout_operator_audit SET note = 'Attempted rewrite of operator evidence' WHERE provider_reference = 'cp_tr_manualfixture3' $audit$,
   'P0001',
   'Seller payout operator audit is append-only',
   'Operator audit evidence cannot be rewritten'

@@ -198,7 +198,7 @@ begin
 
   PERFORM set_config('app.listing_trust_scan_write', previous_scan_flag, true);
 end;
-$;
+$$;
 
 COMMENT ON FUNCTION public.scan_listing_trust(uuid) IS
   'Recomputes listing trust metadata using a transaction-local, trust-fields-only write capability.';

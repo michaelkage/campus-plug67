@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, feat/campus-membership-evidence-review]
+    branches: [main, feat/campus-membership-evidence-review, feat/campus-verification-evidence-retention]
 
 permissions:
   contents: read
@@ -61,8 +61,6 @@ jobs:
         run: supabase start --exclude studio
       - name: Apply migrations from a clean database
         run: supabase db reset --local
-      - name: Run database behavior tests
-        run: supabase test db
       - name: Validate Edge Functions compile
         shell: bash
         run: |

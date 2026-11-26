@@ -56,7 +56,7 @@ DECLARE
   v_claimed jsonb;
   v_expired integer := 0;
 BEGIN
-  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+  IF COALESCE(auth.jwt() ->> 'role', '') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
   END IF;
   IF p_batch_size IS NULL OR p_batch_size < 1 OR p_batch_size > 100 THEN
@@ -139,7 +139,7 @@ AS $$
 DECLARE
   v_updated integer;
 BEGIN
-  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+  IF COALESCE(auth.jwt() ->> 'role', '') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
   END IF;
   UPDATE public.campus_verification_requests
@@ -176,7 +176,7 @@ DECLARE
   v_updated integer;
   v_attempts integer;
 BEGIN
-  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+  IF COALESCE(auth.jwt() ->> 'role', '') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
   END IF;
   UPDATE public.campus_verification_requests

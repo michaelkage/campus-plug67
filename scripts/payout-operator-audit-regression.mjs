@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = file => fs.readFileSync(path.join(root, file), 'utf8')
-const migration = read('supabase/migrations/20261126130000_audit_paystack_payout_manual_recovery.sql')
+const migration = read('supabase/migrations/20261126131000_audit_paystack_payout_manual_recovery.sql')
 const recovery = read('supabase/functions/resolve-paystack-payout-attention/index.ts')
 const dispute = read('supabase/functions/process-dispute/index.ts')
 

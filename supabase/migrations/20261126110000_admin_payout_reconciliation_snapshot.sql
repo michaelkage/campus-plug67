@@ -182,11 +182,14 @@ BEGIN
     'payout_operator_audit', COALESCE((
       SELECT jsonb_agg(to_jsonb(x) ORDER BY x.created_at DESC)
       FROM (
-        SELECT a.id, a.transfer_id, a.transaction_id, a.operator_id,
+        SELECT a.id, a.transfer_id, a.transaction_id, t.reference,
+               a.operator_id, COALESCE(op.full_name, 'Platform admin') AS operator_name,
                a.action, a.note, a.support_ticket, a.provider_status,
                a.provider_http_status, a.before_status, a.after_status,
                a.provider_verified_at, a.created_at
         FROM public.seller_payout_operator_audit a
+        JOIN public.seller_payout_transfers t ON t.id = a.transfer_id
+        LEFT JOIN public.profiles op ON op.id = a.operator_id
         ORDER BY a.created_at DESC
         LIMIT v_limit
       ) x

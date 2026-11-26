@@ -93,11 +93,14 @@ for (const required of [
 ]) assert.ok(docs.toLowerCase().includes(required.toLowerCase()), `Financial operations runbook missing: ${required}`)
 
 for (const required of [
-  'SELECT plan(7)',
+  'SELECT plan(9)',
   'get_admin_financial_operations_snapshot',
   'Platform admin required',
   "has_function_privilege('anon'",
   "has_function_privilege('authenticated'",
+  'cp_tr_admin_attention_001',
+  'cp_tr_admin_stale_001',
+  'stale_payouts',
 ]) assert.ok(databaseTest.includes(required), `Financial operations database test missing: ${required}`)
 
 console.log('Admin financial operations regression checks passed.')

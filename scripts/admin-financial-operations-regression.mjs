@@ -8,6 +8,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8')
 const migration = read('supabase/migrations/20261126140000_admin_financial_operations_snapshot.sql')
 const admin = read('src/pages/AdminConsole.jsx')
 const docs = read('docs/admin-financial-operations.md')
+const databaseTest = read('supabase/tests/admin_financial_operations.test.sql')
 
 for (const required of [
   'CREATE OR REPLACE FUNCTION public.get_admin_financial_operations_snapshot',
@@ -75,3 +76,11 @@ for (const required of [
 ]) assert.ok(docs.toLowerCase().includes(required.toLowerCase()), `Financial operations runbook missing: ${required}`)
 
 console.log('Admin financial operations regression checks passed.')
+
+for (const required of [
+  'SELECT plan(3)',
+  'get_admin_financial_operations_snapshot',
+  'Platform admin required',
+  "has_function_privilege('anon'",
+  "has_function_privilege('authenticated'",
+]) assert.ok(databaseTest.includes(required), `Financial operations database test missing: ${required}`)

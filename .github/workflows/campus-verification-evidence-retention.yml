@@ -1,0 +1,45 @@
+name: Campus Plug Campus Verification Evidence Retention
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: campus-verification-evidence-retention
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    # Evidence deletion is a privacy operation. Only the protected default
+    # branch may invoke the service-role cleanup worker.
+    if: github.ref == 'refs/heads/main' && vars.CAMPUS_EVIDENCE_RETENTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run private evidence retention cleanup
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
+          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
+
+          response="$(curl --fail-with-body --silent --show-error --max-time 240 \
+            -X POST \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"trigger":"scheduled"}' \
+            "${SUPABASE_URL}/functions/v1/cleanup-campus-verification-evidence")"
+
+          printf '%s\n' "$response" | jq .
+          failed="$(printf '%s' "$response" | jq -r '.failed // 0')"
+          if [[ ! "$failed" =~ ^[0-9]+$ || "$failed" != "0" ]]; then
+            echo "Campus evidence cleanup reported failures: $failed"
+            exit 1
+          fi

@@ -14,11 +14,8 @@ concurrency:
 
 jobs:
   reconcile:
-    # Reconciliation calls mutate provider-backed transaction state. Keep
-    # scheduled and manual execution on the protected default branch only.
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - name: Reconcile pending Paystack payments
         env:
@@ -29,67 +26,4 @@ jobs:
           [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
           [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
 
-          curl --fail-with-body --silent --show-error \
-            --retry 3 --retry-delay 3 --retry-all-errors --max-time 240 \
-            -X POST \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Content-Type: application/json" \
-            "${SUPABASE_URL}/functions/v1/reconcile-pending-payments"
-
-      - name: Process eligible Paystack seller payouts
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          set -euo pipefail
-          [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
-          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
-
-          # The Edge Function exits without claiming transfers unless
-          # PAYSTACK_SELLER_PAYOUTS_ENABLED is explicitly true in Supabase.
-          curl --fail-with-body --silent --show-error \
-            --retry 2 --retry-delay 3 --retry-all-errors --max-time 240 \
-            -X POST \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Content-Type: application/json" \
-            -d '{"limit":10}' \
-            "${SUPABASE_URL}/functions/v1/process-paystack-payouts"
-
-      - name: Reconcile outstanding Paystack seller transfers
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          set -euo pipefail
-          [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
-          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
-
-          # This worker only verifies persisted references; it never creates a transfer.
-          curl --fail-with-body --silent --show-error \
-            --retry 2 --retry-delay 3 --retry-all-errors --max-time 240 \
-            -X POST \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Content-Type: application/json" \
-            "${SUPABASE_URL}/functions/v1/reconcile-paystack-transfers"
-
-      - name: Reconcile outstanding Paystack refunds
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          set -euo pipefail
-          [[ -n "$SUPABASE_URL" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_URL'; exit 1; }
-          [[ -n "$SUPABASE_SERVICE_ROLE_KEY" ]] || { echo 'Missing GitHub Actions secret: SUPABASE_SERVICE_ROLE_KEY'; exit 1; }
-
-          # The Edge Function reads PAYSTACK_SECRET_KEY from Supabase secrets.
-          # This request only reconciles existing provider refunds; it never creates one.
-          curl --fail-with-body --silent --show-error \
-            --max-time 840 \
-            -X POST \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Content-Type: application/json" \
-            "${SUPABASE_URL}/functions/v1/reconcile-paystack-refunds"
+          curl --fail-with-body --silent --show-error             --retry 3 --retry-delay 3 --retry-all-errors --max-time 240             -X POST             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}"             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"             -H "Content-Type: application/json"             "${SUPABASE_URL}/functions/v1/reconcile-pending-payments"

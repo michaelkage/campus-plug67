@@ -123,6 +123,7 @@ BEGIN
         SELECT count(*) FROM public.seller_payout_transfers p
         WHERE p.status IN ('processing','pending')
           AND GREATEST(p.updated_at, COALESCE(p.last_reconciled_at,p.created_at)) <= now() - interval '15 minutes'
+          AND (p.lease_expires_at IS NULL OR p.lease_expires_at <= now())
       ),
       'payout_operator_audits', (
         SELECT count(*) FROM public.seller_payout_operator_audit
@@ -275,6 +276,7 @@ BEGIN
         FROM public.seller_payout_transfers p
         WHERE p.status IN ('processing','pending')
           AND GREATEST(p.updated_at, COALESCE(p.last_reconciled_at,p.created_at)) <= now() - interval '15 minutes'
+          AND (p.lease_expires_at IS NULL OR p.lease_expires_at <= now())
         ORDER BY p.updated_at ASC
         LIMIT v_limit
       ) x

@@ -13,6 +13,8 @@ const admin = read('src/pages/AdminConsole.jsx')
 const config = read('supabase/config.toml')
 const docs = read('docs/payments/PAYSTACK_SELLER_PAYOUT_OPERATIONS.md')
 const packageJson = read('package.json')
+const scheduledWorkflow = read('.github/workflows/payment-reconciliation.yml')
+const legacyRecovery = read('supabase/functions/resolve-paystack-payout-attention/index.ts')
 
 for (const invariant of [
   'CREATE TABLE IF NOT EXISTS public.seller_payout_operator_audit',
@@ -82,6 +84,12 @@ for (const invariant of [
 assert.ok(!edge.includes('"/transfer"'), 'Admin operator endpoint must never create a transfer')
 assert.ok(!edge.includes('body?.operator_id'), 'Operator identity must never come from client request data')
 assert.ok(!edge.includes('p_amount: actualAmount'), 'Provider mismatch amount must not be passed to the financial recorder')
+assert.ok(legacyRecovery.includes('status: 410'), 'Unaudited legacy recovery endpoint must be retired')
+assert.ok(!legacyRecovery.includes('confirm_paystack_transfer_not_created'), 'Legacy endpoint must not mutate payout retry state')
+assert.ok(scheduledWorkflow.includes('/functions/v1/process-paystack-payouts'))
+assert.ok(scheduledWorkflow.includes('/functions/v1/reconcile-paystack-transfers'))
+assert.ok(scheduledWorkflow.indexOf('/functions/v1/process-paystack-payouts') < scheduledWorkflow.indexOf('/functions/v1/reconcile-paystack-transfers'))
+assert.ok(scheduledWorkflow.includes("if: github.ref == 'refs/heads/main'"), 'Financial automation must only run from the protected default branch')
 
 for (const invariant of [
   'admin-resolve-paystack-payout-attention',

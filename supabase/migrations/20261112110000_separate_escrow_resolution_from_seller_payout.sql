@@ -85,15 +85,22 @@ BEGIN
            total_earnings = total_earnings + CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END
      WHERE id = NEW.seller_id;
 
-    -- PlugScore changes are queued through M13's idempotent event pipeline,
-    -- never applied directly by this transaction trigger.
-    PERFORM public.enqueue_plugscore_event(
-      NEW.seller_id,
-      'escrow_release',
-      50,
-      NEW.id,
-      jsonb_build_object('source', 'transaction_release', 'payment_method', COALESCE(NEW.payment_method, 'paystack'))
-    );
+    -- PlugScore changes are queued through M13's idempotent event pipeline
+    -- whenever it is installed. The fallback preserves pre-M13 migration
+    -- compatibility; after M13, the event function is always present.
+    IF to_regprocedure('public.enqueue_plugscore_event(uuid,text,integer,uuid,jsonb)') IS NOT NULL THEN
+      PERFORM public.enqueue_plugscore_event(
+        NEW.seller_id,
+        'escrow_release',
+        50,
+        NEW.id,
+        jsonb_build_object('source', 'transaction_release', 'payment_method', COALESCE(NEW.payment_method, 'paystack'))
+      );
+    ELSE
+      UPDATE public.profiles
+         SET plug_score = plug_score + 50
+       WHERE id = NEW.seller_id;
+    END IF;
 
     WITH seller AS (
       SELECT total_sales, plug_score FROM public.profiles WHERE id = NEW.seller_id

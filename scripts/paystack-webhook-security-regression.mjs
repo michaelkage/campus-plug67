@@ -17,4 +17,8 @@ requireText('p_amount: amount', "Webhook must pass the provider refund amount to
 requireText('p_currency: currency', "Webhook must pass the provider refund currency to the atomic recorder");
 requireText('admin.rpc("record_paystack_refund"', "Refund state transitions must go through the atomic recorder");
 requireText('event.event?.startsWith("refund.")', "Refund events must be handled by the refund recorder");
+requireText('event.event === "transfer.success"', "Transfer success webhook must be handled");
+requireText('event.event === "transfer.failed"', "Transfer failure webhook must be handled");
+requireText('event.event === "transfer.reversed"', "Transfer reversal webhook must be handled");
+requireText('admin.rpc("record_paystack_transfer"', "Seller payout state must use the atomic transfer recorder");
 console.log("Paystack webhook security regression checks passed (static source invariants).");

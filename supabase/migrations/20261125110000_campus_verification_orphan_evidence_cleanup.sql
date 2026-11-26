@@ -67,7 +67,7 @@ SECURITY DEFINER
 SET search_path = ''
 AS $
 BEGIN
-  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+  IF COALESCE(auth.jwt() ->> 'role', '') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
   END IF;
   IF p_evidence_path IS NULL OR length(trim(p_evidence_path)) = 0 THEN
@@ -92,7 +92,7 @@ DECLARE
   v_claimed jsonb;
   v_discovered integer := 0;
 BEGIN
-  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+  IF COALESCE(auth.jwt() ->> 'role', '') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
   END IF;
   IF p_batch_size IS NULL OR p_batch_size < 1 OR p_batch_size > 100 THEN
@@ -186,7 +186,7 @@ AS $$
 DECLARE
   v_updated integer;
 BEGIN
-  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+  IF COALESCE(auth.jwt() ->> 'role', '') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
   END IF;
   UPDATE public.campus_verification_evidence_orphan_jobs
@@ -218,7 +218,7 @@ AS $$
 DECLARE
   v_updated integer;
 BEGIN
-  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+  IF COALESCE(auth.jwt() ->> 'role', '') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
   END IF;
   UPDATE public.campus_verification_evidence_orphan_jobs
@@ -240,14 +240,17 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.guard_campus_verification_evidence_submission()
-  FROM PUBLIC, anon, authenticated, service_role;\nREVOKE ALL ON FUNCTION public.campus_verification_evidence_object_exists(text)
-  FROM PUBLIC, anon, authenticated;\nREVOKE ALL ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer)
+  FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.campus_verification_evidence_object_exists(text)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.complete_campus_verification_orphan_cleanup(uuid,text)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.fail_campus_verification_orphan_cleanup(uuid,text,text)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.campus_verification_evidence_object_exists(text) TO service_role;\nGRANT EXECUTE ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.campus_verification_evidence_object_exists(text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.claim_campus_verification_orphan_cleanup(integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.complete_campus_verification_orphan_cleanup(uuid,text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.fail_campus_verification_orphan_cleanup(uuid,text,text) TO service_role;
 

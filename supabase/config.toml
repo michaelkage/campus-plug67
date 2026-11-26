@@ -49,3 +49,6 @@ verify_jwt = false
 
 [functions.resolve-paystack-payout-attention]
 verify_jwt = false
+
+[functions.reconcile-paystack-refunds]
+verify_jwt = false

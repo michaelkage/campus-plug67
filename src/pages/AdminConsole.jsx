@@ -65,7 +65,7 @@ export default function AdminConsole(){
       <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black">Financial reconciliation</h2><p className="mt-1 text-xs text-[var(--md-on-surface)]/45">Read-only exception queues derived from payment events and immutable journal postings. Nothing here moves money.</p></div><button type="button" className="btn-secondary text-sm" onClick={()=>refetchFinancialOps()} disabled={financialOpsLoading}><RefreshCw size={14} className={financialOpsLoading?'animate-spin':''}/> Refresh queues</button></div>
       {financialOpsError&&<div className="surface p-4 text-sm text-error" role="alert">Financial operations data could not be loaded. Refresh and try again.</div>}
       {financialOpsLoading&&!financialOps?<div className="surface p-8 text-center text-sm text-on-surface-variant" role="status">Loading reconciliation queues…</div>:<>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
           <OpsMetric label="Refunds needing attention" value={financialOps?.counts?.refund_attention}/>
           <OpsMetric label="Failed payment events" value={financialOps?.counts?.failed_payment_events}/>
           <OpsMetric label="Missing journal postings" value={financialOps?.counts?.missing_journal_postings}/>
@@ -73,6 +73,7 @@ export default function AdminConsole(){
           <OpsMetric label="Trial balance issues" value={financialOps?.counts?.journal_balance_imbalances}/>
           <OpsMetric label="Payouts needing attention" value={financialOps?.counts?.payout_attention}/>
           <OpsMetric label="Stale payout attempts" value={financialOps?.counts?.stale_payout_attempts}/>
+          <OpsMetric label="Manual recovery decisions" value={financialOps?.counts?.payout_operator_audits}/>
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
           <OpsQueue title="Refunds needing attention" description="Failed, needs-attention, or processing for more than 15 minutes." rows={financialOps?.refund_attention||[]} kind="refund" onInspect={id=>{setTransactionId(id);setTab('transactions')}}/>

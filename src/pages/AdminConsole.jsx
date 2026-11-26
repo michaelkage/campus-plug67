@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import TransactionTimeline from '@/components/admin/TransactionTimeline'
+import PayoutReconciliationPanel from '@/components/admin/PayoutReconciliationPanel'
 
 const tabs=[['overview','Overview',LayoutDashboard],['transactions','Transactions',CreditCard],['rentals','Rental disputes',PackageCheck],['payments','Payments',WalletCards],['financial-ops','Financial ops',Banknote],['security','Security',Shield],['operations','Operations',Activity]]
 
@@ -83,6 +84,7 @@ export default function AdminConsole(){
           {(financialOps?.journal_balance||[]).length===0?<p className="mt-2 text-sm text-on-surface-variant" role="status">No journal imbalance detected in the current NGN trial balance.</p>:
             <div className="mt-3 space-y-2">{financialOps.journal_balance.map((entry,index)=><div key={entry.currency||index} className="rounded-md border border-error/30 bg-error/5 p-3 text-sm"><strong>{entry.currency}</strong><span className="ml-2 text-error">Imbalance: {formatKobo(entry.imbalance)}</span></div>)}</div>}
         </section>
+        <PayoutReconciliationPanel data={financialOps} loading={financialOpsLoading} onRefresh={refetchFinancialOps} />
       </>}
     </section>}
     {tab==='security'&&<section className="grid gap-5 md:grid-cols-2"><div className="surface p-5"><h2 className="font-black">Security posture</h2><ul className="mt-4 space-y-3 text-sm text-[var(--md-on-surface)]/55"><li>✓ Platform-admin RPC authorization</li><li>✓ Service-role-only sensitive telemetry tables</li><li>✓ Transaction transition audit trail</li><li>✓ Payment event idempotency ledger</li><li>✓ Client device signals are not authentication</li></ul></div><div className="surface p-5"><h2 className="font-black">Incident signals</h2><div className="mt-4 text-3xl font-black">{snapshot?.observability_errors_24h||0}</div><p className="text-xs text-[var(--md-on-surface)]/40">observability errors in the last 24 hours</p></div></section>}

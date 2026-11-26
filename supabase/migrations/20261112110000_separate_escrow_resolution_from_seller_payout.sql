@@ -81,10 +81,19 @@ BEGIN
     -- Count the sale immediately, but only count money as earned when it has
     -- actually reached the seller's Campus Wallet or confirmed bank payout.
     UPDATE public.profiles
-    SET plug_score = plug_score + 50,
-        total_sales = total_sales + 1,
-        total_earnings = total_earnings + CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END
-    WHERE id = NEW.seller_id;
+       SET total_sales = total_sales + 1,
+           total_earnings = total_earnings + CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END
+     WHERE id = NEW.seller_id;
+
+    -- PlugScore changes are queued through M13's idempotent event pipeline,
+    -- never applied directly by this transaction trigger.
+    PERFORM public.enqueue_plugscore_event(
+      NEW.seller_id,
+      'escrow_release',
+      50,
+      NEW.id,
+      jsonb_build_object('source', 'transaction_release', 'payment_method', COALESCE(NEW.payment_method, 'paystack'))
+    );
 
     WITH seller AS (
       SELECT total_sales, plug_score FROM public.profiles WHERE id = NEW.seller_id

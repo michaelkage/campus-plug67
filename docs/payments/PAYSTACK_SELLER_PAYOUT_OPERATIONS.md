@@ -145,9 +145,9 @@ This is a restricted support operation, not a seller-facing action.
 2. Wait at least 30 minutes from attempt creation.
 3. Confirm the attempt has no recorded provider transfer code or provider transfer ID.
 4. Confirm there is no other active attempt for the transaction and that the transaction remains eligible (released/verified Paystack payment, no active dispute, no outstanding/processed refund).
-5. An authorized operator invokes the service-role-only `resolve-paystack-payout-attention` endpoint with the exact reference, `confirm_not_created: true`, and a 20–500 character audit note. The endpoint performs another provider verification and only accepts a provider 404.
+5. An authenticated platform admin uses the Admin Console's Financial ops payout panel. The `admin-resolve-paystack-payout-attention` Edge Function verifies the caller with the user JWT and `is_platform_admin()`, then independently checks the exact Paystack reference. It accepts a not-created confirmation only after a fresh provider 404 and writes the state transition plus operator identity, note, support ticket and provider check into the append-only `seller_payout_operator_audit` table in one database transaction.
 6. The database RPC enforces the remaining invariants and retry cap. A later attempt receives a new reference only after this conclusive recovery path and the configured backoff.
-7. Record the support ticket and operator identity. Never call the database RPC directly from a client.
+7. The Admin Console displays the resulting immutable audit row. Never call the service-role database RPC directly from a client or use a shared service credential from a browser.
 
 ### D. Failed transfer
 
@@ -193,4 +193,13 @@ Do not attach raw webhook payloads or screenshots containing bank account detail
 4. Do not roll back by restoring an earlier migration or rewriting payout statuses. Use a reviewed forward-only migration for any database correction.
 5. Re-enable only after the incident is understood, the provider state is reconciled, and the finance owner explicitly approves.
 
-**Current release state:** PR #103 is draft and unmerged. No production migration, Edge Function deployment, secret change, feature-flag change, or provider transfer is authorized by this runbook.
+**Current release state:** the payout foundation and operator workbench are repository changes only. PR #103 and the M17 payout follow-up remain draft/unmerged. No production migration, Edge Function deployment, secret change, feature-flag change, or provider transfer is authorized by this runbook.
+
+
+## Platform-admin operator audit
+
+The M17 operator panel is authenticated with the administrator's user JWT. The Edge Function verifies the token, calls `is_platform_admin()` through the user-scoped client, and rate-limits each operator before it uses the service credential. The operator ID is derived from the verified JWT; it is never accepted from request JSON.
+
+Every provider lookup is recorded in `seller_payout_operator_audit` with the transfer and transaction IDs, operator ID, action, before/after status, HTTP result, provider status, timestamp, audit note and optional support ticket. The table is append-only and inaccessible to direct client writes. The admin snapshot exposes a bounded read-only view of the recent audit trail.
+
+A provider 404 during ordinary reconciliation is recorded as `provider_not_found` and changes no payout state. The separate `confirm_not_created` action requires an explicit dashboard confirmation, repeats the provider lookup, and delegates to the existing database guardrails (30-minute age, no provider identifiers, no competing active transfer, no refund/dispute conflict and retry cap). The audit insert and state transition commit atomically. Neither action can create or submit a transfer.

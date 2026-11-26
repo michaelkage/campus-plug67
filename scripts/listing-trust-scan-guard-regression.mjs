@@ -9,19 +9,18 @@ const scannerStart = migration.indexOf('create or replace function public.scan_l
 const scanner = migration.slice(scannerStart)
 
 for (const invariant of [
-  "current_setting('app.listing_trust_scan_write', true) = 'true'",
+  'pg_trigger_depth() > 1',
   "to_jsonb(NEW) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at']",
-  "to_jsonb(OLD) - ARRAY['plugpay_protected','visibility_score','trust_score']",
-  "current_setting('app.listing_trust_scan_write', true) IS DISTINCT FROM 'true'",
+  "to_jsonb(OLD) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at']",
   'Listing trust metadata is system-managed',
-]) assert.ok(guard.includes(invariant), `Listing lifecycle guard missing: ${invariant}`)
+  'REVOKE ALL ON FUNCTION public.scan_listing_trust(uuid) FROM PUBLIC, anon, authenticated',
+]) assert.ok(migration.includes(invariant), `Listing lifecycle guard missing: ${invariant}`)
 
-assert.ok(scanner.includes("current_setting('app.listing_trust_scan_write', true)"))
-assert.ok(scanner.includes("set_config('app.listing_trust_scan_write', 'true', true)"))
-assert.ok(scanner.includes('set_config(\'app.listing_trust_scan_write\', previous_scan_flag, true)'))
+assert.ok(!migration.includes('listing_trust_scan_write'), 'No client-settable custom GUC may authorize trust metadata writes')
 assert.ok(scanner.includes('plugpay_protected = false'))
 assert.ok(scanner.includes('visibility_score'))
 assert.ok(scanner.includes('trust_score'))
+assert.ok(!scanner.includes('set_config('), 'Trust scanner must not rely on a client-settable session flag')
 assert.ok(!scanner.includes('SET status ='), 'Trust scanner must not change listing lifecycle status')
 
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))

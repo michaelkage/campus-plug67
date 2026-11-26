@@ -65,7 +65,7 @@ CREATE OR REPLACE FUNCTION public.campus_verification_evidence_object_exists(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
-AS $
+AS $$
 BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Campus evidence cleanup is service-role-only';
@@ -79,7 +79,7 @@ BEGIN
        AND name = p_evidence_path
   );
 END;
-$;
+$$;
 
 CREATE OR REPLACE FUNCTION public.claim_campus_verification_orphan_cleanup(
   p_batch_size integer DEFAULT 50

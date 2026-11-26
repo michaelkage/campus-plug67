@@ -256,3 +256,30 @@ GRANT EXECUTE ON FUNCTION public.fail_campus_verification_orphan_cleanup(uuid,te
 
 COMMENT ON TABLE public.campus_verification_evidence_orphan_jobs IS
   'Private retry queue for unreferenced campus verification uploads older than the 24-hour submission grace period.';
+
+-- The verification audit is an evidence trail, not a mutable status table.
+-- SECURITY DEFINER review/cleanup RPCs own inserts; no API role may rewrite
+-- or truncate historical reviewer and retention events.
+CREATE OR REPLACE FUNCTION public.prevent_campus_verification_audit_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = ''
+AS $audit$
+BEGIN
+  RAISE EXCEPTION 'Campus verification audit is append-only';
+END;
+$audit$;
+
+REVOKE ALL ON FUNCTION public.prevent_campus_verification_audit_mutation()
+  FROM PUBLIC, anon, authenticated, service_role;
+
+DROP TRIGGER IF EXISTS campus_verification_audit_immutable
+  ON public.campus_verification_audit;
+CREATE TRIGGER campus_verification_audit_immutable
+BEFORE UPDATE OR DELETE ON public.campus_verification_audit
+FOR EACH ROW EXECUTE FUNCTION public.prevent_campus_verification_audit_mutation();
+
+REVOKE ALL ON public.campus_verification_audit
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT ON public.campus_verification_audit TO authenticated;
+GRANT INSERT ON public.campus_verification_audit TO service_role;

@@ -77,7 +77,7 @@ for (const required of [
 ]) assert.ok(docs.toLowerCase().includes(required.toLowerCase()), `Financial operations runbook missing: ${required}`)
 
 for (const required of [
-  'SELECT plan(3)',
+  'SELECT plan(7)',
   'get_admin_financial_operations_snapshot',
   'Platform admin required',
   "has_function_privilege('anon'",

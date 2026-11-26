@@ -25,6 +25,26 @@ The existing confirmed-email-domain flow should remain the strongest automatic p
 - Keep campus-only privileges behind verified membership. Pending users may use ordinary account features but must not receive verified badges, trust-score bonuses, campus moderator powers or access to restricted campus groups.
 - Add tests for cross-campus submissions, unauthorized review, reused vouchers, rate limits, storage path traversal, private bucket access, and status-transition integrity.
 
+## Implemented workflow (pending deployment)
+
+The evidence-review implementation is now present in the stacked Campus Plug branch:
+
+- Account signup accepts a personal email. Supabase Auth email confirmation remains mandatory, but it does not grant campus membership.
+- Approved institutional email domains continue to use the existing automatic membership claim.
+- Other students can submit an institution, normalized matric number and one private JPG/PNG/WebP/PDF evidence object (maximum 5 MB).
+- Evidence paths are owner- and institution-scoped in the private `campus-verification-evidence` bucket. Only the applicant and platform admins can read the object; direct client writes to request, membership and audit tables are denied.
+- The applicant can share the request UUID with a same-campus verified peer. Vouching requires a verified membership, a 30-day-old account, a maximum of five vouches per 30 days, and one vouch per request. A vouch never changes membership status.
+- The Admin Console review queue exposes applicant details, matric number, peer-vouch context and a 60-second signed evidence URL. Approval/rejection runs through an admin-authorized RPC and writes an audit record. A reviewer decision attempts immediate evidence deletion.
+- Manual approval creates a verified membership using `manual_evidence_review`; it does not set platform-admin roles, award PlugScore or bypass campus-only authorization.
+
+### Deployment and retention gates
+
+This is repository implementation, not a live verification service. The migration must be applied and the frontend deployed before users can use it. No migration has been applied and no Edge Function or production setting has been changed.
+
+Pending evidence receives a 30-day `evidence_expires_at` timestamp. The reviewer UI attempts deletion immediately after a decision, but an automated expiry worker and scheduled invocation are not yet configured. Until that is deployed and monitored, do not represent the 30-day timestamp as guaranteed deletion. A failed immediate deletion must be treated as a privacy cleanup incident and manually reconciled from the private bucket.
+
+The initial vouch controls reduce casual abuse but do not prove the voucher knows the applicant. Reviewers must treat vouches as supporting context only. Stronger anti-collusion signals (shared device/payment graph, voucher clusters, and campus-admin review) remain follow-on work.
+
 ## Rollout sequence
 
 1. Add the request/evidence schema and private Storage bucket with strict RLS/storage policies.

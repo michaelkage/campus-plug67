@@ -9,7 +9,7 @@ export default function Privacy() {
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link to="/" className="text-[var(--md-on-surface)]/40 hover:text-on-surface"><ArrowLeft size={18} /></Link>
           <div className="flex items-center gap-2"><Lock size={16} className="text-primary" /><h1 className="font-bold text-sm">Privacy Policy</h1></div>
-          <span className="ml-auto text-xs text-[var(--md-on-surface)]/30">v1.0 · January 1, 2025</span>
+          <span className="ml-auto text-xs text-[var(--md-on-surface)]/30">v1.1 · November 24, 2026</span>
         </div>
       </div>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto px-4 py-10 pb-20 space-y-8">
@@ -24,8 +24,9 @@ export default function Privacy() {
               <thead><tr className="bg-surface-container-highest"><th className="text-left px-4 py-2.5 text-[var(--md-on-surface)]/60 font-bold">Data</th><th className="text-left px-4 py-2.5 text-[var(--md-on-surface)]/60 font-bold">Purpose</th><th className="text-left px-4 py-2.5 text-[var(--md-on-surface)]/60 font-bold">Retention</th></tr></thead>
               <tbody className="divide-y divide-outline-variant">
                 {[
-                  ['University email', 'Account verification', 'Account lifetime + 2 years'],
-                  ['Full name, matric', 'Profile identity', 'Account lifetime'],
+                  ['Account email', 'Authentication and account contact', 'Account lifetime + 2 years'],
+                  ['Student matric number', 'Campus membership verification review; not shown publicly', 'Restricted verification record; delete when no longer required'],
+                  ['Student ID / enrollment evidence', 'Private campus membership verification', 'Delete after a review decision; pending evidence remains private while awaiting review. The 30-day expiry target requires the cleanup schedule to be enabled.'],
                   ['Device fingerprint hash', 'Fraud prevention / device banning', 'Account + 3 years'],
                   ['GPS coordinates (meetups)', 'Proof of Presence during escrow', 'Not stored — status only'],
                   ['Chat messages', 'Transaction communication & dispute evidence', 'Account + 2 years'],

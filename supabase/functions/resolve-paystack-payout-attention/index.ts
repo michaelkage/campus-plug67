@@ -4,6 +4,7 @@ import { isServiceRoleRequest, jsonResponse, optionsResponse } from "../_shared/
 const url = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceKey = Deno.env.get("EDGE_FUNCTION_SERVICE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const secret = Deno.env.get("PAYSTACK_SECRET_KEY") ?? "";
+const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const admin = url && serviceKey ? createClient(url, serviceKey, { auth: { persistSession: false } }) : null;
 
 type TransferData = {
@@ -27,8 +28,21 @@ function recipientCode(value: TransferData["recipient"]): string | null {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return optionsResponse(req);
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405, {}, req);
-  if (!admin || !serviceKey || !secret) return jsonResponse({ error: "Payout recovery is not configured" }, 503, {}, req);
-  if (!isServiceRoleRequest(req)) return jsonResponse({ error: "Forbidden" }, 403, {}, req);
+  if (!admin || !serviceKey || !secret || !anonKey) return jsonResponse({ error: "Payout recovery is not configured" }, 503, {}, req);
+  // Manual recovery must be initiated by a real, authenticated platform admin.
+  // The service-role credential is used only for the protected provider/database work below.
+  const authorization = req.headers.get("Authorization") ?? "";
+  const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!bearer || isServiceRoleRequest(req)) return jsonResponse({ error: "Platform admin authentication required" }, 401, {}, req);
+  const { data: authData, error: authError } = await admin.auth.getUser(bearer);
+  const operator = authData?.user;
+  if (authError || !operator) return jsonResponse({ error: "Invalid operator session" }, 401, {}, req);
+  const operatorClient = createClient(url, anonKey, {
+    auth: { persistSession: false },
+    global: { headers: { Authorization: `Bearer ${bearer}` } },
+  });
+  const { data: isAdmin, error: adminCheckError } = await operatorClient.rpc("is_platform_admin");
+  if (adminCheckError || isAdmin !== true) return jsonResponse({ error: "Platform admin permission required" }, 403, {}, req);
 
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
   const reference = typeof body?.reference === "string" ? body.reference.trim() : "";
@@ -118,6 +132,7 @@ Deno.serve(async (req: Request) => {
   const { data: result, error: resolveError } = await admin.rpc("confirm_paystack_transfer_not_created", {
     p_reference: reference,
     p_note: note,
+    p_operator_id: operator.id,
   });
   if (resolveError) return jsonResponse({ error: resolveError.message }, 409, {}, req);
   return jsonResponse({ success: true, resolution: "provider_confirmed_not_created", result }, 200, {}, req);

@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(55);
+SELECT plan(59);
 
 INSERT INTO auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -247,7 +247,8 @@ SELECT is((SELECT count(*)::integer FROM public.claim_seller_payout_transfers(10
 SELECT throws_ok(
   $$ SELECT public.confirm_paystack_transfer_not_created(
     (SELECT reference FROM payout_retry),
-    'Support checked the Paystack dashboard and found no transfer.'
+    'Support checked the Paystack dashboard and found no transfer.',
+    'f5100000-0000-4000-8000-000000000001'
   ) $$,
   'P0001',
   'Transfer is not eligible for manual not-created confirmation',
@@ -275,11 +276,21 @@ UPDATE public.transactions
 SELECT is(
   (public.confirm_paystack_transfer_not_created(
     'cp_tr_manualfixture3',
-    'Support verified the reference is absent from the Paystack dashboard.'
+    'Support verified the reference is absent from the Paystack dashboard.',
+    'f5100000-0000-4000-8000-000000000001'
   )->>'retry_eligible')::boolean,
   true,
   'Manual no-transfer confirmation requires a mature, provider-absent reference and remains retry eligible'
 );
+SELECT is((SELECT count(*)::integer FROM public.seller_payout_operator_audit WHERE transfer_id = (SELECT id FROM public.seller_payout_transfers WHERE reference = 'cp_tr_manualfixture3')), 1, 'Manual recovery records one immutable operator audit row');
+SELECT is((SELECT operator_id FROM public.seller_payout_operator_audit WHERE provider_reference = 'cp_tr_manualfixture3'), 'f5100000-0000-4000-8000-000000000001'::uuid, 'Audit row records the verified operator identity');
+SELECT throws_ok(
+  $audit$ UPDATE public.seller_payout_operator_audit SET note = 'Attempted rewrite of operator evidence' WHERE provider_reference = 'cp_tr_manualfixture3' $audit$,
+  'P0001',
+  'Seller payout operator audit is append-only',
+  'Operator audit evidence cannot be rewritten'
+);
+SELECT is(has_table_privilege('authenticated', 'public.seller_payout_operator_audit', 'SELECT'), false, 'Authenticated users cannot read operator audit evidence');
 SELECT is((SELECT status FROM public.seller_payout_transfers WHERE reference = 'cp_tr_manualfixture3'), 'failed', 'Manual confirmation closes only the uncreated attempt');
 SELECT is((SELECT payout_status FROM public.transactions WHERE id = 'f5300000-0000-4000-8000-000000000001'), 'failed', 'Manual no-transfer confirmation makes the payout safely retryable');
 

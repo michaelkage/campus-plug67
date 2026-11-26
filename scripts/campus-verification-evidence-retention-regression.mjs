@@ -10,6 +10,7 @@ const orphanMigration = read('supabase/migrations/20261125110000_campus_verifica
 const worker = read('supabase/functions/cleanup-campus-verification-evidence/index.ts')
 const config = read('supabase/config.toml')
 const docs = read('docs/campus-verification-fallback.md')
+const databaseTest = read('supabase/tests/campus_verification_evidence_retention.test.sql')
 const validationWorkflow = read('.github/workflows/production-validation.yml')
 const scheduledWorkflow = read('.github/workflows/campus-verification-evidence-retention.yml')
 
@@ -109,5 +110,15 @@ for (const invariant of [
   "jq -r '.failed // 0'",
   'exit 1',
 ]) assert.ok(scheduledWorkflow.includes(invariant), `Retention scheduler missing: ${invariant}`)
+
+for (const invariant of [
+  'SELECT plan(14)',
+  'claim_campus_verification_evidence_cleanup',
+  'evidence_expired',
+  'evidence_deleted',
+  'Campus verification audit is append-only',
+  "has_table_privilege('service_role'",
+  "has_function_privilege('authenticated'",
+]) assert.ok(databaseTest.includes(invariant), `Retention database test missing: ${invariant}`)
 
 console.log('Campus verification evidence retention regression checks passed.')

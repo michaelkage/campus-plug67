@@ -97,6 +97,8 @@ for (const invariant of [
 
 for (const invariant of [
   "cron: \"*/15 * * * *\"",
+  "cancel-in-progress: false",
+  "--max-time 240",
   "if: github.ref == 'refs/heads/main'",
   'SUPABASE_URL: ${{ secrets.SUPABASE_URL }}',
   'SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}',

@@ -34,7 +34,7 @@ export default function PayoutReconciliationPanel({ data, loading, onRefresh }) 
     try {
       const { data: result, error } = await supabase.functions.invoke(
         'admin-resolve-paystack-payout-attention',
-        { body: { action, reference, note, support_ticket: supportTicket || null } },
+        { body: { action, reference, note, support_ticket: supportTicket || null, dashboard_attested: action === 'confirm_not_created' && confirmations[reference] === true } },
       )
       if (error) {
         const context = error.context

@@ -41,48 +41,16 @@ The evidence-review implementation is now present in the stacked Campus Plug bra
 
 This is repository implementation, not a live verification service. The migration must be applied and the frontend deployed before users can use it. No migration has been applied and no Edge Function or production setting has been changed.
 
-Pending evidence receives a 30-day `evidence_expires_at` timestamp. The repository now includes a service-role cleanup worker and a database claim/retry state machine. Approved/rejected evidence is eligible for immediate cleanup; pending evidence expires after 30 days, is marked `expired`, and its pending institution membership is rejected without granting verification. Request, decision and audit metadata remain available after the object path is cleared. Storage deletion retries use a 10-minute stale-claim lease, batches of 50, exponential backoff and a maximum of eight attempts. Exhausted failures remain visible in `evidence_cleanup_last_error` for operator reconciliation. The worker also sweeps abandoned, unreferenced uploads after a 24-hour submission grace period. Storage row locking plus an insert trigger prevent a queued orphan from being attached to a new request while deletion is in progress. Orphan cleanup has its own private retry queue and the same eight-attempt ceiling. The worker is not automatically scheduled until the production Vault secrets and Cron job below are configured.
+Pending evidence receives a 30-day `evidence_expires_at` timestamp. The repository now includes a service-role cleanup worker and a database claim/retry state machine. Approved/rejected evidence is eligible for immediate cleanup; pending evidence expires after 30 days, is marked `expired`, and its pending institution membership is rejected without granting verification. Request, decision and audit metadata remain available after the object path is cleared. Storage deletion retries use a 10-minute stale-claim lease, batches of 50, exponential backoff and a maximum of eight attempts. Exhausted failures remain visible in `evidence_cleanup_last_error` for operator reconciliation. The worker also sweeps abandoned, unreferenced uploads after a 24-hour submission grace period. Storage row locking plus an insert trigger prevent a queued orphan from being attached to a new request while deletion is in progress. Orphan cleanup has its own private retry queue and the same eight-attempt ceiling. The worker is automatically scheduled by `.github/workflows/campus-verification-evidence-retention.yml` after the branch is merged and deployed. It runs every 15 minutes on `main`, and can also be started manually through GitHub Actions' `workflow_dispatch`.
 
-### Configure the scheduled worker after deployment
+### Scheduled worker configuration
 
-1. Deploy the migration and Edge Function, then add the following secrets in the Supabase Vault (use the project's actual API URL and service-role secret; never commit either value):
+1. Confirm the repository has the existing GitHub Actions secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. The payment/refund reconciliation workflow uses the same names. Never put either value in repository files or workflow output.
+2. Merge and deploy the migration and `cleanup-campus-verification-evidence` Edge Function before enabling the scheduled workflow on `main`.
+3. The workflow invokes the Edge Function with the service-role credential, parses the JSON result, and fails the run if `failed` is nonzero. The worker processes request evidence and abandoned uploads in bounded batches, with eight-attempt retry ceilings.
+4. Monitor the Actions run history and Edge Function logs. Alert on failed runs, nonzero `failed`, `evidence_cleanup_attempts >= 8`, orphan jobs with `attempts >= 8`, or old non-null evidence paths whose expiry/review time has passed.
 
-   ```sql
-   select vault.create_secret('https://YOUR_PROJECT_REF.supabase.co', 'campus_verification_project_url');
-   select vault.create_secret('YOUR_SERVICE_ROLE_SECRET', 'campus_verification_service_key');
-   ```
-
-2. Enable `pg_cron` and `pg_net` if they are not already enabled. Schedule the worker with:
-
-   ```sql
-   do $block$
-   declare job_id bigint;
-   begin
-     select jobid into job_id from cron.job
-      where jobname = 'campus-verification-evidence-retention';
-     if job_id is not null then perform cron.unschedule(job_id); end if;
-     perform cron.schedule(
-       'campus-verification-evidence-retention',
-       '*/15 * * * *',
-       $job$
-       select net.http_post(
-         url := (select decrypted_secret from vault.decrypted_secrets where name = 'campus_verification_project_url')
-           || '/functions/v1/cleanup-campus-verification-evidence',
-         headers := jsonb_build_object(
-           'Content-Type', 'application/json',
-           'apikey', (select decrypted_secret from vault.decrypted_secrets where name = 'campus_verification_service_key'),
-           'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'campus_verification_service_key')
-         ),
-         body := jsonb_build_object('trigger', 'scheduled')
-       );
-       $job$
-     );
-   end $block$;
-   ```
-
-3. Confirm the Cron run history and Edge Function logs show successful invocations. Alert on nonzero `failed`, `evidence_cleanup_attempts >= 8`, orphan jobs with `attempts >= 8`, or old non-null evidence paths whose expiry/review time has passed. Orphan job history is retained in `campus_verification_evidence_orphan_jobs`; successfully deleted objects are marked with `deleted_at`. Successful deletion stamps `evidence_deleted_at` and clears `evidence_path`; failed attempts retain the path and last error for retry or operator recovery. Run a manual worker POST with the service key after deployment to verify end-to-end Storage deletion before enabling the recurring job.
-
-Until these production steps are completed and monitored, the code is implemented but automatic deletion is not live. A failed deletion must be treated as a privacy cleanup incident and manually reconciled from the private bucket.
+No `pg_cron`, `pg_net`, Vault secret or additional database scheduler setup is required for this workflow. Until the migration and Edge Function are deployed and the existing GitHub Actions secrets are confirmed, cleanup is not live. A failed deletion must be treated as a privacy cleanup incident and manually reconciled from the private bucket.
 
 The initial vouch controls reduce casual abuse but do not prove the voucher knows the applicant. Reviewers must treat vouches as supporting context only. Stronger anti-collusion signals (shared device/payment graph, voucher clusters, and campus-admin review) remain follow-on work.
 

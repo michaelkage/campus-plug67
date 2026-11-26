@@ -16,7 +16,7 @@ jobs:
   cleanup:
     # Evidence deletion is a privacy operation. Only the protected default
     # branch may invoke the service-role cleanup worker.
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.CAMPUS_EVIDENCE_RETENTION_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

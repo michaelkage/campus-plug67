@@ -17,6 +17,7 @@ for (const required of [
   'BEFORE UPDATE OR DELETE ON public.seller_payout_operator_audit',
   'DROP FUNCTION IF EXISTS public.confirm_paystack_transfer_not_created(text,text)',
   'p_operator_id uuid',
+  "v_tx.payout_status IS DISTINCT FROM 'needs_attention'",
   'FOR UPDATE',
   'audit_recorded',
   'GRANT EXECUTE ON FUNCTION public.confirm_paystack_transfer_not_created(text,text,uuid)',

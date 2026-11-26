@@ -40,7 +40,7 @@ The first release intentionally excludes direct refund retry, seller payout exec
 
 The workbench also reads the Paystack seller-transfer subledger:
 
-- **Payouts needing attention** includes current failed, blocked, rejected, abandoned and `needs_attention` attempts, excluding attempts superseded by a newer attempt.
+- **Payouts needing attention** includes current failed, blocked, rejected, abandoned, reversed and `needs_attention` attempts, excluding attempts superseded by a newer attempt.
 - **Stale payout attempts** flags `processing` or `pending` transfers with no update for more than 15 minutes. This is an investigation signal, not proof that Paystack did not create the transfer.
 - **Manual payout recovery audit** shows the immutable operator identity, exact provider reference, provider HTTP 404 status and support note from the separate authenticated recovery workflow.
 - **Missing journal postings** includes successful seller transfers and reversals that lack their corresponding idempotent journal event.

@@ -19,8 +19,8 @@ CREATE OR REPLACE FUNCTION public.guard_listing_lifecycle()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
-AS $$
+SET search_path = pg_catalog, public, app_private
+AS $
 DECLARE
   v_active_transaction boolean;
   v_valid_wallet_transition boolean;

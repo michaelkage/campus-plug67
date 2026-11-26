@@ -14,7 +14,7 @@ for (const required of [
   'CREATE OR REPLACE FUNCTION public.get_admin_financial_operations_snapshot',
   'IF NOT public.is_platform_admin()',
   'v_limit < 1 OR v_limit > 100',
-  "t.refund_status IN ('failed','needs-attention')",
+  "t.refund_status IN ('failed','needs-attention','needs_attention')",
   "p.processing_status = 'failed'",
   "'paystack-escrow-funded:' || t.id::text",
   "'paystack-escrow-released:' || t.id::text",

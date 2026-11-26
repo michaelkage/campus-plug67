@@ -67,6 +67,14 @@ WHERE bucket_id = 'campus-verification-evidence'
   AND name = 'f7100000-0000-4000-8000-000000000001/f7200000-0000-4000-8000-000000000001/f7300000-0000-4000-8000-000000000001.jpg';
 
 SELECT is(
+  (SELECT count(*)::integer FROM storage.objects
+   WHERE bucket_id = 'campus-verification-evidence'
+     AND name = 'f7100000-0000-4000-8000-000000000001/f7200000-0000-4000-8000-000000000001/f7300000-0000-4000-8000-000000000001.jpg'),
+  0,
+  'Private evidence object is removed before request metadata is finalized'
+);
+
+SELECT is(
   public.complete_campus_verification_evidence_cleanup(
     'f7300000-0000-4000-8000-000000000002',
     'f7100000-0000-4000-8000-000000000001/f7200000-0000-4000-8000-000000000001/f7300000-0000-4000-8000-000000000001.jpg'

@@ -35,7 +35,11 @@ function recipientCode(value: TransferData["recipient"]): string | null {
 }
 
 function validNote(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length >= 20 && value.trim().length <= 500;
+  if (typeof value !== "string") return false;
+  const note = value.trim();
+  return note.length >= 20 && note.length <= 500 &&
+    !/(?:\\d[\\s-]?){10,}/.test(note) &&
+    !/\\b(?:sk_live|sk_test|Bearer)\\b/i.test(note);
 }
 
 Deno.serve(async (req: Request) => {
@@ -108,7 +112,6 @@ Deno.serve(async (req: Request) => {
 
   let response: Response;
   let payload: Envelope<TransferData> | null;
-  const verifiedAt = new Date().toISOString();
   try {
     response = await fetch(
       "https://api.paystack.co/transfer/verify/" + encodeURIComponent(reference),
@@ -121,6 +124,8 @@ Deno.serve(async (req: Request) => {
   } catch {
     return jsonResponse({ error: "Paystack verification is unavailable. No payout state was changed." }, 502, {}, req);
   }
+
+  const verifiedAt = new Date().toISOString();
 
   if (response.status === 404) {
     if (action === "reconcile") {

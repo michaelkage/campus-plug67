@@ -27,6 +27,7 @@ assert.ok(migration.includes("REVOKE ALL ON app_private.listing_trust_scan_capab
 assert.ok(scanner.includes('plugpay_protected = false'))
 assert.ok(scanner.includes('visibility_score'))
 assert.ok(scanner.includes('trust_score'))
+assert.ok(scanner.includes('set search_path = pg_catalog, public, app_private'), 'Trust scanner must use a pinned search path')
 assert.ok(scanner.includes('set_config('), 'Trust scanner must set and restore its private capability token')
 assert.ok(!scanner.includes('SET status ='), 'Trust scanner must not change listing lifecycle status')
 

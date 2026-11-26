@@ -24,7 +24,7 @@ BEGIN
   -- narrowly scoped transaction flag cannot authorize listing content/status
   -- changes and is restored by scan_listing_trust before it returns.
   IF current_setting('app.listing_trust_scan_write', true) = 'true'
-     AND (to_jsonb(NEW) - ARRAY['plugpay_protected','visibility_score','trust_score'])
+     AND (to_jsonb(NEW) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at'])
          = (to_jsonb(OLD) - ARRAY['plugpay_protected','visibility_score','trust_score']) THEN
     RETURN NEW;
   END IF;

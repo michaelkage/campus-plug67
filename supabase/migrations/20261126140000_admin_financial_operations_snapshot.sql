@@ -31,7 +31,7 @@ BEGIN
     'counts', jsonb_build_object(
       'refund_attention', (
         SELECT count(*) FROM public.transactions t
-        WHERE t.refund_status IN ('failed','needs-attention')
+        WHERE t.refund_status IN ('failed','needs-attention','needs_attention')
            OR (t.refund_status IN ('pending','processing')
                AND COALESCE(t.refund_initiated_at,t.updated_at,t.created_at) <= now() - interval '15 minutes')
       ),
@@ -136,7 +136,7 @@ BEGIN
                t.status, t.refund_status, t.paystack_ref, t.paystack_refund_id,
                t.refund_failure_reason, t.refund_initiated_at, t.updated_at
         FROM public.transactions t
-        WHERE t.refund_status IN ('failed','needs-attention')
+        WHERE t.refund_status IN ('failed','needs-attention','needs_attention')
            OR (t.refund_status IN ('pending','processing')
                AND COALESCE(t.refund_initiated_at,t.updated_at,t.created_at) <= now() - interval '15 minutes')
         ORDER BY t.updated_at DESC

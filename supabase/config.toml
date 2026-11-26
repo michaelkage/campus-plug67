@@ -37,3 +37,18 @@ verify_jwt = false
 
 [functions.maintenance-cleanup]
 verify_jwt = false
+
+# Payout workers are invoked with the service credential and perform exact
+# service-role checks themselves. Seller onboarding and admin operations
+# require a verified user JWT.
+[functions.process-paystack-payouts]
+verify_jwt = false
+
+[functions.reconcile-paystack-transfers]
+verify_jwt = false
+
+[functions.resolve-paystack-payout-attention]
+verify_jwt = false
+
+[functions.reconcile-paystack-refunds]
+verify_jwt = false

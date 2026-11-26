@@ -62,6 +62,19 @@ describe('Campus Plug database transaction state machine', () => {
     expect(lifecycle.payout.settled).toBe(false)
   })
 
+  it('surfaces Paystack manual-review states without claiming seller settlement', () => {
+    const lifecycle = deriveTransactionLifecycle({
+      status: 'released',
+      payment_method: 'paystack',
+      payout_status: 'needs_attention',
+      payout_failure_reason: 'Merchant approval is required.',
+    })
+    expect(lifecycle.payout.title).toBe('Payout needs manual approval')
+    expect(lifecycle.payout.description).toBe('Merchant approval is required.')
+    expect(lifecycle.payout.settled).toBe(false)
+    expect(lifecycle.title).toBe('Transaction resolved · payout pending')
+  })
+
   it('requires explicit payout confirmation even for Campus Wallet', () => {
     const lifecycle = deriveTransactionLifecycle({ status: 'released', payment_method: 'campus_wallet', payout_status: 'not_applicable' })
     expect(lifecycle.payout.settled).toBe(false)

@@ -11,6 +11,11 @@ type PaystackEvent = {
     amount?: unknown;
     currency?: unknown;
     metadata?: Record<string, unknown>;
+    status?: unknown;
+    id?: unknown;
+    transfer_code?: unknown;
+    recipient?: unknown;
+    failures?: unknown;
   };
 };
 
@@ -65,13 +70,71 @@ serve(async (req: Request) => {
     return jsonResponse({ error: "Invalid JSON payload" }, 400, {}, req);
   }
 
+  if (event.event === "transfer.success" || event.event === "transfer.failed" || event.event === "transfer.reversed") {
+    const data = event.data as Record<string, unknown> | undefined;
+    const reference = typeof data?.reference === "string" ? data.reference : null;
+    const amount = Number(data?.amount);
+    const currency = typeof data?.currency === "string" ? data.currency.toUpperCase() : "";
+    const eventStatus = event.event.slice("transfer.".length);
+    const payloadStatus = typeof data?.status === "string" ? data.status.toLowerCase() : eventStatus;
+    const recipient = data?.recipient;
+    const recipientCode =
+      typeof recipient === "object" && recipient !== null &&
+      typeof (recipient as Record<string, unknown>).recipient_code === "string"
+        ? (recipient as Record<string, unknown>).recipient_code as string
+        : typeof recipient === "string" && /^RCP_[A-Za-z0-9]+$/.test(recipient)
+          ? recipient
+          : null;
+
+    if (!reference || !Number.isSafeInteger(amount) || amount <= 0 ||
+        currency !== "NGN" || payloadStatus !== eventStatus || !recipientCode) {
+      return jsonResponse({ error: "Invalid transfer event payload" }, 400, {}, req);
+    }
+
+    const { data: recorded, error } = await admin.rpc("record_paystack_transfer", {
+      p_reference: reference,
+      p_status: eventStatus,
+      p_amount: amount,
+      p_currency: currency,
+      p_recipient_code: recipientCode,
+      p_transfer_code: typeof data?.transfer_code === "string" ? data.transfer_code : null,
+      p_provider_transfer_id: data?.id != null ? String(data.id) : null,
+      p_message: typeof data?.failures === "string" ? data.failures : null,
+    });
+    if (error) {
+      console.error("Paystack transfer recording failed", error.message);
+      return jsonResponse({ error: "Could not record transfer event" }, 500, {}, req);
+    }
+    return jsonResponse(recorded ?? { ok: true }, 200, {}, req);
+  }
+
   if (event.event?.startsWith("refund.")) {
     const data = event.data as Record<string, unknown> | undefined;
-    const transactionReference = typeof data?.transaction_reference === "string" ? data.transaction_reference : null;
-    const status = typeof data?.status === "string" ? data.status.toLowerCase() : null;
-    const refundReference = typeof data?.refund_reference === "string" ? data.refund_reference : null;
-    if (!transactionReference || !refundReference || !status ||
-        !["pending", "processed", "failed", "cancelled", "needs_attention"].includes(status)) {
+    const nestedTransaction = data?.transaction;
+    const transactionReference =
+      typeof data?.transaction_reference === "string"
+        ? data.transaction_reference
+        : typeof nestedTransaction === "object" && nestedTransaction !== null &&
+            typeof (nestedTransaction as Record<string, unknown>).reference === "string"
+          ? (nestedTransaction as Record<string, unknown>).reference as string
+          : null;
+    const statusValue = typeof data?.status === "string" ? data.status.toLowerCase().replaceAll("_", "-") : null;
+    const eventStatus = event.event.slice("refund.".length).toLowerCase().replaceAll("_", "-");
+    const status = statusValue ?? eventStatus;
+    // Paystack's refund.pending event legitimately has no refund_reference.
+    // Prefer its stable numeric refund id when available; later events may
+    // correlate to the pending row by transaction reference.
+    const refundReference =
+      data?.id != null
+        ? String(data.id)
+        : typeof data?.refund_reference === "string" && data.refund_reference.length > 0
+          ? data.refund_reference
+          : null;
+    const amount = Number(data?.amount);
+    const currency = typeof data?.currency === "string" ? data.currency.toUpperCase() : "";
+    const allowedStatuses = ["pending", "processing", "needs-attention", "processed", "failed", "cancelled"];
+    if (!transactionReference || !status || !allowedStatuses.includes(status) ||
+        !Number.isSafeInteger(amount) || amount <= 0 || currency !== "NGN") {
       return jsonResponse({ error: "Invalid refund event payload" }, 400, {}, req);
     }
 
@@ -79,6 +142,8 @@ serve(async (req: Request) => {
       p_transaction_reference: transactionReference,
       p_refund_reference: refundReference,
       p_status: status,
+      p_amount: amount,
+      p_currency: currency,
     });
     if (error) {
       console.error("Paystack refund recording failed", error.message);

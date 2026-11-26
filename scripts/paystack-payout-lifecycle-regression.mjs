@@ -16,6 +16,8 @@ const settingsPage = read('src/pages/Settings.jsx');
 const lifecycle = read('src/lib/transactionLifecycle.ts');
 
 assert.ok(settlementBoundary.includes('CASE WHEN wallet_settlement THEN NEW.amount ELSE 0 END'), 'Paystack escrow release must not credit PlugCredit earnings');
+assert.ok(settlementBoundary.includes('public.enqueue_plugscore_event('), 'Seller PlugScore must flow through M13 idempotent events');
+assert.ok(!settlementBoundary.includes('plug_score = plug_score + 50'), 'Escrow trigger must not mutate PlugScore directly');
 assert.ok(settlementBoundary.includes('credit_seller_earnings_after_external_payout'));
 assert.ok(settlementBoundary.includes("NEW.payout_status = 'paid'"));
 assert.ok(settlementBoundary.includes("t.payout_status = 'paid'"));

@@ -26,6 +26,7 @@ for (const invariant of [
   'BEFORE UPDATE OR DELETE',
   'REVOKE ALL ON public.seller_payout_operator_audit FROM PUBLIC, anon, authenticated, service_role',
   'write_seller_payout_operator_audit',
+  'p_action: "recovery_rejected"',
   'record_paystack_transfer_with_operator_audit',
   'confirm_paystack_transfer_not_created_with_operator_audit',
   'public.record_paystack_transfer(',
@@ -47,7 +48,8 @@ const confirmWrapper = migration.slice(
   migration.indexOf('REVOKE ALL ON FUNCTION public.write_seller_payout_operator_audit'),
 )
 assert.ok(confirmWrapper.indexOf('public.confirm_paystack_transfer_not_created(') < confirmWrapper.indexOf('INSERT INTO public.seller_payout_operator_audit'))
-assert.ok(confirmWrapper.includes("'confirm_not_created'"))
+assert.ok(confirmWrapper.includes("'confirm_not_created',
+  'recovery_rejected'"))
 
 for (const invariant of [
   'public.is_platform_admin()',

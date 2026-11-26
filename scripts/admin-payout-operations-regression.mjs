@@ -13,7 +13,8 @@ const admin = read('src/pages/AdminConsole.jsx')
 const config = read('supabase/config.toml')
 const docs = read('docs/payments/PAYSTACK_SELLER_PAYOUT_OPERATIONS.md')
 const packageJson = read('package.json')
-const scheduledWorkflow = read('.github/workflows/payment-reconciliation.yml')
+const scheduledWorkflow = read('.github/workflows/seller-payout-reconciliation.yml')
+const paymentWorkflow = read('.github/workflows/payment-reconciliation.yml')
 const legacyRecovery = read('supabase/functions/resolve-paystack-payout-attention/index.ts')
 
 for (const invariant of [
@@ -90,6 +91,8 @@ assert.ok(scheduledWorkflow.includes('/functions/v1/process-paystack-payouts'))
 assert.ok(scheduledWorkflow.includes('/functions/v1/reconcile-paystack-transfers'))
 assert.ok(scheduledWorkflow.indexOf('/functions/v1/process-paystack-payouts') < scheduledWorkflow.indexOf('/functions/v1/reconcile-paystack-transfers'))
 assert.ok(scheduledWorkflow.includes("if: github.ref == 'refs/heads/main'"), 'Financial automation must only run from the protected default branch')
+assert.ok(scheduledWorkflow.includes("cron: \"*/10 * * * *\""))
+assert.ok(!paymentWorkflow.includes('/functions/v1/process-paystack-payouts'), 'Payouts must use the dedicated scheduler, not duplicate payment/refund workflow')
 
 for (const invariant of [
   'admin-resolve-paystack-payout-attention',

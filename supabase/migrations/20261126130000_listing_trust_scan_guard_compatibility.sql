@@ -1,6 +1,20 @@
 -- Preserve listing lifecycle protections while allowing only the internal
 -- nested trust-scanner trigger to update derived trust metadata.
 
+-- A transaction-scoped, unguessable capability lets only the trusted scanner
+-- bypass the listing trust-field guard. A caller-set GUC alone is insufficient.
+CREATE SCHEMA IF NOT EXISTS app_private AUTHORIZATION postgres;
+REVOKE ALL ON SCHEMA app_private FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE TABLE IF NOT EXISTS app_private.listing_trust_scan_capabilities (
+  token uuid PRIMARY KEY,
+  transaction_id bigint NOT NULL,
+  backend_pid integer NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE app_private.listing_trust_scan_capabilities ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON app_private.listing_trust_scan_capabilities FROM PUBLIC, anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.guard_listing_lifecycle()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -18,12 +32,15 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- The AFTER listing-change trigger invokes this scanner, whose nested
-  -- UPDATE may change only derived trust fields and updated_at. Trigger depth
-  -- cannot be forged by an authenticated request or a custom session setting.
-  IF pg_trigger_depth() > 1
-     AND (to_jsonb(NEW) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at'])
-         = (to_jsonb(OLD) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at']) THEN
+  -- Only a random capability row created by scan_listing_trust in this
+  -- transaction/backend can authorize the internal trust-field update.
+  IF EXISTS (
+    SELECT 1
+      FROM app_private.listing_trust_scan_capabilities c
+     WHERE c.token::text = current_setting('app.listing_trust_scan_write', true)
+       AND c.transaction_id = txid_current()
+       AND c.backend_pid = pg_backend_pid()
+  ) THEN
     RETURN NEW;
   END IF;
 
@@ -168,7 +185,13 @@ declare
   desc_text     text;
   has_contact   boolean;
   new_score     integer;
+  previous_scan_flag text;
+  v_scan_capability uuid := gen_random_uuid();
 begin
+  previous_scan_flag := current_setting('app.listing_trust_scan_write', true);
+  INSERT INTO app_private.listing_trust_scan_capabilities(token, transaction_id, backend_pid)
+  VALUES (v_scan_capability, txid_current(), pg_backend_pid());
+  PERFORM set_config('app.listing_trust_scan_write', v_scan_capability::text, true);
 
   select description into desc_text
   from public.listings where id = p_listing_id;
@@ -190,8 +213,13 @@ begin
     where id = p_listing_id;
   end if;
 
+  DELETE FROM app_private.listing_trust_scan_capabilities
+   WHERE token = v_scan_capability
+     AND transaction_id = txid_current()
+     AND backend_pid = pg_backend_pid();
+  PERFORM set_config('app.listing_trust_scan_write', COALESCE(previous_scan_flag, ''), true);
 end;
-$$;
+$;
 
 REVOKE ALL ON FUNCTION public.scan_listing_trust(uuid) FROM PUBLIC, anon, authenticated;
 

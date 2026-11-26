@@ -180,7 +180,7 @@ $$;
 
 
 create or replace function public.scan_listing_trust(p_listing_id uuid)
-returns void language plpgsql security definer as $$
+returns void language plpgsql security definer set search_path = pg_catalog, public, app_private as $
 declare
   desc_text     text;
   has_contact   boolean;

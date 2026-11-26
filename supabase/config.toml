@@ -37,3 +37,6 @@ verify_jwt = false
 
 [functions.maintenance-cleanup]
 verify_jwt = false
+
+[functions.cleanup-campus-verification-evidence]
+verify_jwt = false

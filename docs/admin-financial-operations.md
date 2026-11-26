@@ -8,7 +8,7 @@ It currently reports:
 
 - Refund attention: refunds marked failed/needs-attention, plus pending or processing refunds older than 15 minutes.
 - Failed payment/webhook events.
-- Missing journal postings: verified Paystack transactions without their expected funding, release or processed-refund journal entry.
+- Missing journal postings: verified Paystack funding, escrow release, processed refunds, and successful/reversed seller payouts without their expected journal entries.
 - Legacy PlugCredit ledger entries missing their matching financial journal mirror.
 - Trial-balance imbalances, if any.
 - Existing disputed transaction counts for operational context.

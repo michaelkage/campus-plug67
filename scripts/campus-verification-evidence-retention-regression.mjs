@@ -10,6 +10,7 @@ const orphanMigration = read('supabase/migrations/20261125110000_campus_verifica
 const worker = read('supabase/functions/cleanup-campus-verification-evidence/index.ts')
 const config = read('supabase/config.toml')
 const docs = read('docs/campus-verification-fallback.md')
+const validationWorkflow = read('.github/workflows/production-validation.yml')
 
 for (const invariant of [
   'ALTER COLUMN evidence_path DROP NOT NULL',
@@ -49,6 +50,7 @@ assert.ok(worker.includes('fail_campus_verification_orphan_cleanup'))
 assert.ok(worker.includes('orphan_discovered'))
 assert.ok(worker.includes('orphan_deleted'))
 assert.ok(worker.includes('failed === 0 ? 200 : 207'))
+assert.ok(validationWorkflow.includes('feat/campus-membership-evidence-review'), 'Evidence-retention follow-ups must run full Supabase migration, pgTAP and Edge validation')
 
 for (const invariant of [
   'campus_verification_evidence_orphan_jobs',

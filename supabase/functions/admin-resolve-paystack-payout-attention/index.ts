@@ -81,7 +81,8 @@ Deno.serve(async (req: Request) => {
   const supportTicket = typeof body?.support_ticket === "string" ? body.support_ticket.trim() : "";
   if (!["reconcile", "confirm_not_created"].includes(String(action)) ||
       !/^cp_tr_[a-f0-9]{32}$/.test(reference) ||
-      !validNote(note) || supportTicket.length > 120) {
+      !validNote(note) || supportTicket.length > 120 ||
+      (action === "confirm_not_created" && body?.dashboard_attested !== true)) {
     return jsonResponse({
       error: "A valid payout reference, action and 20-500 character audit note are required",
     }, 400, {}, req);

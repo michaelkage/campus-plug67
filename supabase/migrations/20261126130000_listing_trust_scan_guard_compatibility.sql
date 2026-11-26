@@ -219,7 +219,7 @@ begin
      AND backend_pid = pg_backend_pid();
   PERFORM set_config('app.listing_trust_scan_write', COALESCE(previous_scan_flag, ''), true);
 end;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.scan_listing_trust(uuid) FROM PUBLIC, anon, authenticated;
 

@@ -62,25 +62,13 @@ SELECT is((SELECT status FROM public.campus_verification_requests WHERE id = 'f7
 SELECT is((SELECT status FROM public.institution_memberships WHERE user_id = 'f7100000-0000-4000-8000-000000000001' AND institution_id = 'f7200000-0000-4000-8000-000000000001'), 'rejected', 'Expired request closes its pending membership');
 SELECT is((SELECT count(*)::integer FROM public.campus_verification_audit WHERE request_id = 'f7300000-0000-4000-8000-000000000002' AND action = 'evidence_expired'), 1, 'Expiry is recorded in the audit trail');
 
-DELETE FROM storage.objects
-WHERE bucket_id = 'campus-verification-evidence'
-  AND name = 'f7100000-0000-4000-8000-000000000001/f7200000-0000-4000-8000-000000000001/f7300000-0000-4000-8000-000000000001.jpg';
-
-SELECT is(
-  (SELECT count(*)::integer FROM storage.objects
-   WHERE bucket_id = 'campus-verification-evidence'
-     AND name = 'f7100000-0000-4000-8000-000000000001/f7200000-0000-4000-8000-000000000001/f7300000-0000-4000-8000-000000000001.jpg'),
-  0,
-  'Private evidence object is removed before request metadata is finalized'
-);
-
 SELECT is(
   public.complete_campus_verification_evidence_cleanup(
     'f7300000-0000-4000-8000-000000000002',
     'f7100000-0000-4000-8000-000000000001/f7200000-0000-4000-8000-000000000001/f7300000-0000-4000-8000-000000000001.jpg'
   ),
   true,
-  'Successful private-file deletion is finalized'
+  'Worker-reported Storage API deletion is finalized'
 );
 SELECT is((SELECT evidence_path IS NULL FROM public.campus_verification_requests WHERE id = 'f7300000-0000-4000-8000-000000000002'), true, 'Deleted evidence path is cleared from the request');
 SELECT ok((SELECT evidence_deleted_at IS NOT NULL FROM public.campus_verification_requests WHERE id = 'f7300000-0000-4000-8000-000000000002'), 'Deletion timestamp is persisted');
@@ -93,6 +81,7 @@ SELECT throws_ok(
 );
 SELECT is(has_table_privilege('service_role', 'public.campus_verification_audit', 'UPDATE'), false, 'Service role cannot update campus verification audit rows');
 SELECT is(has_table_privilege('service_role', 'public.campus_verification_audit', 'INSERT'), true, 'Service role can append cleanup audit rows');
+SELECT is(has_table_privilege('service_role', 'public.campus_verification_audit', 'DELETE'), false, 'Service role cannot delete campus verification audit rows');
 SELECT is(has_function_privilege('authenticated', 'public.claim_campus_verification_evidence_cleanup(integer)', 'EXECUTE'), false, 'Authenticated users cannot claim evidence cleanup work');
 
 SELECT * FROM finish();

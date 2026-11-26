@@ -41,6 +41,22 @@ for (const required of [
   'GRANT EXECUTE ON FUNCTION public.get_admin_financial_operations_snapshot(integer)',
 ]) assert.ok(migration.includes(required), `Financial operations migration missing: ${required}`)
 
+assert.equal(
+  (migration.match(/paystack_payout_reversal_success_not_posted/g) || []).length,
+  1,
+  'Reversed payout success-posting exceptions must not be duplicated',
+)
+assert.match(
+  migration,
+  /GREATEST\(p\.updated_at, COALESCE\(p\.last_reconciled_at,p\.created_at\)\) <= now\(\) - interval '15 minutes'[\s\S]*?p\.lease_expires_at IS NULL OR p\.lease_expires_at <= now\(\)/,
+  'Stale payout detection must respect the last reconciliation time and active lease',
+)
+assert.match(
+  migration,
+  /seller_payout_transfers_attention_idx[\s\S]*?'reversed'/,
+  'Reversed payouts must be included in the attention index',
+)
+
 const functionBody = migration.slice(
   migration.indexOf('CREATE OR REPLACE FUNCTION public.get_admin_financial_operations_snapshot'),
   migration.indexOf('REVOKE ALL ON FUNCTION public.get_admin_financial_operations_snapshot'),

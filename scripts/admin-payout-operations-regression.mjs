@@ -64,7 +64,7 @@ for (const invariant of [
   'getAuthenticatedUser(req)',
   'createUserClient(token)',
   'userClient.rpc("is_platform_admin")',
-  'userClient.rpc("consume_rate_limit")',
+  'userClient.rpc("consume_rate_limit",',
   'p_operator_id: user.id',
   '/transfer/verify/',
   'confirm_paystack_transfer_not_created_with_operator_audit',

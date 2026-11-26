@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, fix/offline-handoff-expiry-integrity]
+    branches: [main, fix/offline-handoff-expiry-integrity, feat/m17-audited-payout-recovery-rebased]
 
 permissions:
   contents: read

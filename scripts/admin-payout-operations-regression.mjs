@@ -76,6 +76,7 @@ for (const invariant of [
   'actualRecipient === recipient.recipient_code',
   'response.status === 404',
   'validNote(note)',
+  'body?.dashboard_attested !== true',
 ]) assert.ok(edge.includes(invariant), `Admin payout Edge Function missing: ${invariant}`)
 
 assert.ok(!edge.includes('"/transfer"'), 'Admin operator endpoint must never create a transfer')
@@ -88,6 +89,7 @@ for (const invariant of [
   'Confirm no transfer exists',
   'confirm_not_created',
   'confirmations[row.reference]',
+  'dashboard_attested: action === \'confirm_not_created\' && confirmations[reference] === true',
   '20 and 500 characters',
   'support_ticket',
   'Recent payout operator audit',

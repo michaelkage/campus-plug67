@@ -71,6 +71,9 @@ for (const invariant of [
   'name = NEW.evidence_path',
   'FOR UPDATE',
   'REVOKE ALL ON public.campus_verification_evidence_orphan_jobs',
+  'prevent_campus_verification_audit_mutation',
+  'BEFORE UPDATE OR DELETE ON public.campus_verification_audit',
+  'GRANT INSERT ON public.campus_verification_audit TO service_role',
 ]) assert.ok(orphanMigration.includes(invariant), `Orphan retention migration missing: ${invariant}`)
 
 assert.ok(config.includes('[functions.cleanup-campus-verification-evidence]'))

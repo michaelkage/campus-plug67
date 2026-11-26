@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS public.seller_payout_operator_audit (
   action text NOT NULL CHECK (action IN (
     'provider_reconciled',
     'provider_not_found',
-    'confirm_not_created'
+    'confirm_not_created',
+    'recovery_rejected'
   )),
   note text NOT NULL CHECK (length(trim(note)) BETWEEN 20 AND 500),
   support_ticket text CHECK (support_ticket IS NULL OR length(trim(support_ticket)) BETWEEN 1 AND 120),
@@ -71,7 +72,7 @@ BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
     RAISE EXCEPTION 'Service role required';
   END IF;
-  IF p_operator_id IS NULL OR p_action IS DISTINCT FROM 'provider_not_found'
+  IF p_operator_id IS NULL OR p_action NOT IN ('provider_not_found','recovery_rejected')
      OR p_provider_http_status IS DISTINCT FROM 404
      OR p_provider_verified_at IS NULL
      OR length(trim(COALESCE(p_note,''))) NOT BETWEEN 20 AND 500

@@ -32,6 +32,7 @@ for (const required of [
   'public.seller_payout_operator_audit',
   'provider_http_status',
   'last_reconciled_at',
+  'lease_expires_at',
   'refund_attention',
   'payment_failures',
   'missing_journal',

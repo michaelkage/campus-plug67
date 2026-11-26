@@ -21,6 +21,7 @@ for (const invariant of [
 
 assert.ok(migration.includes("set_config('app.listing_trust_scan_write', v_scan_capability::text, true)"))
 assert.ok(migration.includes('DELETE FROM app_private.listing_trust_scan_capabilities'))
+assert.ok(guard.includes('SET search_path = pg_catalog, public, app_private'))
 assert.ok(migration.includes('transaction_id = txid_current()'))
 assert.ok(migration.includes('backend_pid = pg_backend_pid()'))
 assert.ok(migration.includes("REVOKE ALL ON app_private.listing_trust_scan_capabilities FROM PUBLIC, anon, authenticated, service_role"))

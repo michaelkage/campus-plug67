@@ -4,7 +4,7 @@
 
 CREATE INDEX IF NOT EXISTS seller_payout_transfers_attention_idx
   ON public.seller_payout_transfers(status, updated_at DESC)
-  WHERE status IN ('needs_attention','failed','blocked','rejected','abandoned');
+  WHERE status IN ('needs_attention','failed','blocked','rejected','abandoned','reversed');
 CREATE INDEX IF NOT EXISTS seller_payout_operator_audit_created_idx
   ON public.seller_payout_operator_audit(created_at DESC);
 
@@ -59,14 +59,6 @@ BEGIN
             OR EXISTS (
               SELECT 1 FROM public.seller_payout_transfers p
               WHERE p.transaction_id = t.id AND p.status = 'success'
-                AND NOT EXISTS (
-                  SELECT 1 FROM public.financial_journal_transactions j
-                  WHERE j.idempotency_key = 'paystack-payout:' || p.reference || ':success'
-                )
-            )
-            OR EXISTS (
-              SELECT 1 FROM public.seller_payout_transfers p
-              WHERE p.transaction_id = t.id AND p.status = 'reversed'
                 AND NOT EXISTS (
                   SELECT 1 FROM public.financial_journal_transactions j
                   WHERE j.idempotency_key = 'paystack-payout:' || p.reference || ':success'
@@ -194,15 +186,6 @@ BEGIN
                p.amount_kobo, p.status, p.reference, p.created_at
         FROM public.seller_payout_transfers p
         WHERE p.status = 'success'
-          AND NOT EXISTS (
-            SELECT 1 FROM public.financial_journal_transactions j
-            WHERE j.idempotency_key = 'paystack-payout:' || p.reference || ':success'
-          )
-        UNION ALL
-        SELECT p.transaction_id, 'paystack_payout_reversal_success_not_posted',
-               p.amount_kobo, p.status, p.reference, p.created_at
-        FROM public.seller_payout_transfers p
-        WHERE p.status = 'reversed'
           AND NOT EXISTS (
             SELECT 1 FROM public.financial_journal_transactions j
             WHERE j.idempotency_key = 'paystack-payout:' || p.reference || ':success'

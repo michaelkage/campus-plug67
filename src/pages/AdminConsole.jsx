@@ -80,7 +80,7 @@ export default function AdminConsole(){
           <OpsQueue title="Failed provider events" description="Webhook events that were recorded but did not complete processing." rows={financialOps?.payment_failures||[]} kind="payment" onInspect={id=>{if(id){setTransactionId(id);setTab('transactions')}}}/>
           <OpsQueue title="Missing journal postings" description="Verified Paystack funding, release or processed refund events without their expected journal entry." rows={financialOps?.missing_journal||[]} kind="journal" onInspect={id=>{setTransactionId(id);setTab('transactions')}}/>
           <OpsQueue title="Unmirrored wallet entries" description="Legacy PlugCredit movements missing their matching financial journal record." rows={financialOps?.unmirrored_wallet_entries||[]} kind="wallet"/>
-          <OpsQueue title="Payouts requiring attention" description="Current failed, blocked, rejected, abandoned or needs-attention attempts without a newer attempt." rows={financialOps?.payout_attention||[]} kind="payout" onInspect={id=>{setTransactionId(id);setTab('transactions')}}/>
+          <OpsQueue title="Payouts requiring attention" description="Current failed, blocked, rejected, abandoned, reversed or needs-attention attempts without a newer attempt." rows={financialOps?.payout_attention||[]} kind="payout" onInspect={id=>{setTransactionId(id);setTab('transactions')}}/>
           <OpsQueue title="Stale payout attempts" description="Processing or pending bank transfers with no update for more than 15 minutes." rows={financialOps?.stale_payouts||[]} kind="stale-payout" onInspect={id=>{setTransactionId(id);setTab('transactions')}}/>
         </div>
         <section className="surface overflow-hidden">

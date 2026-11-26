@@ -1,7 +1,5 @@
--- The listing trust scanner updates only derived trust metadata. Permit that
--- narrow internal write while keeping sellers and buyers from editing the
--- trust fields directly. The flag is transaction-local and restored before
--- the scanner returns.
+-- Preserve listing lifecycle protections while allowing only the internal
+-- nested trust-scanner trigger to update derived trust metadata.
 
 CREATE OR REPLACE FUNCTION public.guard_listing_lifecycle()
 RETURNS trigger
@@ -193,7 +191,7 @@ begin
   end if;
 
 end;
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.scan_listing_trust(uuid) FROM PUBLIC, anon, authenticated;
 

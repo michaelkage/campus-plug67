@@ -138,11 +138,27 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ success: true, resolution: "provider_not_found", audit_id: auditId, state_changed: false }, 200, {}, req);
     }
 
-    if (Date.now() - new Date(transfer.created_at).getTime() < 30 * 60 * 1000) {
-      return jsonResponse({ error: "Wait at least 30 minutes before confirming that no transfer was created" }, 409, {}, req);
-    }
-    if (transfer.provider_transfer_code || transfer.provider_transfer_id) {
-      return jsonResponse({ error: "A provider transfer identifier already exists. Manual not-created confirmation is blocked." }, 409, {}, req);
+    if (Date.now() - new Date(transfer.created_at).getTime() < 30 * 60 * 1000 ||
+        transfer.provider_transfer_code || transfer.provider_transfer_id) {
+      const reason = Date.now() - new Date(transfer.created_at).getTime() < 30 * 60 * 1000
+        ? "recovery_rejected_too_early"
+        : "recovery_rejected_provider_identifier_present";
+      const { error: auditError } = await admin.rpc("write_seller_payout_operator_audit", {
+        p_operator_id: user.id,
+        p_reference: reference,
+        p_action: "recovery_rejected",
+        p_note: note,
+        p_support_ticket: supportTicket || null,
+        p_provider_status: reason,
+        p_provider_http_status: 404,
+        p_provider_verified_at: verifiedAt,
+      });
+      if (auditError) return jsonResponse({ error: "Rejected recovery attempt could not be audited", detail: auditError.message }, 500, {}, req);
+      return jsonResponse({
+        error: reason === "recovery_rejected_too_early"
+          ? "Wait at least 30 minutes before confirming that no transfer was created"
+          : "A provider transfer identifier already exists. Manual not-created confirmation is blocked.",
+      }, 409, {}, req);
     }
 
     const { data: result, error: recoveryError } = await admin.rpc(
@@ -156,7 +172,20 @@ Deno.serve(async (req: Request) => {
         p_provider_verified_at: verifiedAt,
       },
     );
-    if (recoveryError) return jsonResponse({ error: recoveryError.message }, 409, {}, req);
+    if (recoveryError) {
+      const { error: auditError } = await admin.rpc("write_seller_payout_operator_audit", {
+        p_operator_id: user.id,
+        p_reference: reference,
+        p_action: "recovery_rejected",
+        p_note: note,
+        p_support_ticket: supportTicket || null,
+        p_provider_status: "recovery_database_guard_rejected",
+        p_provider_http_status: 404,
+        p_provider_verified_at: verifiedAt,
+      });
+      if (auditError) console.error("Rejected payout recovery audit could not be persisted", auditError.message);
+      return jsonResponse({ error: recoveryError.message }, 409, {}, req);
+    }
     return jsonResponse({ success: true, resolution: "provider_confirmed_not_created", result }, 200, {}, req);
   }
 

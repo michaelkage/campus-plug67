@@ -38,8 +38,8 @@ function validNote(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const note = value.trim();
   return note.length >= 20 && note.length <= 500 &&
-    !/(?:\\d[\\s-]?){10,}/.test(note) &&
-    !/\\b(?:sk_live|sk_test|Bearer)\\b/i.test(note);
+    !/(?:\d[\s-]?){10,}/.test(note) &&
+    !/\b(?:sk_live|sk_test|Bearer)\b/i.test(note);
 }
 
 Deno.serve(async (req: Request) => {

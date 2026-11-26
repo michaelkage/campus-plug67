@@ -194,3 +194,18 @@ Do not attach raw webhook payloads or screenshots containing bank account detail
 5. Re-enable only after the incident is understood, the provider state is reconciled, and the finance owner explicitly approves.
 
 **Current release state:** PR #103 is draft and unmerged. No production migration, Edge Function deployment, secret change, feature-flag change, or provider transfer is authorized by this runbook.
+
+
+## Audited manual recovery
+
+The `resolve-paystack-payout-attention` endpoint is a human-operated recovery action, not a cron endpoint.
+
+- The caller must present a valid Supabase user access token. Service-role tokens are rejected for this endpoint.
+- The endpoint resolves the user through Auth and checks `is_platform_admin()` with that user's JWT before performing any privileged operation.
+- The service-role client is used only after that authorization check, to re-verify the exact Paystack reference and call the restricted database RPC.
+- A manual “not created” decision requires both a Paystack verification HTTP 404 and the operator's explicit confirmation that the matching Paystack Dashboard environment also shows no transfer.
+- The database RPC re-checks the 30-minute age, immutable recipient/amount/currency binding, payout eligibility, refund/dispute exclusion, and absence of another active/successful attempt under row locks.
+- The RPC atomically records the state transition and an append-only `seller_payout_operator_audit` row containing the operator's Auth user ID, exact provider reference, HTTP 404 evidence, support note, and timestamp. Audit rows cannot be updated or deleted.
+- Do not call this endpoint from scheduled workflows. The scheduled reconciler remains provider-lookup-only; payout creation remains separately feature-flagged.
+
+The audit log records the operator's decision and the machine-verifiable provider response. It does not prove that the operator inspected the dashboard; that remains a controlled operational checklist item and should be linked from the support incident/ticket.

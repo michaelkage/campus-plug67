@@ -8,6 +8,9 @@ INSERT INTO auth.users (
   ('f6100000-0000-4000-8000-000000000001','authenticated','authenticated','journal-buyer@test.invalid','',now(),'{}'::jsonb,'{"full_name":"Journal Buyer"}'::jsonb,now(),now()),
   ('f6100000-0000-4000-8000-000000000002','authenticated','authenticated','journal-seller@test.invalid','',now(),'{}'::jsonb,'{"full_name":"Journal Seller"}'::jsonb,now(),now());
 
+SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
+SELECT set_config('request.jwt.claim.role', 'service_role', true);
+
 INSERT INTO public.listings (id,seller_id,title,category,price,status,university)
 VALUES ('f6200000-0000-4000-8000-000000000001','f6100000-0000-4000-8000-000000000002','Journal fixture','Other',10000,'sold','University of Lagos');
 

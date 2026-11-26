@@ -71,8 +71,8 @@ BEGIN
   IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
     RAISE EXCEPTION 'Service role required';
   END IF;
-  IF p_operator_id IS NULL OR p_action <> 'provider_not_found'
-     OR p_provider_http_status <> 404
+  IF p_operator_id IS NULL OR p_action IS DISTINCT FROM 'provider_not_found'
+     OR p_provider_http_status IS DISTINCT FROM 404
      OR p_provider_verified_at IS NULL
      OR length(trim(COALESCE(p_note,''))) NOT BETWEEN 20 AND 500
      OR (p_support_ticket IS NOT NULL AND length(trim(p_support_ticket)) NOT BETWEEN 1 AND 120) THEN
@@ -128,7 +128,7 @@ BEGIN
   END IF;
   IF p_operator_id IS NULL
      OR length(trim(COALESCE(p_note,''))) NOT BETWEEN 20 AND 500
-     OR p_provider_http_status NOT BETWEEN 200 AND 299
+     OR p_provider_http_status IS NULL OR p_provider_http_status NOT BETWEEN 200 AND 299
      OR p_provider_verified_at IS NULL
      OR (p_support_ticket IS NOT NULL AND length(trim(p_support_ticket)) NOT BETWEEN 1 AND 120) THEN
     RAISE EXCEPTION 'Invalid payout operator reconciliation input';

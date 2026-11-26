@@ -20,17 +20,16 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- The trust scanner may only change its three derived trust fields. This
-  -- narrowly scoped transaction flag cannot authorize listing content/status
-  -- changes and is restored by scan_listing_trust before it returns.
-  IF current_setting('app.listing_trust_scan_write', true) = 'true'
+  -- The AFTER listing-change trigger invokes this scanner, whose nested
+  -- UPDATE may change only derived trust fields and updated_at. Trigger depth
+  -- cannot be forged by an authenticated request or a custom session setting.
+  IF pg_trigger_depth() > 1
      AND (to_jsonb(NEW) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at'])
-         = (to_jsonb(OLD) - ARRAY['plugpay_protected','visibility_score','trust_score']) THEN
+         = (to_jsonb(OLD) - ARRAY['plugpay_protected','visibility_score','trust_score','updated_at']) THEN
     RETURN NEW;
   END IF;
 
-  IF current_setting('app.listing_trust_scan_write', true) IS DISTINCT FROM 'true'
-     AND (
+  IF (
        NEW.plugpay_protected IS DISTINCT FROM OLD.plugpay_protected
        OR NEW.visibility_score IS DISTINCT FROM OLD.visibility_score
        OR NEW.trust_score IS DISTINCT FROM OLD.trust_score
@@ -171,10 +170,7 @@ declare
   desc_text     text;
   has_contact   boolean;
   new_score     integer;
-  previous_scan_flag text;
 begin
-  previous_scan_flag := COALESCE(current_setting('app.listing_trust_scan_write', true), 'false');
-  PERFORM set_config('app.listing_trust_scan_write', 'true', true);
 
   select description into desc_text
   from public.listings where id = p_listing_id;
@@ -196,9 +192,10 @@ begin
     where id = p_listing_id;
   end if;
 
-  PERFORM set_config('app.listing_trust_scan_write', previous_scan_flag, true);
 end;
-$$;
+$;
+
+REVOKE ALL ON FUNCTION public.scan_listing_trust(uuid) FROM PUBLIC, anon, authenticated;
 
 COMMENT ON FUNCTION public.scan_listing_trust(uuid) IS
-  'Recomputes listing trust metadata using a transaction-local, trust-fields-only write capability.';
+  'Recomputes listing trust metadata only through the internal listing-change trigger.';

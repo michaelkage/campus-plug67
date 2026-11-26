@@ -4,7 +4,7 @@ import { isServiceRoleRequest, jsonResponse, optionsResponse } from "../_shared/
 const BUCKET = "campus-verification-evidence";
 const BATCH_SIZE = 50;
 
-async function removeIfPresent(admin: ReturnType<typeof createClient>, evidencePath: string) {
+async function removeIfPresent(admin: ReturnType<typeof createClient<any>>, evidencePath: string) {
   const { data: exists, error: existsError } = await admin.rpc(
     'campus_verification_evidence_object_exists',
     { p_evidence_path: evidencePath },

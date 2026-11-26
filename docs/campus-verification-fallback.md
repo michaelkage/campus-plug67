@@ -46,7 +46,7 @@ Pending evidence receives a 30-day `evidence_expires_at` timestamp. The reposito
 ### Scheduled worker configuration
 
 1. Confirm the repository has the existing GitHub Actions secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. The payment/refund reconciliation workflow uses the same names. Never put either value in repository files or workflow output.
-2. Merge and deploy the migration and `cleanup-campus-verification-evidence` Edge Function before enabling the scheduled workflow on `main`.
+2. Merge and deploy the migration and `cleanup-campus-verification-evidence` Edge Function, verify the existing Actions secrets, then set the repository Actions variable `CAMPUS_EVIDENCE_RETENTION_ENABLED=true`. The job stays disabled until this variable is explicitly enabled.
 3. The workflow invokes the Edge Function with the service-role credential, parses the JSON result, and fails the run if `failed` is nonzero. The worker processes request evidence and abandoned uploads in bounded batches, with eight-attempt retry ceilings. Successful deletion stamps `evidence_deleted_at` and clears `evidence_path`; failed attempts retain the path and error for retry. The retry policy allows a maximum of eight attempts. Request, decision and audit metadata remain available after Storage deletion. The orphan sweep only targets abandoned, unreferenced uploads older than the 24-hour submission grace period, retaining history in `campus_verification_evidence_orphan_jobs`.
 4. Monitor the Actions run history and Edge Function logs. Alert on failed runs, nonzero `failed`, `evidence_cleanup_attempts >= 8`, orphan jobs with `attempts >= 8`, or old non-null evidence paths whose expiry/review time has passed.
 

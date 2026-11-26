@@ -48,7 +48,7 @@ SELECT is(
 );
 
 SELECT throws_ok(
-  $$q$UPDATE public.listings SET trust_score = 99 WHERE id = 'f7200000-0000-4000-8000-000000000001'$q$$,
+  $q$UPDATE public.listings SET trust_score = 99 WHERE id = 'f7200000-0000-4000-8000-000000000001'$q$,
   'P0001',
   'Listing trust metadata is system-managed',
   'A seller cannot directly forge listing trust metadata'

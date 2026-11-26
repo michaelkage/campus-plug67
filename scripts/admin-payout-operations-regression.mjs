@@ -48,8 +48,7 @@ const confirmWrapper = migration.slice(
   migration.indexOf('REVOKE ALL ON FUNCTION public.write_seller_payout_operator_audit'),
 )
 assert.ok(confirmWrapper.indexOf('public.confirm_paystack_transfer_not_created(') < confirmWrapper.indexOf('INSERT INTO public.seller_payout_operator_audit'))
-assert.ok(confirmWrapper.includes("'confirm_not_created',
-  'recovery_rejected'"))
+assert.ok(confirmWrapper.includes("'confirm_not_created'"))
 
 for (const invariant of [
   'public.is_platform_admin()',

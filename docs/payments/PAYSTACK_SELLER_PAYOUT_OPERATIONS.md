@@ -38,12 +38,12 @@ Keep the execution flag off until all gates above are complete. Do not enable it
 
 ## Scheduled jobs and ownership
 
-After merge and deployment, `.github/workflows/seller-payout-reconciliation.yml` runs every ten minutes on `main`:
+After merge and deployment, `.github/workflows/payment-reconciliation.yml` runs every ten minutes on `main`:
 
-1. `process-paystack-payouts` claims a bounded batch (five) and verifies the persisted reference before any create request.
+1. `process-paystack-payouts` claims a bounded batch (up to ten) and verifies the persisted reference before any create request.
 2. `reconcile-paystack-transfers` performs provider lookups only. It never creates or retries transfers.
 
-The separate payment reconciliation workflow handles incoming payments and refunds. The payout worker uses the Supabase service-role key from GitHub Actions; the Paystack secret remains in Supabase Edge Function secrets.
+The same scheduled workflow also reconciles incoming payments and refunds. Outbound processing remains a no-op unless `PAYSTACK_SELLER_PAYOUTS_ENABLED=true` is explicitly set in Supabase. The payout worker uses the Supabase service-role key from GitHub Actions; the Paystack secret remains in Supabase Edge Function secrets.
 
 Check GitHub Actions for every scheduled run. A green workflow means the HTTP calls completed successfully, not that every payout succeeded. Inspect the JSON result arrays and the database queue below. A worker can correctly defer an individual provider/API error while the overall invocation returns HTTP 200.
 
@@ -198,8 +198,8 @@ Do not attach raw webhook payloads or screenshots containing bank account detail
 
 ## Platform-admin operator audit
 
-The M17 operator panel is authenticated with the administrator's user JWT. The Edge Function verifies the token, calls `is_platform_admin()` through the user-scoped client, and rate-limits each operator before it uses the service credential. The operator ID is derived from the verified JWT; it is never accepted from request JSON.
+The former service-role-only `resolve-paystack-payout-attention` manual recovery endpoint is retired (HTTP 410); there is no supported unaudited recovery route. The M17 operator panel is authenticated with the administrator's user JWT. The Edge Function verifies the token, calls `is_platform_admin()` through the user-scoped client, and rate-limits each operator before it uses the service credential. The operator ID is derived from the verified JWT; it is never accepted from request JSON.
 
-Every provider lookup is recorded in `seller_payout_operator_audit` with the transfer and transaction IDs, operator ID, action, before/after status, HTTP result, provider status, timestamp, audit note and optional support ticket. The table is append-only and inaccessible to direct client writes. The admin snapshot exposes a bounded read-only view of the recent audit trail.
+Every operator-initiated provider lookup is recorded in `seller_payout_operator_audit` with the transfer and transaction IDs, operator ID, action, before/after status, HTTP result, provider status, timestamp, audit note and optional support ticket. The table is append-only and inaccessible to direct client writes. The admin snapshot exposes a bounded read-only view of the recent audit trail. Scheduled provider lookups update the transfer's reconciliation timestamp and provider state; they are not misrepresented as human operator actions.
 
 A provider 404 during ordinary reconciliation is recorded as `provider_not_found` and changes no payout state. The separate `confirm_not_created` action requires an explicit dashboard confirmation, repeats the provider lookup, and delegates to the existing database guardrails (30-minute age, no provider identifiers, no competing active transfer, no refund/dispute conflict and retry cap). The audit insert and state transition commit atomically. Neither action can create or submit a transfer.

@@ -51,6 +51,7 @@ assert.ok(worker.includes('orphan_discovered'))
 assert.ok(worker.includes('orphan_deleted'))
 assert.ok(worker.includes('failed === 0 ? 200 : 207'))
 assert.ok(validationWorkflow.includes('feat/campus-membership-evidence-review'), 'Evidence-retention follow-ups must run full Supabase migration, pgTAP and Edge validation')
+assert.ok(validationWorkflow.includes('supabase test db'), 'Full Supabase validation must execute pgTAP behavior tests')
 
 for (const invariant of [
   'campus_verification_evidence_orphan_jobs',
